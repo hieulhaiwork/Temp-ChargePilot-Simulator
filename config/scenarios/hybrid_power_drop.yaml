@@ -1,0 +1,19 @@
+# Kịch bản AC5 trên bãi hybrid `mvp1` (ADR-010): nguồn giảm 106 → 40 kW lúc 19:00, phục hồi lúc 21:00;
+# cổng DC-01-2 lỗi lúc 20:00, phục hồi lúc 22:00 (FR18).
+# Kỳ vọng (AC5): bảo vệ khẩn cấp hạ công suất NGAY (độc lập AI), 0 lần vượt giới hạn mới, rồi mới tính lại lịch.
+# Các mức là tham số ví dụ [GIẢ ĐỊNH]. at_minute tính từ start_time: 12:00 + 420 = 19:00.
+
+scenario_id: hybrid_power_drop
+name: "Nguồn giảm 106 → 40 kW + DC-01-2 lỗi (AC5, FR18)"
+description: "Như hybrid_evening, thêm sự cố nguồn 19:00–21:00 và lỗi cổng DC-01-2 20:00–22:00."
+start_time: "12:00"
+duration_hours: 24
+n_vehicles: 16
+power_limit_kw: 106.0
+session_source: synthetic
+seed: 42
+incidents:
+  - { at_minute: 420, type: power_limit_change, new_power_limit_kw: 40.0 }
+  - { at_minute: 480, type: connector_fault, connector_id: DC-01-2 }
+  - { at_minute: 540, type: power_limit_change, new_power_limit_kw: 106.0 }
+  - { at_minute: 600, type: connector_restored, connector_id: DC-01-2 }

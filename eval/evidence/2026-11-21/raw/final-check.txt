@@ -1,0 +1,6 @@
+# cmd: ruff check + ruff format --check + pytest tests/ + scripts/check_docs.py | branch feature/research-sc16-alignment @ 8f6f08a + working tree chưa commit | Python 3.12.10
+All checks passed!
+129 files already formatted
+261 passed, 94 skipped in 9.69s
+Checked 50 md files, 131 internal links.
+✅ doc-check PASS — links, models, template paths đều khớp.

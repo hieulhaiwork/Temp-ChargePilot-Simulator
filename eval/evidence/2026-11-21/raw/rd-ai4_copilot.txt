@@ -1,0 +1,58 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m experimental.ai4_copilot.evaluate | commit 1736d41 | start UTC 2026-11-20T18:54:00Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+{
+ "why_checks": {
+  "site_claim_correct": {
+   "n": 38,
+   "rate": 1.0
+  },
+  "queue_claim_correct": {
+   "n": 57,
+   "rate": 1.0
+  },
+  "outage_claim_correct": {
+   "n": 55,
+   "rate": 1.0
+  },
+  "grounded": {
+   "n": 57,
+   "rate": 1.0
+  },
+  "actual_kw_correct": {
+   "n": 57,
+   "rate": 1.0
+  }
+ },
+ "why_ms_p50": 0.27,
+ "tool_calls": {
+  "what_if": {
+   "n": 40,
+   "ok_rate": 1.0,
+   "statuses": [
+    "ok"
+   ],
+   "ms_p50": 1000.2
+  },
+  "why": {
+   "n": 10,
+   "ok_rate": 1.0,
+   "statuses": [
+    "ok"
+   ],
+   "ms_p50": 0.4
+  },
+  "how_to": {
+   "n": 10,
+   "ok_rate": 1.0,
+   "statuses": [
+    "ok"
+   ],
+   "ms_p50": 512.35
+  }
+ },
+ "baselines": {
+  "templated_dashboard": "same deterministic facts without causal sentences (equivalent data; no NL)",
+  "llm_without_tools": "BLOCKED: no LLM key authorised",
+  "copilot_with_llm": "BLOCKED: no LLM key authorised; rule_parser + templates evaluated"
+ }
+}
+# exit code: 0 | wall 123 s

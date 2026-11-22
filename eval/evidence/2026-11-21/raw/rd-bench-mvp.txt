@@ -1,0 +1,278 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m experimental.bench.mvp_benchmark --suite mvp --seeds 0 1 2 3 4 | commit 1736d41 | start UTC 2026-11-20T18:42:32Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+evening_mixed s0 B0_fcfs_equal_fixed: 12/18 ok
+evening_mixed s0 M2a_dc_edf: 12/18 ok
+evening_mixed s0 M2b_dc_llf: 14/18 ok
+evening_mixed s0 M2c_dc_lp: 13/18 ok
+evening_mixed s0 M2d_dc_llf_lp: 15/18 ok
+evening_mixed s0 M3a_both_lp_fixed: 15/18 ok
+evening_mixed s0 M3b_both_lp_dynslack: 16/18 ok
+evening_mixed s0 M3c_both_lp_jointlp: 15/18 ok
+evening_mixed s0 M3d_equal_dynslack: 14/18 ok
+evening_mixed s1 B0_fcfs_equal_fixed: 15/18 ok
+evening_mixed s1 M2a_dc_edf: 16/18 ok
+evening_mixed s1 M2b_dc_llf: 16/18 ok
+evening_mixed s1 M2c_dc_lp: 16/18 ok
+evening_mixed s1 M2d_dc_llf_lp: 16/18 ok
+evening_mixed s1 M3a_both_lp_fixed: 16/18 ok
+evening_mixed s1 M3b_both_lp_dynslack: 17/18 ok
+evening_mixed s1 M3c_both_lp_jointlp: 17/18 ok
+evening_mixed s1 M3d_equal_dynslack: 16/18 ok
+evening_mixed s2 B0_fcfs_equal_fixed: 18/18 ok
+evening_mixed s2 M2a_dc_edf: 18/18 ok
+evening_mixed s2 M2b_dc_llf: 18/18 ok
+evening_mixed s2 M2c_dc_lp: 18/18 ok
+evening_mixed s2 M2d_dc_llf_lp: 18/18 ok
+evening_mixed s2 M3a_both_lp_fixed: 18/18 ok
+evening_mixed s2 M3b_both_lp_dynslack: 18/18 ok
+evening_mixed s2 M3c_both_lp_jointlp: 18/18 ok
+evening_mixed s2 M3d_equal_dynslack: 18/18 ok
+evening_mixed s3 B0_fcfs_equal_fixed: 16/18 ok
+evening_mixed s3 M2a_dc_edf: 16/18 ok
+evening_mixed s3 M2b_dc_llf: 16/18 ok
+evening_mixed s3 M2c_dc_lp: 16/18 ok
+evening_mixed s3 M2d_dc_llf_lp: 16/18 ok
+evening_mixed s3 M3a_both_lp_fixed: 16/18 ok
+evening_mixed s3 M3b_both_lp_dynslack: 16/18 ok
+evening_mixed s3 M3c_both_lp_jointlp: 15/18 ok
+evening_mixed s3 M3d_equal_dynslack: 16/18 ok
+evening_mixed s4 B0_fcfs_equal_fixed: 17/18 ok
+evening_mixed s4 M2a_dc_edf: 17/18 ok
+evening_mixed s4 M2b_dc_llf: 17/18 ok
+evening_mixed s4 M2c_dc_lp: 18/18 ok
+evening_mixed s4 M2d_dc_llf_lp: 18/18 ok
+evening_mixed s4 M3a_both_lp_fixed: 18/18 ok
+evening_mixed s4 M3b_both_lp_dynslack: 18/18 ok
+evening_mixed s4 M3c_both_lp_jointlp: 18/18 ok
+evening_mixed s4 M3d_equal_dynslack: 18/18 ok
+dc_queue_pressure s0 B0_fcfs_equal_fixed: 14/18 ok
+dc_queue_pressure s0 M2a_dc_edf: 12/18 ok
+dc_queue_pressure s0 M2b_dc_llf: 14/18 ok
+dc_queue_pressure s0 M2c_dc_lp: 14/18 ok
+dc_queue_pressure s0 M2d_dc_llf_lp: 15/18 ok
+dc_queue_pressure s0 M3a_both_lp_fixed: 15/18 ok
+dc_queue_pressure s0 M3b_both_lp_dynslack: 15/18 ok
+dc_queue_pressure s0 M3c_both_lp_jointlp: 16/18 ok
+dc_queue_pressure s0 M3d_equal_dynslack: 14/18 ok
+dc_queue_pressure s1 B0_fcfs_equal_fixed: 12/18 ok
+dc_queue_pressure s1 M2a_dc_edf: 11/18 ok
+dc_queue_pressure s1 M2b_dc_llf: 13/18 ok
+dc_queue_pressure s1 M2c_dc_lp: 13/18 ok
+dc_queue_pressure s1 M2d_dc_llf_lp: 14/18 ok
+dc_queue_pressure s1 M3a_both_lp_fixed: 14/18 ok
+dc_queue_pressure s1 M3b_both_lp_dynslack: 13/18 ok
+dc_queue_pressure s1 M3c_both_lp_jointlp: 14/18 ok
+dc_queue_pressure s1 M3d_equal_dynslack: 12/18 ok
+dc_queue_pressure s2 B0_fcfs_equal_fixed: 12/18 ok
+dc_queue_pressure s2 M2a_dc_edf: 11/18 ok
+dc_queue_pressure s2 M2b_dc_llf: 11/18 ok
+dc_queue_pressure s2 M2c_dc_lp: 12/18 ok
+dc_queue_pressure s2 M2d_dc_llf_lp: 13/18 ok
+dc_queue_pressure s2 M3a_both_lp_fixed: 13/18 ok
+dc_queue_pressure s2 M3b_both_lp_dynslack: 12/18 ok
+dc_queue_pressure s2 M3c_both_lp_jointlp: 11/18 ok
+dc_queue_pressure s2 M3d_equal_dynslack: 13/18 ok
+dc_queue_pressure s3 B0_fcfs_equal_fixed: 10/18 ok
+dc_queue_pressure s3 M2a_dc_edf: 12/18 ok
+dc_queue_pressure s3 M2b_dc_llf: 11/18 ok
+dc_queue_pressure s3 M2c_dc_lp: 11/18 ok
+dc_queue_pressure s3 M2d_dc_llf_lp: 11/18 ok
+dc_queue_pressure s3 M3a_both_lp_fixed: 11/18 ok
+dc_queue_pressure s3 M3b_both_lp_dynslack: 11/18 ok
+dc_queue_pressure s3 M3c_both_lp_jointlp: 11/18 ok
+dc_queue_pressure s3 M3d_equal_dynslack: 11/18 ok
+dc_queue_pressure s4 B0_fcfs_equal_fixed: 12/18 ok
+dc_queue_pressure s4 M2a_dc_edf: 11/18 ok
+dc_queue_pressure s4 M2b_dc_llf: 14/18 ok
+dc_queue_pressure s4 M2c_dc_lp: 13/18 ok
+dc_queue_pressure s4 M2d_dc_llf_lp: 14/18 ok
+dc_queue_pressure s4 M3a_both_lp_fixed: 14/18 ok
+dc_queue_pressure s4 M3b_both_lp_dynslack: 13/18 ok
+dc_queue_pressure s4 M3c_both_lp_jointlp: 13/18 ok
+dc_queue_pressure s4 M3d_equal_dynslack: 13/18 ok
+site_drop s0 B0_fcfs_equal_fixed: 13/18 ok
+site_drop s0 M2a_dc_edf: 13/18 ok
+site_drop s0 M2b_dc_llf: 13/18 ok
+site_drop s0 M2c_dc_lp: 15/18 ok
+site_drop s0 M2d_dc_llf_lp: 15/18 ok
+site_drop s0 M3a_both_lp_fixed: 15/18 ok
+site_drop s0 M3b_both_lp_dynslack: 16/18 ok
+site_drop s0 M3c_both_lp_jointlp: 16/18 ok
+site_drop s0 M3d_equal_dynslack: 16/18 ok
+site_drop s1 B0_fcfs_equal_fixed: 16/18 ok
+site_drop s1 M2a_dc_edf: 16/18 ok
+site_drop s1 M2b_dc_llf: 16/18 ok
+site_drop s1 M2c_dc_lp: 16/18 ok
+site_drop s1 M2d_dc_llf_lp: 16/18 ok
+site_drop s1 M3a_both_lp_fixed: 16/18 ok
+site_drop s1 M3b_both_lp_dynslack: 16/18 ok
+site_drop s1 M3c_both_lp_jointlp: 16/18 ok
+site_drop s1 M3d_equal_dynslack: 16/18 ok
+site_drop s2 B0_fcfs_equal_fixed: 14/18 ok
+site_drop s2 M2a_dc_edf: 14/18 ok
+site_drop s2 M2b_dc_llf: 14/18 ok
+site_drop s2 M2c_dc_lp: 15/18 ok
+site_drop s2 M2d_dc_llf_lp: 16/18 ok
+site_drop s2 M3a_both_lp_fixed: 16/18 ok
+site_drop s2 M3b_both_lp_dynslack: 16/18 ok
+site_drop s2 M3c_both_lp_jointlp: 17/18 ok
+site_drop s2 M3d_equal_dynslack: 14/18 ok
+site_drop s3 B0_fcfs_equal_fixed: 12/18 ok
+site_drop s3 M2a_dc_edf: 13/18 ok
+site_drop s3 M2b_dc_llf: 12/18 ok
+site_drop s3 M2c_dc_lp: 15/18 ok
+site_drop s3 M2d_dc_llf_lp: 15/18 ok
+site_drop s3 M3a_both_lp_fixed: 15/18 ok
+site_drop s3 M3b_both_lp_dynslack: 16/18 ok
+site_drop s3 M3c_both_lp_jointlp: 17/18 ok
+site_drop s3 M3d_equal_dynslack: 15/18 ok
+site_drop s4 B0_fcfs_equal_fixed: 14/18 ok
+site_drop s4 M2a_dc_edf: 14/18 ok
+site_drop s4 M2b_dc_llf: 15/18 ok
+site_drop s4 M2c_dc_lp: 14/18 ok
+site_drop s4 M2d_dc_llf_lp: 16/18 ok
+site_drop s4 M3a_both_lp_fixed: 16/18 ok
+site_drop s4 M3b_both_lp_dynslack: 16/18 ok
+site_drop s4 M3c_both_lp_jointlp: 17/18 ok
+site_drop s4 M3d_equal_dynslack: 14/18 ok
+dc_outage s0 B0_fcfs_equal_fixed: 21/22 ok
+dc_outage s0 M2a_dc_edf: 21/22 ok
+dc_outage s0 M2b_dc_llf: 21/22 ok
+dc_outage s0 M2c_dc_lp: 21/22 ok
+dc_outage s0 M2d_dc_llf_lp: 21/22 ok
+dc_outage s0 M3a_both_lp_fixed: 21/22 ok
+dc_outage s0 M3b_both_lp_dynslack: 21/22 ok
+dc_outage s0 M3c_both_lp_jointlp: 21/22 ok
+dc_outage s0 M3d_equal_dynslack: 21/22 ok
+dc_outage s1 B0_fcfs_equal_fixed: 20/22 ok
+dc_outage s1 M2a_dc_edf: 20/22 ok
+dc_outage s1 M2b_dc_llf: 20/22 ok
+dc_outage s1 M2c_dc_lp: 21/22 ok
+dc_outage s1 M2d_dc_llf_lp: 21/22 ok
+dc_outage s1 M3a_both_lp_fixed: 21/22 ok
+dc_outage s1 M3b_both_lp_dynslack: 21/22 ok
+dc_outage s1 M3c_both_lp_jointlp: 21/22 ok
+dc_outage s1 M3d_equal_dynslack: 21/22 ok
+dc_outage s2 B0_fcfs_equal_fixed: 21/22 ok
+dc_outage s2 M2a_dc_edf: 21/22 ok
+dc_outage s2 M2b_dc_llf: 21/22 ok
+dc_outage s2 M2c_dc_lp: 21/22 ok
+dc_outage s2 M2d_dc_llf_lp: 21/22 ok
+dc_outage s2 M3a_both_lp_fixed: 21/22 ok
+dc_outage s2 M3b_both_lp_dynslack: 21/22 ok
+dc_outage s2 M3c_both_lp_jointlp: 21/22 ok
+dc_outage s2 M3d_equal_dynslack: 21/22 ok
+dc_outage s3 B0_fcfs_equal_fixed: 20/22 ok
+dc_outage s3 M2a_dc_edf: 20/22 ok
+dc_outage s3 M2b_dc_llf: 20/22 ok
+dc_outage s3 M2c_dc_lp: 20/22 ok
+dc_outage s3 M2d_dc_llf_lp: 20/22 ok
+dc_outage s3 M3a_both_lp_fixed: 20/22 ok
+dc_outage s3 M3b_both_lp_dynslack: 20/22 ok
+dc_outage s3 M3c_both_lp_jointlp: 20/22 ok
+dc_outage s3 M3d_equal_dynslack: 20/22 ok
+dc_outage s4 B0_fcfs_equal_fixed: 19/22 ok
+dc_outage s4 M2a_dc_edf: 19/22 ok
+dc_outage s4 M2b_dc_llf: 19/22 ok
+dc_outage s4 M2c_dc_lp: 19/22 ok
+dc_outage s4 M2d_dc_llf_lp: 19/22 ok
+dc_outage s4 M3a_both_lp_fixed: 19/22 ok
+dc_outage s4 M3b_both_lp_dynslack: 19/22 ok
+dc_outage s4 M3c_both_lp_jointlp: 19/22 ok
+dc_outage s4 M3d_equal_dynslack: 19/22 ok
+independent_supply s0 B0_fcfs_equal_fixed: 16/18 ok
+independent_supply s0 M2a_dc_edf: 16/18 ok
+independent_supply s0 M2b_dc_llf: 16/18 ok
+independent_supply s0 M2c_dc_lp: 16/18 ok
+independent_supply s0 M2d_dc_llf_lp: 16/18 ok
+independent_supply s0 M3a_both_lp_fixed: 16/18 ok
+independent_supply s0 M3b_both_lp_dynslack: 16/18 ok
+independent_supply s0 M3c_both_lp_jointlp: 16/18 ok
+independent_supply s0 M3d_equal_dynslack: 16/18 ok
+independent_supply s1 B0_fcfs_equal_fixed: 15/18 ok
+independent_supply s1 M2a_dc_edf: 16/18 ok
+independent_supply s1 M2b_dc_llf: 15/18 ok
+independent_supply s1 M2c_dc_lp: 15/18 ok
+independent_supply s1 M2d_dc_llf_lp: 16/18 ok
+independent_supply s1 M3a_both_lp_fixed: 16/18 ok
+independent_supply s1 M3b_both_lp_dynslack: 16/18 ok
+independent_supply s1 M3c_both_lp_jointlp: 16/18 ok
+independent_supply s1 M3d_equal_dynslack: 15/18 ok
+independent_supply s2 B0_fcfs_equal_fixed: 14/18 ok
+independent_supply s2 M2a_dc_edf: 15/18 ok
+independent_supply s2 M2b_dc_llf: 14/18 ok
+independent_supply s2 M2c_dc_lp: 15/18 ok
+independent_supply s2 M2d_dc_llf_lp: 15/18 ok
+independent_supply s2 M3a_both_lp_fixed: 15/18 ok
+independent_supply s2 M3b_both_lp_dynslack: 15/18 ok
+independent_supply s2 M3c_both_lp_jointlp: 15/18 ok
+independent_supply s2 M3d_equal_dynslack: 14/18 ok
+independent_supply s3 B0_fcfs_equal_fixed: 16/18 ok
+independent_supply s3 M2a_dc_edf: 16/18 ok
+independent_supply s3 M2b_dc_llf: 16/18 ok
+independent_supply s3 M2c_dc_lp: 16/18 ok
+independent_supply s3 M2d_dc_llf_lp: 16/18 ok
+independent_supply s3 M3a_both_lp_fixed: 16/18 ok
+independent_supply s3 M3b_both_lp_dynslack: 16/18 ok
+independent_supply s3 M3c_both_lp_jointlp: 16/18 ok
+independent_supply s3 M3d_equal_dynslack: 16/18 ok
+independent_supply s4 B0_fcfs_equal_fixed: 16/18 ok
+independent_supply s4 M2a_dc_edf: 15/18 ok
+independent_supply s4 M2b_dc_llf: 15/18 ok
+independent_supply s4 M2c_dc_lp: 16/18 ok
+independent_supply s4 M2d_dc_llf_lp: 16/18 ok
+independent_supply s4 M3a_both_lp_fixed: 16/18 ok
+independent_supply s4 M3b_both_lp_dynslack: 16/18 ok
+independent_supply s4 M3c_both_lp_jointlp: 16/18 ok
+independent_supply s4 M3d_equal_dynslack: 16/18 ok
+
+Raw: D:\VIN\simulation\experimental\outputs\bench\mvp-20261120T184447Z.json
+Meta: {"git_commit": "1736d41", "platform": "Windows-11-10.0.26300-SP0", "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD", "python": "3.12.10", "suite": "mvp", "seeds": [0, 1, 2, 3, 4], "utc": "20261120T184447Z"}
+
+| family | policy | n | on_time | sla_rate | shortfall_kwh | wait_mean_started | wait_p95_started | tou_cost | jain_fulfilment | peak_grid_kw | decision_ms_p95 | violations |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| evening_mixed | B0_fcfs_equal_fixed | 5 | 15.6 [12–18] | 0.8667 [0.6667–1] | 28.21 [0–81.04] | 36.34 [25.22–48] | 269.6 [162–381] | 1.351e+06 [1.266e+06–1.439e+06] | 0.9698 [0.9279–1] | 149.5 [136–155.2] | 0.219 [0.165–0.273] | 0 [0–0] |
+| evening_mixed | M2a_dc_edf | 5 | 15.8 [12–18] | 0.8778 [0.6667–1] | 25.99 [0–81.04] | 36.77 [24.67–50.89] | 269.6 [162–381] | 1.36e+06 [1.272e+06–1.438e+06] | 0.9771 [0.9279–1] | 149.5 [136–155.2] | 0.238 [0.175–0.316] | 0 [0–0] |
+| evening_mixed | M2b_dc_llf | 5 | 16.2 [14–18] | 0.9 [0.7778–1] | 27.98 [0–90.98] | 36.08 [24.67–52.28] | 269.6 [162–381] | 1.357e+06 [1.272e+06–1.438e+06] | 0.9599 [0.842–1] | 147.2 [136–155.2] | 0.2546 [0.194–0.386] | 0 [0–0] |
+| evening_mixed | M2c_dc_lp | 5 | 16.2 [13–18] | 0.9 [0.7222–1] | 24.94 [0–74.48] | 36.26 [25.33–47.94] | 269.6 [162–381] | 1.361e+06 [1.266e+06–1.452e+06] | 0.9739 [0.9334–1] | 149 [136–155.2] | 4.934 [3.354–6.638] | 0 [0–0] |
+| evening_mixed | M2d_dc_llf_lp | 5 | 16.6 [15–18] | 0.9222 [0.8333–1] | 26.44 [0–88.01] | 36.25 [25.22–52.78] | 269.6 [162–381] | 1.363e+06 [1.273e+06–1.457e+06] | 0.961 [0.8422–1] | 147.5 [136–155.2] | 4.848 [2.662–6.959] | 0 [0–0] |
+| evening_mixed | M3a_both_lp_fixed | 5 | 16.6 [15–18] | 0.9222 [0.8333–1] | 26.44 [0–88.01] | 36.25 [25.22–52.78] | 269.6 [162–381] | 1.151e+06 [1.078e+06–1.212e+06] | 0.961 [0.8422–1] | 118.9 [108.8–128.2] | 12.3 [8.164–15.94] | 0 [0–0] |
+| evening_mixed | M3b_both_lp_dynslack | 5 | 17 [16–18] | 0.9444 [0.8889–1] | 20.72 [0–73.07] | 35.61 [25.22–49.61] | 269.6 [162–381] | 1.17e+06 [1.079e+06–1.258e+06] | 0.9744 [0.8978–1] | 127.7 [121.7–134.9] | 11.49 [6.233–14] | 0 [0–0] |
+| evening_mixed | M3c_both_lp_jointlp | 5 | 16.6 [15–18] | 0.9222 [0.8333–1] | 23.44 [0–76.41] | 35.14 [22.83–49.61] | 269.6 [162–381] | 1.173e+06 [1.098e+06–1.247e+06] | 0.9737 [0.8973–1] | 137.6 [127.4–153.5] | 40.56 [30.51–67.58] | 0 [0–0] |
+| evening_mixed | M3d_equal_dynslack | 5 | 16.4 [14–18] | 0.9111 [0.7778–1] | 20.51 [0–58.19] | 35.2 [23.78–45.67] | 269.6 [162–381] | 1.385e+06 [1.279e+06–1.455e+06] | 0.9799 [0.9439–1] | 156.6 [156.6–156.6] | 0.262 [0.18–0.334] | 0 [0–0] |
+| dc_queue_pressure | B0_fcfs_equal_fixed | 5 | 12 [10–14] | 0.6667 [0.5556–0.7778] | 139.2 [90.08–183.5] | 21.52 [17.06–26.69] | 56.2 [43–75] | 1.286e+06 [1.077e+06–1.374e+06] | 0.806 [0.7637–0.8854] | 137.2 [136–138.1] | 0.164 [0.12–0.21] | 0 [0–0] |
+| dc_queue_pressure | M2a_dc_edf | 5 | 11.4 [11–12] | 0.6333 [0.6111–0.6667] | 112 [55.69–168.5] | 27.86 [22.61–33.78] | 80.2 [70–95] | 1.356e+06 [1.122e+06–1.472e+06] | 0.8911 [0.8141–0.9789] | 137.3 [136–138.1] | 0.1554 [0.131–0.191] | 0 [0–0] |
+| dc_queue_pressure | M2b_dc_llf | 5 | 12.6 [11–14] | 0.7 [0.6111–0.7778] | 136.1 [90.67–183.8] | 18.16 [12.57–24.43] | 65.8 [49–94] | 1.293e+06 [1.089e+06–1.386e+06] | 0.7843 [0.7264–0.8694] | 137.3 [136–138.1] | 0.175 [0.129–0.225] | 0 [0–0] |
+| dc_queue_pressure | M2c_dc_lp | 5 | 12.6 [11–14] | 0.7 [0.6111–0.7778] | 137.5 [87.1–184.7] | 22.03 [16.87–26.62] | 56.2 [42–73] | 1.29e+06 [1.079e+06–1.379e+06] | 0.8035 [0.7589–0.8909] | 137.3 [136–138.1] | 4.643 [3–5.576] | 0 [0–0] |
+| dc_queue_pressure | M2d_dc_llf_lp | 5 | 13.4 [11–15] | 0.7444 [0.6111–0.8333] | 135.3 [84.36–195.1] | 17.07 [13.29–22.43] | 65.8 [50–94] | 1.293e+06 [1.086e+06–1.394e+06] | 0.7891 [0.7272–0.8889] | 137.3 [136–138.1] | 4.361 [2.903–5.883] | 0 [0–0] |
+| dc_queue_pressure | M3a_both_lp_fixed | 5 | 13.4 [11–15] | 0.7444 [0.6111–0.8333] | 135.3 [84.36–195.1] | 17.07 [13.29–22.43] | 65.8 [50–94] | 1.17e+06 [9.938e+05–1.244e+06] | 0.7891 [0.7272–0.8889] | 118.1 [101.1–128.2] | 8.833 [6.141–11.31] | 0 [0–0] |
+| dc_queue_pressure | M3b_both_lp_dynslack | 5 | 12.8 [11–15] | 0.7111 [0.6111–0.8333] | 132.7 [84.84–179.9] | 13.53 [7.77–21.57] | 53.8 [30–93] | 1.194e+06 [1.057e+06–1.267e+06] | 0.7785 [0.7222–0.8889] | 130.6 [115.8–138.1] | 8.845 [7.33–10.65] | 0 [0–0] |
+| dc_queue_pressure | M3c_both_lp_jointlp | 5 | 13 [11–16] | 0.7222 [0.6111–0.8889] | 126.1 [84.17–179] | 14.82 [10.14–26.73] | 57.4 [35–96] | 1.23e+06 [1.063e+06–1.283e+06] | 0.793 [0.747–0.8889] | 134.1 [126.3–138.1] | 22.12 [15.44–26.02] | 0 [0–0] |
+| dc_queue_pressure | M3d_equal_dynslack | 5 | 12.6 [11–14] | 0.7 [0.6111–0.7778] | 120.3 [70.9–162.1] | 19.25 [16.06–24.18] | 51.2 [41–67] | 1.357e+06 [1.137e+06–1.437e+06] | 0.8379 [0.7823–0.9107] | 138.1 [138.1–138.1] | 0.1852 [0.132–0.244] | 0 [0–0] |
+| site_drop | B0_fcfs_equal_fixed | 5 | 13.8 [12–16] | 0.7667 [0.6667–0.8889] | 34.49 [11.05–48.03] | 29.93 [7.06–42.33] | 213 [27–311] | 1.247e+06 [1.121e+06–1.427e+06] | 0.9549 [0.8858–0.996] | 113.1 [104.4–128.2] | 0.1802 [0.13–0.249] | 0 [0–0] |
+| site_drop | M2a_dc_edf | 5 | 14 [13–16] | 0.7778 [0.7222–0.8889] | 32.93 [11.05–48.03] | 30.22 [7.06–43.28] | 213 [27–311] | 1.248e+06 [1.128e+06–1.426e+06] | 0.9561 [0.8858–0.996] | 113.1 [104.4–128.2] | 0.1804 [0.128–0.242] | 0 [0–0] |
+| site_drop | M2b_dc_llf | 5 | 14 [12–16] | 0.7778 [0.6667–0.8889] | 35.18 [11.05–51.56] | 29.53 [7.06–43.28] | 213 [27–311] | 1.244e+06 [1.119e+06–1.426e+06] | 0.9452 [0.8858–0.996] | 113.1 [104.4–128.2] | 0.1652 [0.131–0.269] | 0 [0–0] |
+| site_drop | M2c_dc_lp | 5 | 15 [14–16] | 0.8333 [0.7778–0.8889] | 29.65 [11.05–40.02] | 30.53 [6.25–44.39] | 213 [27–311] | 1.256e+06 [1.114e+06–1.43e+06] | 0.9558 [0.8888–0.996] | 113.1 [104.4–128.2] | 3.394 [2.479–4.8] | 0 [0–0] |
+| site_drop | M2d_dc_llf_lp | 5 | 15.6 [15–16] | 0.8667 [0.8333–0.8889] | 32.27 [11.05–45.97] | 29.43 [6.25–44.39] | 213 [27–311] | 1.251e+06 [1.112e+06–1.43e+06] | 0.9344 [0.8888–0.996] | 113.1 [104.4–128.2] | 3.784 [2.778–4.424] | 0 [0–0] |
+| site_drop | M3a_both_lp_fixed | 5 | 15.6 [15–16] | 0.8667 [0.8333–0.8889] | 32.19 [10.62–45.97] | 29.43 [6.25–44.39] | 213 [27–311] | 1.043e+06 [9.759e+05–1.2e+06] | 0.9345 [0.8888–0.9961] | 99.76 [86.19–106.9] | 11.4 [7.934–17.82] | 0 [0–0] |
+| site_drop | M3b_both_lp_dynslack | 5 | 16 [16–16] | 0.8889 [0.8889–0.8889] | 29.26 [10.62–45.97] | 29.08 [4.81–43.67] | 213 [27–311] | 1.058e+06 [9.807e+05–1.236e+06] | 0.9389 [0.8889–0.9961] | 114.4 [104.4–132.2] | 10.8 [9.698–13.45] | 0 [0–0] |
+| site_drop | M3c_both_lp_jointlp | 5 | 16.6 [16–17] | 0.9222 [0.8889–0.9444] | 16.21 [3.984–36.79] | 25.11 [2.12–36.39] | 211.6 [20–311] | 1.128e+06 [9.964e+05–1.352e+06] | 0.9636 [0.8889–0.9993] | 113.2 [104.4–126.3] | 34.67 [17.97–48.41] | 0 [0–0] |
+| site_drop | M3d_equal_dynslack | 5 | 15 [14–16] | 0.8333 [0.7778–0.8889] | 18.12 [8.293–36.79] | 28.28 [3.06–40.28] | 213 [27–311] | 1.285e+06 [1.16e+06–1.488e+06] | 0.9643 [0.8889–0.9984] | 120.1 [104.4–149.5] | 0.2176 [0.158–0.284] | 0 [0–0] |
+| dc_outage | B0_fcfs_equal_fixed | 5 | 20.2 [19–21] | 0.9182 [0.8636–0.9545] | 19.93 [6.079–39.82] | 25.19 [18.95–36.64] | 218.4 [104–367] | 1.785e+06 [1.699e+06–1.882e+06] | 0.9823 [0.9648–0.9991] | 244.3 [239–256.2] | 0.2088 [0.132–0.306] | 0 [0–0] |
+| dc_outage | M2a_dc_edf | 5 | 20.2 [19–21] | 0.9182 [0.8636–0.9545] | 16.42 [6.079–30.96] | 25.12 [18.59–36.64] | 218.4 [104–367] | 1.798e+06 [1.699e+06–1.95e+06] | 0.9879 [0.9711–0.9991] | 244.7 [240.8–256.2] | 0.225 [0.138–0.341] | 0 [0–0] |
+| dc_outage | M2b_dc_llf | 5 | 20.2 [19–21] | 0.9182 [0.8636–0.9545] | 19.93 [6.079–39.82] | 25.12 [18.59–36.64] | 218.4 [104–367] | 1.785e+06 [1.699e+06–1.882e+06] | 0.9823 [0.9648–0.9991] | 244.3 [239–256.2] | 0.1906 [0.132–0.302] | 0 [0–0] |
+| dc_outage | M2c_dc_lp | 5 | 20.4 [19–21] | 0.9272 [0.8636–0.9545] | 18.8 [2.355–39.82] | 25.4 [19.32–36.68] | 218.4 [104–367] | 1.787e+06 [1.701e+06–1.882e+06] | 0.9825 [0.9648–0.9999] | 244.3 [238.9–256.2] | 4.855 [3.559–8.184] | 0 [0–0] |
+| dc_outage | M2d_dc_llf_lp | 5 | 20.4 [19–21] | 0.9272 [0.8636–0.9545] | 18.8 [2.355–39.82] | 25.35 [19.05–36.68] | 218.4 [104–367] | 1.787e+06 [1.701e+06–1.882e+06] | 0.9825 [0.9648–0.9999] | 244.3 [238.9–256.2] | 5.837 [4.209–6.802] | 0 [0–0] |
+| dc_outage | M3a_both_lp_fixed | 5 | 20.4 [19–21] | 0.9272 [0.8636–0.9545] | 18.8 [2.355–39.82] | 25.35 [19.05–36.68] | 218.4 [104–367] | 1.56e+06 [1.494e+06–1.662e+06] | 0.9825 [0.9648–0.9999] | 214.5 [209.9–221.5] | 12.89 [9.274–15.94] | 0 [0–0] |
+| dc_outage | M3b_both_lp_dynslack | 5 | 20.4 [19–21] | 0.9272 [0.8636–0.9545] | 18.8 [2.355–39.82] | 25.13 [18.05–36.68] | 218.4 [104–367] | 1.567e+06 [1.494e+06–1.662e+06] | 0.9825 [0.9648–0.9999] | 226.9 [212.5–237.5] | 12.06 [9.074–19.1] | 0 [0–0] |
+| dc_outage | M3c_both_lp_jointlp | 5 | 20.4 [19–21] | 0.9272 [0.8636–0.9545] | 22.37 [2.355–57.69] | 24.84 [18.05–36.23] | 218.4 [104–367] | 1.571e+06 [1.517e+06–1.632e+06] | 0.9802 [0.953–0.9999] | 249 [239.4–257.7] | 42.27 [20.76–53.88] | 0 [0–0] |
+| dc_outage | M3d_equal_dynslack | 5 | 20.4 [19–21] | 0.9272 [0.8636–0.9545] | 19.12 [3.943–39.82] | 24.89 [18.14–36.41] | 218.4 [104–367] | 1.796e+06 [1.74e+06–1.882e+06] | 0.9825 [0.9648–0.9996] | 257.7 [257.7–257.7] | 0.2696 [0.206–0.34] | 0 [0–0] |
+| independent_supply | B0_fcfs_equal_fixed | 5 | 15.4 [14–16] | 0.8556 [0.7778–0.8889] | 38.64 [6.668–61.28] | 29.83 [23.33–39.17] | 213.4 [171–269] | 1.332e+06 [1.303e+06–1.371e+06] | 0.9391 [0.8797–0.9966] | 153.7 [147.4–156.6] | 0.1822 [0.147–0.213] | 0 [0–0] |
+| independent_supply | M2a_dc_edf | 5 | 15.6 [15–16] | 0.8667 [0.8333–0.8889] | 22.25 [6.668–51.36] | 31.77 [23.33–41.83] | 213.4 [171–269] | 1.372e+06 [1.294e+06–1.467e+06] | 0.9757 [0.936–0.9966] | 153.7 [147.4–156.6] | 0.2226 [0.185–0.32] | 0 [0–0] |
+| independent_supply | M2b_dc_llf | 5 | 15.2 [14–16] | 0.8444 [0.7778–0.8889] | 28.28 [6.668–52.94] | 29.77 [23.33–34.94] | 213.4 [171–269] | 1.357e+06 [1.294e+06–1.393e+06] | 0.9493 [0.8865–0.9966] | 153.7 [147.4–156.6] | 0.2124 [0.143–0.32] | 0 [0–0] |
+| independent_supply | M2c_dc_lp | 5 | 15.6 [15–16] | 0.8667 [0.8333–0.8889] | 37.19 [6.668–57.2] | 29.74 [23.06–40.11] | 213.4 [171–269] | 1.332e+06 [1.285e+06–1.371e+06] | 0.9411 [0.8858–0.9966] | 153.7 [147.4–156.6] | 4.538 [3.461–5.857] | 0 [0–0] |
+| independent_supply | M2d_dc_llf_lp | 5 | 15.8 [15–16] | 0.8778 [0.8333–0.8889] | 28.43 [6.668–53.83] | 29.81 [23.06–35.81] | 213.4 [171–269] | 1.355e+06 [1.285e+06–1.395e+06] | 0.9491 [0.8888–0.9966] | 153.7 [147.4–156.6] | 4.551 [3.052–7.184] | 0 [0–0] |
+| independent_supply | M3a_both_lp_fixed | 5 | 15.8 [15–16] | 0.8778 [0.8333–0.8889] | 28.43 [6.668–53.83] | 29.81 [23.06–35.81] | 213.4 [171–269] | 1.099e+06 [1.056e+06–1.139e+06] | 0.9491 [0.8888–0.9966] | 129.7 [116.6–135.8] | 12.88 [10.86–15.99] | 0 [0–0] |
+| independent_supply | M3b_both_lp_dynslack | 5 | 15.8 [15–16] | 0.8778 [0.8333–0.8889] | 28.43 [6.668–53.83] | 29.81 [23.06–35.81] | 213.4 [171–269] | 1.099e+06 [1.056e+06–1.139e+06] | 0.9491 [0.8888–0.9966] | 129.7 [116.6–135.8] | 10.99 [6.786–16.3] | 0 [0–0] |
+| independent_supply | M3c_both_lp_jointlp | 5 | 15.8 [15–16] | 0.8778 [0.8333–0.8889] | 28.43 [6.668–53.83] | 29.81 [23.06–35.81] | 213.4 [171–269] | 1.101e+06 [1.053e+06–1.147e+06] | 0.9491 [0.8888–0.9966] | 125.8 [116.6–135.8] | 36.96 [26.42–62.71] | 0 [0–0] |
+| independent_supply | M3d_equal_dynslack | 5 | 15.4 [14–16] | 0.8556 [0.7778–0.8889] | 38.64 [6.668–61.28] | 29.83 [23.33–39.17] | 213.4 [171–269] | 1.332e+06 [1.303e+06–1.371e+06] | 0.9391 [0.8797–0.9966] | 153.7 [147.4–156.6] | 0.2384 [0.202–0.268] | 0 [0–0] |
+# exit code: 0 | end UTC 2026-11-20T18:44:47Z | wall 135 s

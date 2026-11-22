@@ -1,0 +1,6 @@
+# cmd: python -m src.simulator.run --scenario src/simulator/scenario/mvp1.json --algorithms src/simulator/config/algorithms_edf_demo.json
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 54.56 min | peak grid: 86.316 kW
+Report: C:\Users\minhh\AppData\Local\Temp\claude\1ce8fb91e84c1e1f\a39ea94a-6d91-449e-9249-42b87e9847c3\scratchpad\simrun-edf\20261120T183421138784Z-c5ad0f748d-2aa87bad\report.json
+2D replay: C:\Users\minhh\AppData\Local\Temp\claude\1ce8fb91e84c1e1f\a39ea94a-6d91-449e-9249-42b87e9847c3\scratchpad\simrun-edf\20261120T183421138784Z-c5ad0f748d-2aa87bad\viewer.html

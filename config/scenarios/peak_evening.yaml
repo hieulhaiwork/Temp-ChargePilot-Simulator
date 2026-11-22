@@ -1,0 +1,20 @@
+# legacy_ac_only (ADR-012): kịch bản của bãi chỉ AC 8 × 7 kW (A01–A08), giới hạn 35 kW — PRD v0.2.
+# config/station.yaml đã là topology hybrid `mvp1` (ADR-010) nên mã cổng / giới hạn ở đây KHÔNG khớp trạm hiện tại.
+# Giữ tới khi nhóm quyết bỏ; KHÔNG dùng cho nghiệm thu / benchmark.
+#
+# Kịch bản AC3 — giờ cao điểm tối với giới hạn 35 kW, mô phỏng 24 giờ.
+# Kỳ vọng (AC3): tổng tải luôn ≤ 35 kW VÀ ≥ 95% yêu cầu đã chấp nhận đạt mức pin đúng hạn
+# (trong kịch bản khả thi).
+# Tham số sinh phiên (phân bố giờ đến, kWh, tỉ lệ đặt trước/walk-in) do TV1 định nghĩa
+# ở T1.4/T1.5 — bổ sung field vào models/simulation.py:Scenario khi cần.
+
+scenario_id: peak_evening
+name: "Cao điểm tối (AC3)"
+description: "Nhiều xe về 18h–22h tranh 8 đầu nối, giới hạn 35 kW, chạy 24 giờ."
+start_time: "12:00"
+duration_hours: 24
+n_vehicles: 30
+power_limit_kw: 35.0
+session_source: synthetic
+seed: 42
+incidents: []

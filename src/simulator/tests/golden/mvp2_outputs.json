@@ -1,0 +1,16 @@
+{
+  "mvp1": {
+    "summary": "13bd636fe7c589c808551b479d47ccfc3f1d2c9220e1dfe21e5bdcaaae61b014",
+    "vehicles": "fadb68eae63e1ca9b70d3cb3aa35bc0dafd26aed3b33c5f01b40b87a572f6360",
+    "events": "a8089ba072ff38d3788df2e8e3673cf8e378b7c3644c2a733a76983bdcd82657",
+    "power_trace": "e35a68d94aec791bbf22ccb63568476c57f194f62e3a8e95fbd3e71963c86657",
+    "frames": "aad3db661c882c1982cea7328ef1c700c4ba1f4506b3016c84160510840a15c6"
+  },
+  "vinfast_dc_2port_120kw": {
+    "summary": "b44037ae00f981ec25ae25e89ae2dbea8f214df010f0e399c1539e8e47825d18",
+    "vehicles": "ef5de81d9db038087cca9290972b2b766238f0486f194ddc79785a309a1093ef",
+    "events": "dc416b473a6ef829c40a4e79ca02e3dc7faa62d69a6f07bfead76c1c3f0f3cfe",
+    "power_trace": "eee8ee6703a61a73d7f9c5deeab46cdaec9ab725ccb2fa242bd165e7d4a53866",
+    "frames": "8bca1f91002c0a476aad7520bb9d3ce61c26dde2b5eba23df828c70cb571a1c0"
+  }
+}

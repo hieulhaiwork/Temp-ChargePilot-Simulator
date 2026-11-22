@@ -1,0 +1,6 @@
+# cmd: python -m src.simulator.run --scenario mvp1 --output-dir <scratch> | commit d15871a
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 51.11 min | peak grid: 105.263 kW
+Report: C:\Users\minhh\AppData\Local\Temp\claude\1ce8fb91e84c1e1f\a39ea94a-6d91-449e-9249-42b87e9847c3\scratchpad\simrun-mvp1\20261120T183419431209Z-c5ad0f748d-67d702f8\report.json
+2D replay: C:\Users\minhh\AppData\Local\Temp\claude\1ce8fb91e84c1e1f\a39ea94a-6d91-449e-9249-42b87e9847c3\scratchpad\simrun-mvp1\20261120T183419431209Z-c5ad0f748d-67d702f8\viewer.html

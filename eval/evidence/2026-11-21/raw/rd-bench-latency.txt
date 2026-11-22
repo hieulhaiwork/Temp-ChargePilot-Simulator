@@ -1,0 +1,68 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m experimental.bench.mvp_benchmark --suite latency --seeds 0 1 2 --sizes 4 8 16 50 100 | commit 1736d41 | start UTC 2026-11-20T18:44:57Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+size 4 s0 B0_fcfs_equal_fixed: p95 0.127 ms
+size 4 s0 M3b_both_lp_dynslack: p95 7.945 ms
+size 4 s0 M3c_both_lp_jointlp: p95 10.683 ms
+size 4 s1 B0_fcfs_equal_fixed: p95 0.139 ms
+size 4 s1 M3b_both_lp_dynslack: p95 5.811 ms
+size 4 s1 M3c_both_lp_jointlp: p95 9.124 ms
+size 4 s2 B0_fcfs_equal_fixed: p95 0.095 ms
+size 4 s2 M3b_both_lp_dynslack: p95 5.011 ms
+size 4 s2 M3c_both_lp_jointlp: p95 9.394 ms
+size 8 s0 B0_fcfs_equal_fixed: p95 0.137 ms
+size 8 s0 M3b_both_lp_dynslack: p95 7.513 ms
+size 8 s0 M3c_both_lp_jointlp: p95 24.539 ms
+size 8 s1 B0_fcfs_equal_fixed: p95 0.165 ms
+size 8 s1 M3b_both_lp_dynslack: p95 6.696 ms
+size 8 s1 M3c_both_lp_jointlp: p95 12.734 ms
+size 8 s2 B0_fcfs_equal_fixed: p95 0.126 ms
+size 8 s2 M3b_both_lp_dynslack: p95 6.629 ms
+size 8 s2 M3c_both_lp_jointlp: p95 22.525 ms
+size 16 s0 B0_fcfs_equal_fixed: p95 0.413 ms
+size 16 s0 M3b_both_lp_dynslack: p95 19.188 ms
+size 16 s0 M3c_both_lp_jointlp: p95 34.595 ms
+size 16 s1 B0_fcfs_equal_fixed: p95 0.424 ms
+size 16 s1 M3b_both_lp_dynslack: p95 24.479 ms
+size 16 s1 M3c_both_lp_jointlp: p95 34.048 ms
+size 16 s2 B0_fcfs_equal_fixed: p95 0.199 ms
+size 16 s2 M3b_both_lp_dynslack: p95 11.97 ms
+size 16 s2 M3c_both_lp_jointlp: p95 70.213 ms
+size 49 s0 B0_fcfs_equal_fixed: p95 1.336 ms
+size 49 s0 M3b_both_lp_dynslack: p95 30.606 ms
+size 49 s0 M3c_both_lp_jointlp: p95 53.66 ms
+size 49 s1 B0_fcfs_equal_fixed: p95 0.712 ms
+size 49 s1 M3b_both_lp_dynslack: p95 23.92 ms
+size 49 s1 M3c_both_lp_jointlp: p95 82.151 ms
+size 49 s2 B0_fcfs_equal_fixed: p95 0.592 ms
+size 49 s2 M3b_both_lp_dynslack: p95 26.468 ms
+size 49 s2 M3c_both_lp_jointlp: p95 50.599 ms
+size 100 s0 B0_fcfs_equal_fixed: p95 1.17 ms
+size 100 s0 M3b_both_lp_dynslack: p95 44.983 ms
+size 100 s0 M3c_both_lp_jointlp: p95 138.294 ms
+size 100 s1 B0_fcfs_equal_fixed: p95 0.967 ms
+size 100 s1 M3b_both_lp_dynslack: p95 38.86 ms
+size 100 s1 M3c_both_lp_jointlp: p95 127.717 ms
+size 100 s2 B0_fcfs_equal_fixed: p95 1.189 ms
+size 100 s2 M3b_both_lp_dynslack: p95 37.123 ms
+size 100 s2 M3c_both_lp_jointlp: p95 111.279 ms
+
+Raw: D:\VIN\simulation\experimental\outputs\bench\latency-20261120T184649Z.json
+Meta: {"git_commit": "1736d41", "platform": "Windows-11-10.0.26300-SP0", "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD", "python": "3.12.10", "suite": "latency", "seeds": [0, 1, 2], "utc": "20261120T184649Z"}
+
+| connectors | policy | n | on_time | sla_rate | shortfall_kwh | wait_mean_started | wait_p95_started | tou_cost | jain_fulfilment | peak_grid_kw | decision_ms_p95 | violations |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 4 | B0_fcfs_equal_fixed | 3 | 6.667 [6–7] | 0.7408 [0.6667–0.7778] | 24.53 [17.09–33.28] | 0.8333 [0–1.88] | 6.667 [0–15] | 6.789e+05 [6.72e+05–6.926e+05] | 0.8873 [0.8855–0.8885] | 113.7 [108.8–119.6] | 0.1203 [0.095–0.139] | 0 [0–0] |
+| 4 | M3b_both_lp_dynslack | 3 | 7.333 [7–8] | 0.8148 [0.7778–0.8889] | 23.64 [17.09–30.61] | 1.043 [0–1.88] | 8.333 [0–15] | 6.453e+05 [6.082e+05–6.876e+05] | 0.8874 [0.8855–0.8889] | 118.1 [115–119.6] | 6.256 [5.011–7.945] | 0 [0–0] |
+| 4 | M3c_both_lp_jointlp | 3 | 7 [7–7] | 0.7778 [0.7778–0.7778] | 23.87 [17.09–31.31] | 0.8333 [0–1.88] | 6.667 [0–15] | 6.425e+05 [6.025e+05–6.851e+05] | 0.8874 [0.8855–0.8888] | 118.3 [115.8–119.6] | 9.734 [9.124–10.68] | 0 [0–0] |
+| 8 | B0_fcfs_equal_fixed | 3 | 14 [13–15] | 0.7778 [0.7222–0.8333] | 51.32 [32.91–62.04] | 13.49 [10.29–18.59] | 168.3 [110–223] | 1.365e+06 [1.282e+06–1.519e+06] | 0.9095 [0.8968–0.9288] | 220.5 [209.9–226.5] | 0.1427 [0.126–0.165] | 0 [0–0] |
+| 8 | M3b_both_lp_dynslack | 3 | 14.67 [14–15] | 0.8148 [0.7778–0.8333] | 56.36 [32.91–74.97] | 13.71 [10.29–19.65] | 168.3 [110–223] | 1.293e+06 [1.175e+06–1.465e+06] | 0.8998 [0.8724–0.9241] | 238.2 [236.4–239.2] | 6.946 [6.629–7.513] | 0 [0–0] |
+| 8 | M3c_both_lp_jointlp | 3 | 14 [14–14] | 0.7778 [0.7778–0.7778] | 62.81 [40.46–78.65] | 12.99 [10.29–17.5] | 168.3 [110–223] | 1.278e+06 [1.168e+06–1.447e+06] | 0.8843 [0.8363–0.9171] | 238.2 [236.4–239.2] | 19.93 [12.73–24.54] | 0 [0–0] |
+| 16 | B0_fcfs_equal_fixed | 3 | 31.33 [31–32] | 0.8704 [0.8611–0.8889] | 104.8 [104.3–105.4] | 1.91 [0–4.45] | 4.333 [0–13] | 2.848e+06 [2.712e+06–2.983e+06] | 0.8917 [0.8887–0.8974] | 432.1 [382.2–478.3] | 0.3453 [0.199–0.424] | 0 [0–0] |
+| 16 | M3b_both_lp_dynslack | 3 | 31.33 [31–32] | 0.8704 [0.8611–0.8889] | 104.8 [104.3–105.4] | 2.067 [0–4.45] | 6 [0–18] | 2.688e+06 [2.528e+06–2.786e+06] | 0.8917 [0.8887–0.8974] | 434.6 [370.6–478.3] | 18.55 [11.97–24.48] | 0 [0–0] |
+| 16 | M3c_both_lp_jointlp | 3 | 30 [29–31] | 0.8333 [0.8056–0.8611] | 112.9 [107.1–121] | 1.91 [0–4.45] | 3.333 [0–10] | 2.685e+06 [2.531e+06–2.785e+06] | 0.8903 [0.8857–0.897] | 442.4 [370.6–478.3] | 46.29 [34.05–70.21] | 0 [0–0] |
+| 49 | B0_fcfs_equal_fixed | 3 | 93 [92–94] | 0.8532 [0.844–0.8624] | 291.4 [273.3–317.2] | 3.163 [1.79–4.01] | 0 [0–0] | 8.47e+06 [8.043e+06–9.098e+06] | 0.8942 [0.8907–0.8968] | 1036 [952.4–1168] | 0.88 [0.592–1.336] | 0 [0–0] |
+| 49 | M3b_both_lp_dynslack | 3 | 93 [92–94] | 0.8532 [0.844–0.8624] | 291.4 [273.3–317.2] | 3.163 [1.79–4.01] | 0 [0–0] | 8.05e+06 [7.651e+06–8.62e+06] | 0.8942 [0.8907–0.8968] | 1046 [1033–1059] | 27 [23.92–30.61] | 0 [0–0] |
+| 49 | M3c_both_lp_jointlp | 3 | 91 [90–93] | 0.8349 [0.8257–0.8532] | 320.2 [306.7–345.8] | 3.163 [1.79–4.01] | 0 [0–0] | 8.018e+06 [7.643e+06–8.582e+06] | 0.8914 [0.8883–0.8938] | 1037 [1012–1056] | 62.14 [50.6–82.15] | 0 [0–0] |
+| 100 | B0_fcfs_equal_fixed | 3 | 189.3 [186–192] | 0.8415 [0.8267–0.8533] | 669.4 [652–679.5] | 2.83 [2.55–3.27] | 0 [0–0] | 1.791e+07 [1.754e+07–1.839e+07] | 0.8936 [0.8911–0.8982] | 1847 [1821–1892] | 1.109 [0.967–1.189] | 0 [0–0] |
+| 100 | M3b_both_lp_dynslack | 3 | 189.3 [186–192] | 0.8415 [0.8267–0.8533] | 669.4 [652–679.5] | 2.83 [2.55–3.27] | 0 [0–0] | 1.703e+07 [1.666e+07–1.744e+07] | 0.8936 [0.8911–0.8982] | 1881 [1666–2016] | 40.32 [37.12–44.98] | 0 [0–0] |
+| 100 | M3c_both_lp_jointlp | 3 | 181.7 [179–183] | 0.8074 [0.7956–0.8133] | 732.8 [708.3–755.2] | 2.83 [2.55–3.27] | 0 [0–0] | 1.695e+07 [1.66e+07–1.739e+07] | 0.8911 [0.8891–0.8951] | 1879 [1683–1991] | 125.8 [111.3–138.3] | 0 [0–0] |
+# exit code: 0 | end UTC 2026-11-20T18:46:49Z | wall 112 s

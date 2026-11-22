@@ -1,0 +1,15 @@
+$ npm run test (HEAD 8f6f08a, working tree chưa commit)
+
+> chargepilot-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 D:/VIN/P-019/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  24 passed (24)
+   Start at  01:50:27
+   Duration  3.85s (environment 87%, import 9%, tests 2%, transform 2%)
+
+exit=0

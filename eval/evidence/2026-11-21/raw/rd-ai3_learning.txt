@@ -1,0 +1,62 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m experimental.ai3_learning.experiment | commit 1736d41 | start UTC 2026-11-20T18:51:55Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+   "mode": "learner",
+   "runs": 9,
+   "guard_failures": 0,
+   "sla_rate_mean": 0.7716,
+   "shortfall_kwh_mean": 112.87,
+   "tou_cost_mean": 2286894.0,
+   "optimizer_ms_p95_mean": 6.333,
+   "repairs_per_decision": 0.1138,
+   "fallbacks": 0
+  },
+  {
+   "connectors_scale": 2,
+   "mode": "teacher",
+   "runs": 9,
+   "guard_failures": 0,
+   "sla_rate_mean": 0.8734,
+   "shortfall_kwh_mean": 92.45,
+   "tou_cost_mean": 2381065.0,
+   "optimizer_ms_p95_mean": 13.913,
+   "repairs_per_decision": null,
+   "fallbacks": null
+  },
+  {
+   "connectors_scale": 6,
+   "mode": "baseline",
+   "runs": 6,
+   "guard_failures": 0,
+   "sla_rate_mean": 0.8441,
+   "shortfall_kwh_mean": 240.32,
+   "tou_cost_mean": 8438449.0,
+   "optimizer_ms_p95_mean": 0.113,
+   "repairs_per_decision": null,
+   "fallbacks": null
+  },
+  {
+   "connectors_scale": 6,
+   "mode": "learner",
+   "runs": 6,
+   "guard_failures": 0,
+   "sla_rate_mean": 0.7839,
+   "shortfall_kwh_mean": 260.44,
+   "tou_cost_mean": 6948598.0,
+   "optimizer_ms_p95_mean": 7.026,
+   "repairs_per_decision": 0.1526,
+   "fallbacks": 0
+  },
+  {
+   "connectors_scale": 6,
+   "mode": "teacher",
+   "runs": 6,
+   "guard_failures": 0,
+   "sla_rate_mean": 0.9167,
+   "shortfall_kwh_mean": 187.04,
+   "tou_cost_mean": 7378086.0,
+   "optimizer_ms_p95_mean": 27.674,
+   "repairs_per_decision": null,
+   "fallbacks": null
+  }
+ ]
+}
+# exit code: 0 | wall 125 s

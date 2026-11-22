@@ -1,0 +1,56 @@
+{
+ "why_checks": {
+  "site_claim_correct": {
+   "n": 38,
+   "rate": 1.0
+  },
+  "queue_claim_correct": {
+   "n": 57,
+   "rate": 1.0
+  },
+  "outage_claim_correct": {
+   "n": 55,
+   "rate": 1.0
+  },
+  "grounded": {
+   "n": 57,
+   "rate": 1.0
+  },
+  "actual_kw_correct": {
+   "n": 57,
+   "rate": 1.0
+  }
+ },
+ "why_ms_p50": 0.21,
+ "tool_calls": {
+  "what_if": {
+   "n": 40,
+   "ok_rate": 1.0,
+   "statuses": [
+    "ok"
+   ],
+   "ms_p50": 734.2
+  },
+  "why": {
+   "n": 10,
+   "ok_rate": 1.0,
+   "statuses": [
+    "ok"
+   ],
+   "ms_p50": 0.3
+  },
+  "how_to": {
+   "n": 10,
+   "ok_rate": 1.0,
+   "statuses": [
+    "ok"
+   ],
+   "ms_p50": 360.25
+  }
+ },
+ "baselines": {
+  "templated_dashboard": "same deterministic facts without causal sentences (equivalent data; no NL)",
+  "llm_without_tools": "BLOCKED: no LLM key authorised",
+  "copilot_with_llm": "BLOCKED: no LLM key authorised; rule_parser + templates evaluated"
+ }
+}

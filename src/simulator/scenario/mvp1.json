@@ -1,0 +1,32 @@
+{
+  "scenario_id": "evening_9cars_hybrid_v1",
+  "description": "Synthetic evening rush, nine vehicles arriving at 18:00, 4 AC + 5 DC",
+  "date": "2026-11-18",
+  "start_time": "18:00",
+  "duration_minutes": 360,
+  "step_minutes": 1,
+  "seed": 42,
+  "grid_input_limit_kw": 106.0,
+  "ac_power_budget_kw": 22.0,
+  "dc_power_budget_kw": 78.0,
+  "power_conversion_efficiency": 0.95,
+  "charging_efficiency": 0.98,
+  "ac_unplug_policy": "declared_departure",
+  "dc_unplug_delay_minutes": 5,
+  "charger_cabinets": [
+    {"id":"AC-01","zone":"AC","ports":1,"port_limit_kw":11.0,"cabinet_output_limit_kw":11.0},
+    {"id":"AC-02","zone":"AC","ports":1,"port_limit_kw":11.0,"cabinet_output_limit_kw":11.0},
+    {"id":"DC-01","zone":"DC","ports":2,"port_limit_kw":60.0,"cabinet_output_limit_kw":120.0}
+  ],
+  "vehicles": [
+    {"id":"AC-A","zone":"AC","arrival":"18:00","battery_kwh":60,"initial_soc":0.40,"target_soc":0.65,"max_ac_kw":11,"departure":"20:00"},
+    {"id":"AC-B","zone":"AC","arrival":"18:00","battery_kwh":70,"initial_soc":0.50,"target_soc":0.70,"max_ac_kw":11,"departure":"20:15"},
+    {"id":"AC-C","zone":"AC","arrival":"18:00","battery_kwh":70,"initial_soc":0.30,"target_soc":0.65,"max_ac_kw":11,"departure":"23:15"},
+    {"id":"AC-D","zone":"AC","arrival":"18:00","battery_kwh":80,"initial_soc":0.35,"target_soc":0.60,"max_ac_kw":11,"departure":"23:30"},
+    {"id":"DC-A","zone":"DC","arrival":"18:00","battery_kwh":94,"initial_soc":0.25,"target_soc":0.75,"max_dc_kw":85,"departure":"21:30"},
+    {"id":"DC-B","zone":"DC","arrival":"18:00","battery_kwh":70,"initial_soc":0.35,"target_soc":0.70,"max_dc_kw":70,"departure":"21:30"},
+    {"id":"DC-C","zone":"DC","arrival":"18:00","battery_kwh":80,"initial_soc":0.45,"target_soc":0.75,"max_dc_kw":70,"departure":"22:00"},
+    {"id":"DC-D","zone":"DC","arrival":"18:00","battery_kwh":60,"initial_soc":0.20,"target_soc":0.65,"max_dc_kw":70,"departure":"22:00"},
+    {"id":"DC-E","zone":"DC","arrival":"18:00","battery_kwh":90,"initial_soc":0.55,"target_soc":0.85,"max_dc_kw":80,"departure":"22:30"}
+  ]
+}

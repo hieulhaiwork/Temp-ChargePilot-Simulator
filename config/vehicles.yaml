@@ -1,0 +1,112 @@
+# Danh mục mẫu xe DUY NHẤT của hệ thống (ADR-012). FR2: cư dân CHỌN mẫu xe từ danh mục.
+#
+# Trường (ADR-012):
+#   - vehicle_model       : mã duy nhất, giữ mã simulator đang dùng (VF3, VF8_NEW_2026, VF9_123).
+#   - usable_capacity_kwh : dung lượng pin KHẢ DỤNG (không phải dung lượng danh định).
+#   - max_ac_power_kw     : công suất sạc AC tối đa của xe (OBC). Công suất thực = min(cổng, max_ac_power_kw).
+#   - max_dc_kw           : công suất DC tối đa xe nhận (reference ceiling của đường sạc).
+#   - dc_curve            : MÃ đường sạc DC; đường sạc là code trong simulator, YAML chỉ chọn.
+#                           Tên mã là ĐỀ XUẤT (ADR-012): simulator v1.2 chưa có registry mã đường sạc,
+#                           hiện chọn theo vehicle_model trong resolve_dc_profile. Chưa có code nào đọc trường này.
+#   - charging_efficiency : (tuỳ chọn) ghi đè default_charging_efficiency của station.yaml.
+#   - provenance          : {source, status} theo TỪNG trường;
+#                           status ∈ verified · oem_claim · proxy · assumed · synthetic · unverified.
+#   - source, verified    : DEPRECATED (ADR-012), giữ một vòng cho client cũ. verified luôn false ở đây.
+#
+# Giá trị VF3 / VF8_NEW_2026 / VF9_123 chép NGUYÊN từ simulator v1.2 (`feature/simulator` @ d15871a):
+#   src/simulator/src/charging_models/dc_charging_models.py  (resolve_dc_profile)
+#   src/simulator/src/charging_models/vehicle_profiles.py    (OEM_SOURCES, CURVE_SOURCES, PROFILE_VERSION 0.1.0)
+# KHÔNG đường sạc nào là số đo OEM: VF3 synthetic; VF8_NEW_2026 proxy EVKX (VF8 Plus đời cũ);
+# VF9_123 generic Simolin et al. 2025 (DOI 10.1016/j.treng.2025.100350).
+# max_ac_power_kw KHÔNG có trong code simulator: dùng 11.0 = giới hạn cổng AC của fixture (ADR-010),
+# status assumed — OBC thực chưa kiểm. Không tự điền số OEM.
+#
+# `UNKNOWN` không nằm trong danh mục chọn: dung lượng do người dùng khai (ADR-012).
+
+vehicles:
+  - vehicle_model: VF3
+    display_name: "VinFast VF 3"
+    usable_capacity_kwh: 18.64
+    max_ac_power_kw: 11.0
+    max_dc_kw: 24.0
+    dc_curve: vf3_synthetic_v0_1
+    charging_efficiency: null
+    source: "https://vinfastauto.com/vn_vi/dat-coc-xe-dien-vf3"
+    verified: false
+    provenance:
+      usable_capacity_kwh:
+        source: "https://vinfastauto.com/vn_vi/dat-coc-xe-dien-vf3"
+        status: oem_claim
+      max_dc_kw:
+        source: "https://vinfastauto.com/vn_vi/dat-coc-xe-dien-vf3"
+        status: oem_claim
+      dc_curve:
+        source: "ChargePilot synthetic SOC knots using the OEM charge-time claim as a reference (10-70% ~36 min)"
+        status: synthetic
+      max_ac_power_kw:
+        source: "bằng giới hạn cổng AC của fixture (ADR-010); OBC thực chưa kiểm"
+        status: assumed
+
+  - vehicle_model: VF8_NEW_2026
+    display_name: "VinFast VF 8 (thế hệ mới 2026)"
+    usable_capacity_kwh: 60.13
+    max_ac_power_kw: 11.0
+    max_dc_kw: 100.0
+    dc_curve: vf8_shape_proxy_v0_1
+    charging_efficiency: null
+    source: "https://vinfastauto.com/vn_vi/dat-coc-xe-vf8-the-all-new-2026"
+    verified: false
+    provenance:
+      usable_capacity_kwh:
+        source: "https://vinfastauto.com/vn_vi/dat-coc-xe-vf8-the-all-new-2026"
+        status: oem_claim
+      max_dc_kw:
+        source: "https://vinfastauto.com/vn_vi/dat-coc-xe-vf8-the-all-new-2026"
+        status: oem_claim
+      dc_curve:
+        source: >-
+          Cross-generation shape proxy normalized from the older VF8 Plus table:
+          https://evkx.net/models/vinfast/vf8/vf8_plus/chargingcurve/ (NOT same battery)
+        status: proxy
+      max_ac_power_kw:
+        source: "bằng giới hạn cổng AC của fixture (ADR-010); OBC thực chưa kiểm"
+        status: assumed
+
+  - vehicle_model: VF9_123
+    display_name: "VinFast VF 9 (pin 123 kWh)"
+    usable_capacity_kwh: 123.0
+    max_ac_power_kw: 11.0
+    max_dc_kw: 60.0
+    dc_curve: simolin_2025_generic
+    charging_efficiency: null
+    # Link chép nguyên từ code simulator — đang trỏ máy chủ staging; ADR-012 ghi cần sửa khi migration.
+    source: "https://stg-cms-v2.vinfastauto.com/vn_vi/car-pdp-v2/vf9"
+    verified: false
+    provenance:
+      usable_capacity_kwh:
+        source: "https://stg-cms-v2.vinfastauto.com/vn_vi/car-pdp-v2/vf9"
+        status: oem_claim
+      max_dc_kw:
+        source: "60-kW vehicle-side reference ceiling ASSUMED for 60-kW port (simulator v1.2); max DC thực chưa kiểm"
+        status: assumed
+      dc_curve:
+        source: >-
+          Simolin et al. 2025 Eq. 13, heterogeneous fit adapted for simulation:
+          https://doi.org/10.1016/j.treng.2025.100350 (generic, không riêng VF9)
+        status: proxy
+      max_ac_power_kw:
+        source: "bằng giới hạn cổng AC của fixture (ADR-010); OBC thực chưa kiểm"
+        status: assumed
+
+  # DEMO-60: GIỮ vì nhiều test (agent, API, DB, flows) dùng làm xe mẫu. KHÔNG phải xe thật.
+  # Không dùng cho nghiệm thu / benchmark. Bỏ khi các test đó chuyển sang xe thật.
+  - vehicle_model: DEMO-60
+    display_name: "Xe mẫu 60 kWh (DEMO — không phải xe thật)"
+    usable_capacity_kwh: 60.0
+    max_ac_power_kw: 11.0
+    charging_efficiency: null
+    source: "skeleton — xe giả cho test, không phải thông số xe thật"
+    verified: false
+    provenance:
+      usable_capacity_kwh: { source: "skeleton test fixture", status: synthetic }
+      max_ac_power_kw: { source: "skeleton test fixture", status: synthetic }

@@ -1,0 +1,25 @@
+# --- EV2Gym components used by the hybrid runtime ---
+# Adapter and upstream capability probes verified against this release.
+ev2gym==2.0.0
+
+# --- Upstream EV2Gym environment smoke test ---
+# EV2Gym 2.0.0 imports pkg_resources from setuptools.
+setuptools<81
+# Imported by EV2Gym grid/visualization code when loading the environment.
+pandapower~=3.5.6
+multicopula==0.0.2
+matplotlib>=3.8
+numba~=0.68.1
+psutil~=7.2.2
+
+# Also imported directly by ev2gym_smoke.py.
+numpy
+PyYAML
+
+# Imported directly by the opt-in DC Rolling Horizon LP.
+scipy>=1.11
+
+# --- Tests and lint (pytest-asyncio provides the root pytest.ini setting) ---
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+ruff>=0.8.0

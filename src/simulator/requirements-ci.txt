@@ -1,0 +1,15 @@
+# Môi trường TỐI THIỂU để chạy src/simulator/tests (job `simulator` của CI) — duyệt 2026-11-22.
+#
+# Cài theo đúng thứ tự:
+#   pip install --no-deps ev2gym==2.0.0
+#   pip install -r src/simulator/requirements-ci.txt
+#
+# Vì sao --no-deps: metadata của ev2gym 2.0.0 bắt buộc gurobipy, pandas, matplotlib, networkx…, nhưng engine
+# HybridSimulator + 163 test chỉ import ev2gym.models.ev / ev_charger, gymnasium (ev2gym/__init__.py gọi
+# gymnasium.register), numpy và scipy (LP optimizer). Đo bằng sys.modules ngày 2026-11-22; môi trường đầy đủ
+# (smoke test EV2Gym upstream, pandapower…) vẫn ở src/simulator/requirements.txt.
+gymnasium==1.4.0
+numpy>=1.26
+scipy>=1.11
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

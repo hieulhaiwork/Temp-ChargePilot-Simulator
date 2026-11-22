@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#163d34"><title>Toàn cảnh mockup · ChargePilot</title><link rel="stylesheet" href="cu-dan/assets/ui.css">
+<style>
+.ix{max-width:1180px;margin:0 auto;padding:40px 20px 60px;display:grid;gap:28px}
+.ix-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.ix-card{display:grid;gap:6px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow)}
+.ix-card:hover{border-color:#8fa797}
+.ix-card b{font-size:15px}.ix-card .hint{font-size:12px}
+.ix-card .tag{margin-top:4px}
+.ix h2{font-size:21px;letter-spacing:-.6px;display:flex;gap:10px;align-items:center}
+.ix section>p{color:var(--sub);font-size:13px;margin:4px 0 14px}
+</style></head>
+<body><main class="ix" id="main">
+<header><span class="brand"><span class="brand-glyph"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M18 2 6 18h9l-2 12 13-18h-9l3-10z"/></svg></span>ChargePilot</span><h1 class="mt" style="font-size:36px;letter-spacing:-1.5px">Toàn cảnh mockup</h1><p class="subcopy">Một template chung “Forest &amp; Amber” (<code>cu-dan/assets/ui.css</code>). Mỗi màn có nút <b>Kịch bản mẫu</b> để xem mọi trạng thái trong spec <code>docs/plan/21-ui-spec.md</code>. Dữ liệu là minh hoạ.</p></header>
+<section><h2>Chung</h2><p>Màn cho cả hai vai trò. Tài khoản mẫu chuyển thẳng sang bộ tương ứng.</p><div class="ix-grid">
+<a class="ix-card" href="login.html"><b>S1 · Đăng nhập</b><span class="hint">/login · §2.1</span><span class="tag neutral">9 trạng thái</span></a></div></section>
+<section><h2>Cổng cư dân · <code>cu-dan/</code></h2><p>Điện thoại 390 px và máy tính 1.440 px. Hướng dẫn: <a class="textbtn" href="cu-dan/HUONG-DAN.md">cu-dan/HUONG-DAN.md</a></p><div class="ix-grid">
+<a class="ix-card" href="cu-dan/resident.html"><b>S2 · Trang chủ</b><span class="hint">/resident · §2.2</span><span class="tag neutral">13 trạng thái</span></a>
+<a class="ix-card" href="cu-dan/resident-book.html"><b>Đặt lịch sạc</b><span class="hint">/resident/book · §2.4</span><span class="tag neutral">9 trạng thái</span></a>
+<a class="ix-card" href="cu-dan/resident-plan.html"><b>S3 · Phương án và lịch sạc</b><span class="hint">/resident/plan · §2.3</span><span class="tag neutral">17 trạng thái</span></a>
+<a class="ix-card" href="cu-dan/resident-map.html"><b>Sơ đồ bãi</b><span class="hint">/resident/map · §2.8 · ADR-010</span><span class="tag gold">7 trạng thái · mới</span></a>
+<a class="ix-card" href="cu-dan/resident-notifications.html"><b>Thông báo</b><span class="hint">/resident/notifications · §2.5</span><span class="tag neutral">8 trạng thái</span></a>
+<a class="ix-card" href="cu-dan/resident-approval.html"><b>S4 · Đề nghị điều chỉnh</b><span class="hint">/resident/notifications/[approvalId] · §2.6</span><span class="tag neutral">15 trạng thái</span></a>
+<a class="ix-card" href="cu-dan/resident-profile.html"><b>Hồ sơ</b><span class="hint">/resident/profile · §2.7</span><span class="tag neutral">10 trạng thái</span></a></div></section>
+<section><h2>Vận hành · <code>van-hanh/</code></h2><p>Máy tính 1.280 px trở lên, bố cục header-tab theo nhánh <code>buivanlam</code>. Hướng dẫn: <a class="textbtn" href="van-hanh/HUONG-DAN.md">van-hanh/HUONG-DAN.md</a></p><div class="ix-grid">
+<a class="ix-card" href="van-hanh/operator.html"><b>S5 · Dashboard trạm</b><span class="hint">/operator · §3.1</span><span class="tag neutral">13 trạng thái</span></a>
+<a class="ix-card" href="van-hanh/operator-map.html"><b>S9 · Sơ đồ bãi</b><span class="hint">/operator/map · §3.5 · ADR-010</span><span class="tag gold">7 trạng thái · mới</span></a>
+<a class="ix-card" href="van-hanh/operator-schedule.html"><b>S6 · Hàng đợi &amp; lịch</b><span class="hint">/operator/schedule · §3.2</span><span class="tag neutral">16 trạng thái</span></a>
+<a class="ix-card" href="van-hanh/operator-approvals.html"><b>S7 · Duyệt lệnh</b><span class="hint">/operator/approvals · §3.3</span><span class="tag neutral">14 trạng thái</span></a>
+<a class="ix-card" href="van-hanh/operator-simulation.html"><b>S8 · Mô phỏng kịch bản</b><span class="hint">/operator/simulation · §3.4</span><span class="tag neutral">12 trạng thái</span></a></div></section>
+<p class="footnote">Dữ liệu mô phỏng · Giờ trạm GMT+7</p>
+</main></body></html>

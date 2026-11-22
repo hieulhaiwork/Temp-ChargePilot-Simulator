@@ -1,0 +1,6 @@
+$ npm run lint (HEAD 8f6f08a, working tree chưa commit)
+
+> chargepilot-web@0.1.0 lint
+> eslint
+
+exit=0

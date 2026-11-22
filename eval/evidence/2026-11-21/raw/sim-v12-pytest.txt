@@ -1,0 +1,16 @@
+# cmd: pytest src/simulator/tests  | branch feature/simulator @ d15871a | Python 3.12.10 | ev2gym 2.0.0 | 2026-11-20T18:34:13Z
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       UnicodeDecodeError: 'charmap' codec can't decode byte 0x8d in position 3940: character maps to <undefined>
+
+C:\Users\minhh\AppData\Local\Python\pythoncore-3.12-64\Lib\encodings\cp1258.py:23: UnicodeDecodeError
+---------------------------- Captured stdout call -----------------------------
+vinfast_dc_2port_120kw | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 8/9 | mean wait (started only): 44.78 min | peak grid: 149.474 kW
+Report: C:\Users\minhh\AppData\Local\Temp\pytest-of-minhh\pytest-70\test_profile_metadata_and_view0\20261120T183418305799Z-c05e3251f5-0ee9ccc7\report.json
+2D replay: C:\Users\minhh\AppData\Local\Temp\pytest-of-minhh\pytest-70\test_profile_metadata_and_view0\20261120T183418305799Z-c05e3251f5-0ee9ccc7\viewer.html
+=========================== short test summary info ===========================
+FAILED src/simulator/tests/test_hybrid.py::test_cli_exports_distinct_complete_replays
+FAILED src/simulator/tests/test_modular.py::test_cli_alternate_exports_actual_algorithm_metadata
+FAILED src/simulator/tests/test_vehicle_profiles.py::test_profile_metadata_and_viewer_replay_export
+3 failed, 109 passed in 3.66s

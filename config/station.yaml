@@ -1,0 +1,85 @@
+# Cấu hình bãi sạc mô phỏng — topology hybrid AC + DC, fixture nền `mvp1`
+# (scenario_id `evening_9cars_hybrid_v1`). Nguồn: ADR-010; số đã chạy lại ở eval/evidence/2026-11-21/.
+#
+# MỌI SỐ trong khối topology dưới đây là [GIẢ ĐỊNH] của fixture, KHÔNG phải số đo tại trạm thật.
+# Topology này là fixture nền cho regression / demo đầu, không phải cấu hình chốt cuối (ADR-010).
+# Việc AC và DC dùng chung một nguồn (`supply_mode: shared`) cũng là [GIẢ ĐỊNH].
+# Đổi tham số ở đây, KHÔNG hardcode trong code (ADR-003).
+# tests/test_services/test_catalog.py khoá các giá trị này — đổi số thì sửa PRD, YAML rồi test (thứ tự ADR-003).
+#
+# Thay đổi 21/11/2026 (T1.10, ADR-010): thay bãi chỉ AC 8 × 7 kW (A01–A08), giới hạn 35 kW, bước 15 phút của
+# PRD v0.2 §1. Lý do: đề tài chốt bãi hỗn hợp AC + DC với mentor (RESEARCH SC-16).
+#
+# Lưu ý YAML: giờ dạng HH:MM PHẢI để trong ngoặc kép ("22:00"), nếu không PyYAML
+# đọc thành số cơ số 60 (22:00 -> 1320).
+
+station_id: CP-01
+name: "Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp1)"
+timezone: "Asia/Ho_Chi_Minh"
+
+# Giới hạn đầu vào lưới cả khu: 106 kW. `power_limit_kw` là alias một vòng của
+# `grid_input_limit_kw` (ADR-010) — hai số phải bằng nhau.
+grid_input_limit_kw: 106.0
+power_limit_kw: 106.0
+
+# Ngân sách CHÍNH SÁCH theo vùng, phía đầu ra tủ (không phải cap phần cứng).
+# 22 + 78 = 100 kW đầu ra ⇒ 100 / 0,95 ≈ 105,263 kW phía lưới ≤ 106 kW.
+zone_budgets_kw:
+  AC: 22.0
+  DC: 78.0
+
+# η chuyển đổi lưới → đầu ra tủ (E_grid = E_output / η). Áp đúng một lần.
+power_conversion_efficiency: 0.95
+supply_mode: shared
+
+# F14 (Should): xe DC xong thì rút sau 5 phút; xe AC giữ cổng tới giờ rời khai báo.
+dc_unplug_delay_minutes: 5
+
+# Bước 1 phút như simulator; cửa sổ xem trước giữ 24 giờ (chưa có quyết định đổi).
+step_minutes: 1
+horizon_hours: 24
+
+# η sạc đầu ra tủ → pin (FR3: E_battery = E_output × η). Mẫu xe có `charging_efficiency`
+# riêng trong vehicles.yaml sẽ ghi đè giá trị này.
+default_charging_efficiency: 0.98
+
+# Ngưỡng của Safety Guard (FR12) — giá trị khởi điểm, TV3 hiệu chỉnh ở T3.1.
+guard:
+  # Chặn lệnh dựa trên trạng thái cũ hơn ngưỡng này (luật stale_state).
+  max_state_age_seconds: 60
+  # Chống bật-tắt liên tục: tối đa 3 lần bật/tắt trên một đầu nối trong 10 phút
+  # (wireframe S5 cũ: "Guard chặn lệnh bật-tắt A03 (lần 4/10')"; mã cổng mới theo ADR-010).
+  flap_window_minutes: 10
+  flap_max_toggles: 3
+  # AC4: yêu cầu phê duyệt quá hạn = KHÔNG thực thi.
+  approval_ttl_minutes: 15
+
+# Hệ số hàm mục tiêu của bài LP (FR6) — công thức ở docs/plan/30-ai.md §5.2.
+# Giá trị khởi điểm, TV1 hiệu chỉnh ở T2.1 và báo cáo trong phân tích độ nhạy.
+optimizer:
+  # λ_u = hệ số × giá cao nhất: không bao giờ đổi 1 kWh thiếu lấy tiền điện.
+  unmet_penalty_factor: 100
+  # ε = hệ số × giá thấp nhất: chỉ để phá thế hoà (cùng giá thì sạc sớm hơn).
+  early_charge_factor: 0.001
+  # μ = hệ số × giá thấp nhất: hạn chế đổi công suất liên tục (Guard có luật anti_flapping).
+  smoothing_factor: 0.001
+  # Bước thời gian của LP (phút). Simulator vẫn chạy bước `step_minutes` (1 phút); LP 24 h × 15' = 96 bước
+  # để giữ MT5 (p95 tính lại ≤ 2 s). Lệnh chỉ áp bước đầu, các bước sau tính lại (receding horizon).
+  planning_step_minutes: 15
+  # Phạt theo bước cho phiên DC (× giá cao nhất): xe DC rút cổng ngay khi đầy (F14) nên sạc xong sớm = cổng rảnh
+  # sớm cho xe đang chờ. 0 = chỉ tối ưu tiền điện. Giá trị khởi điểm [GIẢ ĐỊNH], hiệu chỉnh khi có benchmark.
+  dc_turnover_factor: 0.05
+
+# Tủ sạc: AC-01, AC-02 mỗi tủ 1 cổng 11 kW; DC-01 có 2 cổng 60 kW, giới hạn tủ 120 kW (cap vật lý).
+cabinets:
+  - { cabinet_id: AC-01, zone: AC, output_limit_kw: 11.0 }
+  - { cabinet_id: AC-02, zone: AC, output_limit_kw: 11.0 }
+  - { cabinet_id: DC-01, zone: DC, output_limit_kw: 120.0 }
+
+# Mã cổng theo ADR-010. Hai nhãn 60 kW KHÔNG có nghĩa mỗi xe luôn nhận 60 kW
+# (còn cap tủ, ngân sách DC, lưới và đường sạc của xe).
+connectors:
+  - { connector_id: AC-01-1, cabinet_id: AC-01, zone: AC, max_power_kw: 11.0 }
+  - { connector_id: AC-02-1, cabinet_id: AC-02, zone: AC, max_power_kw: 11.0 }
+  - { connector_id: DC-01-1, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
+  - { connector_id: DC-01-2, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }

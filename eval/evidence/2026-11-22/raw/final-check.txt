@@ -1,0 +1,105 @@
+# final-check — ChargePilot, branch feature/chargepilot-skeleton (working tree chưa commit)
+# Ngày: 2026-11-22 · Python: .venv\Scripts\python.exe · PYTHONIOENCODING=utf-8
+# Baseline trước khi chạy: git status --porcelain = 77 dòng; sha256(frontend/src/lib/api/schema.d.ts)=C67D44CB…54B1
+
+## Đợt 1 (chỉ bước A backend + B frontend; KHÔNG làm C, D, E)
+
+### A. backend
+A1 PASS  ruff check src/ tests/                      -> "All checks passed!" (exit 0)
+A2 PASS  ruff format --check src/ tests/             -> "188 files already formatted" (exit 0)
+A3 PASS  OPENAI_API_KEY=test-key pytest tests/ -q --tb=short -p no:cacheprovider
+         -> 399 passed, 8 skipped in 22.78s (exit 0)
+         skip: tests/test_forecast/test_forecast_contracts.py — [T2.3] features.build_features (forecast, đúng kỳ vọng)
+A4 PASS  python scripts/check_docs.py                -> "Checked 50 md files, 131 internal links. doc-check PASS" (exit 0)
+A5 PASS  python scripts/export_openapi.py --check    -> "OK — frontend\openapi.json khớp với code." (exit 0)
+A6 PASS  OPENAI_API_KEY= python eval/run_agent_eval.py --offline --out <tmp>/agent-eval
+         -> 55 câu hợp lệ (≥50), "OK — dataset và ngưỡng hợp lệ." (exit 0)
+A7 PASS  OPENAI_API_KEY= python eval/run_eval.py --out <tmp>/eval-report.md
+         -> Chế độ OFFLINE STUB, pass rate 10/10 (100%) (exit 0)
+A8 INFO  grep -rn 'NotImplementedError("\[T' src/ --include=*.py
+         -> 8 stub thật, tất cả trong src/forecast/: T1.3 ×1 (datasets.load_sessions),
+            T2.3 ×7 (temporal_split, evaluate, build_features, 3 Forecaster, train)
+            (+2 dòng docstring ở src/main.py:3, src/services/errors.py:8 — không phải stub). Khớp kỳ vọng.
+
+Ghi chú sự cố (đã khắc phục):
+ - Lần chạy đầu dùng PowerShell `$env:OPENAI_API_KEY=''` → PowerShell XOÁ biến thay vì đặt rỗng, nên Settings
+   đọc key placeholder trong .env → run_eval gọi OpenAI thật, 10 case 401, "REGRESSION pass_rate=0.00",
+   và ghi đè eval/results/report.md (file tracked). Đã khôi phục report.md về đúng nội dung HEAD
+   (git show HEAD:… + CRLF; git status của file trở lại sạch). Không dùng git restore.
+   Chạy lại bằng bash `OPENAI_API_KEY=` + `--out` thư mục tạm như ci.yml → kết quả A6/A7 ở trên.
+ - Lưu ý cho đội: `python eval/run_eval.py` không có --out sẽ ghi đè report tracked; và key placeholder
+   trong .env bị coi là key thật (đúng như CLAUDE.md cảnh báo).
+
+### B. frontend (cwd frontend/)
+B1 PASS  npm run gen:api                             -> openapi-typescript 7.13.0, ghi src/lib/api/schema.d.ts (exit 0)
+         sha256 sau gen = C67D44CB…54B1 = baseline → output sinh lại trùng file đang có.
+         (git diff --exit-code -- src/lib/api/schema.d.ts = 1 vì file ĐÃ khác HEAD từ trước (thay đổi chưa commit);
+          không phải do gen:api. Trên CI sau khi commit, bước này sẽ pass vì nội dung trùng khớp.)
+B2 PASS  npm run lint (eslint)                       -> exit 0, không cảnh báo
+B3 PASS  npm run typecheck (next typegen && tsc --noEmit) -> exit 0
+B4 PASS  npm run test (vitest run)                   -> Test Files 4 passed, Tests 28 passed (exit 0)
+B5 PASS  npm run build (next build)                  -> exit 0, 17/17 static pages, 15 route app
+
+### Kiểm tra sau Đợt 1
+git status --porcelain = 77 dòng, Compare-Object với baseline: không khác biệt
+(file này nằm trong thư mục eval/evidence/2026-11-22/raw/ đã tồn tại sẵn).
+
+## Đợt 2 (bước C + E)
+
+### C. backend-postgres
+Container: docker run -d --name p019-ci-pg -e POSTGRES_PASSWORD=postgres -p 5433:5432 postgres:16 (pg_isready OK)
+Env: DATABASE_URL=TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres, OPENAI_API_KEY=test-key
+C1 PASS  alembic upgrade head      -> Running upgrade -> 0001, initial schema (exit 0)
+C2 PASS  alembic check             -> "No new upgrade operations detected." (exit 0)
+C3 PASS  alembic downgrade base    -> Running downgrade 0001 -> (exit 0)
+C4 PASS  alembic upgrade head      -> lại 0001 (exit 0); public có 10 bảng (9 bảng + alembic_version)
+C5 PASS  pytest tests/test_services/test_repository.py -q -rs -p no:cacheprovider -> 18 passed in 1.53s, 0 skipped
+Dọn: docker rm -f p019-ci-pg
+
+### E. Simulator R&D
+E1 FAIL(env) pytest src/simulator/tests -q -p no:cacheprovider -> 8 errors during collection, 0 test chạy (exit 2)
+         Cả 8 file (test_ev2gym_p0, test_golden_regression, test_hardening, test_hybrid, test_modular,
+         test_mvp2, test_mvp3, test_vehicle_profiles) lỗi: ModuleNotFoundError: No module named 'ev2gym'
+         tại src/simulator/src/engine/ev2gym_adapter.py:7 (import qua run.py:20 -> engine/hybrid.py:20).
+         ev2gym không có trong .venv -> không cài theo ràng buộc. Chưa đánh giá được logic simulator.
+
+### F (Đợt 2)
+git status --porcelain = 77 dòng (bằng baseline đầu đợt); eval/evidence/2026-11-22/ vẫn untracked như trước.
+docker ps -a --filter name=p019-ci- -> rỗng.
+
+## Đợt 3 (bước D + F)
+
+### D. docker-smoke + luồng HTTP thật
+D0 PASS  docker build -t p019-backend:ci-local .  -> exit 0, image 759,901,751 bytes
+         docker run -d --name p019-ci-app -p 8000:10000 -e PORT=10000 -e APP_ENV=production
+           -e OPENAI_API_KEY=ci-dummy-key -e JWT_SECRET=ci-dummy-jwt-secret-not-for-production-use
+           -e SEED_USERS_JSON=<1 resident VF8_NEW_2026 + 1 operator; mật khẩu ngẫu nhiên secrets.token_urlsafe, KHÔNG ghi>
+         Script HTTP: httpx 0.28.1 + websockets 17.4 (có sẵn trong .venv), đặt ngoài repo (/tmp/p019smoke/smoke.py)
+D1 PASS  /health 200 {"status":"ok","env":"production"}; /ready 200 {"config":"ok","database":"ok"} (lên sau 3 lần thử)
+D2 PASS  1) POST /auth/login (resident) 200 có token; GET /auth/me 200 role=resident, vehicle_model=VF8_NEW_2026
+D3 PASS  2) POST /resident/quote (AC walk_in, 30->80%, deadline now+10h +07:00) 200 feasible=true,
+            grid 30.68 kWh (hiệu suất 0.98), AC-01-1 11 kW, 11:32->14:32, 61,357 VND, slack 360'
+D4 PASS  3) POST /resident/bookings + Idempotency-Key -> 201 booking_id=bba5a9919ad9; gửi lại cùng key -> 201 cùng booking_id
+D5 PASS  4) /resident/session 200 (status=charging), /resident/queue 200 (position null, len 0), /resident/explanation 200 (4 dòng)
+D6 PASS  5) login operator 200; /operator/station 200 (4 đầu nối AC-01-1, AC-02-1, DC-01-1, DC-01-2; 106 kW),
+            /operator/schedule 200 (v1, B, bước 15'), /operator/events 200 (booking_created),
+            /operator/decision-log 200 (assign_connector AC-01-1, verdict passed, 0 violation)
+D7 PASS  6) POST /simulation/incidents power_limit_change 20 -> 202 accepted; /operator/station: available_power_kw=20.0,
+            power_limit_kw=20.0, tổng power_kw=0.0 -> 0/0.95=0 <= 20 (thoả nhưng tầm thường: lúc đo không cổng nào đang cấp điện);
+            alert "Nguồn đang giảm: 20/106 kW"
+D8 PASS  7) POST /simulation/runs hybrid_evening B -> 200 run dc15d35b3cc1: on_time_rate 0.467, service_rate 1.0,
+            wait_mean 291.5', wait_p90 667', delivered 368.2 kWh, unmet 321.3 kWh, cost 789,417 VND, peak 80.13 kW,
+            power_limit_violations 0, blocked_commands 0, replan_p95 0.015 s (16 phiên seed 42, giới hạn 106 kW)
+D9 PASS  8) WS /api/v1/ws/operator gửi {"type":"auth"} -> nhận {"type":"station_snapshot", ...} (available 20.0)
+         docker logs: 29 dòng, không có error/traceback/exception. Dọn: docker rm -f p019-ci-app (giữ image)
+Quan sát (không chấm FAIL):
+ - Cấu hình trạm thực tế = 4 đầu nối / 106 kW (AC 11 kW, DC 60 kW), KHÁC mô tả CLAUDE.md "8 × 7 kW, 35 kW" -> code wins, docs lệch.
+ - Booking walk_in có consent max_start_delay_minutes=0 nhưng planned_start = now+60' (giá phẳng 2,000 VND/kWh), và
+   lúc đo connector "throttled", power 0 trong khi booking status "charging" -> nên rà xem có vi phạm consent không.
+ - KPI B trên hybrid_evening: on_time_rate 0.467, unmet 321 kWh -> chất lượng lịch thấp (chưa so với baseline).
+
+### F (Đợt 3)
+(kết quả ghi bên dưới)
+F1 PASS  git status --porcelain | wc -l = 77; diff với baseline chụp đầu Đợt 3 -> không khác (chỉ final-check.txt được ghi,
+         nằm trong eval/evidence/2026-11-22/ vốn untracked)
+F2 PASS  docker ps -a --filter name=p019-ci- -> rỗng (0 container); image p019-backend:ci-local được giữ lại

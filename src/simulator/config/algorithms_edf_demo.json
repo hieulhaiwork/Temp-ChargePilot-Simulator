@@ -1,0 +1,7 @@
+{
+  "dispatch": {"AC": "fifo", "DC": "edf"},
+  "optimizers": {"AC": "equal_share", "DC": "deadline_first"},
+  "coordinator": {"name": "fixed_budget", "parameters": {"output_kw": {"AC": 22, "DC": 60}}},
+  "physical_guard": "physical_v1",
+  "dc_charging_model": "synthetic_taper_v1"
+}

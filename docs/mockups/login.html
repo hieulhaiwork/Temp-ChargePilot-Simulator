@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#163d34"><title>Đăng nhập · ChargePilot</title><link rel="stylesheet" href="cu-dan/assets/ui.css">
+<style>
+/* S1 · Đăng nhập (chung 2 vai trò) — spec 21 §2.1. Token + component từ cu-dan/assets/ui.css. */
+.login{min-height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,520px)}
+.login-art{position:relative;background:#122d27 url('cu-dan/assets/charge-night.webp') center/cover;color:#fff;padding:48px;display:flex;flex-direction:column;justify-content:flex-end;isolation:isolate}
+.login-art::before{content:'';position:absolute;inset:0;background:linear-gradient(0deg,#0c251df2 15%,#0c251d55);z-index:-1}
+.login-art h2{font-size:34px;font-weight:650;letter-spacing:-1.4px;max-width:520px;line-height:1.2}
+.login-art p{color:#d8edd8;max-width:480px;margin-top:10px}
+.login-side{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:32px 20px}
+.login-card{width:100%;max-width:400px;display:grid;gap:18px}
+.login-card h1{font-size:30px;letter-spacing:-1.2px}
+.login-card .btn{width:100%}
+.waking{display:flex;gap:8px;align-items:center}
+.demo-acc{display:grid;gap:6px;font-size:12px}
+.demo-acc button{text-align:left;border:1px dashed #bfcfc1;border-radius:10px;padding:8px 11px;background:#fff}
+.demo-acc button:hover{background:var(--wash)}
+@media(max-width:860px){.login{grid-template-columns:1fr}.login-art{display:none}}
+</style></head>
+<body><div id="app"></div><div class="toast" id="toast" role="status" aria-live="polite" style="left:50%"></div><dialog id="modal"></dialog><noscript>Vui lòng bật JavaScript trong trình duyệt để dùng bản mẫu ChargePilot.</noscript>
+<script src="cu-dan/assets/kit.js"></script>
+<script>
+const STATES={default:'Chưa nhập',filled:'Đã nhập đủ',submitting:'Đang đăng nhập',wrong:'Sai email hoặc mật khẩu (401)',invalid:'Email không hợp lệ (422)',expired:'Phiên đã hết hạn',deleted:'Sau khi xoá tài khoản',waking:'Máy chủ đang khởi động',notimpl:'Dịch vụ chưa sẵn sàng (501)'};
+let state='default',email='',pass='';
+const ACC={'cu.dan@demo.vn':'cu-dan/resident.html','van.hanh@demo.vn':'van-hanh/operator.html'};
+function render(){if(state==='filled'||state==='submitting'||state==='wrong'||state==='notimpl'){email=email||'cu.dan@demo.vn';pass=state==='wrong'?'':(pass||'demo1234');}if(state==='invalid'){email='cu.dan@';pass='demo1234';}
+ const ready=email.trim()&&pass,busy=state==='submitting';
+ const top=state==='expired'?note('Phiên đăng nhập đã hết hạn','Đăng nhập lại để tiếp tục. Bạn sẽ quay về trang đang mở.','gold','clock'):state==='deleted'?note('Tài khoản đã được xoá (ẩn danh hoá)','Lịch sử sạc không còn gắn với bạn.','good','checkcircle'):state==='waking'?note('Máy chủ đang khởi động','Lần thử 2/5. Bạn vẫn nhập được, nút Đăng nhập sẽ chờ máy chủ sẵn sàng.','gold','refresh'):'';
+ $('app').innerHTML=`<div class="login"><aside class="login-art"><h2>Sạc đủ trước giờ đi, không vượt giới hạn của khu.</h2><p>ChargePilot xếp lịch sạc cho bãi xe cư dân. Mọi lệnh tới trạm đều qua lớp kiểm soát an toàn.</p></aside><main class="login-side" id="main"><form class="login-card" id="login-form" novalidate><span class="brand">${'<span class="brand-glyph"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M18 2 6 18h9l-2 12 13-18h-9l3-10z"/></svg></span>'}ChargePilot</span><div><h1>Đăng nhập</h1><p class="subcopy mt">Dùng tài khoản cư dân hoặc vận hành trạm. Đây là hệ thống mô phỏng, dữ liệu không phải của trạm sạc thật.</p></div>${top}
+ <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" value="${esc(email)}" maxlength="254" ${state==='invalid'?'aria-invalid="true"':''} aria-describedby="err-email"><span class="error" id="err-email">${state==='invalid'?'Email chưa đúng định dạng, ví dụ ten@demo.vn.':''}</span></div>
+ <div class="field"><label for="password">Mật khẩu</label><input id="password" type="password" autocomplete="current-password" value="${esc(pass)}" ${state==='wrong'?'aria-invalid="true"':''} aria-describedby="err-password"><span class="error" id="err-password">${state==='wrong'?'Email hoặc mật khẩu chưa đúng. Kiểm tra rồi thử lại.':''}</span></div>
+ <div><button class="btn primary" type="submit" ${!ready||busy?'disabled':''} aria-describedby="why">${busy?'Đang đăng nhập…':'Đăng nhập'}</button><span class="hint" id="why" style="display:block;margin-top:6px">${!ready?'Nhập email và mật khẩu để đăng nhập.':''}</span></div>
+ ${state==='notimpl'?note('Dịch vụ đăng nhập chưa sẵn sàng','Máy chủ trả 501 · việc T1.7 chưa làm.','gold','plug'):''}
+ <div class="demo-acc"><span class="hint">Tài khoản mẫu (bấm để điền):</span><button type="button" data-acc="cu.dan@demo.vn">Cư dân · cu.dan@demo.vn</button><button type="button" data-acc="van.hanh@demo.vn">Vận hành · van.hanh@demo.vn</button></div>
+ <p class="hint"><button type="button" class="textbtn" data-act="scenarios">${icon('layers')}Kịch bản mẫu</button> · <a class="textbtn" href="index.html">Toàn cảnh</a></p></form></main></div>`;
+ if(state==='wrong')$('password').focus();if(state==='invalid')$('email').focus();}
+function openScenarios(){const d=$('modal');d.innerHTML=`<div class="dialog-inner"><div class="section-head"><h2>Kịch bản mẫu</h2><button type="button" class="iconbtn" data-act="close" aria-label="Đóng">${icon('close')}</button></div>${selectField('scenario','Tình huống',Object.entries(STATES),state)}<div class="actions"><button type="button" class="btn primary" data-act="apply">${icon('layers')}Xem tình huống</button></div></div>`;d.showModal();$('scenario').focus();}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-act]')?.dataset.act,acc=e.target.closest('[data-acc]')?.dataset.acc;if(acc){email=acc;pass='demo1234';state='filled';render();}if(a==='scenarios')openScenarios();if(a==='close')$('modal').close();if(a==='apply'){state=$('scenario').value;email='';pass='';$('modal').close();history.replaceState(null,'','#'+state);render();}});
+document.addEventListener('input',e=>{if(e.target.id==='email')email=e.target.value;if(e.target.id==='password')pass=e.target.value;const b=document.querySelector('#login-form [type=submit]');const ok=email.trim()&&pass;b.disabled=!ok;$('why').textContent=ok?'':'Nhập email và mật khẩu để đăng nhập.';});
+document.addEventListener('submit',e=>{e.preventDefault();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){state='invalid';render();return}state='submitting';render();setTimeout(()=>{const to=ACC[email.trim().toLowerCase()];if(to&&pass){location.href=to}else{state='wrong';pass='';render();}},700);});
+const h=location.hash.slice(1);if(STATES[h])state=h;render();
+</script></body></html>

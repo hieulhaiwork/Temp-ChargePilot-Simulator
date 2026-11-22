@@ -1,0 +1,5 @@
+{
+  "dispatch": {"DC": "llf"},
+  "optimizers": {"AC": "ac_rolling_lp", "DC": "rolling_lp"},
+  "coordinator": "dynamic_slack"
+}

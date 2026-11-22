@@ -1,0 +1,19 @@
+rows old/new: 45 45 missing in new: 0
+deterministic field diffs: 0
+status new: {'ok'} violations sum new: 0 rejected sum new: 0
+group | decision_ms_p95 mean old | new
+(100, 'B0_fcfs_equal_fixed') 0.745 1.109
+(100, 'M3b_both_lp_dynslack') 30.285 40.322
+(100, 'M3c_both_lp_jointlp') 91.412 125.763
+(16, 'B0_fcfs_equal_fixed') 0.169 0.345
+(16, 'M3b_both_lp_dynslack') 9.859 18.546
+(16, 'M3c_both_lp_jointlp') 21.444 46.285
+(4, 'B0_fcfs_equal_fixed') 0.1 0.12
+(4, 'M3b_both_lp_dynslack') 4.746 6.256
+(4, 'M3c_both_lp_jointlp') 8.434 9.734
+(49, 'B0_fcfs_equal_fixed') 0.389 0.88
+(49, 'M3b_both_lp_dynslack') 16.468 26.998
+(49, 'M3c_both_lp_jointlp') 44.36 62.137
+(8, 'B0_fcfs_equal_fixed') 0.132 0.143
+(8, 'M3b_both_lp_dynslack') 7.233 6.946
+(8, 'M3c_both_lp_jointlp') 13.589 19.933

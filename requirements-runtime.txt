@@ -1,0 +1,39 @@
+# Dependency LÚC CHẠY của backend — đây là file image Docker cài (Dockerfile).
+# Công cụ dev/test nằm ở requirements.txt (file đó `-r` file này), để image deploy không mang
+# ruff/pytest (gói free ít RAM, build chậm — docs/plan/50-devops.md §5).
+# Thêm dependency mới: ghi LÝ DO + TASK ngay trên dòng đó, và phải được nhóm đồng ý trước.
+
+# Core
+fastapi>=0.141.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.13.0
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.0
+
+# AI / LangChain (pin floor theo phiên bản đã verify 2026-09 — xem cost-management.md về chọn model)
+langchain>=1.4.0
+langgraph>=1.2.0
+# Chọn provider theo model đội dùng (đủ cả 3 để học viên đổi model không đổi code flow):
+langchain-openai>=1.6.0        # GPT series; kéo theo gói `openai` (src/api/routes.py bắt OpenAIError)
+langchain-anthropic>=1.7.0     # Claude series
+# langchain-google-genai>=4.4.0 # Gemini series (uncomment nếu dùng)
+
+# Nạp config/*.yaml của ChargePilot (src/services/catalog.py) + eval
+pyyaml>=6.0
+
+# ---- ChargePilot — đã duyệt 2026-11-17 (docs/plan/00-overview.md §8.1) ----
+sqlalchemy>=2.0            # T1.6 (D1, ADR-005) — ORM chạy được trên cả SQLite (local/CI) và Postgres (Neon)
+alembic>=1.14              # T1.6 (D1, ADR-005) — migration schema; chạy `alembic upgrade head` lúc container khởi động
+psycopg[binary]>=3.2       # T1.6 (D2, ADR-005) — driver Postgres cho Neon; URL dạng postgresql+psycopg://
+pyjwt>=2.8                 # T1.7 (D3, ADR-006) — ký/kiểm JWT 2 vai trò (FR1); băm mật khẩu dùng hashlib.scrypt của stdlib
+# ---- Duyệt 2026-11-22 (người phụ trách): LP của chiến lược B/C/D ----
+numpy>=1.26                # T2.1 — ma trận ràng buộc của LP (src/optimizer/lp_model.py)
+scipy>=1.11                # T2.1 — scipy.optimize.linprog(method="highs"): HiGHS kèm sẵn, thay cho highspy riêng
+
+# ---- ChargePilot — bật dòng tương ứng KHI làm task đó (mỗi dòng ghi lý do) ----
+# Kiểm tương thích Python 3.12 + thời gian build Docker ở cổng Go/No-Go tuần 1.
+# ortools>=9.10     # T2.2 — thay thế HiGHS nếu gán đầu nối cần MILP/CP-SAT
+# lightgbm>=4.0     # T2.3 — F6 dự báo thời điểm rút đầu nối (FR17); cần lúc chạy để predict (chiến lược C)
+# ev2gym            # T1.4 — simulator ưu tiên (FR11)
+# acnportal         # T1.4 — ACN-Sim dự phòng (FR11)
+# tzdata            # T2.1 — zoneinfo cần dữ liệu múi giờ; python:3.12-slim có thể thiếu — kiểm trong Docker trước khi bật

@@ -1,0 +1,595 @@
+{
+ "dataset": {
+  "train": {
+   "messages": 18611,
+   "anomalous": 2227
+  },
+  "val": {
+   "messages": 5731,
+   "anomalous": 735
+  },
+  "test": {
+   "messages": 13350,
+   "anomalous": 1613
+  }
+ },
+ "split_by_seed": {
+  "train": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "val": [
+   10,
+   11,
+   12
+  ],
+  "test": [
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19
+  ]
+ },
+ "held_out_families_in_test_only": [
+  "oscillation"
+ ],
+ "build_dataset_s": 11.2,
+ "gbdt_inference_ms_per_1000_msgs": 2.97,
+ "artifact_sha256": "3f8fda0274d6048e532e158ae6adfb9a412ad371269baf2e03a8a8d461456ff0",
+ "results": [
+  {
+   "model": "rules_threshold_residual",
+   "precision": 0.8836,
+   "recall": 0.734,
+   "f1": 0.8019,
+   "false_alarms_per_connector_hour": 0.701,
+   "per_class": {
+    "normal": {
+     "n": 11737,
+     "false_alarm_rate": 0.0133
+    },
+    "noise_burst": {
+     "n": 290,
+     "recall": 0.9172
+    },
+    "freeze": {
+     "n": 173,
+     "recall": 0.7457
+    },
+    "delay": {
+     "n": 190,
+     "recall": 1.0
+    },
+    "packet_loss": {
+     "n": 68,
+     "recall": 0.7206
+    },
+    "false_reading": {
+     "n": 297,
+     "recall": 0.7407
+    },
+    "not_following_setpoint": {
+     "n": 178,
+     "recall": 0.5618
+    },
+    "efficiency_degradation": {
+     "n": 209,
+     "recall": 0.4545
+    },
+    "oscillation": {
+     "n": 208,
+     "recall": 0.649
+    }
+   },
+   "detection_delay": {
+    "noise_burst": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "packet_loss": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "freeze": {
+     "detected_episodes": 13,
+     "median_delay_min": 3.0
+    },
+    "not_following_setpoint": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    },
+    "efficiency_degradation": {
+     "detected_episodes": 10,
+     "median_delay_min": 0.0
+    },
+    "false_reading": {
+     "detected_episodes": 15,
+     "median_delay_min": 0.0
+    },
+    "delay": {
+     "detected_episodes": 14,
+     "median_delay_min": 0.0
+    },
+    "oscillation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    }
+   }
+  },
+  {
+   "model": "isolation_forest",
+   "precision": 0.7092,
+   "recall": 0.434,
+   "f1": 0.5385,
+   "pr_auc": 0.528,
+   "false_alarms_per_connector_hour": 1.29,
+   "per_class": {
+    "normal": {
+     "n": 11737,
+     "false_alarm_rate": 0.0245
+    },
+    "noise_burst": {
+     "n": 290,
+     "recall": 0.7414
+    },
+    "freeze": {
+     "n": 173,
+     "recall": 0.1734
+    },
+    "delay": {
+     "n": 190,
+     "recall": 0.0211
+    },
+    "packet_loss": {
+     "n": 68,
+     "recall": 0.1618
+    },
+    "false_reading": {
+     "n": 297,
+     "recall": 0.6902
+    },
+    "not_following_setpoint": {
+     "n": 178,
+     "recall": 0.5449
+    },
+    "efficiency_degradation": {
+     "n": 209,
+     "recall": 0.0526
+    },
+    "oscillation": {
+     "n": 208,
+     "recall": 0.6106
+    }
+   },
+   "detection_delay": {
+    "noise_burst": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "not_following_setpoint": {
+     "detected_episodes": 10,
+     "median_delay_min": 0.0
+    },
+    "false_reading": {
+     "detected_episodes": 15,
+     "median_delay_min": 0.0
+    },
+    "packet_loss": {
+     "detected_episodes": 5,
+     "median_delay_min": 0.0
+    },
+    "efficiency_degradation": {
+     "detected_episodes": 2,
+     "median_delay_min": 3.0
+    },
+    "oscillation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    },
+    "delay": {
+     "detected_episodes": 2,
+     "median_delay_min": 1.0
+    },
+    "freeze": {
+     "detected_episodes": 3,
+     "median_delay_min": 9.0
+    }
+   },
+   "threshold": 0.5840067025647817,
+   "fit_s": 0.41
+  },
+  {
+   "model": "lof_novelty",
+   "precision": 0.9239,
+   "recall": 0.7074,
+   "f1": 0.8013,
+   "pr_auc": 0.8181,
+   "false_alarms_per_connector_hour": 0.422,
+   "per_class": {
+    "normal": {
+     "n": 11737,
+     "false_alarm_rate": 0.008
+    },
+    "noise_burst": {
+     "n": 290,
+     "recall": 0.9138
+    },
+    "freeze": {
+     "n": 173,
+     "recall": 0.8324
+    },
+    "delay": {
+     "n": 190,
+     "recall": 1.0
+    },
+    "packet_loss": {
+     "n": 68,
+     "recall": 0.7206
+    },
+    "false_reading": {
+     "n": 297,
+     "recall": 0.7273
+    },
+    "not_following_setpoint": {
+     "n": 178,
+     "recall": 0.2135
+    },
+    "efficiency_degradation": {
+     "n": 209,
+     "recall": 0.4593
+    },
+    "oscillation": {
+     "n": 208,
+     "recall": 0.6875
+    }
+   },
+   "detection_delay": {
+    "noise_burst": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "packet_loss": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "freeze": {
+     "detected_episodes": 13,
+     "median_delay_min": 2.0
+    },
+    "not_following_setpoint": {
+     "detected_episodes": 7,
+     "median_delay_min": 7.0
+    },
+    "efficiency_degradation": {
+     "detected_episodes": 10,
+     "median_delay_min": 0.0
+    },
+    "false_reading": {
+     "detected_episodes": 15,
+     "median_delay_min": 0.0
+    },
+    "delay": {
+     "detected_episodes": 14,
+     "median_delay_min": 0.0
+    },
+    "oscillation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    }
+   },
+   "threshold": 2.3008136962557315,
+   "fit_s": 4.04
+  },
+  {
+   "model": "gbdt_supervised",
+   "precision": 0.9256,
+   "recall": 0.6789,
+   "f1": 0.7833,
+   "pr_auc": 0.7724,
+   "false_alarms_per_connector_hour": 0.396,
+   "per_class": {
+    "normal": {
+     "n": 11737,
+     "false_alarm_rate": 0.0075
+    },
+    "noise_burst": {
+     "n": 290,
+     "recall": 0.8793
+    },
+    "freeze": {
+     "n": 173,
+     "recall": 0.8844
+    },
+    "delay": {
+     "n": 190,
+     "recall": 0.8842
+    },
+    "packet_loss": {
+     "n": 68,
+     "recall": 0.0
+    },
+    "false_reading": {
+     "n": 297,
+     "recall": 0.7306
+    },
+    "not_following_setpoint": {
+     "n": 178,
+     "recall": 0.5506
+    },
+    "efficiency_degradation": {
+     "n": 209,
+     "recall": 0.4545
+    },
+    "oscillation": {
+     "n": 208,
+     "recall": 0.524
+    }
+   },
+   "detection_delay": {
+    "noise_burst": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "freeze": {
+     "detected_episodes": 13,
+     "median_delay_min": 1.0
+    },
+    "not_following_setpoint": {
+     "detected_episodes": 12,
+     "median_delay_min": 0.0
+    },
+    "efficiency_degradation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    },
+    "false_reading": {
+     "detected_episodes": 15,
+     "median_delay_min": 0.0
+    },
+    "delay": {
+     "detected_episodes": 13,
+     "median_delay_min": 0.0
+    },
+    "oscillation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    }
+   },
+   "multiclass_known_families": {
+    "normal": {
+     "precision": 0.965,
+     "recall": 0.993,
+     "f1": 0.979,
+     "n": 11737
+    },
+    "noise_burst": {
+     "precision": 0.924,
+     "recall": 0.834,
+     "f1": 0.877,
+     "n": 290
+    },
+    "freeze": {
+     "precision": 1.0,
+     "recall": 0.855,
+     "f1": 0.922,
+     "n": 173
+    },
+    "delay": {
+     "precision": 0.988,
+     "recall": 0.879,
+     "f1": 0.93,
+     "n": 190
+    },
+    "packet_loss": {
+     "precision": 0.0,
+     "recall": 0.0,
+     "f1": 0.0,
+     "n": 68
+    },
+    "false_reading": {
+     "precision": 0.971,
+     "recall": 0.667,
+     "f1": 0.79,
+     "n": 297
+    },
+    "not_following_setpoint": {
+     "precision": 0.611,
+     "recall": 0.511,
+     "f1": 0.557,
+     "n": 178
+    },
+    "efficiency_degradation": {
+     "precision": 0.948,
+     "recall": 0.435,
+     "f1": 0.597,
+     "n": 209
+    }
+   },
+   "confusion_matrix_known": {
+    "labels": [
+     "normal",
+     "noise_burst",
+     "freeze",
+     "delay",
+     "packet_loss",
+     "false_reading",
+     "not_following_setpoint",
+     "efficiency_degradation"
+    ],
+    "matrix": [
+     [
+      11649,
+      7,
+      0,
+      2,
+      34,
+      0,
+      44,
+      1
+     ],
+     [
+      35,
+      242,
+      0,
+      0,
+      2,
+      6,
+      3,
+      2
+     ],
+     [
+      20,
+      0,
+      148,
+      0,
+      0,
+      0,
+      5,
+      0
+     ],
+     [
+      22,
+      0,
+      0,
+      167,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      68,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      80,
+      9,
+      0,
+      0,
+      4,
+      198,
+      4,
+      2
+     ],
+     [
+      80,
+      4,
+      0,
+      0,
+      3,
+      0,
+      91,
+      0
+     ],
+     [
+      114,
+      0,
+      0,
+      0,
+      2,
+      0,
+      2,
+      91
+     ]
+    ]
+   },
+   "fit_s": 0.29
+  },
+  {
+   "model": "rules_OR_gbdt",
+   "precision": 0.8384,
+   "recall": 0.7657,
+   "f1": 0.8004,
+   "false_alarms_per_connector_hour": 1.07,
+   "per_class": {
+    "normal": {
+     "n": 11737,
+     "false_alarm_rate": 0.0203
+    },
+    "noise_burst": {
+     "n": 290,
+     "recall": 0.9276
+    },
+    "freeze": {
+     "n": 173,
+     "recall": 0.9017
+    },
+    "delay": {
+     "n": 190,
+     "recall": 1.0
+    },
+    "packet_loss": {
+     "n": 68,
+     "recall": 0.7206
+    },
+    "false_reading": {
+     "n": 297,
+     "recall": 0.7407
+    },
+    "not_following_setpoint": {
+     "n": 178,
+     "recall": 0.6011
+    },
+    "efficiency_degradation": {
+     "n": 209,
+     "recall": 0.4689
+    },
+    "oscillation": {
+     "n": 208,
+     "recall": 0.7019
+    }
+   },
+   "detection_delay": {
+    "noise_burst": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "packet_loss": {
+     "detected_episodes": 19,
+     "median_delay_min": 0.0
+    },
+    "freeze": {
+     "detected_episodes": 13,
+     "median_delay_min": 1.0
+    },
+    "not_following_setpoint": {
+     "detected_episodes": 13,
+     "median_delay_min": 0.0
+    },
+    "efficiency_degradation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    },
+    "false_reading": {
+     "detected_episodes": 15,
+     "median_delay_min": 0.0
+    },
+    "delay": {
+     "detected_episodes": 14,
+     "median_delay_min": 0.0
+    },
+    "oscillation": {
+     "detected_episodes": 11,
+     "median_delay_min": 0.0
+    }
+   }
+  }
+ ]
+}

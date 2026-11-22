@@ -1,0 +1,4 @@
+{
+  "dispatch": {"DC": "llf"},
+  "optimizers": {"DC": "rolling_lp"}
+}

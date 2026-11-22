@@ -1,0 +1,6 @@
+# cmd: python -m src.simulator.run --scenario vinfast_dc_2port_120kw --output-dir <scratch> | commit d15871a
+vinfast_dc_2port_120kw | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 8/9 | mean wait (started only): 44.78 min | peak grid: 149.474 kW
+Report: C:\Users\minhh\AppData\Local\Temp\claude\1ce8fb91e84c1e1f\a39ea94a-6d91-449e-9249-42b87e9847c3\scratchpad\simrun-vinfast_dc_2port_120kw\20261120T183420232085Z-c05e3251f5-8d4ec6e1\report.json
+2D replay: C:\Users\minhh\AppData\Local\Temp\claude\1ce8fb91e84c1e1f\a39ea94a-6d91-449e-9249-42b87e9847c3\scratchpad\simrun-vinfast_dc_2port_120kw\20261120T183420232085Z-c05e3251f5-8d4ec6e1\viewer.html

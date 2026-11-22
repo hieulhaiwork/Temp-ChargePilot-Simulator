@@ -1,0 +1,48 @@
+# ChargePilot / SC-16 — Project State
+
+> **Purpose:** Small, durable handoff across fresh Codex conversations. This is a snapshot, not an instruction override. Keep it concise, factual, and updated after *verified* milestones or explicit user/Tech Lead decisions. Do not paste full chat transcripts here.
+
+**Last context update:** 2026-11-21 (verified offline MVP-3 coordinated implementation and paired benchmark).
+
+## Current direction / accepted architecture
+
+- Project: ChargePilot SC-16, hybrid AC/DC charging scheduling in a residential-site **simulation**.
+- **EV2Gym-first**: one ChargePilot hybrid runtime built using EV2Gym components plus a clearly labeled ChargePilot DC extension. The legacy prototype and its dedicated test suite have been removed, with applicable checks covered by the hybrid tests.
+- Modular boundary: `Scenario` → `HybridSimulator` + `QueueController` → per-zone `DispatchPolicy`, per-zone `ZonePowerOptimizer`, `GlobalCoordinator`, mandatory physical guard and `EV2GymAdapter` with a swappable `DCChargingModel` → ledger, reports and 2D replay. The CLI composes implementations from an explicit registry.
+- The shared AC/DC electrical budget and DC taper are **simulation assumptions**, not site-level verified facts or calibrated VinFast charging curves.
+
+## Status and evidence
+
+- **MVP-1 Hardening v1.1, verified by Implementation Engineer:** 34 simulator tests before changes and 59 after, including a fresh Python 3.12.3 venv installed from simulator requirements. Default fixture metrics, per-vehicle results, replay frames and events matched before/after. The 9-EV fixture achieved 9/9 on time, mean/p95 wait 51.11 / 135 min, peak grid 105.263 kW, grid energy 239.527 kWh and battery energy 223.000 kWh. Independently integrated exported grid/charger power and reconciled against per-vehicle SOC delta.
+- **EV2Gym 2.0.0 boundary, reproduced:** native DC raises `NotImplementedError`. Native spawn refuses full ports and reassigns `EV.id` to a connector-local index. Adapter tests now verify stable ChargePilot IDs, compatible AC/DC assignment, slot consistency, and reconnect after release. The synthetic DC contract excludes native degradation and charger statistics.
+- **Scheduling hardening, verified:** immutable limits and read-only observation, half-open arrival horizon, event-split intervals, counted pre-application rejections and post-application violations. The policy comparison on an intentionally scarce fixture produced 0/2 on time for equal-share and 1/2 for a test-only deadline-priority allocation. The default fixture achieved 9/9 for both.
+- **After legacy cleanup:** 54 simulator tests passed, including the migrated regression checks. The 9-EV demo still achieved 9/9 on time.
+- **Modular v1.2 verified:** 88 simulator tests passed. All default fixture results and replay frames/events match v1.1 at `f7eaac8`, with byte-identical CSVs and events JSON. Chromium verified embedded and file-loaded replays for default and EDF/demo options. Full repository test collection fails on the old API import `src.simulator.base` in both the baseline and current tree.
+- **Functional package layout verified:** `src/simulator/src` groups engine, dispatch, optimizers, coordination, safety, charging models and evaluation. The default and EDF/demo runs retained identical result payloads and 88 simulator tests passed.
+- **DC Vehicle Profiles v0.1 verified:** the opt-in `vinfast_profiles_v0_1` registry entry selects by vehicle ID from optional `vehicle_model` labels. VF 3 is synthetic, VF 8 new-generation uses an older VF 8 proxy, and VF 9 123 kWh and unidentified vehicles use estimated generic envelopes. MVP-1 report/replay payloads, events and CSVs matched before/after. The new hypothetical two-port fixture achieved 8/9 on time and peaked at 149.474/150 kW. Simulator suite passed 112 tests and Chromium verified the new replay.
+- **MVP-2 verified in the worktree on `d15871a`** with 138 simulator tests. Default MVP-1, the legacy EDF demo, and the opt-in VinFast fixture matched all 15 v1.2 golden hashes. DC LLF and DC Rolling LP run through the modular interfaces and mandatory Guard. The 25 paired synthetic scenarios yielded 74/180 DC on time for FCFS + Equal Share and 100/180 for LLF + Rolling LP, with 75/75 AC on time for both. M2b DC p95 wait was 70 minutes versus 60 for B0, and unserved was 38 versus 31. Decision p95 was 2.794 ms for M2b on the four-connector topology. Across 179 benchmark runs including sensitivities, no applied violations were observed and the largest energy reconciliation error was 3.98e-13 kWh. See [MVP-2 benchmark evidence](MVP2_BENCHMARK.md).
+- **MVP-3 verified on worktree `781c3f0`.** The 163-test simulator suite passed, including three MVP-1 goldens and two locked M2b goldens. Re-running all 179 MVP-2 benchmark and sensitivity runs reproduced all prior non-timing KPIs. MVP-3 separates default budgets from hardware caps, supports runtime site/cabinet curtailment and independent supply, and provides two-stage AC shortfall/TOU LP plus Fixed Share and Dynamic Slack in the same runtime. Guard and coordinator consume the same effective limit snapshot. The 100 paired workload runs and four fixture controls had zero observed violations and fallbacks. M3a kept 127/270 total SLA and saved 21.75 USD of synthetic TOU cost versus M2b. M3b gained seven DC SLA and lost ten AC SLA versus M3a, with a 6.856 ms decision p95 on this topology. See [MVP-3 benchmark evidence](MVP3_BENCHMARK.md).
+- **Next milestone** is Tech Lead review of MVP-3, including the Dynamic Slack trade-off and acceptable AC/DC coverage under scarcity. Policy tuning remains pending.
+
+## Open items to verify against current code
+
+1. Recheck EV2Gym ID/occupancy assumptions if changing the pinned package. DC taper and losses still lack hardware calibration. Native DC degradation, AFAP and station metrics remain unsupported.
+2. Static scenario assets are immutable. The engine resolves runtime `EffectiveLimits` per interval. New scenarios may explicitly separate compatible fixed budgets, physical zone caps and source caps. Legacy optimizer views keep the expected `scenario.zone_kw` contract with caps projected by the engine.
+3. Invalid Guard allocations stop a run before application. Rolling LP falls back on nonoptimal or invalid solver results before Guard. A failed post-check still aborts a partially applied interval. Rollback semantics remain open.
+4. Dispatch considers waiting arrivals for free compatible connectors. Connected EVs keep their ports until lifecycle release. MVP-3 optimizer observations exclude unseen arrivals and unpublished limit events. The legacy Python `policy=` hook keeps its existing offline roster contract. Forecast uncertainty and active-session preemption require separate decisions.
+5. The workload suite and latency measurement are exploratory. Review per-zone SLA/coverage during shared-source scarcity, tariff forecasts, and larger topology measurements before an official benchmark. DecisionTrace v2 provides facts for later WHY/WHAT-IF work, including observed allocation and limits.
+6. Resolved 2026-11-22: `src/simulator/base.py` is back as the backend Protocol (`StationReader` / `StationActuator`); full repository tests collect (CI job `simulator` runs this suite). The backend runtime uses `LiveStation` (`src/simulator/live.py`, ADR-016), not `HybridSimulator`; do not mix their metrics.
+
+## Decision log (append short entries only after acceptance)
+
+| Date | Decision | Status | Rationale / evidence |
+|---|---|---|---|
+| 2026-11-19 | EV2Gym-first, single primary hybrid simulator; migrate useful `core.py` logic | User-approved direction | Avoid divergent simulators and duplicated maintenance |
+| 2026-11-19 | Current objective: MVP-1 hardening before claiming benchmark readiness | Tech Lead recommendation | Integration and model validation gaps remain |
+| 2026-11-19 | Modular simulator v1.2 with replaceable dispatch, optimizers, coordination and DC physics | Tech Lead approval relayed by user | Keep one simulator and mandatory Guard while comparing modules |
+
+## When handing off
+
+- Read `AGENTS.md` and `collaboration_chat.md` for permanent rules and the current task.
+- Verify `git status`, active codepaths and tests before assuming the snapshot remains current.
+- Update the **Status and evidence** and **Open items** sections only with evidence; mark unverified claims as reported.

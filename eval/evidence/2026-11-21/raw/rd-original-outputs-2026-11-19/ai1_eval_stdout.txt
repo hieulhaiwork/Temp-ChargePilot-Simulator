@@ -1,0 +1,35 @@
+fixture_22:40 DC-C feasible=9 latency=18.6s
+fixture_23:20 AC-A feasible=9 latency=26.0s
+fixture_23:20 DC-C feasible=7 latency=26.3s
+site_drop_s0_t185 DC-006 feasible=6 latency=7.2s
+site_drop_s1_t185 AC-005 feasible=7 latency=11.5s
+site_drop_s1_t185 AC-006 feasible=7 latency=11.2s
+site_drop_s2_t65 DC-012 feasible=9 latency=3.3s
+site_drop_s2_t125 DC-005 feasible=5 latency=5.7s
+site_drop_s2_t125 DC-010 feasible=2 latency=5.5s
+site_drop_s2_t185 AC-006 feasible=9 latency=7.9s
+site_drop_s2_t185 DC-011 feasible=4 latency=7.9s
+site_drop_s3_t125 DC-002 feasible=7 latency=10.2s
+site_drop_s3_t125 DC-008 feasible=4 latency=9.7s
+site_drop_s3_t185 AC-002 feasible=7 latency=11.2s
+site_drop_s3_t185 AC-008 feasible=10 latency=11.1s
+{
+ "decisions": 45,
+ "distinct_conflicts": 15,
+ "A_notify_sla_rate": 0.0,
+ "B_rule_sla_rate": 0.267,
+ "B_rule_others_hurt_total": 2,
+ "C_acceptance_rate": 0.556,
+ "C_sla_rate": 0.556,
+ "C_by_profile": {
+  "time_flexible": 1.0,
+  "soc_flexible": 0.667,
+  "rigid": 0.0
+ },
+ "feasible_options_mean": 6.8,
+ "conflicts_with_no_feasible_option": 0,
+ "options_latency_s_p50": 10.2,
+ "options_latency_s_max": 26.34,
+ "unsupported_options_shown": 0,
+ "llm_live_eval": "BLOCKED (no API key authorised); template path only"
+}

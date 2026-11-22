@@ -1,0 +1,23 @@
+# Biểu giá điện MÔ PHỎNG theo khung giờ — dùng cho bộ tối ưu (FR6) và KPI chi phí (MT3).
+#
+# KHÔNG phải biểu giá EVN chính thức:
+#   - Khung giờ: tham khảo kiểu biểu giá theo thời gian sử dụng (TOU), CẦN kiểm chứng.
+#   - Giá: số giả định để bộ tối ưu có tín hiệu giá. TV1 thay bằng biểu giá có nguồn
+#     và đặt verified: true trước khi báo cáo MT3 (giảm chi phí so với FCFS).
+#   - Đơn giản hoá: cùng một biểu giá cho mọi ngày trong tuần.
+#
+# Mỗi phút trong ngày phải thuộc ĐÚNG một khung (Tariff validator kiểm tra lúc nạp).
+# Khung có end < start nghĩa là qua nửa đêm (vd 22:00 → 04:00).
+# Giờ PHẢI để trong ngoặc kép (xem ghi chú YAML ở station.yaml).
+
+currency: VND
+verified: false
+source: "Giả định mô phỏng — chưa đối chiếu biểu giá EVN"
+
+periods:
+  - { name: off_peak, start: "22:00", end: "04:00", price_per_kwh: 1200 }
+  - { name: normal,   start: "04:00", end: "09:30", price_per_kwh: 2000 }
+  - { name: peak,     start: "09:30", end: "11:30", price_per_kwh: 3500 }
+  - { name: normal,   start: "11:30", end: "17:00", price_per_kwh: 2000 }
+  - { name: peak,     start: "17:00", end: "20:00", price_per_kwh: 3500 }
+  - { name: normal,   start: "20:00", end: "22:00", price_per_kwh: 2000 }

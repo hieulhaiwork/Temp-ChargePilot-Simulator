@@ -1,0 +1,21 @@
+# legacy_ac_only (ADR-012): kịch bản của bãi chỉ AC 8 × 7 kW (A01–A08), giới hạn 35 kW — PRD v0.2.
+# config/station.yaml đã là topology hybrid `mvp1` (ADR-010) nên mã cổng / giới hạn ở đây KHÔNG khớp trạm hiện tại.
+# Giữ tới khi nhóm quyết bỏ; KHÔNG dùng cho nghiệm thu / benchmark.
+#
+# Kịch bản FR18 / US6 — một trụ hỏng giữa giờ cao điểm.
+# Kỳ vọng: hệ thống tự tính lại phương án (FR8), xe trên A05 được chuyển/xếp hàng,
+# không vượt giới hạn công suất.
+# at_minute tính từ start_time: 12:00 + 420 phút = 19:00.
+
+scenario_id: connector_failure
+name: "Trụ A05 hỏng lúc 19:00 (FR18)"
+description: "Như cao điểm tối, nhưng A05 lỗi lúc 19:00 và phục hồi lúc 23:00."
+start_time: "12:00"
+duration_hours: 24
+n_vehicles: 30
+power_limit_kw: 35.0
+session_source: synthetic
+seed: 42
+incidents:
+  - { at_minute: 420, type: connector_fault, connector_id: A05 }
+  - { at_minute: 660, type: connector_restored, connector_id: A05 }

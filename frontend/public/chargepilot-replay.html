@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargePilot · Replay bãi sạc</title>
+<style>
+:root { color-scheme: dark; font: 15px/1.5 system-ui, sans-serif; background: #101822; color: #e8f2fa; --muted: #a9bbcd; --line: #34465a; --panel: #182431; --ac: #69dddc; --dc: #ffb264; }
+* { box-sizing: border-box; }
+body { max-width: 1320px; margin: auto; padding: 24px; }
+header, .controls, .layout, .zone-title, .entry { display: flex; gap: 16px; align-items: center; }
+header, .zone-title { justify-content: space-between; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(24px, 4vw, 40px); letter-spacing: -.04em; }
+h2 { font-size: 18px; }
+h3 { font-size: 15px; }
+small, p, .caption { color: var(--muted); }
+button, select, .open { background: #26384b; color: inherit; font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, .open:focus-within { outline: 2px solid var(--ac); outline-offset: 3px; }
+.open input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.controls { flex-wrap: wrap; margin-top: 18px; }
+.controls #seek { flex: 1; min-width: 140px; accent-color: var(--ac); }
+.controls #clock { font: bold 20px ui-monospace, monospace; min-width: 58px; }
+.stats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 15px 0; }
+.stat, .panel { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; }
+.stat { padding: 9px 12px; }
+.stat strong { display: block; font-size: 19px; font-variant-numeric: tabular-nums; }
+.panel { padding: 14px; }
+.layout { align-items: stretch; }
+.layout > main { flex: 2; min-width: 0; }
+.layout > aside { flex: 1; min-width: 245px; }
+.entry { justify-content: space-between; border-bottom: 1px dashed var(--line); padding-bottom: 8px; margin-bottom: 10px; }
+.zones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.zone { background: #101a25; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.zone.ac h2 { color: var(--ac); }
+.zone.dc h2 { color: var(--dc); }
+.bays, .queue, .vehicle-list { display: flex; flex-wrap: wrap; gap: 7px; margin: 7px 0 10px; }
+.bay { display: grid; gap: 2px; background: #1a2939; border: 1px dashed #52677d; border-radius: 6px; padding: 4px; min-width: 94px; }
+.car { min-width: 76px; text-align: left; padding: 4px 7px; border-color: #52677d; }
+.car span { display: block; font-size: 11px; }
+.car[data-state=CHARGING] { background: #18465a; border-color: var(--ac); }
+.car[data-state=QUEUED] { background: #594824; border-color: #f3ce6b; }
+.car[data-state=FINISHED] { background: #224835; border-color: #6be39b; }
+.car[data-state=DEPARTED] { background: #252f3d; }
+.car[aria-pressed=true] { outline: 2px solid #fff; outline-offset: 1px; }
+dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.history { margin-top: 14px; }
+.chart { width: 100%; height: auto; display: block; margin-top: 8px; }
+.events-wrap { max-height: 220px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; }
+td, th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+th { position: sticky; top: 0; background: var(--panel); }
+.error { color: #ffab9a; }
+@media (max-width: 840px) { .stats { grid-template-columns: repeat(3, 1fr); } .layout { flex-direction: column; } }
+@media (max-width: 480px) { body { padding: 12px; } header { align-items: start; } .zones { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div><p>ChargePilot · MVP1</p><h1>Replay bãi sạc</h1><p id="scenario">Chọn một tệp replay để bắt đầu.</p></div>
+  <label class="open">Mở replay JSON<input id="file" type="file" accept=".json,application/json"></label>
+</header>
+<p id="error" class="error" role="alert"></p>
+<section id="replay" hidden aria-label="Mô phỏng bãi sạc">
+  <nav class="controls" aria-label="Điều khiển replay">
+    <button id="play" type="button">Phát</button>
+    <button id="step" type="button">Bước tiếp</button>
+    <output id="clock" for="seek"></output>
+    <input id="seek" type="range" min="0" value="0" aria-label="Thời điểm mô phỏng">
+    <label>Tốc độ <select id="speed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="4">4×</option><option value="12">12×</option></select></label>
+    <label><input id="labels" type="checkbox" checked> Chi tiết nhãn xe</label>
+  </nav>
+  <div id="stats" class="stats"></div>
+  <div class="layout">
+    <main class="panel" aria-label="Sơ đồ bãi sạc nhìn từ trên">
+      <div class="entry"><h2>↓ Lối vào bãi</h2><span class="caption">Top-down · AC và DC</span></div>
+      <div id="zones" class="zones"></div>
+      <h3>Xe ngoài cổng và hàng chờ</h3><div id="other" class="vehicle-list"></div>
+    </main>
+    <aside class="panel"><h2 id="selected">Chi tiết xe</h2><dl id="details"></dl></aside>
+  </div>
+  <section class="panel history"><h2>Công suất theo thời gian</h2>
+    <p><span style="color:var(--ac)">● AC</span> · <span style="color:var(--dc)">● DC</span> · <span style="color:#c6b6ff">● Đầu vào lưới</span> · <span style="color:#f99999">┄ Giới hạn lưới</span></p>
+    <svg id="chart" class="chart" viewBox="0 0 940 185" role="img" aria-label="Công suất kW theo thời gian"></svg>
+  </section>
+  <section class="panel history"><h2>Nhật ký đến thời điểm đang xem</h2>
+    <div class="events-wrap"><table><thead><tr><th>Giờ</th><th>Xe</th><th>Sự kiện</th><th>Cổng / lý do</th></tr></thead><tbody id="events"></tbody></table></div>
+  </section>
+</section>
+<script type="application/json" id="embedded-replay">null</script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const node = (tag, content, cls) => {
+  const element = document.createElement(tag);
+  if (content != null) element.textContent = content;
+  if (cls) element.className = cls;
+  return element;
+};
+const svg = (tag, attrs, content) => {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+  if (content != null) element.textContent = content;
+  return element;
+};
+const stateLabels = {NOT_ARRIVED:"Chưa đến", QUEUED:"Đang chờ", CHARGING:"Đang sạc", FINISHED:"Đạt mục tiêu", DEPARTED:"Đã rời"};
+const eventLabels = {ARRIVED:"Đến bãi", PLUGGED_IN:"Cắm sạc", CHARGE_COMPLETED:"Đạt mục tiêu", UNPLUGGED:"Rời cổng", LEFT_QUEUE:"Rời hàng chờ"};
+const reasonLabels = {declared_departure:"Giờ rời dự kiến", dc_unplug_delay:"Hết thời gian chờ rút DC"};
+const clock = value => value == null ? "—" : String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
+const soc = value => (value * 100).toFixed(1) + "%";
+let data, index = 0, selected, timer, chartCursor, chartX;
+
+function selectVehicle(vehicle) {
+  selected = vehicle.id;
+  for (const button of document.querySelectorAll(".car")) {
+    button.setAttribute("aria-pressed", String(button.dataset.vehicle === selected));
+  }
+  $("selected").textContent = vehicle.id + " · " + vehicle.zone;
+  $("details").replaceChildren(...[
+    ["Trạng thái", stateLabels[vehicle.state]], ["Cổng hiện tại", vehicle.connector ?? "—"],
+    ["SOC hiện tại / mục tiêu", soc(vehicle.soc) + " / " + soc(vehicle.target)],
+    ["Đến / dự kiến rời", clock(vehicle.arrival) + " / " + clock(vehicle.departure)],
+    ["Bắt đầu / hoàn tất", clock(vehicle.charge_started) + " / " + clock(vehicle.completed_at)],
+    ["Rời thực tế", clock(vehicle.departed_at)], ["Thời gian chờ", vehicle.waiting_minutes == null ? "—" : vehicle.waiting_minutes + " phút"],
+    ["Năng lượng vào pin", vehicle.delivered_battery_kwh.toFixed(3) + " kWh"],
+    ["Công suất sạc", vehicle.actual_output_kw.toFixed(2) + " kW"],
+  ].flatMap(([key, value]) => [node("dt", key), node("dd", value)]));
+}
+
+function carButton(vehicle) {
+  const button = node("button", vehicle.id, "car");
+  button.type = "button";
+  button.dataset.vehicle = vehicle.id;
+  button.dataset.state = vehicle.state;
+  button.setAttribute("aria-label", vehicle.id + ", " + vehicle.zone + ", " + stateLabels[vehicle.state] + ", SOC " + soc(vehicle.soc));
+  button.setAttribute("aria-pressed", String(selected === vehicle.id));
+  if ($("labels").checked) button.append(node("span", stateLabels[vehicle.state] + " · " + soc(vehicle.soc)));
+  button.onclick = () => selectVehicle(vehicle);
+  return button;
+}
+
+function render() {
+  const frame = data.frames[index];
+  const cap = data.metadata.config.grid_input_limit_kw;
+  const vehicles = Object.values(frame.vehicles);
+  $("clock").value = frame.time;
+  $("seek").value = index;
+  $("seek").setAttribute("aria-valuetext", frame.time);
+  $("step").disabled = index >= data.frames.length - 1;
+  $("stats").replaceChildren(...[
+    ["Chờ AC", frame.queues.AC.length], ["Chờ DC", frame.queues.DC.length],
+    ["Cổng đang dùng", Object.values(frame.ports).filter(x => x !== null).length + " / " + Object.keys(frame.ports).length],
+    ["AC đầu ra", frame.ac_output_kw.toFixed(1) + " kW"], ["DC đầu ra", frame.dc_output_kw.toFixed(1) + " kW"],
+    ["Lưới / giới hạn", frame.grid_input_kw.toFixed(1) + " / " + cap + " kW"], ["Đạt mục tiêu", frame.completed + " / " + vehicles.length],
+  ].map(([title, value]) => {
+    const stat = node("div", null, "stat");
+    stat.append(node("small", title), node("strong", value));
+    return stat;
+  }));
+  $("zones").replaceChildren(...["AC", "DC"].map(zone => {
+    const area = node("section", null, "zone " + zone.toLowerCase());
+    const title = node("div", null, "zone-title");
+    const cabinets = data.metadata.config.charger_cabinets.filter(c => c.zone === zone);
+    title.append(node("h2", "Khu " + zone), node("small", zone === "AC" ? "FIFO" : "FCFS"));
+    area.append(title);
+    for (const cabinet of cabinets) {
+      const bays = node("div", null, "bays");
+      for (let port = 1; port <= cabinet.ports; port++) {
+        const id = cabinet.id + "/P" + port;
+        const bay = node("div", null, "bay");
+        bay.dataset.connector = id;
+        bay.append(node("small", id));
+        const occupant = frame.ports[id];
+        const vehicle = occupant == null ? undefined : frame.vehicles[occupant];
+        bay.append(vehicle ? carButton(vehicle) : node("span", "Trống", "caption"));
+        bays.append(bay);
+      }
+      area.append(bays);
+    }
+    const waiting = node("div", null, "queue");
+    waiting.dataset.zone = zone;
+    waiting.append(...frame.queues[zone].map(id => carButton(frame.vehicles[id])));
+    if (waiting.childElementCount === 0) waiting.append(node("span", "Không có xe chờ", "caption"));
+    area.append(node("h3", "Hàng chờ"), waiting);
+    return area;
+  }));
+  $("other").replaceChildren(...vehicles.filter(v => ["NOT_ARRIVED","DEPARTED"].includes(v.state)).map(carButton));
+  if (!$("other").childElementCount) $("other").append(node("span", "—", "caption"));
+  if (frame.vehicles[selected]) selectVehicle(frame.vehicles[selected]);
+  else { $("selected").textContent = "Chi tiết xe"; $("details").replaceChildren(); }
+  const x = chartX(frame.minute);
+  chartCursor.setAttribute("x1", x);
+  chartCursor.setAttribute("x2", x);
+  $("events").replaceChildren(...data.events.filter(e => e.minute <= frame.minute).slice().reverse().map(e => {
+    const row = node("tr");
+    row.append(...[e.time, e.car_id, eventLabels[e.event] ?? e.event,
+      [e.connector, reasonLabels[e.reason]].filter(Boolean).join(" · ") || "—"].map(value => node("td", value)));
+    return row;
+  }));
+}
+
+function makeChart() {
+  const {frames} = data;
+  const first = frames[0].minute, last = frames.at(-1).minute;
+  const cap = data.metadata.config.grid_input_limit_kw;
+  const ceiling = Math.max(1, cap, ...frames.map(r => r.grid_input_kw));
+  chartX = minute => 50 + 865 * (minute - first) / (last - first || 1);
+  const y = kw => 150 - kw / ceiling * 131;
+  const chart = $("chart");
+  chart.replaceChildren();
+  for (const value of [0, ceiling / 2, ceiling]) {
+    chart.append(svg("line", {x1:50,x2:915,y1:y(value),y2:y(value),stroke:"#34465a"}));
+    chart.append(svg("text", {x:43,y:y(value)+4,fill:"#a9bbcd","text-anchor":"end","font-size":11}, value.toFixed(0)));
+  }
+  for (const minute of [first, Math.floor((first + last) / 2), last]) {
+    chart.append(svg("text", {x:chartX(minute),y:173,fill:"#a9bbcd","text-anchor":"middle","font-size":11}, clock(minute)));
+  }
+  chart.append(svg("line", {x1:50,x2:915,y1:y(cap),y2:y(cap),stroke:"#f99999","stroke-dasharray":"6 4"}));
+  for (const [key, color] of [["ac_output_kw","#69dddc"],["dc_output_kw","#ffb264"],["grid_input_kw","#c6b6ff"]]) {
+    const d = frames.map((row, i) => i === 0 ? `M ${chartX(row.minute)} ${y(row[key])}` :
+      `H ${chartX(row.minute)} V ${y(row[key])}`).join(" ");
+    chart.append(svg("path", {d,fill:"none",stroke:color,"stroke-width":2}));
+  }
+  chartCursor = svg("line", {y1:13,y2:150,stroke:"#eff6ff","stroke-width":1.5});
+  chart.append(chartCursor);
+}
+
+function stop() {
+  clearTimeout(timer);
+  timer = undefined;
+  $("play").textContent = "Phát";
+}
+function tick() {
+  if (index >= data.frames.length - 1) return stop();
+  const minutes = data.frames[index + 1].minute - data.frames[index].minute;
+  timer = setTimeout(() => { index++; render(); tick(); }, 500 * minutes / Number($("speed").value));
+}
+function load(replay) {
+  if (replay?.schema_version !== 1 || !Array.isArray(replay.frames) || replay.frames.length < 2 ||
+      !Array.isArray(replay.events) || !Array.isArray(replay.metadata?.config?.charger_cabinets) ||
+      !replay.frames.every(f => f.vehicles && f.ports && f.queues?.AC && f.queues?.DC)) {
+    throw new Error("Tệp không đúng định dạng ChargePilot replay v1.");
+  }
+  stop();
+  data = replay;
+  index = 0;
+  selected = Object.keys(data.frames[0].vehicles)[0];
+  $("seek").max = data.frames.length - 1;
+  $("scenario").textContent = data.scenario_id + " · " + data.engine;
+  makeChart();
+  render();
+  $("replay").hidden = false;
+}
+$("play").onclick = () => {
+  if (timer !== undefined) return stop();
+  if (index === data.frames.length - 1) { index = 0; render(); }
+  $("play").textContent = "Tạm dừng";
+  tick();
+};
+$("step").onclick = () => { stop(); index++; render(); };
+$("seek").oninput = event => { stop(); index = Number(event.target.value); render(); };
+$("speed").onchange = () => { if (timer !== undefined) { clearTimeout(timer); tick(); } };
+$("labels").onchange = render;
+$("file").onchange = async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try { load(JSON.parse(await file.text())); $("error").textContent = ""; }
+  catch (error) { $("error").textContent = error.message; }
+  finally { event.target.value = ""; }
+};
+try {
+  const embedded = JSON.parse($("embedded-replay").textContent);
+  if (embedded) load(embedded);
+} catch (error) { $("error").textContent = error.message; }
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+$ python scripts/export_openapi.py (HEAD 8f6f08a, working tree chưa commit)
+==> Đã ghi D:\VIN\P-019\frontend\openapi.json
+exit=0

@@ -1,0 +1,46 @@
+# Render Blueprint — backend FastAPI (Docker), bản PRODUCTION, theo nhánh main.
+# Tạo trên Render: New > Blueprint > chọn repo này. Các biến `sync: false`
+# là secret: Render hỏi giá trị lúc tạo, KHÔNG ghi giá trị vào file này.
+# Danh sách biến và ý nghĩa: docs/plan/50-devops.md §6. Web deploy riêng trên Vercel (Root Directory = frontend).
+services:
+  - type: web
+    name: p019-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    branch: main
+    # Chỉ deploy khi CI (lint, test, docker-smoke) trên commit đó đã xanh.
+    autoDeployTrigger: checksPass
+    # Liveness, không đụng DB. Container chạy `alembic upgrade head` trước khi mở cổng (xem Dockerfile).
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: OPENAI_API_KEY
+        sync: false
+      # Domain production của frontend trên Vercel, ví dụ https://p019.vercel.app
+      # (nhiều domain thì phân cách bằng dấu phẩy).
+      - key: CORS_ORIGINS
+        sync: false
+      # Chuỗi kết nối Neon (postgresql://…?sslmode=require). CHƯA đặt thì backend dùng SQLite trên đĩa KHÔNG BỀN
+      # của Render free: booking, phê duyệt, nhật ký quyết định mất mỗi lần restart (ADR-005).
+      - key: DATABASE_URL
+        sync: false
+      # ADR-006 — cần khi auth chạy thật (T1.7). Chuỗi ngẫu nhiên ≥ 32 byte, KHÁC với bản test.
+      - key: JWT_SECRET
+        sync: false
+      # Tài khoản demo (JSON một dòng, xem .env.example). Seed lúc khởi động.
+      - key: SEED_USERS_JSON
+        sync: false
+      # ADR-007 — vòng nền: trạm tự chạy theo thời gian (TICK, hết hạn phê duyệt). Cần instance không ngủ (Starter).
+      - key: CONTROL_LOOP_ENABLED
+        value: "true"
+      - key: LANGCHAIN_TRACING_V2
+        value: "true"
+      - key: LANGCHAIN_PROJECT
+        value: p019
+      - key: LANGCHAIN_API_KEY
+        sync: false

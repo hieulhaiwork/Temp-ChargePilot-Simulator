@@ -1,0 +1,16 @@
+# Kịch bản cao điểm tối trên bãi hybrid `mvp1` (ADR-010): 2 cổng AC 11 kW + 2 cổng DC 60 kW, lưới 106 kW.
+# Thay cho peak_evening (legacy_ac_only) khi chạy benchmark backend. Phiên sạc tổng hợp theo seed —
+# tham số phân bố là [GIẢ ĐỊNH] ở src/services/simulation_service.py (generate_bookings).
+# n_vehicles = 16 vì bãi chỉ có 2 cổng AC giữ xe qua đêm (F14): kịch bản cố ý vừa có tranh chấp, vừa còn khả thi
+# một phần — KHÔNG phải số đo thực tế của trạm.
+
+scenario_id: hybrid_evening
+name: "Cao điểm tối — bãi hybrid AC/DC"
+description: "16 xe về 17h–22h trên 2 cổng AC + 2 cổng DC, lưới 106 kW, chạy 24 giờ."
+start_time: "12:00"
+duration_hours: 24
+n_vehicles: 16
+power_limit_kw: 106.0
+session_source: synthetic
+seed: 42
+incidents: []

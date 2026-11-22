@@ -1,0 +1,13 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m experimental.ai2_anomaly.experiment | commit 1736d41 | start UTC 2026-11-20T18:51:36Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+rules_threshold_residual {'precision': 0.8836, 'recall': 0.734, 'f1': 0.8019, 'false_alarms_per_connector_hour': 0.701} None
+    {'normal': 0.0133, 'noise_burst': 0.9172, 'freeze': 0.7457, 'delay': 1.0, 'packet_loss': 0.7206, 'false_reading': 0.7407, 'not_following_setpoint': 0.5618, 'efficiency_degradation': 0.4545, 'oscillation': 0.649}
+isolation_forest {'precision': 0.7092, 'recall': 0.434, 'f1': 0.5385, 'false_alarms_per_connector_hour': 1.29} 0.528
+    {'normal': np.float64(0.0245), 'noise_burst': np.float64(0.7414), 'freeze': np.float64(0.1734), 'delay': np.float64(0.0211), 'packet_loss': np.float64(0.1618), 'false_reading': np.float64(0.6902), 'not_following_setpoint': np.float64(0.5449), 'efficiency_degradation': np.float64(0.0526), 'oscillation': np.float64(0.6106)}
+lof_novelty {'precision': 0.9239, 'recall': 0.7074, 'f1': 0.8013, 'false_alarms_per_connector_hour': 0.422} 0.8181
+    {'normal': np.float64(0.008), 'noise_burst': np.float64(0.9138), 'freeze': np.float64(0.8324), 'delay': np.float64(1.0), 'packet_loss': np.float64(0.7206), 'false_reading': np.float64(0.7273), 'not_following_setpoint': np.float64(0.2135), 'efficiency_degradation': np.float64(0.4593), 'oscillation': np.float64(0.6875)}
+gbdt_supervised {'precision': 0.9256, 'recall': 0.6789, 'f1': 0.7833, 'false_alarms_per_connector_hour': 0.396} 0.7724
+    {'normal': np.float64(0.0075), 'noise_burst': np.float64(0.8793), 'freeze': np.float64(0.8844), 'delay': np.float64(0.8842), 'packet_loss': np.float64(0.0), 'false_reading': np.float64(0.7306), 'not_following_setpoint': np.float64(0.5506), 'efficiency_degradation': np.float64(0.4545), 'oscillation': np.float64(0.524)}
+rules_OR_gbdt {'precision': 0.8384, 'recall': 0.7657, 'f1': 0.8004, 'false_alarms_per_connector_hour': 1.07} None
+    {'normal': np.float64(0.0203), 'noise_burst': np.float64(0.9276), 'freeze': np.float64(0.9017), 'delay': 1.0, 'packet_loss': np.float64(0.7206), 'false_reading': np.float64(0.7407), 'not_following_setpoint': np.float64(0.6011), 'efficiency_degradation': np.float64(0.4689), 'oscillation': np.float64(0.7019)}
+{"dataset": {"train": {"messages": 18611, "anomalous": 2227}, "val": {"messages": 5731, "anomalous": 735}, "test": {"messages": 13350, "anomalous": 1613}}, "build_dataset_s": 8.2, "gbdt_inference_ms_per_1000_msgs": 3.45, "artifact_sha256": "3f8fda0274d6048e532e158ae6adfb9a412ad371269baf2e03a8a8d461456ff0"}
+# exit code: 0 | wall 18 s

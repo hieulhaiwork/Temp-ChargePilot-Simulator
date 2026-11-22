@@ -1,0 +1,10 @@
+# cmd: make check equivalent (ruff check, ruff format --check, pytest tests/, check_docs) | branch feature/research-sc16-alignment @ 8f6f08a | Python 3.12.10
+All checks passed!
+128 files already formatted
+.................................ssssssss....sssssss.ssssssssssss....... [ 63%]
+.........sssssssssssss.....sss......................sssssssssss......... [ 84%]
+..................ssssssssssssss........sssssssssssss                    [100%]
+247 passed, 94 skipped in 11.00s
+docs-check:
+	$(PYTHON) scripts/check_docs.py
+

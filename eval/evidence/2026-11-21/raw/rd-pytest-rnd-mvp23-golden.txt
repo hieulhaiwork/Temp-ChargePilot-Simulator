@@ -1,0 +1,58 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m pytest src/simulator/tests/test_rnd_mvp23.py src/simulator/tests/test_golden_regression.py -v -p no:cacheprovider | commit 1736d41 | start UTC 2026-11-20T18:42:12Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+D:\VIN\simulation\.venv-rd\Lib\site-packages\pytest_asyncio\plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.2.0, pluggy-1.7.0 -- D:\VIN\simulation\.venv-rd\Scripts\python.exe
+rootdir: D:\VIN\simulation
+configfile: pytest.ini
+plugins: anyio-4.16.0, asyncio-1.5.0, typeguard-4.6.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 42 items
+
+src/simulator/tests/test_rnd_mvp23.py::test_new_scenario_keys_are_validated PASSED [  2%]
+src/simulator/tests/test_rnd_mvp23.py::test_mvp1_parses_with_v1_2_defaults PASSED [  4%]
+src/simulator/tests/test_rnd_mvp23.py::test_site_drop_respected_and_interval_split[dyn] PASSED [  7%]
+src/simulator/tests/test_rnd_mvp23.py::test_site_drop_respected_and_interval_split[fixed_share] PASSED [  9%]
+src/simulator/tests/test_rnd_mvp23.py::test_site_drop_respected_and_interval_split[joint] PASSED [ 11%]
+src/simulator/tests/test_rnd_mvp23.py::test_legacy_fixed_budget_fail_stops_under_site_drop PASSED [ 14%]
+src/simulator/tests/test_rnd_mvp23.py::test_outage_delivers_nothing_and_keeps_plugged_vehicles[dyn] PASSED [ 16%]
+src/simulator/tests/test_rnd_mvp23.py::test_outage_delivers_nothing_and_keeps_plugged_vehicles[fixed_share] PASSED [ 19%]
+src/simulator/tests/test_rnd_mvp23.py::test_outage_delivers_nothing_and_keeps_plugged_vehicles[joint] PASSED [ 21%]
+src/simulator/tests/test_rnd_mvp23.py::test_independent_supplies_never_shift_power[dyn] PASSED [ 23%]
+src/simulator/tests/test_rnd_mvp23.py::test_independent_supplies_never_shift_power[fixed_share] PASSED [ 26%]
+src/simulator/tests/test_rnd_mvp23.py::test_independent_supplies_never_shift_power[joint] PASSED [ 28%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[dyn-0] PASSED [ 30%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[dyn-1] PASSED [ 33%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[dyn-2] PASSED [ 35%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[dyn-3] PASSED [ 38%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[dyn-4] PASSED [ 40%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[dyn-5] PASSED [ 42%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[fixed_share-0] PASSED [ 45%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[fixed_share-1] PASSED [ 47%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[fixed_share-2] PASSED [ 50%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[fixed_share-3] PASSED [ 52%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[fixed_share-4] PASSED [ 54%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[fixed_share-5] PASSED [ 57%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[joint-0] PASSED [ 59%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[joint-1] PASSED [ 61%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[joint-2] PASSED [ 64%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[joint-3] PASSED [ 66%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[joint-4] PASSED [ 69%]
+src/simulator/tests/test_rnd_mvp23.py::test_randomized_workloads_keep_physics[joint-5] PASSED [ 71%]
+src/simulator/tests/test_rnd_mvp23.py::test_policies_are_online_prefix_consistent[dyn] PASSED [ 73%]
+src/simulator/tests/test_rnd_mvp23.py::test_policies_are_online_prefix_consistent[fixed_share] PASSED [ 76%]
+src/simulator/tests/test_rnd_mvp23.py::test_policies_are_online_prefix_consistent[joint] PASSED [ 78%]
+src/simulator/tests/test_rnd_mvp23.py::test_lp_solver_failure_falls_back_and_is_traced PASSED [ 80%]
+src/simulator/tests/test_rnd_mvp23.py::test_coordinator_cannot_widen_physical_limits PASSED [ 83%]
+src/simulator/tests/test_rnd_mvp23.py::test_optimizer_cannot_power_cabinet_in_outage PASSED [ 85%]
+src/simulator/tests/test_rnd_mvp23.py::test_decision_trace_fields_come_from_solver_and_state PASSED [ 88%]
+src/simulator/tests/test_rnd_mvp23.py::test_revision_changes_commitment_from_its_time_only PASSED [ 90%]
+src/simulator/tests/test_rnd_mvp23.py::test_revision_validation PASSED   [ 92%]
+src/simulator/tests/test_golden_regression.py::test_outputs_match_v1_2_golden[mvp1] PASSED [ 95%]
+src/simulator/tests/test_golden_regression.py::test_outputs_match_v1_2_golden[mvp1_edf_demo] PASSED [ 97%]
+src/simulator/tests/test_golden_regression.py::test_outputs_match_v1_2_golden[vinfast_dc_2port_120kw] PASSED [100%]
+
+============================= 42 passed in 12.66s =============================
+# exit code: 0 | end UTC 2026-11-20T18:42:26Z | wall 14 s

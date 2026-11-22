@@ -1,0 +1,10 @@
+# cmd: PYTHONUTF8=1 .venv-rd/Scripts/python.exe -m pytest src/simulator/tests src/simulator/tests/ev2gym_smoke.py -q -p no:cacheprovider | commit 1736d41 | start UTC 2026-11-20T18:41:50Z | Python 3.12.10 SciPy 1.18.1 sklearn 1.9.1 EV2Gym 2.0.0
+D:\VIN\simulation\.venv-rd\Lib\site-packages\pytest_asyncio\plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 46%]
+........................................................................ [ 93%]
+..........                                                               [100%]
+154 passed in 16.04s
+# exit code: 0 | end UTC 2026-11-20T18:42:08Z | wall 17 s

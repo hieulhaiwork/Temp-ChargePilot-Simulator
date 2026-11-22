@@ -1,0 +1,35 @@
+{
+  "mvp1": {
+    "base_commit": "d15871a",
+    "completed_on_time": 9,
+    "hashes": {
+      "summary": "be045539a9276031d4f582e73c5aee225c27b4d405646d28b1a574a0db56bf1b",
+      "vehicles": "646f2a030f858ee43cae31b9713e165a2bb733756f7279c280d23b8cfce8ede7",
+      "events": "eb5183fff0de9453063558a849adb486c50a3cbb010fad0ea76504f3004a1286",
+      "power_trace": "cb9400fe3e0ce46e3a9b53305b4775ece78ea8de8f32c407e2e0cbf0b785c972",
+      "frames": "2d26f6572d6886c1c836d6bd0b0f30ee2d1fc2d2b81a63ad3dbe2f706fcfa42a"
+    }
+  },
+  "mvp1_edf_demo": {
+    "base_commit": "d15871a",
+    "completed_on_time": 9,
+    "hashes": {
+      "summary": "7826f0b305ede9e8ebde41b3f39438e0221b52e6d45545cd62269f6859782fc2",
+      "vehicles": "91f33d6778add51ab262ceffb9331e523cbd15d7aef7ff4722b5abf6bc4e5200",
+      "events": "7fe192f71570d7cbb2da9a92238b1cc7d72102fa50ed155e8884b271745a748b",
+      "power_trace": "5a9e65e85edb650de3e722b5b30ce88c17d54413a28ce4f95a89d71a4f47be10",
+      "frames": "4534a16d886fd1ede39c07a04c4ad109b4174634f51deccb586170462f4ba650"
+    }
+  },
+  "vinfast_dc_2port_120kw": {
+    "base_commit": "d15871a",
+    "completed_on_time": 8,
+    "hashes": {
+      "summary": "fd46930308ebd5252e718ec2b6fb6f7269168d4c0ff6d7e7fe08901e47875069",
+      "vehicles": "d78427ec1e4b6449855ccd060ff359542d8684a45084dac47f761d890968752b",
+      "events": "6bc4feff17ced87d3ba09ca03fc44632ddb721ec88996a38af20b1706e0f7298",
+      "power_trace": "6ddf0b568299744d7f4daccde1e61d25a9e2302f673e00a9c28f4435caff1d07",
+      "frames": "c16b6925f09f984d40af9e124ea1a150070f5e2076b7583831f8f39ec36b198b"
+    }
+  }
+}
