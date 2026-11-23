@@ -3,6 +3,8 @@
 - Trạng thái: Proposed — nhóm chốt hướng 23/11 ("simulator là phần gốc, sửa backend cho trùng"), chờ duyệt
 - Ngày: 2026-11-23
 - Liên quan: **thay thế phần quyết định của ADR-016** (LiveStation cho backend); ADR-011 (một simulator), ADR-002, ADR-017
+- Sửa đổi một phần bởi [ADR-019](ADR-019-unified-core-hop-dong-dung-chung.md): điểm 4 ("không sửa `src/simulator/src/`")
+  được thay bằng "di chuyển code gốc theo phase, giữ nguyên logic (hash AST), vị trí cũ thành re-export".
 
 ## Bối cảnh
 

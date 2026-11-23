@@ -18,7 +18,8 @@ Trạng thái: `Proposed` (đề xuất, chờ nhóm/mentor), `Accepted`, `Super
 | [ADR-010](ADR-010-bai-hybrid-ac-dc.md) | Bãi hybrid AC + DC; fixture nền `mvp1`; ràng buộc ba tầng; `supply_mode` shared / independent | Proposed — chờ nhóm và mentor |
 | [ADR-011](ADR-011-mot-simulator-sau-be-mat-cong-khai.md) | Một `HybridSimulator` sau `src/simulator/base.py` + `SimulatorGateway`; một bộ `Algorithms` cho live / benchmark / what-if; Guard hai lớp | Proposed — chờ nhóm; sửa đổi một phần bởi ADR-016 |
 | [ADR-012](ADR-012-mot-danh-muc-xe-va-kich-ban.md) | Một danh mục xe (provenance theo từng trường) và mọi kịch bản trong `config/scenarios/` | Proposed — chờ nhóm |
-| [ADR-018](ADR-018-backend-chay-engine-simulator.md) | Backend chạy engine simulator R&D: `HybridStation` + thuật toán B0 / M2b / M3a / M3b; simulator là gốc | Proposed — chờ nhóm; thay phần quyết định của ADR-016 |
+| [ADR-018](ADR-018-backend-chay-engine-simulator.md) | Backend chạy engine simulator R&D: `HybridStation` + thuật toán B0 / M2b / M3a / M3b; simulator là gốc | Proposed — chờ nhóm; thay phần quyết định của ADR-016; điểm 4 sửa đổi bởi ADR-019 |
+| [ADR-019](ADR-019-unified-core-hop-dong-dung-chung.md) | Unified Core: hợp đồng core thuần ở `src/models`, một lõi vật lý + một nguồn thuật toán cho backend và standalone; di chuyển theo phase có shim + hash AST | Proposed — người phụ trách duyệt Phase 0–1 |
 | [ADR-013](ADR-013-workflow-xac-dinh-llm-hai-dau.md) | Workflow xác định là xương sống; LLM chỉ ở hai đầu; LangGraph cho hội thoại + HITL | Proposed — chờ nhóm |
 | [ADR-014](ADR-014-decision-trace-counterfactual-hitl.md) | DecisionTrace, counterfactual không bao giờ apply, vòng đời đề nghị HITL (AI-4, AI-1), Copilot theo role, job nền | Proposed — chờ nhóm |
 | [ADR-015](ADR-015-pham-vi-mvp4-va-quy-tac-bang-chung.md) | Phạm vi MVP-4, hạng mục hoãn (F6/F12, F13, HOW-TO, AI-2 ML, AI-3) và quy tắc bằng chứng | Proposed — chờ nhóm |

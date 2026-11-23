@@ -1,0 +1,19 @@
+MVP3: 0 non-timing differences
+MVP2: 0 non-timing differences
+MVP1_default: 2 non-timing differences
+   ('/metadata/command', 'len', 3, 6)
+   ('/metadata/run_id', 'val', '20261122T115017192826Z-c5ad0f748d-bd620371', '20261123T075621160656Z-c5ad0f748d-db39c73d')
+MVP1_script_mode: 2 non-timing differences
+   ('/metadata/command', 'len', 3, 5)
+   ('/metadata/run_id', 'val', '20261122T115017192826Z-c5ad0f748d-bd620371', '20261123T075626404860Z-c5ad0f748d-6685a6ca')
+MVP1_mvp3cfg: 6 non-timing differences
+   ('/metadata/algorithms/coordinator/config_source', 'val', '<REPO_2026-11-22>\\src\\simulator\\config\\algorithms_', '<REPO>\\src\\simulator\\config\\algorithms_mvp3.json')
+   ('/metadata/algorithms/dispatch/DC/config_source', 'val', '<REPO_2026-11-22>\\src\\simulator\\config\\algorithms_', '<REPO>\\src\\simulator\\config\\algorithms_mvp3.json')
+   ('/metadata/algorithms/optimizers/AC/config_source', 'val', '<REPO_2026-11-22>\\src\\simulator\\config\\algorithms_', '<REPO>\\src\\simulator\\config\\algorithms_mvp3.json')
+   ('/metadata/algorithms/optimizers/DC/config_source', 'val', '<REPO_2026-11-22>\\src\\simulator\\config\\algorithms_', '<REPO>\\src\\simulator\\config\\algorithms_mvp3.json')
+   ('/metadata/command', 'len', 6, 7)
+   ('/metadata/run_id', 'val', '20261122T115045377082Z-c5ad0f748d-9d430505', '20261123T075623993347Z-c5ad0f748d-33df25cb')
+VINFAST: 3 non-timing differences
+   ('/metadata/algorithms/dc_charging_model/config_source', 'val', '<REPO_2026-11-22>\\src\\simulator\\scenario\\vinfast_d', '<REPO>\\src\\simulator\\scenario\\vinfast_dc_2port_120kw.j')
+   ('/metadata/command', 'len', 3, 5)
+   ('/metadata/run_id', 'val', '20261122T115030703198Z-c05e3251f5-dc10634e', '20261123T075625165669Z-c05e3251f5-41d5c1ad')
