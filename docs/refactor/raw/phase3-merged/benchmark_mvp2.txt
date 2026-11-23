@@ -1,0 +1,9 @@
+                      B0 | DC  74/180 | decision p95 0.169 ms
+                     M2a | DC  93/180 | decision p95 0.166 ms
+                     M2b | DC 100/180 | decision p95 3.082 ms
+                     M2c | DC  79/180 | decision p95 0.170 ms
+       M2b_no_sla_weight | DC 100/180 | decision p95 3.021 ms
+     M2b_no_queue_weight | DC  97/180 | decision p95 3.028 ms
+    M2b_10x_queue_weight | DC 100/180 | decision p95 3.016 ms
+<LOCAL_TMP>/claude\1ce8fb91e84c1e1f\01544b1a-7c39-4638-a6ad-226dc5999a72\scratchpad\mergedout\mvp2\mvp2-benchmark-z2ex7brd
+exit=0
