@@ -12,10 +12,11 @@
 > chưa đưa vào repo) §5.2 và §10.2; các thành phần trong đó **chưa có trong code** của branch này. Mục 1–11 vẫn mô tả
 > skeleton hiện có (bãi cũ 8 × 7 kW / 35 kW); chỗ nào đã bị thay thì có ghi "(cũ, thay bởi …)".
 
-> **Hiện trạng 22/11 ([ADR-016](adr/ADR-016-livestation-cho-backend.md)):** backend chạy trên **`LiveStation`**
-> (`src/simulator/live.py`) cho cả chạy thật, mô phỏng S8 và `eval/run_benchmark.py`; **không** gọi `HybridSimulator`.
-> Đích A / Đích B dưới đây là hướng dài hạn của ADR-011. Mục 1–11 mô tả code hiện có. Bản sơ đồ dạng tài liệu (sơ đồ
-> thành phần + luồng dữ liệu theo code `develop`) có thể dựng lại từ mục 1–8.
+> **Hiện trạng 23/11 ([ADR-018](adr/ADR-018-backend-chay-engine-simulator.md), [ADR-019](adr/ADR-019-unified-core-hop-dong-dung-chung.md)):**
+> backend chạy **`HybridStation`** trên một kernel `StationKernel` dùng chung với `HybridSimulator` cho chạy thật, mô
+> phỏng S8, `eval/run_benchmark.py` và admission (quote / booking trên bản fork). `LiveStation` và LP backend A–D
+> (`mpc`, `lp_model`, `assignment`, `baselines`) **đã xoá**; optimizer = `dispatch/`, `zones/`, `coordination/`,
+> `registry.py` (B0 / M2b / M3a / M3b). Sơ đồ mục 1–11 vẽ skeleton cũ: chỗ ghi `LiveStation` / A–D đọc theo câu này.
 
 ## Đích A — Dataflow simulator (master context §5.2 · ADR-011)
 
@@ -95,14 +96,14 @@ flowchart LR
     FE["Frontend Next.js<br/>Vercel"] -- "REST /api/v1 + WebSocket" --> BE["Backend FastAPI<br/>Render, Docker, 1 worker"]
     BE -- "tool-calling" --> LLM["LLM provider<br/>OpenAI, cascade router"]
     BE -- "trace" --> LS["LangSmith<br/>AI logs - deliverable 4"]
-    BE --> SIM["LiveStation — trạm mô phỏng in-process<br/>sau StationReader / StationActuator (ADR-016)"]
+    BE --> SIM["HybridStation — trạm mô phỏng in-process<br/>StationKernel dùng chung với simulator (ADR-019)"]
     BE -- "SQLAlchemy + Alembic" --> DB[("Postgres Neon<br/>local và CI: SQLite")]
     DS[("Dữ liệu phiên sạc<br/>Na Uy / ACN-Data (HOÃN)")] -. "HOÃN, ADR-015" .-> ML["Mô hình F6<br/>LightGBM — HOÃN"]
     ML -. "nạp lúc chạy" .-> BE
 ```
 
-(cũ, thay bởi ADR-011 / ADR-015 / ADR-016) Không còn phương án ACN-Sim. Backend dùng `LiveStation`; `HybridSimulator`
-EV2Gym-first là R&D offline (ADR-016). Nhánh dữ liệu phiên sạc → LightGBM F6 **HOÃN** khỏi sprint 20–26/11.
+(cũ, thay bởi ADR-011 / ADR-015 / ADR-018 / ADR-019) Không còn phương án ACN-Sim. Backend dùng `HybridStation` trên
+kernel chung với `HybridSimulator` (EV2Gym-first); `LiveStation` đã xoá. Nhánh dữ liệu phiên sạc → LightGBM F6 **HOÃN** khỏi sprint 20–26/11.
 
 Ngoài phạm vi (Brief §7): OCPP/cột sạc thật, thanh toán thật, app di động riêng, nhiều
 bãi sạc, SCADA/EVN, digital twin 3D, RL quy mô lớn.
@@ -144,9 +145,9 @@ flowchart TB
     end
 
     subgraph OPT["src/optimizer — Trụ 2: F2/F3"]
-        mpc["mpc.py + lp_model.py<br/>B, C"]
-        asg["assignment.py<br/>FR7"]
-        base["baselines.py<br/>A, D"]
+        mpc["dispatch/ · zones/ (LP AC/DC)<br/>coordination/"]
+        asg["registry.py<br/>B0 / M2b / M3a / M3b"]
+        base["Equal share · Fixed / Dynamic slack<br/>(zones/, coordination/ theo policy)"]
     end
 
     subgraph FC["src/forecast — F6, HOÃN"]
@@ -160,7 +161,7 @@ flowchart TB
         disp["dispatcher.py<br/>CHOKEPOINT"]
     end
 
-    subgraph SM["src/simulator — FR11 · LiveStation (ADR-016)"]
+    subgraph SM["src/simulator — FR11 · HybridStation + StationKernel (ADR-019)"]
         reader["StationReader<br/>reset, step, state"]
         act["StationActuator<br/>apply_commands"]
     end

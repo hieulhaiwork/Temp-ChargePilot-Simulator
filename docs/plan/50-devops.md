@@ -1,5 +1,13 @@
 # Plan 50 — DevOps: Git flow, CI, Docker, hosting, vận hành
 
+> **Hiện trạng 23/11/2026 (ADR-019, refactor Unified Core Phase 4) — đọc trước, ưu tiên hơn nội dung bên dưới:**
+> backend chạy `HybridStation` trên một kernel `StationKernel` dùng chung với `HybridSimulator`; `LiveStation` và LP
+> backend A–D (`mpc`, `lp_model`, `assignment`, `baselines`, `strategies`) **đã xoá**, A–D bỏ khỏi `StrategyName` /
+> OpenAPI / S8. Policy hiện hành: B0 / M2b / M3a / M3b (`src/optimizer/registry.py`). Benchmark S8 = baseline có version
+> (`eval/evidence/2026-11-23-refactor-phase3-baseline/`); bảng A–D cũ là archive deprecated. Quote / booking = admission
+> trên bản fork, kết quả là ước tính có điều kiện, không phải SLA. Chỗ nào bên dưới còn nhắc `LiveStation` / A–D /
+> `lp_model` là plan lịch sử.
+>
 > Trạng thái: đề xuất Pha A, chờ duyệt (D5, P1–P3). Owner: TV4. Task: T1.1, T1.9, T4.4, T4.5.
 > Mọi thay đổi trong `.github/` chỉ được **đề xuất dạng diff**: thư mục này thuộc CODEOWNERS của ban tổ chức.
 > Các con số về gói free là ước lượng ngày 16/11/2026; kiểm lại trên trang của nhà cung cấp trước demo. Cách deploy

@@ -38,7 +38,7 @@ services:
       # ADR-007 — vòng nền: trạm tự chạy theo thời gian (TICK, hết hạn phê duyệt). Cần instance không ngủ (Starter).
       - key: CONTROL_LOOP_ENABLED
         value: "true"
-      # ADR-018 — trạm và thuật toán của simulator R&D
+      # ADR-018 / ADR-019 — trạm = HybridStation trên kernel dùng chung với simulator (chỉ "hybrid"); policy B0/M2b/M3a/M3b
       - key: STATION_ENGINE
         value: hybrid
       - key: LIVE_STRATEGY
