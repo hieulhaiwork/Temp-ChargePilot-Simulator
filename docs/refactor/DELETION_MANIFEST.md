@@ -8,7 +8,7 @@ chỉ thêm mục của mình.
 | Đã xoá | Lý do | Thay thế / bằng chứng |
 |---|---|---|
 | `src/agents/nodes/retrieve_node.py` (`retrieve_node`, `_retrieve_chunks`, `_MOCK_KB`) | Template AI20K (RAG mock với 3 chunk demo về AI20K, không liên quan sạc EV). Không nối vào `graph.py`; không test, eval, script hay module nào import (đã `rg` trên `src tests eval scripts`). | Không cần thay: chat cư dân lấy dữ liệu qua tool `src/llm_chat/tools/charging.py` → `src/services`. Toàn bộ test giữ nguyên số lượng (475 passed, 8 skipped trước và sau xoá). |
-| `src/agents/nodes/synthesize_node.py` (`synthesize_node`, `_get_structured_answer`) | Template AI20K (gọi `get_llm()` rồi parse `AgentAnswer`). Không nối vào `graph.py`; không có caller hay test. Node `finalize` của graph đã làm việc này với `FinalAnswer` + guardrail hậu kiểm. | `src/llm_chat/nodes/finalize_node.py`; test `tests/test_llm_chat/test_graph.py`, `test_agent_modes.py`, `test_guardrails.py`. |
+| `src/agents/nodes/synthesize_node.py` (`synthesize_node`, `_get_structured_answer`, `_parse_answer`, `_render_answer`) | Template AI20K (gọi `get_llm()` rồi parse `AgentAnswer`). Không nối vào `graph.py`; không có caller hay test. Node `finalize` của graph đã làm việc này với `FinalAnswer` + guardrail hậu kiểm. | `src/llm_chat/nodes/finalize_node.py`; test `tests/test_llm_chat/test_graph.py`, `test_agent_modes.py`, `test_guardrails.py`. |
 
 Giữ lại (vẫn có test dùng, chưa đủ điều kiện xoá): `nodes/safety_node.py`, `nodes/validate_node.py`, `personas.py`,
 `prompts.build_system_prompt`, `schemas.AgentAnswer` (`tests/test_llm_chat/test_agent_patterns.py`);

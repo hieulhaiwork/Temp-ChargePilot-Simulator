@@ -771,9 +771,9 @@ Module là **đích** trên skeleton P-019; tên service mới (CopilotService, 
 | Yêu cầu | Module đích | ADR |
 |---|---|---|
 | FR1 auth, role | `src/api/auth.py`, `src/services/auth.py` | ADR-006, ADR-014 (Copilot theo role) |
-| FR2–FR4 tiếp nhận | `src/services/charging_service.py`, `src/services/catalog.py`, `config/vehicles.yaml`, `src/agents/` (hội thoại) | ADR-012, ADR-013 |
+| FR2–FR4 tiếp nhận | `src/services/charging_service.py`, `src/services/catalog.py`, `config/vehicles.yaml`, `src/llm_chat/` (hội thoại) | ADR-012, ADR-013 |
 | FR3 kWh | `src/services/energy.py` | ADR-012 (hiệu suất từ config) |
-| FR4a mục đích → ràng buộc | `src/agents/` (trích xuất), `src/services/energy.py` (tính) | ADR-013 |
+| FR4a mục đích → ràng buộc | `src/llm_chat/` (trích xuất), `src/services/energy.py` (tính) | ADR-013 |
 | FR5 dispatch | `src/optimizer/` (dispatch / assignment) | ADR-011 |
 | FR6–FR8 AC / DC optimizer, coordinator | `src/optimizer/` (AC, DC, coordinator) | ADR-011, ADR-010 (`supply_mode`) |
 | FR9, FR9a online + một bộ `Algorithms` | `src/optimizer/`, `src/services/control_loop.py`, `src/services/runtime.py` | ADR-011 (sửa một phần ADR-007) |
@@ -781,14 +781,14 @@ Module là **đích** trên skeleton P-019; tên service mới (CopilotService, 
 | FR12 simulator | `src/simulator/base.py` + `SimulatorGateway` → `HybridSimulator` | ADR-011 |
 | FR13 Guard hai lớp | `src/guard/rules.py`, `src/guard/checker.py`, `src/guard/dispatcher.py` | ADR-011 (sửa một phần ADR-002) |
 | FR14 khẩn cấp | `src/guard/emergency.py` | ADR-002, ADR-011 |
-| FR15 HITL ba mức | `src/guard/approval.py`, `src/agents/graph.py` (interrupt) | ADR-013, ADR-014 |
+| FR15 HITL ba mức | `src/guard/approval.py`, `src/llm_chat/graph.py` (interrupt) | ADR-013, ADR-014 |
 | FR16 nhật ký | `src/db/`, `src/services/repository.py` | ADR-005, ADR-014 |
 | FR17–FR18 web | `frontend/`, `src/api/resident.py`, `src/api/operations.py`, `src/api/ws.py` | ADR-008, ADR-009 |
 | FR19 DecisionTrace | `src/models/` (schema), `src/simulator/` + `src/optimizer/` (sinh trace), `src/db/` | ADR-014 |
 | FR20–FR21 sandbox, patch | `src/services/` (CopilotService / counterfactual — tên minh hoạ), `src/models/` (Patch) | ADR-014, ADR-011 |
 | FR22–FR27 AI-1 | `src/services/` (conflict, proposal), `src/agents/tools/`, `src/db/` (proposal, audit) | ADR-014, ADR-013 |
 | FR28–FR30, FR30b AI-4 | `src/services/` (CopilotService), `src/api/routes.py` (`/chat`), `src/agents/` | ADR-014, ADR-013 |
-| FR31–FR33a lớp LLM | `src/services/llm.py`, `src/agents/guardrails.py`, `prompts/*.md` | ADR-013 |
+| FR31–FR33a lớp LLM | `src/services/llm.py`, `src/llm_chat/guardrails.py`, `prompts/*.md` | ADR-013 |
 | FR42–FR44 F14 | `src/simulator/` (`FINISHED_PLUGGED`), `src/optimizer/` (dispatch), `frontend/` | ADR-010, ADR-011 |
 | FR45–FR46 F15 | `src/simulator/` (tín hiệu mô phỏng) | — (Could) |
 | F12 / F13 / FR30a / HOW-TO tối thiểu | — | ADR-015 ([HOÃN]) |
