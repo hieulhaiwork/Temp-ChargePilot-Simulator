@@ -1,7 +1,7 @@
 """7 luật FR12 — mỗi luật: 1 ca bị chặn + 1 ca hợp lệ không bị chặn oan (AC6, NFR an toàn).
 
 Trạm dùng topology thật của config/station.yaml (ADR-010): AC-01-1, AC-02-1 (11 kW, tủ riêng),
-DC-01-1, DC-01-2 (60 kW, chung tủ 120 kW); ngân sách AC 22 / DC 78 kW; η = 0,95.
+DC-01-1, DC-01-2 (60 kW, chung tủ 120 kW); ngân sách AC 22 / DC 78 kW, trần vùng AC 22 / DC 120 kW (ADR-017); η = 0,95.
 """
 
 from dataclasses import replace
@@ -13,27 +13,47 @@ from src.guard.checker import check, check_batch
 from src.guard.rules import RULES, GuardContext
 from src.models.charging import Booking, BookingStatus, ChargeMode, ChargeRequest, EnergyEstimate
 from src.models.control import Command, CommandSource, CommandType, GuardRule, Role
-from src.models.station import ConnectorState, ConnectorStatus, StationState
+from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationState
 from src.services import catalog
 
 VN = timezone(timedelta(hours=7))
 NOW = datetime(2026, 11, 22, 19, 0, tzinfo=VN)
 
 
-def _state(available: float = 106, **powers: float) -> StationState:
-    conns = []
+OCCUPANTS = {"AC-01-1": "b-ac1", "AC-02-1": "b-ac2", "DC-01-1": "b-dc1", "DC-01-2": "b-dc2"}
+WAITING = ("b-new", "b1", "b2")  # xe đã đến bãi, đang chờ cổng
+
+
+def _state(available: float = 106, empty: tuple[str, ...] = (), **powers: float) -> StationState:
+    """Mọi cổng có xe (trừ `empty`) — Guard chỉ cho cấp điện cổng có xe đang sạc (ADR-017)."""
+    conns, sessions = [], []
     for spec in catalog.load_station_config().connectors:
         p = powers.get(spec.connector_id.replace("-", "_"), 0.0)
+        booking_id = None if spec.connector_id in empty else OCCUPANTS[spec.connector_id]
         conns.append(
             ConnectorState(
                 connector_id=spec.connector_id,
                 status=ConnectorStatus.CHARGING if p else ConnectorStatus.IDLE,
                 power_kw=p,
                 max_power_kw=spec.max_power_kw,
-                booking_id="b-dc1" if spec.connector_id == "DC-01-1" else None,
+                booking_id=booking_id,
             )
         )
-    return StationState(timestamp=NOW, available_power_kw=available, connectors=conns, schedule_version=3)
+        if booking_id:
+            sessions.append(
+                SessionProgress(
+                    booking_id=booking_id, connector_id=spec.connector_id, arrived_at=NOW, plugged_in_at=NOW
+                )
+            )
+    sessions += [SessionProgress(booking_id=b, arrived_at=NOW) for b in WAITING]
+    return StationState(
+        timestamp=NOW,
+        available_power_kw=available,
+        connectors=conns,
+        queue=list(WAITING),
+        sessions=sessions,
+        schedule_version=3,
+    )
 
 
 def _booking(max_kw: float = 60) -> Booking:
@@ -107,10 +127,35 @@ def test_total_power_blocks_reduced_supply():
     assert GuardRule.TOTAL_POWER in _rules_hit(_cmd("AC-01-1", 7), ctx)
 
 
-def test_total_power_blocks_zone_budget():
+def test_total_power_blocks_physical_zone_cap():
+    # station.yaml: trần thiết bị DC 120 kW (ADR-017). Lưới 106 kW đặt cao để chỉ luật vùng được thử.
+    ctx = _ctx(_state(available=200, DC_01_1=60, AC_01_1=0))
+    cfg = ctx.config.model_copy(update={"physical_zone_cap_kw": {"AC": 22.0, "DC": 100.0}})
+    assert GuardRule.TOTAL_POWER in _rules_hit(_cmd("DC-01-2", 45), replace(ctx, config=cfg))  # 105 > 100
+    assert GuardRule.TOTAL_POWER not in _rules_hit(_cmd("DC-01-2", 40), replace(ctx, config=cfg))
+
+
+def test_fixed_share_budget_is_not_a_hard_cap():
+    """22/78 là phân bổ Fixed Share, không phải trần: DC 80 kW hợp lệ khi lưới còn chỗ (như simulator MVP-3)."""
     ctx = _ctx(_state(DC_01_1=50))
-    hit = _rules_hit(_cmd("DC-01-2", 30), ctx)  # Σ DC 80 > 78
-    assert GuardRule.TOTAL_POWER in hit
+    assert GuardRule.TOTAL_POWER not in _rules_hit(_cmd("DC-01-2", 30), ctx)  # Σ DC 80 ≤ 120; 80/0,95 ≤ 106
+
+
+def test_zone_budget_is_the_cap_when_no_physical_cap():
+    """Config cũ không khai trần thiết bị ⇒ ngân sách là trần (scenario legacy của simulator)."""
+    ctx = _ctx(_state(DC_01_1=50))
+    legacy = replace(ctx, config=ctx.config.model_copy(update={"physical_zone_cap_kw": None}))
+    assert GuardRule.TOTAL_POWER in _rules_hit(_cmd("DC-01-2", 30), legacy)  # Σ DC 80 > 78
+
+
+def test_total_power_blocks_independent_zone_supply():
+    ctx = _ctx(_state(available=200, DC_01_1=40))
+    cfg = ctx.config.model_copy(
+        update={"supply_mode": "independent", "independent_grid_input_limit_kw": {"AC": 24.0, "DC": 84.0}}
+    )
+    ctx = replace(ctx, config=cfg)
+    assert GuardRule.TOTAL_POWER in _rules_hit(_cmd("DC-01-2", 41), ctx)  # 81 / 0,95 = 85,3 > 84
+    assert GuardRule.TOTAL_POWER not in _rules_hit(_cmd("DC-01-2", 39), ctx)  # 79 / 0,95 = 83,2
 
 
 def test_total_power_counts_reductions_in_the_same_batch():
@@ -141,6 +186,38 @@ def test_connector_power_blocks_unknown_and_faulted_connector():
     assert GuardRule.CONNECTOR_POWER in _rules_hit(_cmd("AC-01-1", 3), _ctx(state))
     # Tắt hẳn một cổng lỗi là hợp lệ.
     assert GuardRule.CONNECTOR_POWER not in _rules_hit(_cmd("AC-01-1", 0), _ctx(state))
+
+
+def test_connector_power_blocks_power_to_empty_connector():
+    """Simulator chỉ cấp điện cho xe đang sạc — cổng trống thì không có điện."""
+    ctx = _ctx(_state(empty=("AC-01-1",)))
+    assert GuardRule.CONNECTOR_POWER in _rules_hit(_cmd("AC-01-1", 7), ctx)
+    assert GuardRule.CONNECTOR_POWER not in _rules_hit(_cmd("AC-01-1", 0), ctx)  # tắt cổng trống vẫn hợp lệ
+
+
+def test_connector_power_allows_assign_then_power_in_same_batch():
+    ctx = _ctx(_state(empty=("AC-01-1",)))
+    assign = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b-new")
+    power = _cmd("AC-01-1", 7, booking_id="b-new")
+    verdicts = check_batch([assign, power], ctx)
+    assert all(v.passed for v in verdicts), [v.violations for v in verdicts]
+
+
+def test_connector_power_blocks_power_to_finished_vehicle():
+    state = _state()
+    state.connectors[0].status = ConnectorStatus.FINISHED
+    assert GuardRule.CONNECTOR_POWER in _rules_hit(_cmd("AC-01-1", 7), _ctx(state))
+    assert GuardRule.CONNECTOR_POWER not in _rules_hit(_cmd("AC-01-1", 0), _ctx(state))
+
+
+def test_assign_requires_vehicle_waiting_at_station():
+    ctx = _ctx(_state(empty=("AC-01-1",)))
+    absent = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b-not-here")
+    plugged = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b-ac2")  # đang ở AC-02-1
+    waiting = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b-new")
+    assert GuardRule.CONNECTOR_POWER in _rules_hit(absent, ctx)
+    assert GuardRule.CONNECTOR_POWER in _rules_hit(plugged, ctx)
+    assert _rules_hit(waiting, ctx) == set()
 
 
 # ---- anti_flapping -----------------------------------------------------------------------
@@ -213,6 +290,14 @@ def test_two_cars_on_one_connector_is_conflict():
     a = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b1")
     b = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b2")
     assert not any(v.passed for v in check_batch([a, b], _ctx()))
+
+
+def test_one_car_on_two_connectors_is_conflict():
+    ctx = _ctx(_state(empty=("AC-01-1", "AC-02-1")))
+    a = _cmd("AC-01-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b-new")
+    b = _cmd("AC-02-1", None, ctype=CommandType.ASSIGN_CONNECTOR, booking_id="b-new")
+    verdicts = check_batch([a, b], ctx)
+    assert all(GuardRule.CONFLICT in {v.rule for v in verdict.violations} for verdict in verdicts)
 
 
 @pytest.mark.parametrize("rule", list(GuardRule))

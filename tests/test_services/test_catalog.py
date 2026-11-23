@@ -33,6 +33,7 @@ def test_station_config_matches_mvp1_fixture():
     assert cfg.grid_input_limit_kw == 106.0
     assert cfg.power_limit_kw == 106.0  # alias một vòng
     assert cfg.zone_budgets_kw == {ChargerZone.AC: 22.0, ChargerZone.DC: 78.0}
+    assert cfg.physical_zone_cap_kw == {ChargerZone.AC: 22.0, ChargerZone.DC: 120.0}  # contract simulator §3.1
     assert cfg.power_conversion_efficiency == 0.95
     assert cfg.default_charging_efficiency == 0.98
     assert cfg.supply_mode == SupplyMode.SHARED

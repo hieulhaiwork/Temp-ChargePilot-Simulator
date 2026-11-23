@@ -183,6 +183,11 @@ class StrategyName(StrEnum):
     OPT_NO_ML = "B"  # B — cùng bộ tối ưu, KHÔNG có ML (mốc đo giá trị AI)
     OPT_ML = "C"  # C — bộ tối ưu + dự báo thời điểm rút đầu nối (phương án chính)
     ORACLE = "D"  # D — biết trước tương lai (cận trên lý tưởng)
+    # Thuật toán của simulator R&D (src/simulator/benchmark_mvp3.py POLICIES), chạy trên HybridStation — ADR-018.
+    SIM_B0 = "B0"  # FCFS + Equal Share AC/DC + Fixed Share
+    SIM_M2B = "M2b"  # LLF + DC rolling LP + Fixed Share
+    SIM_M3A = "M3a"  # LLF + AC/DC LP + Fixed Share (policy tham chiếu cho demo)
+    SIM_M3B = "M3b"  # LLF + AC/DC LP + Dynamic Slack
 
 
 class PowerSlot(BaseModel):

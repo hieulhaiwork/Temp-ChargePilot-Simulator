@@ -9,10 +9,15 @@ from src.optimizer import get_scheduler
 from src.services import catalog, simulation_service
 from tests.factories import NOW, booking, context, energy_of, state
 
+BACKEND_STRATEGIES = [s for s in StrategyName if not s.value.startswith(("B0", "M2", "M3"))]
 
-@pytest.mark.parametrize("name", list(StrategyName))
+
+@pytest.mark.parametrize("name", BACKEND_STRATEGIES)
 def test_every_benchmark_strategy_is_registered(name):
-    """PRD §8: mỗi mã A–D có đúng một chiến lược, cùng interface Scheduler."""
+    """PRD §8: mỗi mã A–D có đúng một chiến lược, cùng interface Scheduler.
+
+    B0 / M2b / M3a / M3b là thuật toán simulator, dựng ở src/services/runtime.make_scheduler (ADR-018).
+    """
     scheduler = get_scheduler(name)
     assert scheduler.name == name
     assert callable(scheduler.plan)

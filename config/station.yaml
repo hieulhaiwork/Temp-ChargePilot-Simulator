@@ -28,6 +28,13 @@ zone_budgets_kw:
   AC: 22.0
   DC: 78.0
 
+# Trần THIẾT BỊ theo vùng, phía đầu ra tủ — Guard chặn theo số này (ADR-017), cùng nghĩa
+# `physical_zone_cap_kw` của HybridSimulator (src/simulator/docs/SIMULATOR_INTEGRATION_CONTRACT.md §3.1).
+# 22/78 ở trên là phân bổ Fixed Share; 22/120 là trần vùng. DC = tủ DC-01 120 kW. [GIẢ ĐỊNH] của fixture.
+physical_zone_cap_kw:
+  AC: 22.0
+  DC: 120.0
+
 # η chuyển đổi lưới → đầu ra tủ (E_grid = E_output / η). Áp đúng một lần.
 power_conversion_efficiency: 0.95
 supply_mode: shared

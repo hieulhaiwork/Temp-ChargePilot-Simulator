@@ -56,6 +56,13 @@ thì chuyển service về Blueprint, bỏ job `deploy`.
 smoke đủ luồng (đăng nhập 2 vai trò, quote, booking idempotent, sự cố nguồn, 1 lần mô phỏng `hybrid_evening` B,
 WebSocket). Chưa đo `/chat` với LLM thật. → Đủ cho gói free; theo dõi tab **Metrics** của Render sau lần deploy đầu.
 
+**Engine HybridSimulator (2026-11-23).** Image cài thêm `ev2gym==2.0.0` bằng `--no-deps` (bước riêng trong
+`Dockerfile`, cùng phiên bản với `ci.yml` và `make install`) + `gymnasium==1.4.0` trong `requirements-runtime.txt`;
+không kéo gurobipy/pandas/matplotlib. Đo trên `.venv` (Windows): import `src.main` ~163 MB, thêm
+`src.simulator.src.engine.hybrid` ~166 MB (+3 MB; numpy/scipy đã nạp sẵn); ev2gym + gymnasium ~15 MB đĩa. Chưa đo
+trong container (Docker Desktop không chạy lúc đo) — đo lại `docker stats` sau build đầu. `pip check` sẽ báo ev2gym
+thiếu gurobipy/pandas/… — đó là chủ ý, đừng thêm `pip check` vào CI/Dockerfile.
+
 ## 3. Cài đặt một lần
 
 ### 3.1 Docker Hub (chủ repo image làm)

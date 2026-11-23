@@ -944,11 +944,6 @@ export interface components {
              */
             output_limit_kw: number;
             zone: components["schemas"]["ChargerZone"];
-            /**
-             * Zone Grid Input Limit Kw
-             * @description Giới hạn đầu vào lưới riêng của vùng — chỉ dùng khi supply_mode=independent
-             */
-            zone_grid_input_limit_kw?: number | null;
         };
         /**
          * ChargeMode
@@ -1849,9 +1844,10 @@ export interface components {
          * StationConfig
          * @description Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).
          *
-         *     Ràng buộc ba tầng (ADR-010): cổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw và Σ vùng ≤
-         *     zone_budgets_kw; Σ cổng / power_conversion_efficiency ≤ grid_input_limit_kw. Các field mới đều có
-         *     default để config / client cũ (bãi chỉ AC) vẫn nạp được.
+         *     Ràng buộc ba tầng (ADR-010), cùng nghĩa với `EffectiveLimits` của HybridSimulator (ADR-017):
+         *     cổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw; Σ vùng ≤ trần vùng (physical_zone_cap_kw, vắng thì
+         *     zone_budgets_kw); nguồn chung: Σ cổng / η ≤ grid_input_limit_kw, nguồn độc lập: Σ vùng / η ≤
+         *     independent_grid_input_limit_kw[vùng]. Các field mới đều có default để config / client cũ vẫn nạp được.
          */
         StationConfig: {
             /**
@@ -1883,9 +1879,23 @@ export interface components {
              * @description Cửa sổ xem trước của MPC (FR6)
              */
             horizon_hours: number;
+            /**
+             * Independent Grid Input Limit Kw
+             * @description Giới hạn đầu vào lưới riêng từng vùng — bắt buộc khi supply_mode=independent
+             */
+            independent_grid_input_limit_kw?: {
+                [key: string]: number;
+            } | null;
             /** Name */
             name: string;
             optimizer: components["schemas"]["OptimizerSettings"];
+            /**
+             * Physical Zone Cap Kw
+             * @description Trần THIẾT BỊ theo vùng, phía đầu ra tủ — Guard chặn theo số này. None ⇒ ngân sách vùng là trần (như scenario cũ của simulator)
+             */
+            physical_zone_cap_kw?: {
+                [key: string]: number;
+            } | null;
             /**
              * Power Conversion Efficiency
              * @description η chuyển đổi lưới → đầu ra tủ. E_grid = E_output / η
@@ -1916,7 +1926,7 @@ export interface components {
             timezone: string;
             /**
              * Zone Budgets Kw
-             * @description Ngân sách CHÍNH SÁCH theo vùng, phía đầu ra tủ (không phải cap phần cứng)
+             * @description Ngân sách CHÍNH SÁCH theo vùng (Fixed Share, `default_zone_budget_kw` của simulator), phía đầu ra tủ
              */
             zone_budgets_kw?: {
                 [key: string]: number;
@@ -2014,7 +2024,7 @@ export interface components {
          * @description Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8).
          * @enum {string}
          */
-        StrategyName: "A_fcfs" | "A_edf" | "B" | "C" | "D";
+        StrategyName: "A_fcfs" | "A_edf" | "B" | "C" | "D" | "B0" | "M2b" | "M3a" | "M3b";
         /**
          * SupplyMode
          * @description Cách hai vùng lấy điện (ADR-010). `shared` là [GIẢ ĐỊNH] — chưa có số liệu lưới tại site.

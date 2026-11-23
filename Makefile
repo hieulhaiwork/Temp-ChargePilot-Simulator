@@ -1,9 +1,17 @@
-.PHONY: run test lint format format-check docs-check openapi openapi-check migrate eval eval-strict eval-agent \
+.PHONY: install run test lint format format-check docs-check openapi openapi-check migrate eval eval-strict eval-agent \
 	benchmark check check-all web-check typecheck clean
 
 # Windows không có `python3`; trong venv / CI lệnh `python` luôn có. Ghi đè: make test PYTHON=python3
 PYTHON ?= python
 export PYTHONIOENCODING := utf-8
+
+# Cài môi trường dev/CI. ev2gym phải --no-deps (lý do: requirements-runtime.txt, khối "Duyệt 2026-11-23") nên
+# không nằm trong requirements file. Cùng phiên bản với Dockerfile và .github/workflows/ci.yml.
+EV2GYM_VERSION := 2.0.0
+
+install:
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install --no-deps ev2gym==$(EV2GYM_VERSION)
 
 run:
 	uvicorn src.main:app --reload --host 0.0.0.0 --port 8000

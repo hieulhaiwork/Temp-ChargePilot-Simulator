@@ -1,6 +1,7 @@
 # ADR-016: LiveStation — simulator chạy liên tục cho backend; HybridSimulator giữ vai trò R&D offline
 
-- Trạng thái: Proposed — người phụ trách chọn 2026-11-22, chờ nhóm duyệt
+- Trạng thái: Proposed — người phụ trách chọn 2026-11-22; **phần quyết định bị thay bởi
+  [ADR-018](ADR-018-backend-chay-engine-simulator.md) (23/11: backend chạy engine simulator)**. LiveStation giữ làm dự phòng.
 - Ngày: 2026-11-22
 - Liên quan: **sửa đổi một phần ADR-011** (mục "một simulator"); ADR-002 (Guard là chokepoint), ADR-003, ADR-007, ADR-010
 - Bằng chứng: [`eval/evidence/2026-11-22/`](../../eval/evidence/2026-11-22/README.md)

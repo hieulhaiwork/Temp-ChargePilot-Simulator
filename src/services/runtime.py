@@ -34,7 +34,7 @@ from src.models.simulation import Scenario
 from src.models.station import LoadPoint, StationConfig, Tariff
 from src.optimizer import get_scheduler
 from src.optimizer.base import Scheduler
-from src.simulator.base import VehicleVisit
+from src.simulator.base import StationSimulator, VehicleVisit
 from src.simulator.live import LiveStation
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,9 @@ class StationRuntime:
 
     config: StationConfig
     tariff: Tariff
-    simulator: LiveStation  # đọc qua .state()/.step(); KHÔNG gọi phần ghi ở ngoài dispatcher
+    simulator: (
+        StationSimulator  # LiveStation | HybridStation; đọc qua .state()/.step(); KHÔNG gọi phần ghi ở ngoài dispatcher
+    )
     scheduler: Scheduler  # optimizer.get_scheduler(strategy)
     forecaster: DepartureForecaster | None  # chỉ chiến lược C (F6 hoãn — ADR-015 → None)
     clock: Callable[[], datetime]  # trả thời điểm hiện tại CÓ múi giờ
@@ -92,6 +94,27 @@ class StationRuntime:
         return self.simulator.step(minutes) if minutes > 0 else []
 
 
+def make_station(config: StationConfig, start: datetime, engine: str | None = None):
+    """Trạm mô phỏng theo STATION_ENGINE (ADR-018): HybridStation (engine simulator, mặc định) hoặc LiveStation."""
+    engine = engine or get_settings().station_engine
+    if engine == "hybrid":
+        from src.simulator.hybrid_station import HybridStation  # cần ev2gym — import trễ cho môi trường "live"
+
+        return HybridStation(config, start=start)
+    return LiveStation(config, start=start)
+
+
+def make_scheduler(strategy: StrategyName, station: Callable[[], object]) -> Scheduler:
+    """A–D: bộ tối ưu backend (src/optimizer). B0 / M2b / M3a / M3b: thuật toán simulator trên HybridStation."""
+    from src.services.hybrid_planner import SIMULATOR_STRATEGIES, SimulatorScheduler
+
+    if strategy in SIMULATOR_STRATEGIES:
+        if not hasattr(station(), "scheduling_observation"):
+            raise ValueError(f"Chiến lược {strategy.value} cần STATION_ENGINE=hybrid")
+        return SimulatorScheduler(strategy, station)
+    return get_scheduler(strategy)
+
+
 def visit_of(booking: Booking, now: datetime) -> VehicleVisit:
     """Booking → dữ kiện môi trường cho simulator (simulator không biết cư dân / booking)."""
     return VehicleVisit(
@@ -101,7 +124,22 @@ def visit_of(booking: Booking, now: datetime) -> VehicleVisit:
         required_kwh=booking.energy.grid_energy_kwh,
         zone=booking.request.zone,
         max_power_kw=booking.max_charge_power_kw,
+        battery_kwh=_battery_kwh(booking),
+        soc_now=booking.request.soc_now / 100,
+        soc_target=booking.request.soc_target / 100,
+        vehicle_model=booking.request.vehicle_model,
     )
+
+
+def _battery_kwh(booking: Booking) -> float | None:
+    """Dung lượng khả dụng: lấy từ danh mục xe; xe lạ thì suy từ năng lượng / Δ%pin."""
+    from src.services import catalog  # import trễ như get_runtime: tránh vòng import
+
+    spec = catalog.load_vehicle_catalog().get(booking.request.vehicle_model)
+    if spec is not None:
+        return spec.usable_capacity_kwh
+    delta = (booking.request.soc_target - booking.request.soc_now) / 100
+    return booking.energy.battery_energy_kwh / delta if delta > 0 else None
 
 
 def _remember_executed(rt_ref: list[StationRuntime], entry: DecisionLogEntry) -> None:
@@ -142,6 +180,7 @@ def get_runtime() -> StationRuntime:
 
     config = catalog.load_station_config()
     clock = _live_clock(config)
+    station = make_station(config, clock())
     rt_ref: list[StationRuntime] = []
 
     def log_decision(entry: DecisionLogEntry) -> None:
@@ -184,8 +223,8 @@ def get_runtime() -> StationRuntime:
     rt = StationRuntime(
         config=config,
         tariff=catalog.load_tariff(),
-        simulator=LiveStation(config, start=clock()),
-        scheduler=get_scheduler(StrategyName.OPT_NO_ML),
+        simulator=station,
+        scheduler=make_scheduler(StrategyName(get_settings().live_strategy), lambda: station),
         forecaster=None,
         clock=clock,
         sinks=DispatchSinks(log_decision=log_decision, save_approval=repository.save_approval, notify=notify),
@@ -226,13 +265,14 @@ def build_sim_runtime(
     tariff: Tariff,
     start: datetime,
     oracle_bookings: tuple[Booking, ...] = (),
+    engine: str | None = None,
 ) -> StationRuntime:
     """Runtime cho MỘT lần chạy benchmark: simulator mới, đồng hồ mô phỏng, store + sinks vào bộ nhớ.
 
     Đồng hồ = đồng hồ của simulator (simulation_service tự gọi simulator.step). Yêu cầu phê duyệt trong
     benchmark không có người trả lời → hết hạn = không thực thi (AC4), đúng như vận hành thật.
     """
-    simulator = LiveStation(config, start=start)
+    simulator = make_station(config, start, engine)
     simulator.reset(scenario)
     bookings: dict[str, Booking] = {}
     approvals: dict[str, Approval] = {}
@@ -259,7 +299,7 @@ def build_sim_runtime(
         config=config,
         tariff=tariff,
         simulator=simulator,
-        scheduler=get_scheduler(strategy),
+        scheduler=make_scheduler(strategy, lambda: simulator),
         forecaster=None,
         clock=lambda: simulator.now,
         sinks=DispatchSinks(

@@ -13,8 +13,9 @@
 - **Trạng thái**: backend chạy thật (DB, auth, Guard, optimizer, `LiveStation`, WebSocket, chat). Stub còn lại
   (`raise NotImplementedError("[Txx] …")` → 501) chỉ là F6 forecast, đang hoãn (ADR-015).
   Backlog: `grep -rn 'NotImplementedError("\[T' src/ --include=*.py`.
-- **Simulator**: backend dùng **`LiveStation`** (`src/simulator/live.py`, ADR-016); `HybridSimulator`
-  (`src/simulator/src/`) chỉ là R&D offline — không trộn số liệu hai bên.
+- **Simulator là gốc** (ADR-018): backend chạy `HybridStation` (`src/simulator/hybrid_station.py`) dựng từ engine
+  `src/simulator/src/` và thuật toán simulator `M3a` (mặc định) / `M3b` / `M2b` / `B0` (`src/services/hybrid_planner.py`).
+  KHÔNG sửa `src/simulator/src/` để cho khớp backend — sửa backend. `LiveStation` chỉ là dự phòng (`STATION_ENGINE=live`).
 - **LLM**: `LLM_PROVIDER=openai` (OpenAI, hoặc Gemini / OpenRouter qua `OPENAI_BASE_URL`) · `local` · `mock` (chỉ
   dev/test, cấm ở production). Test và eval offline dùng LLM giả; để `OPENAI_API_KEY` RỖNG khi chưa có key (chuỗi
   placeholder bị coi là key thật).
@@ -88,7 +89,7 @@ Chi tiết: `ARCHITECTURE.md` (sườn thư mục, ranh giới, truy vết FR �
 
 ## Quyết định kỹ thuật (ADR ngắn)
 
-Bản đầy đủ: `docs/adr/` (ADR-001 … ADR-016).
+Bản đầy đủ: `docs/adr/` (ADR-001 … ADR-018).
 
 - **Contract-first, stub trả 501** (ADR-004): app luôn khởi động được, `/docs` đủ endpoint, việc còn lại đọc được từ code.
 - **Guard là chokepoint** (ADR-002): mọi lệnh tới trạm, kể cả benchmark, đi qua `guard/dispatcher.py`.
@@ -99,7 +100,10 @@ Bản đầy đủ: `docs/adr/` (ADR-001 … ADR-016).
 - **Một worker**: trạng thái trạm, WebSocket, checkpoint chat nằm trong RAM của process.
 - **Vòng nền** (`control_loop.run_forever`): deploy bật `CONTROL_LOOP_ENABLED=true` để trạm tự chạy theo thời gian;
   local mặc định tắt. Người chỉ duyệt khi lệnh vượt consent cư dân hoặc do Agent đề xuất (`guard/approval.py`).
-- **LiveStation cho backend** (ADR-016): HybridSimulator tự dispatch + guard riêng và cần ev2gym, nên chưa đặt sau Guard.
+- **Guard theo hợp đồng an toàn của simulator** (ADR-017): trần vùng = `physical_zone_cap_kw` (22/120), ngân sách
+  22/78 chỉ là phân bổ của optimizer; không cấp điện cổng trống / xe đầy; chỉ gán xe đang chờ ở bãi.
+- **Backend chạy engine simulator** (ADR-018, thay ADR-016): trạm `HybridStation` + `SimulatorScheduler`; lệnh vẫn qua
+  `guard/dispatcher.py`. Cài: `make install` (ev2gym `--no-deps`).
 
 <!-- BEGIN P019-DISTILLATION-LOCAL-RULES -->
 ## Agent Knowledge Library (external, local only)

@@ -5,10 +5,14 @@ Quy ước: luật KHÔNG tự đọc DB/simulator — mọi dữ kiện nằm t
 và một test "lệnh hợp lệ không bị chặn oan" (tests/test_guard/).
 
 Công suất SAU lệnh: mọi lệnh cùng lô (ctx.batch) được áp giả định trước khi so giới hạn, nên
-một lô hạ A rồi tăng B không bị chặn oan. Ba tầng giới hạn (ADR-010):
-  - cổng ≤ max_power_kw của cổng và ≤ Booking.max_charge_power_kw của xe     (connector_power_limit)
-  - Σ cổng của tủ ≤ output_limit_kw; Σ vùng ≤ zone_budgets_kw;
-    Σ cổng / power_conversion_efficiency ≤ state.available_power_kw (lưới)   (total_power_limit)
+một lô hạ A rồi tăng B không bị chặn oan. Hai luật vật lý GỌI Guard của HybridSimulator qua `physical.py`
+(`src/simulator/src/safety/guard.py`, ADR-017); ba tầng giới hạn (ADR-010):
+  - cổng ≤ max_power_kw của cổng và ≤ Booking.max_charge_power_kw của xe;
+    chỉ cấp điện cho cổng có xe đang sạc (không cổng trống, không xe đã đầy)  (connector_power_limit)
+  - gán cổng: xe đã đến bãi, đang chờ (chưa ở cổng khác), đúng vùng, cổng trống (connector_power_limit)
+  - Σ cổng của tủ ≤ output_limit_kw; Σ vùng ≤ config.zone_cap_kw (trần thiết bị, vắng thì ngân sách);
+    nguồn chung: Σ cổng / η ≤ state.available_power_kw;
+    nguồn độc lập: thêm Σ vùng / η ≤ independent_grid_input_limit_kw[vùng]          (total_power_limit)
 
 Owner: TV3. Task: T3.1.
 """
@@ -17,9 +21,10 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+from src.guard import physical
 from src.models.charging import Booking
 from src.models.control import Command, CommandSource, CommandType, GuardRule, Role, Violation
-from src.models.station import ConnectorState, ConnectorStatus, StationConfig, StationState
+from src.models.station import ConnectorState, StationConfig, StationState
 
 TOL_KW = 1e-6
 POWER_COMMANDS = (CommandType.SET_POWER, CommandType.START, CommandType.STOP)
@@ -81,6 +86,21 @@ def _power_after(ctx: GuardContext, commands: Iterable[Command]) -> dict[str, fl
     return power
 
 
+def _occupant_after(cmd: Command, ctx: GuardContext, current: ConnectorState) -> str | None:
+    """Xe ở cổng SAU lô: lệnh gán cùng lô (lệnh đang xét hoặc lệnh khác) thắng xe đang cắm."""
+    if cmd.type == CommandType.ASSIGN_CONNECTOR:
+        return cmd.booking_id
+    assigned = next(
+        (
+            c.booking_id
+            for c in ctx.batch
+            if c.type == CommandType.ASSIGN_CONNECTOR and c.connector_id == cmd.connector_id
+        ),
+        None,
+    )
+    return assigned or current.booking_id
+
+
 def _is_on(cmd: Command, current: ConnectorState | None) -> bool | None:
     """Bật / tắt sau lệnh; None nếu lệnh không bật-tắt (ASSIGN_CONNECTOR)."""
     if cmd.type not in POWER_COMMANDS:
@@ -92,71 +112,32 @@ def _is_on(cmd: Command, current: ConnectorState | None) -> bool | None:
 
 
 def check_total_power(cmd: Command, ctx: GuardContext) -> Violation | None:
-    """Σ công suất SAU khi áp lệnh ≤ giới hạn lưới / tủ / vùng (MT4 — 0 lần vượt)."""
+    """Σ công suất SAU khi áp lệnh ≤ trần tủ / vùng / nguồn — Guard simulator (MT4 — 0 lần vượt, ADR-017)."""
     if cmd.type not in POWER_COMMANDS:
         return None
-    power = _power_after(ctx, _batch_with(cmd, ctx))
-    specs = {c.connector_id: c for c in ctx.config.connectors}
-    grid_kw = sum(power.values()) / ctx.config.power_conversion_efficiency
-    if grid_kw > ctx.state.available_power_kw + TOL_KW:
-        return Violation(
-            rule=GuardRule.TOTAL_POWER,
-            detail=f"Tổng phía lưới sau lệnh {grid_kw:.2f} kW > giới hạn {ctx.state.available_power_kw:g} kW",
-        )
-    spec = specs.get(cmd.connector_id)
-    if spec is None:
-        return None  # cổng lạ: luật connector_power_limit báo
-    if spec.cabinet_id:
-        cabinet = next((c for c in ctx.config.cabinets if c.cabinet_id == spec.cabinet_id), None)
-        cab_kw = sum(p for cid, p in power.items() if cid in specs and specs[cid].cabinet_id == spec.cabinet_id)
-        if cabinet and cab_kw > cabinet.output_limit_kw + TOL_KW:
-            return Violation(
-                rule=GuardRule.TOTAL_POWER,
-                detail=f"Tủ {cabinet.cabinet_id}: {cab_kw:.2f} kW > giới hạn tủ {cabinet.output_limit_kw:g} kW",
-            )
-    budgets = ctx.config.zone_budgets_kw or {}
-    if spec.zone in budgets:
-        zone_kw = sum(p for cid, p in power.items() if cid in specs and specs[cid].zone == spec.zone)
-        if zone_kw > budgets[spec.zone] + TOL_KW:
-            return Violation(
-                rule=GuardRule.TOTAL_POWER,
-                detail=f"Vùng {spec.zone}: {zone_kw:.2f} kW > ngân sách {budgets[spec.zone]:g} kW",
-            )
-    return None
+    batch = _batch_with(cmd, ctx)
+    occupants = {c.connector_id: c.booking_id for c in ctx.state.connectors}
+    for other in batch:
+        if other.type == CommandType.ASSIGN_CONNECTOR:
+            occupants[other.connector_id] = other.booking_id
+    detail = physical.check_site_allocation(ctx.config, ctx.state, _power_after(ctx, batch), occupants)
+    return Violation(rule=GuardRule.TOTAL_POWER, detail=detail) if detail else None
 
 
 def check_connector_power(cmd: Command, ctx: GuardContext) -> Violation | None:
-    """Công suất lệnh ≤ max_power_kw của cổng và ≤ giới hạn của xe; cổng phải tồn tại và không lỗi."""
+    """Cổng tồn tại; cấp điện chỉ cho xe đang sạc, ≤ cổng và ≤ xe; gán cổng hợp lệ — Guard simulator (ADR-017)."""
     current = _connector(ctx, cmd.connector_id)
-    if current is None:
+    if current is None or not any(c.connector_id == cmd.connector_id for c in ctx.config.connectors):
         return Violation(rule=GuardRule.CONNECTOR_POWER, detail=f"Không có đầu nối {cmd.connector_id}")
-    target = target_power_kw(cmd, current)
-    if current.status == ConnectorStatus.FAULT and (target > TOL_KW or cmd.type == CommandType.ASSIGN_CONNECTOR):
-        return Violation(rule=GuardRule.CONNECTOR_POWER, detail=f"Đầu nối {cmd.connector_id} đang lỗi")
-    if target > current.max_power_kw + TOL_KW:
-        return Violation(
-            rule=GuardRule.CONNECTOR_POWER,
-            detail=f"{target:g} kW > giới hạn cổng {cmd.connector_id} {current.max_power_kw:g} kW",
-        )
-    booking_id = cmd.booking_id or current.booking_id
+    occupant = _occupant_after(cmd, ctx, current)
+    booking_id = cmd.booking_id or occupant
     booking = ctx.bookings.get(booking_id) if booking_id else None
-    if booking is not None and target > booking.max_charge_power_kw + TOL_KW:
-        return Violation(
-            rule=GuardRule.CONNECTOR_POWER,
-            detail=f"{target:g} kW > giới hạn của xe {booking.max_charge_power_kw:g} kW ({booking_id})",
-        )
-    if cmd.type == CommandType.ASSIGN_CONNECTOR and current.booking_id and current.booking_id != cmd.booking_id:
-        return Violation(
-            rule=GuardRule.CONNECTOR_POWER,
-            detail=f"Đầu nối {cmd.connector_id} đang có xe {current.booking_id}",
-        )
-    spec = next((c for c in ctx.config.connectors if c.connector_id == cmd.connector_id), None)
-    if cmd.type == CommandType.ASSIGN_CONNECTOR and booking is not None and spec and spec.zone != booking.request.zone:
-        return Violation(
-            rule=GuardRule.CONNECTOR_POWER,
-            detail=f"Xe vùng {booking.request.zone} không cắm được cổng {spec.zone} {cmd.connector_id} (ADR-010)",
-        )
-    return None
+    if cmd.type == CommandType.ASSIGN_CONNECTOR:
+        detail = physical.check_dispatch(ctx.config, ctx.state, cmd.connector_id, cmd.booking_id or "", booking)
+    else:
+        target = target_power_kw(cmd, current)
+        detail = physical.check_connector_allocation(ctx.config, current, occupant, target, booking)
+    return Violation(rule=GuardRule.CONNECTOR_POWER, detail=detail) if detail else None
 
 
 def check_anti_flapping(cmd: Command, ctx: GuardContext) -> Violation | None:
@@ -244,6 +225,15 @@ def check_conflicts(cmd: Command, ctx: GuardContext) -> Violation | None:
             and cmd.booking_id != other.booking_id
         ):
             return Violation(rule=GuardRule.CONFLICT, detail=f"Hai xe cùng được gán vào {cmd.connector_id}")
+    if cmd.type == CommandType.ASSIGN_CONNECTOR:
+        for other in ctx.batch:
+            if (
+                other.command_id != cmd.command_id
+                and other.type == CommandType.ASSIGN_CONNECTOR
+                and other.booking_id == cmd.booking_id
+                and other.connector_id != cmd.connector_id
+            ):
+                return Violation(rule=GuardRule.CONFLICT, detail=f"Xe {cmd.booking_id} được gán vào hai cổng cùng lô")
     return None
 
 

@@ -17,6 +17,18 @@ runner `team-19` = VM `p019-runner` trên laptop (phải bật mới có CI / de
 - `feat(ops)`: deploy bật `CONTROL_LOOP_ENABLED=true` — trạm tự chạy theo thời gian; test hành vi cho `run_forever`.
 - `docs`: rà toàn bộ tài liệu theo hiện trạng (backend dùng `LiveStation`, ADR-016); dọn tài liệu cũ.
 
+**Nhánh `fix/guard-simulator-contract`** (PR vào `develop`): lớp vật lý của Guard backend gọi thẳng Guard của
+HybridSimulator qua `src/guard/physical.py` (ADR-017) — trần vùng `physical_zone_cap_kw` 22/120 thay cho ngân sách 22/78, nguồn `independent`, không cấp điện
+cổng trống / xe đầy, chỉ gán xe đang chờ. Benchmark A–D: 0 lệnh bị chặn, 0 vi phạm. Chưa làm: hạ trần tủ theo sự kiện,
+công suất nhận theo đường sạc DC (cần nối HybridSimulator).
+
+**Nhánh `feature/hybrid-backend`** (chưa commit, gồm cả phần Guard ở trên): backend chạy engine simulator (ADR-018) —
+`src/simulator/hybrid_station.py` (trạm dựng từ QueueController + EV2GymAdapter, phát lại `mvp1` khớp HybridSimulator),
+`src/services/hybrid_planner.py` (B0 / M2b / M3a / M3b từ `benchmark_mvp3.POLICIES`), `STATION_ENGINE` / `LIVE_STRATEGY`,
+ev2gym `--no-deps` trong Dockerfile / CI / `make install`. Bằng chứng `eval/evidence/2026-11-23/`. Còn: đo RAM image trong
+Docker, profile DC VinFast cho xe đến dần (`with_vinfast_profiles` TODO), consent cư dân trong thuật toán simulator, nhóm chọn
+`LIVE_STRATEGY` (M3a rẻ hơn nhưng đúng hạn thấp hơn A_edf trên kịch bản backend).
+
 **Việc tiếp theo:**
 1. Sau merge: Render → Environment đặt `CONTROL_LOOP_ENABLED=true` (service tạo từ image, không đọc `render.yaml`).
 2. Nhóm chốt chính sách tạm dừng: với `allow_power_reduction=true`, LP sạc bước đầu rồi tạm dừng tới giờ thấp điểm

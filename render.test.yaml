@@ -36,6 +36,11 @@ services:
       # Vòng nền bật; gói Free ngủ sau 15 phút không request thì vòng nền cũng dừng theo.
       - key: CONTROL_LOOP_ENABLED
         value: "true"
+      # ADR-018 — trạm và thuật toán của simulator R&D
+      - key: STATION_ENGINE
+        value: hybrid
+      - key: LIVE_STRATEGY
+        value: M3a
       - key: LANGCHAIN_TRACING_V2
         value: "true"
       - key: LANGCHAIN_PROJECT

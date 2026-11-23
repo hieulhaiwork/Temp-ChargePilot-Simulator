@@ -373,19 +373,6 @@
           },
           "zone": {
             "$ref": "#/components/schemas/ChargerZone"
-          },
-          "zone_grid_input_limit_kw": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Giới hạn đầu vào lưới riêng của vùng — chỉ dùng khi supply_mode=independent",
-            "title": "Zone Grid Input Limit Kw"
           }
         },
         "required": [
@@ -2267,7 +2254,7 @@
         "type": "object"
       },
       "StationConfig": {
-        "description": "Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).\n\nRàng buộc ba tầng (ADR-010): cổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw và Σ vùng ≤\nzone_budgets_kw; Σ cổng / power_conversion_efficiency ≤ grid_input_limit_kw. Các field mới đều có\ndefault để config / client cũ (bãi chỉ AC) vẫn nạp được.",
+        "description": "Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).\n\nRàng buộc ba tầng (ADR-010), cùng nghĩa với `EffectiveLimits` của HybridSimulator (ADR-017):\ncổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw; Σ vùng ≤ trần vùng (physical_zone_cap_kw, vắng thì\nzone_budgets_kw); nguồn chung: Σ cổng / η ≤ grid_input_limit_kw, nguồn độc lập: Σ vùng / η ≤\nindependent_grid_input_limit_kw[vùng]. Các field mới đều có default để config / client cũ vẫn nạp được.",
         "properties": {
           "cabinets": {
             "description": "Tủ sạc; rỗng = config cũ không khai tủ",
@@ -2322,12 +2309,48 @@
             "title": "Horizon Hours",
             "type": "integer"
           },
+          "independent_grid_input_limit_kw": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/ChargerZone"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Giới hạn đầu vào lưới riêng từng vùng — bắt buộc khi supply_mode=independent",
+            "title": "Independent Grid Input Limit Kw"
+          },
           "name": {
             "title": "Name",
             "type": "string"
           },
           "optimizer": {
             "$ref": "#/components/schemas/OptimizerSettings"
+          },
+          "physical_zone_cap_kw": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/ChargerZone"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trần THIẾT BỊ theo vùng, phía đầu ra tủ — Guard chặn theo số này. None ⇒ ngân sách vùng là trần (như scenario cũ của simulator)",
+            "title": "Physical Zone Cap Kw"
           },
           "power_conversion_efficiency": {
             "default": 1.0,
@@ -2379,7 +2402,7 @@
                 "type": "null"
               }
             ],
-            "description": "Ngân sách CHÍNH SÁCH theo vùng, phía đầu ra tủ (không phải cap phần cứng)",
+            "description": "Ngân sách CHÍNH SÁCH theo vùng (Fixed Share, `default_zone_budget_kw` của simulator), phía đầu ra tủ",
             "title": "Zone Budgets Kw"
           }
         },
@@ -2594,7 +2617,11 @@
           "A_edf",
           "B",
           "C",
-          "D"
+          "D",
+          "B0",
+          "M2b",
+          "M3a",
+          "M3b"
         ],
         "title": "StrategyName",
         "type": "string"

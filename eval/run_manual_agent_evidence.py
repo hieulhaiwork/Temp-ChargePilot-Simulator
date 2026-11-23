@@ -248,7 +248,8 @@ async def run_all_cases(delay_s: float) -> dict:
                 },
             )
             tc03_checks = {
-                "past_does_not_book_or_propose": "propose_charging_plan" not in (t_past["response"].get("analysis") or "")
+                "past_does_not_book_or_propose": "propose_charging_plan"
+                not in (t_past["response"].get("analysis") or "")
                 and "confirm_booking" not in (t_past["response"].get("analysis") or ""),
                 "ambiguous_asks_clarification": "propose_charging_plan" not in (t_amb["response"].get("analysis") or "")
                 and "confirm_booking" not in (t_amb["response"].get("analysis") or ""),
@@ -439,7 +440,9 @@ def _render_markdown(report: dict, json_rel_path: str) -> str:
         lines.append(f"- **Checks**: `{json.dumps(c['checks'], ensure_ascii=False)}`")
         lines.append("")
         for idx, turn in enumerate(c["turns"], start=1):
-            lines.append(f"**Turn {idx}** (`{turn['endpoint']}` · HTTP `{turn['http_status']}` · `{turn['latency_ms']} ms`):")
+            lines.append(
+                f"**Turn {idx}** (`{turn['endpoint']}` · HTTP `{turn['http_status']}` · `{turn['latency_ms']} ms`):"
+            )
             lines.append(f"- Input: `{json.dumps(turn['request'], ensure_ascii=False)}`")
             if "response" in turn:
                 resp = turn["response"]
@@ -610,7 +613,13 @@ def _write_docx(report: dict, docx_path: Path) -> None:
 
     body_parts: list[str] = [
         _w_p("CHARGEPILOT — BÁO CÁO ĐÁNH GIÁ KỸ THUẬT", bold=True, size=20, color="2D6A4F", space_after=40),
-        _w_p("Bằng chứng Đánh giá Thủ công E2E — Trợ lý Sạc (Agent F1)", bold=True, size=34, color="111827", space_after=80),
+        _w_p(
+            "Bằng chứng Đánh giá Thủ công E2E — Trợ lý Sạc (Agent F1)",
+            bold=True,
+            size=34,
+            color="111827",
+            space_after=80,
+        ),
         _w_p(
             "Kiểm chứng Trợ lý sạc dành cho cư dân (FR2, FR3, FR4, FR5, US2, US3, HITL S3 & SSE Streaming) "
             "theo quy tắc bằng chứng ADR-015.",
@@ -625,7 +634,10 @@ def _write_docx(report: dict, docx_path: Path) -> None:
     meta_rows = [
         [("Hạng mục", {}), ("Giá trị", {})],
         [("Thời điểm chạy", {"bold": True}), (f"{gen_short} (+07:00)", {})],
-        [("Nhánh Git / Commit", {"bold": True}), (f"{meta['branch']} @ {meta['commit']}", {"font": "Consolas", "size": 18})],
+        [
+            ("Nhánh Git / Commit", {"bold": True}),
+            (f"{meta['branch']} @ {meta['commit']}", {"font": "Consolas", "size": 18}),
+        ],
         [("Môi trường", {"bold": True}), (f"{meta['os']}  ·  Python {meta['python']}", {})],
         [
             ("Cấu hình LLM", {"bold": True}),
@@ -656,7 +668,14 @@ def _write_docx(report: dict, docx_path: Path) -> None:
 
     # Mục 1: Lý do chọn 7 kịch bản
     body_parts.append(
-        _w_p("1. Phạm vi Đánh giá & Lý do Chọn 7 Kịch bản", bold=True, size=26, color="1B4332", space_before=280, space_after=100)
+        _w_p(
+            "1. Phạm vi Đánh giá & Lý do Chọn 7 Kịch bản",
+            bold=True,
+            size=26,
+            color="1B4332",
+            space_before=280,
+            space_after=100,
+        )
     )
     body_parts.append(
         _w_p(
@@ -672,7 +691,9 @@ def _write_docx(report: dict, docx_path: Path) -> None:
 
     # Mục 2: Bảng tóm tắt kết quả
     body_parts.append(
-        _w_p("2. Bảng Tóm tắt Kết quả Thực nghiệm", bold=True, size=26, color="1B4332", space_before=160, space_after=100)
+        _w_p(
+            "2. Bảng Tóm tắt Kết quả Thực nghiệm", bold=True, size=26, color="1B4332", space_before=160, space_after=100
+        )
     )
     summary_rows: list[list[tuple[str, dict]]] = [
         [
@@ -710,7 +731,14 @@ def _write_docx(report: dict, docx_path: Path) -> None:
     failed_cases = [c for c in report["cases"] if not c["passed"]]
     if failed_cases:
         body_parts.append(
-            _w_p("Nhận xét trọng tâm (Ghi nhận trung thực theo ADR-015)", bold=True, size=22, color="991B1B", space_before=200, space_after=60)
+            _w_p(
+                "Nhận xét trọng tâm (Ghi nhận trung thực theo ADR-015)",
+                bold=True,
+                size=22,
+                color="991B1B",
+                space_before=200,
+                space_after=60,
+            )
         )
         for fc in failed_cases:
             failed_keys = [k for k, v in fc["checks"].items() if not v]
@@ -730,7 +758,14 @@ def _write_docx(report: dict, docx_path: Path) -> None:
 
     # Mục 3: Chi tiết từng ca kiểm thử
     body_parts.append(
-        _w_p("3. Chi tiết Từng Ca Kiểm thử & Output Thực tế", bold=True, size=26, color="1B4332", space_before=260, space_after=120)
+        _w_p(
+            "3. Chi tiết Từng Ca Kiểm thử & Output Thực tế",
+            bold=True,
+            size=26,
+            color="1B4332",
+            space_before=260,
+            space_after=120,
+        )
     )
 
     for c in report["cases"]:
@@ -766,7 +801,7 @@ def _write_docx(report: dict, docx_path: Path) -> None:
                 reply = (r.get("response") or "").strip()
                 lines_txt = [
                     f"Endpoint: {turn['endpoint']}",
-                    f"Câu nhập của cư dân: \"{req_msg}\"",
+                    f'Câu nhập của cư dân: "{req_msg}"',
                     f"Trạng thái: {r.get('status')}  |  Tool đã gọi: {tools}",
                     f"Phản hồi thực tế: {reply}",
                 ]
@@ -789,7 +824,7 @@ def _write_docx(report: dict, docx_path: Path) -> None:
                 cell_body = "\n".join(
                     [
                         f"Endpoint: {turn['endpoint']}",
-                        f"Câu nhập của cư dân: \"{req_msg}\"",
+                        f'Câu nhập của cư dân: "{req_msg}"',
                         f"Chuỗi sự kiện SSE: {', '.join(ev_types)}  |  Tool đã gọi: {d.get('analysis') or '(không gọi tool)'}",
                         f"Phản hồi cuối từ luồng stream: {(d.get('response') or '').strip()}",
                     ]
@@ -804,7 +839,14 @@ def _write_docx(report: dict, docx_path: Path) -> None:
         check_summary = "  ·  ".join(f"{k}: {'ĐẠT' if v else 'CHƯA ĐẠT'}" for k, v in c["checks"].items())
         detail_rows.append(
             [
-                ("Kiểm chứng", {"bold": True, "fill": "DCFCE7" if is_pass else "FEE2E2", "color": "166534" if is_pass else "991B1B"}),
+                (
+                    "Kiểm chứng",
+                    {
+                        "bold": True,
+                        "fill": "DCFCE7" if is_pass else "FEE2E2",
+                        "color": "166534" if is_pass else "991B1B",
+                    },
+                ),
                 (check_summary, {"size": 17, "font": "Consolas", "fill": "F0FDF4" if is_pass else "FEF2F2"}),
             ]
         )

@@ -32,6 +32,11 @@ class VehicleVisit:
     required_kwh: float
     zone: Literal["AC", "DC"]
     max_power_kw: float  # giới hạn của xe (Booking.max_charge_power_kw)
+    # Pin — HybridStation (EV2Gym + profile DC) cần; LiveStation bỏ qua. None ⇒ suy từ required_kwh.
+    battery_kwh: float | None = None  # dung lượng khả dụng (VehicleSpec.usable_capacity_kwh)
+    soc_now: float | None = None  # phân số 0–1 (simulator dùng phân số, booking dùng %)
+    soc_target: float | None = None  # phân số 0–1
+    vehicle_model: str | None = None  # chọn profile DC VinFast (vinfast_profiles_v0_1)
 
 
 class StationReader(Protocol):

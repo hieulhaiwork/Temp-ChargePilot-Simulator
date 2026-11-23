@@ -13,7 +13,8 @@
 
 ChargePilot là web app hai vai trò (cư dân / vận hành) cho **một** bãi sạc mô phỏng hỗn hợp AC + DC
 ([ADR-010](docs/adr/ADR-010-bai-hybrid-ac-dc.md)). Fixture nền `mvp1` (`evening_9cars_hybrid_v1`): 2 tủ AC × 1 cổng
-11 kW; 1 tủ DC × 2 cổng 60 kW, giới hạn tủ 120 kW; lưới 106 kW; ngân sách chính sách AC 22 / DC 78 kW; η chuyển đổi
+11 kW; 1 tủ DC × 2 cổng 60 kW, giới hạn tủ 120 kW; lưới 106 kW; ngân sách chính sách AC 22 / DC 78 kW, trần vùng thiết bị AC 22 / DC 120 kW (Guard áp,
+[ADR-017](docs/adr/ADR-017-guard-theo-hop-dong-an-toan-simulator.md)); η chuyển đổi
 0,95, η sạc 0,98; bước 1 phút; 9 lượt xe (4 AC, 5 DC). Topology này là fixture regression, **không phải chốt cuối**;
 nguồn chung AC/DC (`supply_mode: shared`) là **[GIẢ ĐỊNH]**. Mọi số topology lấy từ `config/` / API, không hardcode.
 
@@ -114,7 +115,8 @@ P-019/
 │   │   └── artifacts/              📄 mô hình đã huấn luyện (nhỏ, commit được)
 │   ├── guard/                      TRỤ 3 — F4 (TV3) — xác định, độc lập AI
 │   │   ├── checker.py              ✅ chạy mọi luật, gom đủ vi phạm → GuardVerdict
-│   │   ├── rules.py                🧩 7 luật FR12 + GuardContext (T3.1; T3.1a = 2 luật công suất, cần ngay W1)
+│   │   ├── rules.py                ✅ 7 luật FR12 + GuardContext; 2 luật công suất gọi physical.py
+│   │   ├── physical.py             ✅ lớp vật lý = Guard của HybridSimulator (safety/guard.py), ADR-017
 │   │   ├── approval.py             🧩 FR13: phân loại + vòng đời phê duyệt (T3.2)
 │   │   ├── emergency.py            🧩 AC5: hạ công suất ngay khi nguồn giảm (T3.2)
 │   │   └── dispatcher.py           🧩 CHOKEPOINT duy nhất gọi apply_commands; DispatchSinks (T3.1, T3.2)

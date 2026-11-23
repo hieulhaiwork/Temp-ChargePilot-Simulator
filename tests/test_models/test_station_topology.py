@@ -86,8 +86,34 @@ def test_zone_budgets_over_grid_rejected_when_shared():
 
 def test_zone_budgets_over_grid_allowed_when_independent():
     """independent: mỗi vùng có nguồn riêng, không cộng ngân sách vào một lưới chung."""
-    cfg = StationConfig.model_validate(_config(zone_budgets_kw={"AC": 22.0, "DC": 80.0}, supply_mode="independent"))
+    cfg = StationConfig.model_validate(
+        _config(
+            zone_budgets_kw={"AC": 22.0, "DC": 80.0},
+            supply_mode="independent",
+            independent_grid_input_limit_kw={"AC": 24.0, "DC": 90.0},
+        )
+    )
     assert cfg.supply_mode == SupplyMode.INDEPENDENT
+
+
+def test_independent_supply_needs_per_zone_grid_limits():
+    """Như `Scenario.parse` của simulator: nguồn độc lập phải khai giới hạn lưới từng vùng."""
+    with pytest.raises(ValidationError, match="independent_grid_input_limit_kw"):
+        StationConfig.model_validate(_config(supply_mode="independent"))
+    with pytest.raises(ValidationError, match="nguồn riêng"):
+        StationConfig.model_validate(
+            _config(supply_mode="independent", independent_grid_input_limit_kw={"AC": 24.0, "DC": 50.0})
+        )
+    with pytest.raises(ValidationError, match="chỉ dùng với supply_mode=independent"):
+        StationConfig.model_validate(_config(independent_grid_input_limit_kw={"AC": 24.0, "DC": 90.0}))
+
+
+def test_zone_budget_cannot_exceed_physical_cap():
+    with pytest.raises(ValidationError, match="physical_zone_cap_kw"):
+        StationConfig.model_validate(_config(physical_zone_cap_kw={"AC": 11.0, "DC": 120.0}))
+    cfg = StationConfig.model_validate(_config(physical_zone_cap_kw={"AC": 22.0, "DC": 120.0}))
+    assert cfg.zone_cap_kw(ChargerZone.DC) == 120.0
+    assert StationConfig.model_validate(_config()).zone_cap_kw(ChargerZone.DC) == 78.0  # vắng trần ⇒ ngân sách
 
 
 def test_grid_alias_mismatch_is_rejected():

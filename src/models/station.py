@@ -25,7 +25,7 @@ class SupplyMode(StrEnum):
     """Cách hai vùng lấy điện (ADR-010). `shared` là [GIẢ ĐỊNH] — chưa có số liệu lưới tại site."""
 
     SHARED = "shared"  # một giới hạn lưới, coordinator chia ngân sách AC/DC
-    INDEPENDENT = "independent"  # mỗi vùng có zone_grid_input_limit_kw riêng, không chuyển ngân sách xuyên nguồn
+    INDEPENDENT = "independent"  # mỗi vùng có independent_grid_input_limit_kw riêng, không chuyển công suất xuyên nguồn
 
 
 class CabinetSpec(BaseModel):
@@ -34,9 +34,6 @@ class CabinetSpec(BaseModel):
     cabinet_id: str = Field(min_length=1, description="Mã tủ, vd AC-01, DC-01")
     zone: ChargerZone
     output_limit_kw: float = Field(gt=0, description="Giới hạn tổng đầu ra của tủ (Σ cổng của tủ)")
-    zone_grid_input_limit_kw: float | None = Field(
-        default=None, gt=0, description="Giới hạn đầu vào lưới riêng của vùng — chỉ dùng khi supply_mode=independent"
-    )
 
 
 class ConnectorSpec(BaseModel):
@@ -86,9 +83,10 @@ class OptimizerSettings(BaseModel):
 class StationConfig(BaseModel):
     """Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).
 
-    Ràng buộc ba tầng (ADR-010): cổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw và Σ vùng ≤
-    zone_budgets_kw; Σ cổng / power_conversion_efficiency ≤ grid_input_limit_kw. Các field mới đều có
-    default để config / client cũ (bãi chỉ AC) vẫn nạp được.
+    Ràng buộc ba tầng (ADR-010), cùng nghĩa với `EffectiveLimits` của HybridSimulator (ADR-017):
+    cổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw; Σ vùng ≤ trần vùng (physical_zone_cap_kw, vắng thì
+    zone_budgets_kw); nguồn chung: Σ cổng / η ≤ grid_input_limit_kw, nguồn độc lập: Σ vùng / η ≤
+    independent_grid_input_limit_kw[vùng]. Các field mới đều có default để config / client cũ vẫn nạp được.
     """
 
     station_id: str
@@ -102,7 +100,18 @@ class StationConfig(BaseModel):
         default=None, gt=0, description="Giới hạn đầu vào lưới của cả khu (kW). None ⇒ bằng power_limit_kw"
     )
     zone_budgets_kw: dict[ChargerZone, float] | None = Field(
-        default=None, description="Ngân sách CHÍNH SÁCH theo vùng, phía đầu ra tủ (không phải cap phần cứng)"
+        default=None,
+        description="Ngân sách CHÍNH SÁCH theo vùng (Fixed Share, `default_zone_budget_kw` của simulator), phía đầu ra tủ",
+    )
+    physical_zone_cap_kw: dict[ChargerZone, float] | None = Field(
+        default=None,
+        description=(
+            "Trần THIẾT BỊ theo vùng, phía đầu ra tủ — Guard chặn theo số này. None ⇒ ngân sách vùng là trần "
+            "(như scenario cũ của simulator)"
+        ),
+    )
+    independent_grid_input_limit_kw: dict[ChargerZone, float] | None = Field(
+        default=None, description="Giới hạn đầu vào lưới riêng từng vùng — bắt buộc khi supply_mode=independent"
     )
     power_conversion_efficiency: float = Field(
         default=1.0, gt=0, le=1, description="η chuyển đổi lưới → đầu ra tủ. E_grid = E_output / η"
@@ -150,9 +159,28 @@ class StationConfig(BaseModel):
             raise ValueError(
                 f"power_limit_kw={self.power_limit_kw} khác grid_input_limit_kw={self.grid_input_limit_kw} (alias)"
             )
+        for name in ("physical_zone_cap_kw", "independent_grid_input_limit_kw"):
+            values = getattr(self, name)
+            if values is not None and any(v <= 0 for v in values.values()):
+                raise ValueError(f"{name} phải > 0: {values}")
+        independent = self.independent_grid_input_limit_kw
+        if self.supply_mode == SupplyMode.INDEPENDENT and not independent:
+            raise ValueError("supply_mode=independent cần independent_grid_input_limit_kw cho từng vùng")
+        if self.supply_mode == SupplyMode.SHARED and independent:
+            raise ValueError("independent_grid_input_limit_kw chỉ dùng với supply_mode=independent")
         if self.zone_budgets_kw:
             if any(v <= 0 for v in self.zone_budgets_kw.values()):
                 raise ValueError(f"zone_budgets_kw phải > 0: {self.zone_budgets_kw}")
+            caps = self.physical_zone_cap_kw or {}
+            over = {z: v for z, v in self.zone_budgets_kw.items() if z in caps and v > caps[z] + 1e-9}
+            if over:
+                raise ValueError(f"zone_budgets_kw vượt physical_zone_cap_kw: {over}")
+            if self.supply_mode == SupplyMode.INDEPENDENT:
+                for zone, budget in self.zone_budgets_kw.items():
+                    if zone in independent and budget > independent[zone] * self.power_conversion_efficiency + 1e-9:
+                        raise ValueError(
+                            f"Ngân sách {zone} {budget} kW vượt nguồn riêng {independent[zone]} kW × η (independent)"
+                        )
             if self.supply_mode == SupplyMode.SHARED:
                 grid_needed = sum(self.zone_budgets_kw.values()) / self.power_conversion_efficiency
                 if grid_needed > self.grid_input_limit_kw + 1e-9:
@@ -166,6 +194,12 @@ class StationConfig(BaseModel):
     def nameplate_power_kw(self) -> float:
         """Tổng công suất danh định của mọi cổng (Σ max_power_kw), chưa tính cap tủ / ngân sách / lưới."""
         return sum(c.max_power_kw for c in self.connectors)
+
+    def zone_cap_kw(self, zone: ChargerZone) -> float | None:
+        """Trần đầu ra của vùng mà Guard áp: trần thiết bị nếu khai báo, không thì ngân sách (simulator `limits.py`)."""
+        if self.physical_zone_cap_kw is not None:
+            return self.physical_zone_cap_kw.get(zone)
+        return (self.zone_budgets_kw or {}).get(zone)
 
 
 class ConnectorStatus(StrEnum):

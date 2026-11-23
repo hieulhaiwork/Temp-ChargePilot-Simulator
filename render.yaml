@@ -38,6 +38,11 @@ services:
       # ADR-007 — vòng nền: trạm tự chạy theo thời gian (TICK, hết hạn phê duyệt). Cần instance không ngủ (Starter).
       - key: CONTROL_LOOP_ENABLED
         value: "true"
+      # ADR-018 — trạm và thuật toán của simulator R&D
+      - key: STATION_ENGINE
+        value: hybrid
+      - key: LIVE_STRATEGY
+        value: M3a
       - key: LANGCHAIN_TRACING_V2
         value: "true"
       - key: LANGCHAIN_PROJECT

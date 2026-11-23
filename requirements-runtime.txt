@@ -29,11 +29,17 @@ pyjwt>=2.8                 # T1.7 (D3, ADR-006) — ký/kiểm JWT 2 vai trò (F
 # ---- Duyệt 2026-11-22 (người phụ trách): LP của chiến lược B/C/D ----
 numpy>=1.26                # T2.1 — ma trận ràng buộc của LP (src/optimizer/lp_model.py)
 scipy>=1.11                # T2.1 — scipy.optimize.linprog(method="highs"): HiGHS kèm sẵn, thay cho highspy riêng
+# ---- Duyệt 2026-11-23: backend chạy trạm trên engine HybridSimulator (src/simulator/src/) — T1.4, FR11 ----
+# ev2gym==2.0.0 KHÔNG nằm trong file này: phải cài `--no-deps` (metadata của nó kéo gurobipy, pandas, matplotlib,
+# networkx… mà engine không dùng — src/simulator/requirements-ci.txt), và pip không cho --no-deps từng gói trong
+# requirements file. Bước cài riêng: Dockerfile, .github/workflows/ci.yml, `make install`. Đổi phiên bản → sửa cả 3.
+# Dưới đây là phụ thuộc engine THẬT SỰ import (đo bằng sys.modules 2026-11-22), ghim như venv .simulator:
+gymnasium==1.4.0           # T1.4 — ev2gym/__init__.py gọi gymnasium.register; kéo cloudpickle, farama-notifications
 
 # ---- ChargePilot — bật dòng tương ứng KHI làm task đó (mỗi dòng ghi lý do) ----
 # Kiểm tương thích Python 3.12 + thời gian build Docker ở cổng Go/No-Go tuần 1.
 # ortools>=9.10     # T2.2 — thay thế HiGHS nếu gán đầu nối cần MILP/CP-SAT
 # lightgbm>=4.0     # T2.3 — F6 dự báo thời điểm rút đầu nối (FR17); cần lúc chạy để predict (chiến lược C)
-# ev2gym            # T1.4 — simulator ưu tiên (FR11)
+# ev2gym            # T1.4 — ĐÃ BẬT: cài --no-deps ngoài file này (xem khối "Duyệt 2026-11-23" ở trên)
 # acnportal         # T1.4 — ACN-Sim dự phòng (FR11)
 # tzdata            # T2.1 — zoneinfo cần dữ liệu múi giờ; python:3.12-slim có thể thiếu — kiểm trong Docker trước khi bật

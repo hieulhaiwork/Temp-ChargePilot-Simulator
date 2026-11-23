@@ -232,7 +232,7 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
     )
     notes = (
         f"{len(bookings)} phiên tổng hợp (seed {scenario.seed}), {len(arrived)} xe đã đến; giới hạn nguồn "
-        f"{scenario.power_limit_kw:g} kW; LiveStation (không mô phỏng taper DC)."
+        f"{scenario.power_limit_kw:g} kW; {_engine_label(rt.simulator)}."
     )
     if skipped:
         notes += f" Bỏ qua sự cố không khớp topology: {', '.join(skipped)}."
@@ -269,7 +269,7 @@ def run_benchmark(
             for strategy in strategies:
                 runs.append(run_scenario(seeded, strategy))
     notes = [
-        "Simulator: LiveStation của backend (src/simulator/live.py) — số KHÔNG so trực tiếp với HybridSimulator R&D.",
+        f"Trạm: {_engine_label(None)} — kịch bản và KPI của backend; so với số MVP-2/3 R&D phải cùng fixture (ADR-018).",
         "Phiên sạc tổng hợp; tham số phân bố là [GIẢ ĐỊNH] (src/services/simulation_service.py).",
     ]
     if seeds:
@@ -309,3 +309,13 @@ def latest_benchmark() -> BenchmarkReport:
     if not BENCHMARK_FILE.exists():
         raise DomainError(ErrorCode.NOT_FOUND, "Chưa có kết quả benchmark — chạy `python eval/run_benchmark.py`")
     return BenchmarkReport.model_validate(json.loads(BENCHMARK_FILE.read_text(encoding="utf-8")))
+
+
+def _engine_label(station) -> str:
+    """Ghi rõ engine trong mọi báo cáo (ADR-015/016/018): số của hai engine không trộn."""
+    from src.config import get_settings
+
+    name = type(station).__name__ if station is not None else None
+    if name == "HybridStation" or (name is None and get_settings().station_engine == "hybrid"):
+        return "HybridStation (engine simulator R&D: EV2Gym AC, đường sạc DC)"
+    return "LiveStation (không mô phỏng taper DC)"

@@ -10,6 +10,11 @@ ENV PATH=/opt/venv/bin:$PATH
 # (gói free ít RAM, build chậm — docs/plan/50-devops.md §5).
 COPY requirements-runtime.txt .
 RUN pip install --no-cache-dir -r requirements-runtime.txt
+# Engine HybridSimulator cần ev2gym, nhưng metadata ev2gym kéo gurobipy/pandas/matplotlib… không dùng tới → --no-deps;
+# phụ thuộc thật (gymnasium, numpy, scipy) đã cài ở bước trên. Cùng phiên bản với ci.yml và Makefile (`make install`).
+#   Dòng import kiểm ngay lúc build: thiếu phụ thuộc thì build đỏ thay vì container chết lúc chạy.
+RUN pip install --no-cache-dir --no-deps ev2gym==2.0.0 \
+    && python -c "import ev2gym.models.ev, ev2gym.models.ev_charger"
 
 # ---- Stage 2: Production ----
 FROM python:3.12-slim

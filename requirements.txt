@@ -2,6 +2,8 @@
 # = dependency lúc chạy (requirements-runtime.txt — file image Docker cài) + công cụ dev/test.
 # Thêm dependency lúc chạy thì sửa requirements-runtime.txt, không sửa ở đây.
 -r requirements-runtime.txt
+# Sau file này còn một bước: `pip install --no-deps ev2gym==2.0.0` (hoặc `make install` làm cả hai) — lý do ở
+# requirements-runtime.txt, khối "Duyệt 2026-11-23".
 
 # Dev tools
 ruff>=0.8.0

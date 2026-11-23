@@ -46,7 +46,17 @@ async def test_mock_agent_runs_lookup_and_energy_tools(client, mock_agent_env, a
 
 
 @pytest.mark.asyncio
-async def test_mock_agent_multi_turn_propose_confirm_queue_and_explain(client, mock_agent_env, as_role):
+async def test_mock_agent_multi_turn_propose_confirm_queue_and_explain(client, mock_agent_env, as_role, monkeypatch):
+    # Cố định giờ hội thoại 20:00 hôm nay: từ 00:00–04:00 "sáng mai" là mơ hồ (cố ý, mock_llm), nên test chạy lúc rạng
+    # sáng (CI 23/11 ~03:00) từng đỏ. Deadline "7h sáng mai" vẫn ở tương lai so với đồng hồ trạm.
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from src.agents import mock_llm
+
+    tz = ZoneInfo("Asia/Ho_Chi_Minh")
+    fixed = datetime.now(tz).replace(hour=20, minute=0, second=0, microsecond=0)
+    monkeypatch.setattr(mock_llm, "_now_local", lambda state: fixed)
     as_role(Role.RESIDENT, user_id="res-e2e")
     sid = "session-e2e-1"
 

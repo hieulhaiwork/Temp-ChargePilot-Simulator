@@ -23,6 +23,39 @@ from src.services.errors import DomainError
 from src.services.runtime import StationRuntime, get_runtime
 
 AT_RISK_KWH = 0.1  # lịch giao thiếu hơn mức này so với kWh còn thiếu → nguy cơ trễ hạn (US5)
+# Chiến lược simulator chỉ trả công suất bước hiện tại (không có lịch tương lai) → đánh giá bằng độ trễ cho phép (laxity,
+# cùng khái niệm dispatch LLF của simulator): thời gian còn tới hạn − thời gian sạc phần còn thiếu ở công suất tối đa.
+# Dưới ngưỡng này là nguy cơ trễ. [GIẢ ĐỊNH] 30' = biên an toàn đề xuất (cư dân về sớm, DC sạc chậm dần khi gần đầy).
+AT_RISK_SLACK_MINUTES = 30
+
+
+def _at_risk_bookings(rt: StationRuntime, state) -> list[str]:
+    """US5 — phiên có nguy cơ trễ hạn.
+
+    A–D (LP backend): lịch có đủ các bước tới hạn → nguy cơ khi lịch giao thiếu so với kWh còn thiếu.
+    Chiến lược simulator (B0 / M2b / M3a / M3b): lịch chỉ có bước hiện tại → dùng laxity (AT_RISK_SLACK_MINUTES).
+    """
+    from src.services.hybrid_planner import SIMULATOR_STRATEGIES
+
+    progress = {s.booking_id: s.delivered_grid_kwh for s in state.sessions}
+    now = rt.clock()
+    at_risk: list[str] = []
+    for booking in rt.store.active_bookings():
+        session = next((s for s in rt.plan.sessions if s.booking_id == booking.booking_id), None)
+        remaining = booking.energy.grid_energy_kwh - progress.get(booking.booking_id, 0.0)
+        if remaining <= AT_RISK_KWH:
+            continue
+        if rt.plan.strategy in SIMULATOR_STRATEGIES:
+            start = max(session.slots[0].start, now) if session and session.slots else now
+            hours_needed = remaining / max(booking.max_charge_power_kw, 1e-9)
+            slack = booking.request.deadline - start - timedelta(hours=hours_needed)
+            if slack < timedelta(minutes=AT_RISK_SLACK_MINUTES):
+                at_risk.append(booking.booking_id)
+            continue
+        planned = sum(x.power_kw for x in session.slots) * rt.plan.step_minutes / 60 if session else 0.0
+        if remaining - planned > AT_RISK_KWH:
+            at_risk.append(booking.booking_id)
+    return at_risk
 
 
 def build_overview(rt: StationRuntime) -> StationOverview:
@@ -30,15 +63,7 @@ def build_overview(rt: StationRuntime) -> StationOverview:
     state = rt.simulator.state()
     limit = state.available_power_kw
     grid_kw = state.total_power_kw / rt.config.power_conversion_efficiency
-    at_risk: list[str] = []
-    if rt.plan:
-        progress = {s.booking_id: s.delivered_grid_kwh for s in state.sessions}
-        for booking in rt.store.active_bookings():
-            session = next((s for s in rt.plan.sessions if s.booking_id == booking.booking_id), None)
-            planned = sum(x.power_kw for x in session.slots) * rt.plan.step_minutes / 60 if session else 0.0
-            remaining = booking.energy.grid_energy_kwh - progress.get(booking.booking_id, 0.0)
-            if remaining - planned > AT_RISK_KWH:
-                at_risk.append(booking.booking_id)
+    at_risk = _at_risk_bookings(rt, state) if rt.plan else []
     alerts = [f"Đầu nối {c.connector_id} đang lỗi" for c in state.connectors if c.status == ConnectorStatus.FAULT]
     nominal = rt.config.grid_input_limit_kw or rt.config.power_limit_kw
     if limit < nominal:
