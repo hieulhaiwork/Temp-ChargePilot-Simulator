@@ -115,6 +115,6 @@ Phase 1 phải viết lại bảng này kèm ADR mới, không xoá test.
 ```bash
 .venv/Scripts/python.exe docs/refactor/raw/phase0/imports.py . /tmp/imports.json
 .venv/Scripts/python.exe docs/refactor/raw/phase0/layers.py /tmp/imports.json      # = import_edges.txt
-.venv/Scripts/python.exe docs/refactor/raw/phase0/astmanifest.py src/simulator/src   # hash nội dung/AST
+.venv/Scripts/python.exe scripts/refactor/ast_manifest.py src/simulator/src            # hash nội dung/AST
 rg -n 'src\.simulator\.src' src tests eval scripts --glob '!src/simulator/**'
 ```
