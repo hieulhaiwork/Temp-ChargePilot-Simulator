@@ -471,13 +471,18 @@ async def mock_generate(state: AgentState, partial: bool = False) -> FinalAnswer
         bat_kwh = round(float(energy.get("battery_energy_kwh") or 0), 1)
         grid_kwh = round(float(energy.get("grid_energy_kwh") or 0), 1)
         if data.get("feasible"):
+            conditional = (
+                " Lưu ý: kết quả còn phụ thuộc phê duyệt đang chờ, có thể đổi khi được duyệt."
+                if data.get("certainty") == "conditional"
+                else ""
+            )
             return FinalAnswer(
                 answer=(
-                    f"Phương án đề xuất: sạc tại đầu nối {data.get('connector_id')}, "
+                    f"Phương án đề xuất (ước tính): sạc tại đầu nối {data.get('connector_id')}, "
                     f"từ {_fmt_dt(data.get('planned_start'))} đến {_fmt_dt(data.get('planned_end'))}, "
                     f"nạp {bat_kwh} kWh vào pin ({grid_kwh} kWh từ lưới), "
                     f"chi phí ước tính {_fmt_vnd(data.get('estimated_cost_vnd'))} "
-                    f"(dư {_fmt_num(data.get('slack_minutes'))} phút trước hạn). "
+                    f"(dư {_fmt_num(data.get('slack_minutes'))} phút trước hạn).{conditional} "
                     "Bạn nhắn 'chốt' để xác nhận đặt lịch nhé."
                 ),
                 confidence=0.95,

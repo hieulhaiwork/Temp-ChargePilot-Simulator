@@ -10,6 +10,10 @@ taper, không coordinator, gán cổng EDF) nên có thể hứa SLA mà policy 
 rồi đọc thời điểm cắm / bắt đầu / đầy, năng lượng giao trước deadline (cùng quy tắc KPI `outcomes()`), chi phí theo
 giá TOU từng phút, vị trí hàng chờ. Khác thực thi thật (ghi trong PHASE3_REPORT): không biết xe chưa đặt lịch, sự cố
 tương lai, và phê duyệt HITL của cư dân (lệnh cần duyệt coi như chưa thực thi, như benchmark).
+
+Kết quả là ƯỚC TÍNH CÓ ĐIỀU KIỆN, không phải SLA (Tech Lead, quyết định Phase 4 số 5): `ASSUMPTIONS` liệt kê giả định;
+mọi phê duyệt HITL còn chờ trong lúc chạy bản fork (kế thừa từ trạm live hoặc phát sinh trong fork) được đếm vào
+`approvals_for_candidate` / `approvals_for_others` để API / UI báo "phụ thuộc phê duyệt". Không mô hình xác suất đồng ý.
 """
 
 import asyncio
@@ -24,6 +28,12 @@ from src.services import control_loop
 from src.services.runtime import StationRuntime, fork_runtime, visit_of
 
 EPS_KWH = 1e-9
+# Giả định của mọi kết quả admission (code sinh, không phải LLM) — API trả nguyên văn trong ScheduleProposal.
+ASSUMPTIONS = (
+    "Chỉ tính các xe đã đặt lịch / đang ở bãi; xe đến sau mà chưa đặt lịch không được biết trước",
+    "Không tính sự cố tương lai (đầu nối lỗi, nguồn giảm); có sự cố thì lịch được tính lại",
+    "Lệnh cần phê duyệt (HITL) mà chưa được duyệt được coi là chưa thực thi",
+)
 
 
 @dataclass(frozen=True)
@@ -41,6 +51,12 @@ class Admission:
     cost_vnd: float | None
     queue_position: int | None
     decisions: int
+    approvals_for_candidate: int = 0  # phê duyệt HITL chờ trong lúc mô phỏng, lệnh của chính xe này
+    approvals_for_others: int = 0  # ... lệnh của xe khác (có thể đổi kết quả của xe này khi được duyệt)
+
+    @property
+    def depends_on_approval(self) -> bool:
+        return self.approvals_for_candidate + self.approvals_for_others > 0
 
 
 async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | None = None) -> Admission:
@@ -59,9 +75,11 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
     cost = 0.0
     decisions = 0
     first = True
+    pending: dict[str, str | None] = {}  # approval_id → booking_id, mọi phê duyệt chờ thấy trong lúc chạy
     while sim.minute < deadline:
         if await control_loop.on_minute(frt, events) is not None:
             decisions += 1
+        pending.update({a.approval_id: a.command.booking_id for a in frt.store.pending_approvals()})
         session = sim.queue.sessions.get(cid)
         if first:
             first = False
@@ -98,6 +116,8 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
         cost_vnd=round(cost) if start is not None else None,
         queue_position=queue_position,
         decisions=decisions,
+        approvals_for_candidate=sum(1 for b in pending.values() if b == cid),
+        approvals_for_others=sum(1 for b in pending.values() if b != cid),
     )
 
 

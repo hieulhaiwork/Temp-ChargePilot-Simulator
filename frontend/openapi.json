@@ -1708,6 +1708,15 @@
         "title": "ProfileUpdateRequest",
         "type": "object"
       },
+      "ProposalCertainty": {
+        "description": "Mức chắc chắn của phương án (Phase 4 quyết định 5) — không phương án nào là SLA bảo đảm vô điều kiện.",
+        "enum": [
+          "estimate",
+          "conditional"
+        ],
+        "title": "ProposalCertainty",
+        "type": "string"
+      },
       "QueueStatus": {
         "description": "US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.",
         "properties": {
@@ -2055,7 +2064,7 @@
         "type": "object"
       },
       "ScheduleProposal": {
-        "description": "Phương án what-if cho màn S3 — CHƯA giữ chỗ.\n\n`reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa.",
+        "description": "Phương án what-if cho màn S3 — CHƯA giữ chỗ, là ƯỚC TÍNH chứ không phải cam kết SLA.\n\n`reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa. `certainty` /\n`assumptions` / `approvals_pending_*` cho biết kết quả phụ thuộc điều gì (services/admission.py).",
         "properties": {
           "alternatives": {
             "items": {
@@ -2063,6 +2072,33 @@
             },
             "title": "Alternatives",
             "type": "array"
+          },
+          "approvals_pending_for_booking": {
+            "default": 0,
+            "description": "Số phê duyệt chờ cho lệnh của chính xe này trong lúc mô phỏng",
+            "minimum": 0.0,
+            "title": "Approvals Pending For Booking",
+            "type": "integer"
+          },
+          "approvals_pending_for_others": {
+            "default": 0,
+            "description": "Số phê duyệt chờ cho lệnh của xe khác (không lộ xe nào)",
+            "minimum": 0.0,
+            "title": "Approvals Pending For Others",
+            "type": "integer"
+          },
+          "assumptions": {
+            "description": "Giả định của kết quả (code sinh)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "certainty": {
+            "$ref": "#/components/schemas/ProposalCertainty",
+            "default": "estimate",
+            "description": "estimate = ước tính theo giả định; conditional = còn chờ phê duyệt (HITL). Không bao giờ là SLA"
           },
           "connector_id": {
             "anyOf": [

@@ -11,6 +11,7 @@ from src.models.charging import (
     ChargeMode,
     ChargeRequest,
     EnergyEstimate,
+    ProposalCertainty,
     ScheduleProposal,
 )
 from src.models.control import (
@@ -109,6 +110,19 @@ def test_infeasible_proposal_must_offer_alternative():
 def test_infeasible_proposal_with_alternative_passes():
     alt = Alternative(kind=AlternativeKind.LOWER_TARGET, description="Sạc tới 70%", soc_target=70)
     assert ScheduleProposal(feasible=False, energy=_energy(), alternatives=[alt]).alternatives
+
+
+def test_proposal_is_conditional_exactly_when_approvals_are_pending():
+    """Phase 4 quyết định 5: không được trình bày kết quả phụ thuộc phê duyệt như ước tính thường (và ngược lại)."""
+    assert ScheduleProposal(feasible=True, energy=_energy()).certainty == ProposalCertainty.ESTIMATE
+    conditional = ScheduleProposal(
+        feasible=True, energy=_energy(), certainty=ProposalCertainty.CONDITIONAL, approvals_pending_for_others=2
+    )
+    assert conditional.approvals_pending_for_others == 2
+    with pytest.raises(ValidationError, match="conditional"):
+        ScheduleProposal(feasible=True, energy=_energy(), approvals_pending_for_booking=1)
+    with pytest.raises(ValidationError, match="conditional"):
+        ScheduleProposal(feasible=True, energy=_energy(), certainty=ProposalCertainty.CONDITIONAL)
 
 
 # ---- Command / GuardVerdict / Approval (F4) -------------------------------

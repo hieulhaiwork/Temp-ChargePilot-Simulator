@@ -266,7 +266,13 @@ function ProposalSummary({ proposal }: { proposal: components["schemas"]["Schedu
       <dt>Chi phí ước tính</dt>
       <dd>{formatVnd(proposal.estimated_cost_vnd)}</dd>
       <dt>Kịp giờ lấy xe</dt>
-      <dd>{proposal.feasible ? "Kịp" : "Chưa kịp"}</dd>
+      <dd>{proposal.feasible ? "Kịp (ước tính, không phải cam kết)" : "Chưa kịp"}</dd>
+      {proposal.certainty === "conditional" ? (
+        <>
+          <dt>Điều kiện</dt>
+          <dd>Phụ thuộc phê duyệt đang chờ — lịch có thể đổi khi được duyệt hoặc từ chối</dd>
+        </>
+      ) : null}
     </dl>
   );
 }

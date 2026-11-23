@@ -1617,6 +1617,12 @@ export interface components {
             vehicle_model?: string | null;
         };
         /**
+         * ProposalCertainty
+         * @description Mức chắc chắn của phương án (Phase 4 quyết định 5) — không phương án nào là SLA bảo đảm vô điều kiện.
+         * @enum {string}
+         */
+        ProposalCertainty: "estimate" | "conditional";
+        /**
          * QueueStatus
          * @description US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.
          */
@@ -1765,13 +1771,36 @@ export interface components {
         };
         /**
          * ScheduleProposal
-         * @description Phương án what-if cho màn S3 — CHƯA giữ chỗ.
+         * @description Phương án what-if cho màn S3 — CHƯA giữ chỗ, là ƯỚC TÍNH chứ không phải cam kết SLA.
          *
-         *     `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa.
+         *     `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa. `certainty` /
+         *     `assumptions` / `approvals_pending_*` cho biết kết quả phụ thuộc điều gì (services/admission.py).
          */
         ScheduleProposal: {
             /** Alternatives */
             alternatives?: components["schemas"]["Alternative"][];
+            /**
+             * Approvals Pending For Booking
+             * @description Số phê duyệt chờ cho lệnh của chính xe này trong lúc mô phỏng
+             * @default 0
+             */
+            approvals_pending_for_booking: number;
+            /**
+             * Approvals Pending For Others
+             * @description Số phê duyệt chờ cho lệnh của xe khác (không lộ xe nào)
+             * @default 0
+             */
+            approvals_pending_for_others: number;
+            /**
+             * Assumptions
+             * @description Giả định của kết quả (code sinh)
+             */
+            assumptions?: string[];
+            /**
+             * @description estimate = ước tính theo giả định; conditional = còn chờ phê duyệt (HITL). Không bao giờ là SLA
+             * @default estimate
+             */
+            certainty: components["schemas"]["ProposalCertainty"];
             /** Connector Id */
             connector_id?: string | null;
             energy: components["schemas"]["EnergyEstimate"];
