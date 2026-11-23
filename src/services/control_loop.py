@@ -256,7 +256,6 @@ def build_planning_context(rt: StationRuntime) -> PlanningContext:
         tariff=rt.tariff,
         departure_forecast=None,
         hard_consent_booking_ids=frozenset(rt.rejected_booking_ids),
-        oracle_bookings=rt.oracle_bookings,
     )
 
 

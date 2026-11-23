@@ -1,5 +1,13 @@
 # Plan 10 — Backend (FastAPI, services, Guard, realtime)
 
+> **Hiện trạng 23/11/2026 (ADR-019, refactor Unified Core Phase 4) — đọc trước, ưu tiên hơn nội dung bên dưới:**
+> backend chạy `HybridStation` trên một kernel `StationKernel` dùng chung với `HybridSimulator`; `LiveStation` và LP
+> backend A–D (`mpc`, `lp_model`, `assignment`, `baselines`, `strategies`) **đã xoá**, A–D bỏ khỏi `StrategyName` /
+> OpenAPI / S8. Policy hiện hành: B0 / M2b / M3a / M3b (`src/optimizer/registry.py`). Benchmark S8 = baseline có version
+> (`eval/evidence/2026-11-23-refactor-phase3-baseline/`); bảng A–D cũ là archive deprecated. Quote / booking = admission
+> trên bản fork, kết quả là ước tính có điều kiện, không phải SLA. Chỗ nào bên dưới còn nhắc `LiveStation` / A–D /
+> `lp_model` là plan lịch sử.
+>
 > **Cập nhật 21/11/2026 theo ADR-010…015.** Đọc §0 trước; từ §1 trở đi là plan Pha A (17/11), vẫn đúng với code
 > skeleton hiện có, trừ chỗ ghi "(cũ, thay bởi …)". Bảng thay đổi tổng: [00-overview §0](00-overview.md).
 
@@ -10,7 +18,7 @@ chưa có trong code.
 
 | Việc | Mô tả | ADR |
 |---|---|---|
-| `SimulatorGateway` | **Chưa làm** — hiện `src/services/runtime.py` dùng `LiveStation` trực tiếp sau Protocol `base.py` (ADR-016). Đích: adapter duy nhất giữa `src/services` và `HybridSimulator`: `create_session`, `get_state`, `submit_request`, `advance`, `replan`, `get_decision_trace`, `simulate_what_if`, `apply_approved_revision`, `get_kpis`. Quy đổi SOC % ↔ fraction, giờ có múi giờ ↔ `HH:MM` của engine (giờ > 24 cho ngày sau), ID ổn định | [ADR-011](../adr/ADR-011-mot-simulator-sau-be-mat-cong-khai.md) |
+| `SimulatorGateway` | **Chưa làm dưới tên này** — hiện `src/services/runtime.py` dựng `HybridStation` (kernel chung với simulator, ADR-019) và admission chạy trên `runtime.fork_runtime`. Đích: adapter duy nhất giữa `src/services` và `HybridSimulator`: `create_session`, `get_state`, `submit_request`, `advance`, `replan`, `get_decision_trace`, `simulate_what_if`, `apply_approved_revision`, `get_kpis`. Quy đổi SOC % ↔ fraction, giờ có múi giờ ↔ `HH:MM` của engine (giờ > 24 cho ngày sau), ID ổn định | [ADR-011](../adr/ADR-011-mot-simulator-sau-be-mat-cong-khai.md) |
 | `FixtureSimulatorGateway` | Cài đặt theo cùng interface để UI / API làm song song; **gắn nhãn fixture**, không dùng trong luồng nghiệm thu | ADR-011 |
 | `src/simulator/base.py` mới | Thay `StationReader` / `StationActuator`; `runtime.py` hiện import `src.simulator.base.StationSimulator` (bản cũ), không khớp layout `src/simulator/src/…` của v1.2 — phải sửa khi merge | ADR-011 |
 | Guard hai lớp | Lớp vật lý (lưới / tủ / cổng / xe, pre + post apply) và lớp chính sách (ngân sách vùng, quyền, phê duyệt). Vẫn là chokepoint (ADR-002) | ADR-011 |

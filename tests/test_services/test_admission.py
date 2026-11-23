@@ -11,9 +11,9 @@ import pytest
 
 pytest.importorskip("ev2gym")
 
-from src.models.charging import StrategyName  # noqa: E402
+from src.models.charging import ConsentScope, ProposalCertainty, StrategyName  # noqa: E402
 from src.models.events import EventType, StationEvent  # noqa: E402
-from src.services import admission, catalog, control_loop  # noqa: E402
+from src.services import admission, catalog, charging_service, control_loop  # noqa: E402
 from src.services.runtime import build_sim_runtime, visit_of  # noqa: E402
 from tests.factories import VN, booking  # noqa: E402
 
@@ -88,3 +88,44 @@ async def test_quote_queue_position_comes_from_the_execution_policy():
     quoted = await admission.evaluate(rt, first)
     assert quoted.queue_position == 1  # 2 cổng DC đã bận ⇒ chờ, vị trí do dispatch của policy (LLF) quyết
     assert quoted.connector_id is not None and quoted.plugged_at > rt.clock()
+
+
+async def _runtime_without_power_reduction_consent():
+    """Các xe đang có không cho giảm công suất ⇒ lệnh giảm của M3a phải chờ cư dân duyệt (HITL, FR13)."""
+    rt = await _runtime()
+    for b in rt.store.active_bookings():
+        rt.store.save_booking(b.model_copy(update={"consent": ConsentScope(allow_power_reduction=False)}))
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    return rt
+
+
+async def test_quote_without_pending_approval_is_an_estimate_with_assumptions():
+    """Phase 4 quyết định 5: kể cả khi không chờ duyệt, quote là ƯỚC TÍNH kèm giả định, không phải SLA."""
+    rt = await _runtime()
+    candidate = booking("cand", zone="AC", kwh=15, hours=6, now=rt.clock())
+    quoted = await admission.evaluate(rt, candidate)
+    assert not quoted.depends_on_approval
+    proposal = await charging_service._what_if(rt, candidate)
+    assert proposal.certainty == ProposalCertainty.ESTIMATE
+    assert proposal.approvals_pending_for_booking == proposal.approvals_pending_for_others == 0
+    assert proposal.assumptions == list(admission.ASSUMPTIONS)
+    assert any("không phải cam kết" in r for r in proposal.reasons)
+
+
+async def test_quote_is_conditional_when_commands_wait_for_approval():
+    """Lệnh chờ HITL trong bản fork ⇒ API báo `conditional` + số phê duyệt chờ; kết quả vẫn khớp thực thi khi không ai
+    trả lời (mô phỏng thận trọng: lệnh chờ duyệt coi như chưa thực thi, như runtime thật)."""
+    rt = await _runtime_without_power_reduction_consent()
+    live_pending = len(rt.store.pending_approvals())
+    candidate = booking("cand", zone="AC", kwh=15, hours=6, now=rt.clock())
+    quoted = await admission.evaluate(rt, candidate)
+    assert quoted.depends_on_approval and quoted.approvals_for_others > 0
+    assert len(rt.store.pending_approvals()) == live_pending  # phê duyệt sinh trong fork không rò ra trạm live
+    proposal = await charging_service._what_if(rt, candidate)
+    assert proposal.certainty == ProposalCertainty.CONDITIONAL
+    assert proposal.approvals_pending_for_others == quoted.approvals_for_others
+    assert any(r.startswith("Phụ thuộc phê duyệt") for r in proposal.reasons)
+    real = await _execute(rt, candidate)
+    assert real["connector"] == quoted.connector_id and real["plugged"] == quoted.plugged_at
+    assert real["start"] == quoted.charge_start and real["end"] == quoted.charge_end
+    assert real["delivered"] == pytest.approx(quoted.delivered_kwh, abs=1e-9)

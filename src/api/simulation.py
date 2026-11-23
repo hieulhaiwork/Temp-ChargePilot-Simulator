@@ -41,5 +41,5 @@ async def inject_incident(body: Incident, user: OperatorUser) -> dict[str, str]:
 
 @router.get("/benchmark", response_model=BenchmarkReport)
 async def benchmark(user: OperatorUser) -> BenchmarkReport:
-    """US8 — bảng A–D gần nhất (eval/run_benchmark.py sinh ra)."""
+    """US8 — bảng B0 / M2b / M3a / M3b của baseline có version hiện hành; `source` ghi nguồn + version + điều kiện đo."""
     return simulation_service.latest_benchmark()

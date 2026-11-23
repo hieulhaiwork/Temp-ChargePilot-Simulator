@@ -28,10 +28,10 @@ def _context(**overrides) -> PlanningContext:
 
 
 def test_planning_context_defaults_keep_live_mode_honest():
-    """Live: không có dự báo, không có oracle, không booking nào bị khoá consent."""
+    """Live: không có dự báo, không booking nào bị khoá consent."""
     ctx = _context()
     assert ctx.departure_forecast is None
-    assert ctx.oracle_bookings == ()
+    assert not hasattr(ctx, "oracle_bookings")  # oracle (chiến lược D) đã bỏ — Phase 4 quyết định 1
     assert ctx.hard_consent_booking_ids == frozenset()
 
 

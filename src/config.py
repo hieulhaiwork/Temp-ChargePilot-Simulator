@@ -83,7 +83,8 @@ class Settings(BaseSettings):
     # với simulator (cần ev2gym). LiveStation đã xoá (docs/refactor/DELETION_MANIFEST.md).
     station_engine: Literal["hybrid"] = "hybrid"
     # Chiến lược chạy thật: mặc định M3a — policy tham chiếu cho demo (SIMULATOR_INTEGRATION_CONTRACT.md §2).
-    live_strategy: str = "M3a"
+    # Chỉ policy của registry; A–D đã bỏ (Phase 4) → giá trị cũ bị từ chối ngay lúc đọc cấu hình.
+    live_strategy: Literal["B0", "M2b", "M3a", "M3b"] = "M3a"
     sim_time_scale: float = Field(default=1.0, gt=0, le=3600)  # 1 = thời gian thật; 60 = 1 phút thật = 1 giờ mô phỏng
     # DecisionTrace backend (ADR-019 Phase 4, quyết định 6): tóm tắt vận hành luôn vào DB (bảng decision_traces);
     # trace chi tiết (JSONL, một file / ngày) chỉ ghi khi đặt thư mục này — artifact có kiểm soát, không commit.

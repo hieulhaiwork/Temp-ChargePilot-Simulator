@@ -1,5 +1,11 @@
-"""Generate Vietnamese ADR-015 Simulator & Optimizer Evaluation Evidence (.md + .docx)
+"""[ARCHIVE — kiến trúc trước refactor] Sinh evidence 2026-11-22 (ADR-015) cho Simulator & Optimizer (.md + .docx)
 from the actual local benchmark runs already executed on this machine.
+
+Script này mô tả kiến trúc LỖI THỜI: backend `LiveStation` + LP backend A–D, cả hai đã xoá ở ADR-019 Phase 3 và bỏ khỏi
+hợp đồng ở Phase 4 (docs/refactor/DELETION_MANIFEST.md). Chữ "LiveStation" / "A–D" bên dưới là nội dung của bằng chứng
+lịch sử, giữ nguyên để tái lập đúng tài liệu đã nộp. Không dùng cho kiến trúc hiện hành (benchmark hiện hành:
+`eval/run_benchmark.py`, baseline `eval/evidence/2026-11-23-refactor-phase3-baseline/`). Bảng A–D đầu vào nay ở
+`eval/results/archive/2026-11-22-pre-refactor/`. Script từ chối ghi đè evidence đã có (`eval/evidence/**` bất biến).
 
 Copies key raw proof files into `eval/evidence/2026-11-22/raw/sim-hardware/` and
 produces:
@@ -42,12 +48,16 @@ def _latest_match(base: Path, pattern: str) -> Path:
 
 def main() -> int:
     out_dir = Path("eval/evidence/2026-11-22")
+    if (out_dir / "SIMULATOR_EVAL_EVIDENCE.md").exists():
+        print(f"Evidence lịch sử đã có ở {out_dir} — không ghi đè (eval/evidence/** bất biến).", file=sys.stderr)
+        return 1
     raw_dir = out_dir / "raw" / "sim-hardware"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     # Locate the actual generated outputs from the user's runs
-    live_bench_json = Path("eval/results/benchmark.json")
-    live_bench_md = Path("eval/results/benchmark.md")
+    archived = Path("eval/results/archive/2026-11-22-pre-refactor")  # bảng A–D lịch sử (deprecated)
+    live_bench_json = archived / "benchmark.json"
+    live_bench_md = archived / "benchmark.md"
 
     mvp1_reports = sorted(Path("src/simulator/outputs/mvp1").glob("*/report.json"), key=lambda p: p.stat().st_mtime)
     if len(mvp1_reports) < 2:

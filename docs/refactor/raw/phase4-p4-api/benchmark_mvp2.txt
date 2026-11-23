@@ -1,0 +1,9 @@
+                      B0 | DC  74/180 | decision p95 0.307 ms
+                     M2a | DC  93/180 | decision p95 0.334 ms
+                     M2b | DC 100/180 | decision p95 5.170 ms
+                     M2c | DC  79/180 | decision p95 0.320 ms
+       M2b_no_sla_weight | DC 100/180 | decision p95 5.087 ms
+     M2b_no_queue_weight | DC  97/180 | decision p95 5.025 ms
+    M2b_10x_queue_weight | DC 100/180 | decision p95 5.006 ms
+<LOCAL_TMP>\p4api_kpi_bw455gaq\mvp2\mvp2-benchmark-8390qbkc
+exit=0

@@ -4,8 +4,12 @@
 > Đây là file agent đọc ĐẦU TIÊN khi resume session. Giữ < 60 giây để đọc.
 > Đang làm dở giữa chừng? Đọc [`docs/handoff/HANDOFF.md`](docs/handoff/HANDOFF.md) trước file này.
 > **Cập nhật 21/11/2026 theo ADR-010…015** (hướng nghiên cứu SC-16 mới). Bản 17/11 (bãi 8 × 7 kW) xem git history.
-> **Cập nhật 22/11/2026 theo ADR-016 + deploy:** backend chạy thật trên `LiveStation` (không phải `HybridSimulator`);
-> bản test đã deploy (Render + Vercel + Neon, [`docs/plan/56`](docs/plan/56-deploy-render-image.md)).
+> **Cập nhật 23/11/2026 theo ADR-018 / ADR-019 (Unified Core, Phase 4):** backend chạy `HybridStation` trên **một
+> kernel** `StationKernel` dùng chung với `HybridSimulator`; `LiveStation` và LP backend A–D **đã xoá** (ADR-016 bị
+> thay). Policy: B0 / M2b / M3a / M3b (registry). Quote / booking = admission trên bản fork của trạm, kết quả là ước
+> tính có điều kiện (không phải SLA). Benchmark S8 = baseline có version
+> ([`eval/evidence/2026-11-23-refactor-phase3-baseline/`](eval/evidence/2026-11-23-refactor-phase3-baseline/README.md)).
+> Bản test đã deploy (Render + Vercel + Neon, [`docs/plan/56`](docs/plan/56-deploy-render-image.md)).
 
 ## 0. Quick Rehydrate (≤ 60s)
 
@@ -19,18 +23,19 @@
 - **Nguồn ngữ cảnh**: master context v1.0 của Hiếu, 20/11 — **chưa đưa vào repo**. Yêu cầu: PRD v0.4
   [`docs/PRD.md`](docs/PRD.md) (đang viết song song). Nghiệp vụ: [`docs/business-overview.md`](docs/business-overview.md).
 - **Stack**: Python 3.12 / FastAPI / LangGraph 1.x / Pydantic v2 / SQLAlchemy 2 + Alembic (SQLite local, Postgres Neon)
-  · web Next.js 16 + TypeScript trong `frontend/`. Simulator: **`LiveStation`** (`src/simulator/live.py`, thuần Python)
-  cho backend; `HybridSimulator` EV2Gym 2.0.0 (AC native, DC extension) là công cụ R&D offline (ADR-016).
-- **Trạng thái code thực tế trên `develop`** (đã kiểm 22/11):
-  - Backend chạy thật: DB (Neon/SQLite), auth JWT, Guard 7 luật, optimizer A–D, `LiveStation`, WebSocket, chat
+  · web Next.js 16 + TypeScript trong `frontend/`. Simulator: **một kernel** `StationKernel`
+  (`src/simulator/src/engine/hybrid.py`, EV2Gym 2.0.0 AC native + DC extension) — `HybridStation` cho backend,
+  `HybridSimulator` cho CLI / golden (ADR-018, ADR-019).
+- **Trạng thái code** (nhánh refactor `feature/unified-core*`, 23/11; chi tiết `docs/refactor/`):
+  - Backend chạy thật: DB (Neon/SQLite), auth JWT, Guard 7 luật, Planning Core B0 / M2b / M3a / M3b, `HybridStation`, WebSocket, chat
     (LLM qua API tương thích OpenAI — OpenAI hoặc Gemini). Stub còn lại chỉ F6 forecast `[T1.3]` / `[T2.3]` (hoãn,
     ADR-015) → 501. pytest **405 passed / 8 skipped**.
   - `config/station.yaml` = fixture `mvp1` (4 đầu nối AC 11 kW ×2 + DC 60 kW ×2, lưới 106 kW).
-  - Luồng backend: booking → `charging_service` → `event_bus` → `control_loop.on_event` → optimizer → Guard
-    `dispatcher` → `LiveStation.apply_commands`. Mô phỏng S8 (`/simulation/runs`) và `eval/run_benchmark.py` dùng
-    cùng `on_event` trên một `LiveStation` riêng. **Không chỗ nào trong backend gọi `HybridSimulator`.**
-  - `HybridSimulator` v1.2 (`src/simulator/src/…`) đã merge, chạy offline với bộ test riêng (`src/simulator/tests`,
-    job CI `simulator`). Số liệu hai simulator **không trộn** vào cùng một bảng.
+  - Luồng backend: booking → `charging_service` (admission trên bản fork) → `event_bus` → `control_loop.on_event` →
+    `kernel.propose` → consent → `kernel.approve` → Guard `dispatcher` → `HybridStation.apply_commands`. Mô phỏng S8
+    (`/simulation/runs`) và `eval/run_benchmark.py` dùng cùng `on_minute` trên một `HybridStation` riêng.
+  - `HybridSimulator` (golden MVP-1/2/3, `src/simulator/tests`, job CI `simulator`) và `HybridStation` dùng cùng
+    kernel; khác cấu hình thời gian (`TimeConfig`) nên số liệu hai bên **không trộn** vào cùng một bảng.
   - R&D Claude (`experiment/claude-chargepilot-fullstack-ai`) **chưa merge, chưa được duyệt**; chỉ là nguồn tham khảo.
 - **Dev**: `make migrate && make run` → http://localhost:8000/docs · `cd frontend && npm run dev` → :3000.
 - **Check**: `make check` · `make check-all` · `make web-check`. Backlog: `grep -rn 'NotImplementedError("\[T' src/ --include=*.py`.
@@ -47,7 +52,9 @@
 | [ADR-013](docs/adr/ADR-013-workflow-xac-dinh-llm-hai-dau.md) | Workflow xác định là xương sống; LLM ở hai đầu; LangGraph chỉ cho hội thoại + HITL | ADR-001 |
 | [ADR-014](docs/adr/ADR-014-decision-trace-counterfactual-hitl.md) | `DecisionTrace` + counterfactual sandbox (không bao giờ apply) + vòng đời Proposal/HITL; Copilot theo role; job nền | ADR-005, 006, 007, 008 |
 | [ADR-015](docs/adr/ADR-015-pham-vi-mvp4-va-quy-tac-bang-chung.md) | Phạm vi MVP-4, hạng mục hoãn, quy tắc bằng chứng `eval/evidence/` | — |
-| [ADR-016](docs/adr/ADR-016-livestation-cho-backend.md) | `LiveStation` cho backend (live + benchmark backend); `HybridSimulator` giữ vai trò R&D offline | ADR-011 |
+| [ADR-016](docs/adr/ADR-016-livestation-cho-backend.md) | ~~`LiveStation` cho backend~~ — **bị thay** bởi ADR-018; `LiveStation` đã xoá ở ADR-019 Phase 3 | ADR-011 |
+| [ADR-018](docs/adr/ADR-018-backend-chay-engine-simulator.md) | Backend chạy engine simulator (`HybridStation`) | ADR-016 |
+| [ADR-019](docs/adr/ADR-019-unified-core-hop-dong-dung-chung.md) | Unified Core: một kernel, một Planning Core, một registry; xoá LP backend A–D | ADR-011, ADR-018 |
 
 **Lộ trình MVP**: MVP-1 hybrid + FIFO/FCFS (đang hardening) → MVP-2 DC queue-aware LP + AC baseline → MVP-3 AC + DC
 optimizer + Global Coordinator (fixed vs dynamic) → **MVP-4 = AI-4 Decision Copilot (WHY + WHAT-IF)** là trục chính,
@@ -72,9 +79,9 @@ Mọi gate là **[MỤC TIÊU]**; chưa gate nào được ghi nhận là đạt
 ## 0.2 Current Invariants (để không drift)
 
 - **Source of truth kỹ thuật**: code trong `src/`. File `.md` chỉ tóm tắt — mâu thuẫn thì CODE WINS và phải báo lệch.
-- **Simulator (ADR-016)**: backend chạy trên `LiveStation` sau Protocol `src/simulator/base.py`; `HybridSimulator`
-  là R&D offline. Đưa `HybridSimulator` lên runtime phải qua adapter cùng Protocol + test "live = research" trước.
-  Báo cáo phải ghi rõ số liệu từ simulator nào; không trộn hai nguồn.
+- **Simulator (ADR-018, ADR-019)**: một kernel `StationKernel` cho cả `HybridSimulator` và `HybridStation`;
+  differential test chứng minh cùng plan / kết quả thực thi. Báo cáo phải ghi rõ cấu hình thời gian và nguồn (baseline
+  có version); không trộn số khác điều kiện, không dùng bảng A–D (archive).
 - **LLM không nằm trên đường cấp công suất**: không tự đặt kW, không tạo `Command`, không tắt Guard, không tự duyệt
   SLA, không apply WHAT-IF. kWh và mọi số liệu do code tính (`src/services/energy.py`, simulator).
 - **Guard là chokepoint**: mọi lệnh tới simulator, kể cả benchmark, đi qua Guard (ADR-002; ADR-011 tách hai lớp

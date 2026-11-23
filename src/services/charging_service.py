@@ -31,6 +31,7 @@ from src.models.charging import (
     BookingStatus,
     ChargeRequest,
     ConsentScope,
+    ProposalCertainty,
     ScheduleProposal,
     VehicleSpec,
 )
@@ -114,6 +115,17 @@ async def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None =
     if unmet > UNMET_TOL_KWH:
         reasons.append(f"Thiếu khoảng {unmet:.1f} kWh so với yêu cầu trước giờ lấy xe")
     reasons.append(f"Mô phỏng theo đúng chiến lược đang vận hành ({result.policy}) trên bản sao trạng thái trạm")
+    if result.approvals_for_candidate:
+        reasons.append(
+            f"Phụ thuộc phê duyệt: {result.approvals_for_candidate} lệnh của xe này cần bạn đồng ý (vượt phạm vi đã cho "
+            "phép); kết quả trên coi như chưa được duyệt"
+        )
+    if result.approvals_for_others:
+        reasons.append(
+            f"Phụ thuộc phê duyệt: {result.approvals_for_others} lệnh của xe khác đang chờ duyệt; khi được duyệt / từ chối "
+            "lịch của bạn có thể đổi"
+        )
+    reasons.append("Đây là ước tính theo trạng thái trạm lúc này, không phải cam kết bảo đảm (xem giả định)")
     slack = (candidate.request.deadline - planned_end).total_seconds() / 60 if feasible and planned_end else None
     alternatives = [] if feasible else _alternatives(rt, candidate, need - unmet, planned_start, connector_id)
     return ScheduleProposal(
@@ -127,6 +139,10 @@ async def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None =
         queue_position=queue_position,
         reasons=reasons,
         alternatives=alternatives,
+        certainty=ProposalCertainty.CONDITIONAL if result.depends_on_approval else ProposalCertainty.ESTIMATE,
+        approvals_pending_for_booking=result.approvals_for_candidate,
+        approvals_pending_for_others=result.approvals_for_others,
+        assumptions=list(admission.ASSUMPTIONS),
     )
 
 

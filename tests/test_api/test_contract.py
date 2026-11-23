@@ -115,8 +115,34 @@ async def test_scenarios_listed_for_operator(client, as_role):
 
 async def test_simulation_run_unknown_scenario_is_404(client, as_role):
     as_role(Role.OPERATOR)
-    response = await client.post("/api/v1/simulation/runs", json={"scenario_id": "khong_co", "strategy": "B"})
+    response = await client.post("/api/v1/simulation/runs", json={"scenario_id": "khong_co", "strategy": "M3a"})
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("strategy", ["A_fcfs", "A_edf", "B", "C", "D"])
+async def test_simulation_run_rejects_removed_lp_strategies(client, as_role, strategy):
+    """Phase 4 quyết định 1: A–D không còn trong hợp đồng → 422 ở lớp validate, không tới service."""
+    as_role(Role.OPERATOR)
+    response = await client.post("/api/v1/simulation/runs", json={"scenario_id": "peak_evening", "strategy": strategy})
+    assert response.status_code == 422
+
+
+async def test_benchmark_returns_versioned_baseline_without_removed_strategies(client, as_role):
+    """Phase 4 quyết định 8: S8 đọc baseline có version (không phải bảng A–D cũ), response ghi nguồn + version."""
+    as_role(Role.OPERATOR)
+    response = await client.get("/api/v1/simulation/benchmark")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["runs"]) == 100
+    assert {r["strategy"] for r in data["runs"]} == {"B0", "M2b", "M3a", "M3b"}
+    source = data["source"]
+    assert source["kind"] == "versioned_baseline"
+    assert (source["baseline_id"], source["version"]) == ("backend-phase3", "2026-11-23-phase3")
+    assert source["path"] == "eval/evidence/2026-11-23-refactor-phase3-baseline/benchmark.json"
+    assert source["seeds"] == [1, 2, 3, 4, 5]
+    assert source["time_config"]["physics_step_minutes"] == 1
+    assert source["time_config"]["decision_interval_minutes"] == 15
+    assert data["notes"][0].startswith("Nguồn: baseline backend-phase3 version 2026-11-23-phase3")
 
 
 def test_websocket_without_auth_message_is_closed_4401():

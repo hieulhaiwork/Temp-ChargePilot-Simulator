@@ -15,14 +15,16 @@ Phiên sạc tổng hợp (FR18) — generate_bookings, xác định theo seed. 
 Kịch bản trong config/scenarios/ mang nhãn legacy_ac_only (ADR-012): chỉ dùng n_vehicles, seed, giờ bắt đầu,
 thời lượng, giới hạn nguồn và sự cố; topology lấy từ config/station.yaml hiện hành (ADR-010).
 
-Owner: TV1. Task: T1.5 (baseline A), T3.4 (B/C/D), T3.5 (sự cố).
+Owner: TV1. Task: T3.4 (benchmark B0 / M2b / M3a / M3b, baseline có version — Phase 4), T3.5 (sự cố).
 """
 
 import json
 import math
+import platform
 import random
 import statistics
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from importlib import metadata
 from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -32,6 +34,8 @@ from src.models.charging import Booking, BookingStatus, ChargeMode, ChargeReques
 from src.models.events import EventType, StationEvent
 from src.models.simulation import (
     BenchmarkReport,
+    BenchmarkSource,
+    BenchmarkSourceKind,
     Incident,
     KpiReport,
     Scenario,
@@ -44,9 +48,11 @@ from src.services.admission import run_sync
 from src.services.charging_service import vehicle_power_cap
 from src.services.energy import estimate_energy
 from src.services.errors import DomainError
-from src.services.runtime import StationRuntime, build_sim_runtime, get_runtime, visit_of
+from src.services.runtime import StationRuntime, build_sim_runtime, get_runtime, make_station, visit_of
 
-BENCHMARK_FILE = Path(__file__).resolve().parents[2] / "eval" / "results" / "benchmark.json"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+# Baseline có version mà S8 hiển thị (Phase 4 quyết định 8). Baseline nghiệm thu cuối = thư mục mới + đổi hằng này.
+BENCHMARK_BASELINE_DIR = REPO_ROOT / "eval" / "evidence" / "2026-11-23-refactor-phase3-baseline"
 SIM_DATE = date(2026, 11, 23)  # ngày tham chiếu cố định → cùng seed cùng kết quả (giá chỉ phụ thuộc giờ trong ngày)
 ON_TIME_TOL_KWH = 0.05
 DEMO_ONLY_VEHICLES = {"DEMO-60"}  # fixture test, không dùng cho mô phỏng
@@ -247,7 +253,8 @@ def run_benchmark(
                         f"{statistics.stdev(on_time):.1%}, chi phí {statistics.fmean(cost):,.0f} ± "
                         f"{statistics.stdev(cost):,.0f} VND ({len(sample)} seed)"
                     )
-    return BenchmarkReport(generated_at=datetime.now(UTC), runs=runs, notes=notes)
+    source = benchmark_source(scenarios, strategies, seeds or sorted({s.seed for s in scenarios}))
+    return BenchmarkReport(generated_at=datetime.now(UTC), runs=runs, notes=notes, source=source)
 
 
 async def inject_incident(incident: Incident) -> None:
@@ -268,10 +275,65 @@ async def inject_incident(incident: Incident) -> None:
 
 
 def latest_benchmark() -> BenchmarkReport:
-    """US8 — bảng so sánh gần nhất (eval/results/benchmark.json do eval/run_benchmark.py ghi)."""
-    if not BENCHMARK_FILE.exists():
-        raise DomainError(ErrorCode.NOT_FOUND, "Chưa có kết quả benchmark — chạy `python eval/run_benchmark.py`")
-    return BenchmarkReport.model_validate(json.loads(BENCHMARK_FILE.read_text(encoding="utf-8")))
+    """US8 — bảng đối chứng của S8 = baseline CÓ VERSION hiện hành (Phase 4 quyết định 8).
+
+    Đọc `BENCHMARK_BASELINE_DIR/{manifest,benchmark}.json`, gắn `source` (baseline, version, commit, kịch bản, policy,
+    seed, TimeConfig, thư viện). Không đọc `eval/results/benchmark.json`: số vừa sinh chưa phải baseline cho tới khi
+    được chép thành một thư mục baseline mới có manifest. Bảng A–D cũ nằm ở `eval/results/archive/` (deprecated).
+    """
+    manifest_file = BENCHMARK_BASELINE_DIR / "manifest.json"
+    data_file = BENCHMARK_BASELINE_DIR / "benchmark.json"
+    if not (manifest_file.exists() and data_file.exists()):
+        raise DomainError(ErrorCode.NOT_FOUND, f"Chưa có baseline benchmark có version ở {_repo_path(data_file)}")
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    report = BenchmarkReport.model_validate(json.loads(data_file.read_text(encoding="utf-8")))
+    source = BenchmarkSource(
+        kind=BenchmarkSourceKind.VERSIONED_BASELINE,
+        baseline_id=manifest["baseline_id"],
+        version=manifest["version"],
+        status=manifest.get("status"),
+        code_commit=manifest.get("code_commit"),
+        path=_repo_path(data_file),
+        scenarios=manifest.get("scenarios", []),
+        policies=manifest.get("policies", []),
+        seeds=manifest.get("seeds", []),
+        time_config=manifest.get("time_config", {}),
+        libraries=manifest.get("libraries", {}),
+        note=manifest.get("status_note", ""),
+    )
+    head = (
+        f"Nguồn: baseline {source.baseline_id} version {source.version} ({source.status or 'không rõ trạng thái'}), "
+        f"code {(source.code_commit or '?')[:7]}, seed {', '.join(map(str, source.seeds))} — {source.path}."
+    )
+    return report.model_copy(update={"source": source, "notes": [head, *report.notes]})
+
+
+def benchmark_source(scenarios: list[Scenario], strategies: list[StrategyName], seeds: list[int]) -> BenchmarkSource:
+    """`source` cho bảng VỪA SINH (eval/run_benchmark.py): điều kiện đo để sau này chép thành baseline có version."""
+    config = catalog.load_station_config()
+    station = make_station(config, datetime.combine(SIM_DATE, time(0), tzinfo=ZoneInfo(config.timezone)))
+    libraries = {"python": platform.python_version(), "os": f"{platform.system()} {platform.release()}"}
+    for package in ("ev2gym", "numpy", "scipy"):
+        try:
+            libraries[package] = metadata.version(package)
+        except metadata.PackageNotFoundError:
+            libraries[package] = "không cài"
+    return BenchmarkSource(
+        kind=BenchmarkSourceKind.GENERATED,
+        scenarios=[s.scenario_id for s in scenarios],
+        policies=[s.value for s in strategies],
+        seeds=seeds,
+        time_config=station.time.as_dict(),
+        libraries=libraries,
+        note="Số vừa sinh, chưa phải baseline có version — không trộn với baseline / bảng A–D đã lưu trữ.",
+    )
+
+
+def _repo_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.name
 
 
 def _engine_label(station) -> str:

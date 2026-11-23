@@ -596,7 +596,7 @@ export interface paths {
         };
         /**
          * Benchmark
-         * @description US8 — bảng A–D gần nhất (eval/run_benchmark.py sinh ra).
+         * @description US8 — bảng B0 / M2b / M3a / M3b của baseline có version hiện hành; `source` ghi nguồn + version + điều kiện đo.
          */
         get: operations["benchmark_api_v1_simulation_benchmark_get"];
         put?: never;
@@ -866,7 +866,7 @@ export interface components {
         ApprovalStatus: "pending" | "approved" | "rejected" | "expired";
         /**
          * BenchmarkReport
-         * @description Bảng A–D cùng tập phiên, cùng biểu giá (PRD §8). Lưu ở eval/results/benchmark.json.
+         * @description Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.
          */
         BenchmarkReport: {
             /**
@@ -878,7 +878,59 @@ export interface components {
             notes?: string[];
             /** Runs */
             runs: components["schemas"]["SimulationRunResult"][];
+            /** @description Nguồn và version của bảng (Phase 4) */
+            source?: components["schemas"]["BenchmarkSource"] | null;
         };
+        /**
+         * BenchmarkSource
+         * @description Nguồn + điều kiện đo của bảng benchmark (Phase 4 quyết định 8): không so hai bảng khác điều kiện.
+         */
+        BenchmarkSource: {
+            /** Baseline Id */
+            baseline_id?: string | null;
+            /** Code Commit */
+            code_commit?: string | null;
+            kind: components["schemas"]["BenchmarkSourceKind"];
+            /** Libraries */
+            libraries?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Path
+             * @description Đường dẫn trong repo của dữ liệu
+             */
+            path?: string | null;
+            /** Policies */
+            policies?: string[];
+            /** Scenarios */
+            scenarios?: string[];
+            /** Seeds */
+            seeds?: number[];
+            /**
+             * Status
+             * @description provisional = baseline tạm; final = baseline nghiệm thu
+             */
+            status?: string | null;
+            /**
+             * Time Config
+             * @description TimeConfig của trạm khi đo (P1)
+             */
+            time_config?: {
+                [key: string]: number | null;
+            };
+            /** Version */
+            version?: string | null;
+        };
+        /**
+         * BenchmarkSourceKind
+         * @enum {string}
+         */
+        BenchmarkSourceKind: "versioned_baseline" | "generated";
         /**
          * Booking
          * @description Lịch sạc đã chốt của một cư dân.
@@ -1570,6 +1622,12 @@ export interface components {
             vehicle_model?: string | null;
         };
         /**
+         * ProposalCertainty
+         * @description Mức chắc chắn của phương án (Phase 4 quyết định 5) — không phương án nào là SLA bảo đảm vô điều kiện.
+         * @enum {string}
+         */
+        ProposalCertainty: "estimate" | "conditional";
+        /**
          * QueueStatus
          * @description US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.
          */
@@ -1718,13 +1776,36 @@ export interface components {
         };
         /**
          * ScheduleProposal
-         * @description Phương án what-if cho màn S3 — CHƯA giữ chỗ.
+         * @description Phương án what-if cho màn S3 — CHƯA giữ chỗ, là ƯỚC TÍNH chứ không phải cam kết SLA.
          *
-         *     `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa.
+         *     `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa. `certainty` /
+         *     `assumptions` / `approvals_pending_*` cho biết kết quả phụ thuộc điều gì (services/admission.py).
          */
         ScheduleProposal: {
             /** Alternatives */
             alternatives?: components["schemas"]["Alternative"][];
+            /**
+             * Approvals Pending For Booking
+             * @description Số phê duyệt chờ cho lệnh của chính xe này trong lúc mô phỏng
+             * @default 0
+             */
+            approvals_pending_for_booking: number;
+            /**
+             * Approvals Pending For Others
+             * @description Số phê duyệt chờ cho lệnh của xe khác (không lộ xe nào)
+             * @default 0
+             */
+            approvals_pending_for_others: number;
+            /**
+             * Assumptions
+             * @description Giả định của kết quả (code sinh)
+             */
+            assumptions?: string[];
+            /**
+             * @description estimate = ước tính theo giả định; conditional = còn chờ phê duyệt (HITL). Không bao giờ là SLA
+             * @default estimate
+             */
+            certainty: components["schemas"]["ProposalCertainty"];
             /** Connector Id */
             connector_id?: string | null;
             energy: components["schemas"]["EnergyEstimate"];
@@ -2026,10 +2107,13 @@ export interface components {
         };
         /**
          * StrategyName
-         * @description Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8).
+         * @description Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.
+         *
+         *     A_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký
+         *     trong registry rồi mới thêm giá trị ở đây.
          * @enum {string}
          */
-        StrategyName: "A_fcfs" | "A_edf" | "B" | "C" | "D" | "B0" | "M2b" | "M3a" | "M3b";
+        StrategyName: "B0" | "M2b" | "M3a" | "M3b";
         /**
          * SupplyMode
          * @description Cách hai vùng lấy điện (ADR-010). `shared` là [GIẢ ĐỊNH] — chưa có số liệu lưới tại site.

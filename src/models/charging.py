@@ -151,10 +151,18 @@ class Alternative(BaseModel):
     deadline: AwareDatetime | None = None
 
 
-class ScheduleProposal(BaseModel):
-    """Phương án what-if cho màn S3 — CHƯA giữ chỗ.
+class ProposalCertainty(StrEnum):
+    """Mức chắc chắn của phương án (Phase 4 quyết định 5) — không phương án nào là SLA bảo đảm vô điều kiện."""
 
-    `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa.
+    ESTIMATE = "estimate"  # ước tính trên trạng thái hiện tại, theo các giả định trong `assumptions`
+    CONDITIONAL = "conditional"  # còn phụ thuộc phê duyệt (HITL) chưa có — kết quả có thể đổi khi được duyệt / từ chối
+
+
+class ScheduleProposal(BaseModel):
+    """Phương án what-if cho màn S3 — CHƯA giữ chỗ, là ƯỚC TÍNH chứ không phải cam kết SLA.
+
+    `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa. `certainty` /
+    `assumptions` / `approvals_pending_*` cho biết kết quả phụ thuộc điều gì (services/admission.py).
     """
 
     feasible: bool
@@ -167,6 +175,24 @@ class ScheduleProposal(BaseModel):
     queue_position: int | None = Field(default=None, ge=1)
     reasons: list[str] = Field(default_factory=list)
     alternatives: list[Alternative] = Field(default_factory=list)
+    certainty: ProposalCertainty = Field(
+        default=ProposalCertainty.ESTIMATE,
+        description="estimate = ước tính theo giả định; conditional = còn chờ phê duyệt (HITL). Không bao giờ là SLA",
+    )
+    approvals_pending_for_booking: int = Field(
+        default=0, ge=0, description="Số phê duyệt chờ cho lệnh của chính xe này trong lúc mô phỏng"
+    )
+    approvals_pending_for_others: int = Field(
+        default=0, ge=0, description="Số phê duyệt chờ cho lệnh của xe khác (không lộ xe nào)"
+    )
+    assumptions: list[str] = Field(default_factory=list, description="Giả định của kết quả (code sinh)")
+
+    @model_validator(mode="after")
+    def _conditional_iff_pending_approval(self) -> "ScheduleProposal":
+        pending = self.approvals_pending_for_booking + self.approvals_pending_for_others > 0
+        if pending != (self.certainty == ProposalCertainty.CONDITIONAL):
+            raise ValueError("certainty = conditional khi và chỉ khi còn phê duyệt chờ")
+        return self
 
     @model_validator(mode="after")
     def _infeasible_needs_alternative(self) -> "ScheduleProposal":
@@ -176,14 +202,12 @@ class ScheduleProposal(BaseModel):
 
 
 class StrategyName(StrEnum):
-    """Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8)."""
+    """Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.
 
-    FCFS = "A_fcfs"  # A — đến trước phục vụ trước, chia công suất đơn giản
-    EDF = "A_edf"  # A — ưu tiên hạn rời gần nhất
-    OPT_NO_ML = "B"  # B — cùng bộ tối ưu, KHÔNG có ML (mốc đo giá trị AI)
-    OPT_ML = "C"  # C — bộ tối ưu + dự báo thời điểm rút đầu nối (phương án chính)
-    ORACLE = "D"  # D — biết trước tương lai (cận trên lý tưởng)
-    # Thuật toán của simulator R&D (src/simulator/benchmark_mvp3.py POLICIES), chạy trên HybridStation — ADR-018.
+    A_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký
+    trong registry rồi mới thêm giá trị ở đây.
+    """
+
     SIM_B0 = "B0"  # FCFS + Equal Share AC/DC + Fixed Share
     SIM_M2B = "M2b"  # LLF + DC rolling LP + Fixed Share
     SIM_M3A = "M3a"  # LLF + AC/DC LP + Fixed Share (policy tham chiếu cho demo)

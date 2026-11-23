@@ -92,3 +92,16 @@ Commit cuối còn mọi file dưới đây: `70d0eaf` (`git show 70d0eaf:<path>
 Test của chủ simulator (`src/simulator/tests/*.py`), `tests/test_refactor/test_differential.py`,
 `tests/test_simulator/test_hybrid_station.py`: chỉ đổi dòng import; `test_mvp3.py` monkeypatch `hybrid.guard` giờ trỏ
 `src.simulator.core.kernel` (import `kernel as hybrid`), không đổi assert.
+
+## Phase 4 — nhánh `feature/unified-core-p4-api` (quyết định 1, 8)
+
+| Đã xoá / chuyển | Lý do | Thay thế | Test | Commit |
+|---|---|---|---|---|
+| `src/models/charging.py::StrategyName.{FCFS, EDF, OPT_NO_ML, OPT_ML, ORACLE}` (`A_fcfs`, `A_edf`, `B`, `C`, `D`) | LP backend A–D đã xoá ở Phase 3; Tech Lead bỏ hẳn A–D khỏi hợp đồng | B0 / M2b / M3a / M3b (registry). OpenAPI + `schema.d.ts` sinh lại; S8 dropdown 4 policy | `test_strategy_enum_is_exactly_the_registry_policies`, `test_removed_lp_strategies_fail_loudly` (đổi: A–D → `ValueError` ở enum), `test_removed_lp_strategies_are_rejected_by_settings`, `test_simulation_run_rejects_removed_lp_strategies` (422) | `79236e7` |
+| Dòng `schedule_plans` có `strategy` ∈ A–D (dữ liệu, không phải schema) | Không đọc lại được sau khi bỏ enum; dữ liệu dẫn xuất | Alembic `0003` (`0003_drop_lp_strategy_plans.py`) | `test_revision_0003_drops_plans_of_removed_lp_strategies` | `79236e7` |
+| `eval/results/benchmark.{json,md}` → **`git mv`** sang `eval/results/archive/2026-11-22-pre-refactor/` (không xoá số) | Bảng A–D trước refactor; API không được trả số cũ | `GET /simulation/benchmark` đọc `eval/evidence/2026-11-23-refactor-phase3-baseline/` | `test_archived_ad_table_is_not_served`, `test_benchmark_returns_versioned_baseline_without_removed_strategies` | `eaf8842` |
+| `simulation_service.BENCHMARK_FILE` | Trỏ bảng A–D cũ | `BENCHMARK_BASELINE_DIR` + `manifest.json` | như trên | `eaf8842` |
+
+**Test được sửa (không xoá):** `test_removed_lp_strategies_fail_loudly` (5 tham số giữ nguyên, đổi từ `make_scheduler(A–D) →
+DomainError` sang `StrategyName(A–D) → ValueError` vì giá trị không còn trong enum); `test_simulation_run_unknown_scenario_is_404`
+gửi `M3a` thay `B`; `test_repository._plan` dùng `SIM_M3A` thay `OPT_NO_ML`.

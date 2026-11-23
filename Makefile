@@ -56,8 +56,8 @@ eval-strict:
 eval-agent:
 	$(PYTHON) eval/run_agent_eval.py --offline
 
-# Benchmark A–D của ChargePilot (AC7) — cùng kịch bản config/scenarios/, cùng biểu giá.
-# Xuất eval/results/benchmark.md + benchmark.json. Exit 2 khi pipeline còn stub.
+# Benchmark B0 / M2b / M3a / M3b (AC7) — cùng kịch bản config/scenarios/, cùng biểu giá, trên HybridStation.
+# Xuất eval/results/benchmark.{md,json} (kind generated; S8 đọc baseline có version trong eval/evidence/*-baseline/).
 benchmark:
 	$(PYTHON) eval/run_benchmark.py
 

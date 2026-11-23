@@ -85,7 +85,6 @@ class StationRuntime:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)  # on_event chạy tuần tự
     recent_commands: deque[Command] = field(default_factory=lambda: deque(maxlen=RECENT_COMMANDS))
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
-    oracle_bookings: tuple[Booking, ...] = ()  # PlanningContext.oracle_bookings — luôn rỗng (D đã bỏ, ADR-019 Phase 3)
     recorder: SimRecorder = field(default_factory=SimRecorder)
     live: bool = True
 
@@ -109,13 +108,13 @@ def make_station(config: StationConfig, start: datetime, engine: str | None = No
 
 
 def make_scheduler(strategy: StrategyName, station: Callable[[], object], algorithms=None) -> Scheduler:
-    """B0 / M2b / M3a / M3b: Planning Core của kernel (`SimulatorScheduler`). A–D (LP backend) đã bỏ ở Phase 3."""
+    """Policy đã đăng ký (`src/optimizer/registry.py POLICIES`) chạy trên Planning Core của kernel (`SimulatorScheduler`)."""
     from src.services.hybrid_planner import SIMULATOR_STRATEGIES, SimulatorScheduler
 
     if strategy not in SIMULATOR_STRATEGIES:
         raise DomainError(
             ErrorCode.NOT_FOUND,
-            f"Chiến lược {strategy.value} (LP backend A–D) đã bỏ ở Phase 3 (ADR-019) — dùng B0 / M2b / M3a / M3b",
+            f"Chiến lược {strategy.value} không có trong registry policy — dùng B0 / M2b / M3a / M3b",
         )
     return SimulatorScheduler(strategy, station, algorithms=algorithms)
 
@@ -270,7 +269,6 @@ def build_sim_runtime(
     config: StationConfig,
     tariff: Tariff,
     start: datetime,
-    oracle_bookings: tuple[Booking, ...] = (),
     engine: str | None = None,
 ) -> StationRuntime:
     """Runtime cho MỘT lần chạy benchmark: simulator mới, đồng hồ mô phỏng, store + sinks vào bộ nhớ.
@@ -280,9 +278,7 @@ def build_sim_runtime(
     """
     simulator = make_station(config, start, engine)
     simulator.reset(scenario)
-    return _memory_runtime(
-        simulator, make_scheduler(strategy, lambda: simulator), config, tariff, oracle_bookings=oracle_bookings
-    )
+    return _memory_runtime(simulator, make_scheduler(strategy, lambda: simulator), config, tariff)
 
 
 def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
@@ -311,7 +307,6 @@ def _memory_runtime(
     *,
     bookings: list[Booking] = (),
     approvals: list[Approval] = (),
-    oracle_bookings: tuple[Booking, ...] = (),
 ) -> StationRuntime:
     store_bookings: dict[str, Booking] = {b.booking_id: b for b in bookings}
     store_approvals: dict[str, Approval] = {a.approval_id: a for a in approvals}
@@ -348,7 +343,6 @@ def _memory_runtime(
             notify=notify,
         ),
         store=store,
-        oracle_bookings=oracle_bookings,
         live=False,
     )
     rt_ref.append(rt)

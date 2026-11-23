@@ -1,0 +1,14 @@
+
+> chargepilot-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 <REPO>/frontend
+
+
+ Test Files  4 passed (4)
+      Tests  28 passed (28)
+   Start at  23:55:47
+   Duration  3.95s (environment 82%, import 12%, tests 4%, transform 1%)
+
+exit=0

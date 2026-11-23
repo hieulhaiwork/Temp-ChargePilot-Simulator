@@ -107,7 +107,12 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
                     f"Phương án đề xuất: sạc tại đầu nối {conn}, "
                     f"nạp {energy.get('battery_energy_kwh')} kWh vào pin "
                     f"({energy.get('grid_energy_kwh')} kWh từ lưới), "
-                    f"chi phí ước tính {proposal.get('estimated_cost_vnd')} VND."
+                    f"chi phí ước tính {proposal.get('estimated_cost_vnd')} VND (ước tính, không phải cam kết)."
+                    + (
+                        " Kết quả còn phụ thuộc phê duyệt đang chờ."
+                        if proposal.get("certainty") == "conditional"
+                        else ""
+                    )
                 ),
                 confidence=final.confidence,
                 used_tools=final.used_tools,

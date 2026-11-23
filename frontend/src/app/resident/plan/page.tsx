@@ -77,8 +77,26 @@ function DraftView({ draft }: { draft: Draft }) {
           <SectionHead
             title="Phương án sạc"
             icon="activity"
-            extra={p.feasible ? <Tag tone="good" icon="check">Kịp giờ lấy xe</Tag> : <Tag tone="bad" icon="alert">Chưa kịp giờ lấy xe</Tag>}
+            extra={
+              <>
+                {p.feasible ? <Tag tone="good" icon="check">Ước tính kịp giờ lấy xe</Tag> : <Tag tone="bad" icon="alert">Chưa kịp giờ lấy xe</Tag>}
+                {p.certainty === "conditional" ? (
+                  <Tag tone="gold" icon="alert">
+                    Phụ thuộc phê duyệt
+                  </Tag>
+                ) : null}
+              </>
+            }
           />
+          {p.certainty === "conditional" ? (
+            <div style={{ marginBottom: 12 }} data-testid="proposal-conditional">
+              <Notice title="Kết quả có điều kiện — đang chờ phê duyệt" tone="gold" icon="alert">
+                {p.approvals_pending_for_booking ? `${p.approvals_pending_for_booking} lệnh của xe bạn cần bạn đồng ý. ` : ""}
+                {p.approvals_pending_for_others ? `${p.approvals_pending_for_others} lệnh của xe khác đang chờ duyệt. ` : ""}
+                Số liệu dưới đây tính như thể các lệnh đó chưa được duyệt; khi được duyệt hoặc từ chối, lịch có thể thay đổi.
+              </Notice>
+            </div>
+          ) : null}
           <KeyValues
             rows={[
               ["Đầu nối", p.connector_id ?? (p.queue_position ? `Hàng chờ, vị trí ${p.queue_position}` : "Chờ xếp")],
@@ -136,6 +154,17 @@ function DraftView({ draft }: { draft: Draft }) {
         ) : null}
         <Notice title="Lịch chỉ được giữ chỗ khi bạn xác nhận" icon="info">
           Phương án tính lúc {formatTime(draft.createdAt)}. Nếu trạm thay đổi trước khi xác nhận, hệ thống sẽ báo để bạn xem phương án mới.
+        </Notice>
+        <Notice title="Đây là ước tính, không phải cam kết" icon="info">
+          {p.assumptions?.length ? (
+            <ul style={{ margin: "4px 0 0", paddingLeft: 18 }} data-testid="proposal-assumptions">
+              {p.assumptions.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          ) : (
+            "Số liệu tính theo trạng thái trạm lúc này; xe đến sau, sự cố hoặc phê duyệt có thể làm lịch thay đổi."
+          )}
         </Notice>
       </aside>
     </div>

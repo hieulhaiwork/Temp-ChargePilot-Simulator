@@ -21,15 +21,16 @@ nguồn chung AC/DC (`supply_mode: shared`) là **[GIẢ ĐỊNH]**. Mọi số 
 > (cũ, thay bởi ADR-010) Bản 17/11 mô tả bãi 8 đầu nối × 7 kW, giới hạn tổng 35 kW. Từ 22/11 code và `config/`
 > đã theo fixture `mvp1` (4 đầu nối, lưới 106 kW).
 >
-> **Hiện trạng 22/11 (ADR-016):** backend — cả chạy thật lẫn mô phỏng S8 / `eval/run_benchmark.py` — chạy trên
-> **`LiveStation`** (`src/simulator/live.py`). `HybridSimulator` (`src/simulator/src/`) là công cụ R&D offline với bộ
-> test riêng; backend **không** gọi nó. Các mục "đích theo ADR-011" bên dưới là hướng dài hạn, chưa có trong code.
+> **Hiện trạng 23/11 (ADR-018, ADR-019 — refactor Unified Core, Phase 4):** backend — chạy thật, mô phỏng S8,
+> `eval/run_benchmark.py`, admission (quote / booking trên bản fork) — chạy `HybridStation` trên **một kernel**
+> `StationKernel` dùng chung với `HybridSimulator`. `LiveStation` và LP backend A–D đã xoá
+> (`docs/refactor/DELETION_MANIFEST.md`); policy = B0 / M2b / M3a / M3b (`src/optimizer/registry.py`). Cây thư mục bên
+> dưới đã sửa các mục optimizer / simulator; bản đồ đầy đủ sau refactor sẽ ở `docs/refactor/FINAL_MAP.md`.
 
 Kiến trúc 3 tầng: Frontend Next.js (`frontend/`) → Backend FastAPI (`src/`) → lõi tính toán, cộng tầng lưu trữ
 SQLAlchemy (`src/db/`). Hướng đích ([ADR-013](docs/adr/ADR-013-workflow-xac-dinh-llm-hai-dau.md)): **workflow xác
-định là xương sống** — Dispatch → AC/DC Optimizer → Global Coordinator → Guard. Hiện chạy trên `LiveStation`
-([ADR-016](docs/adr/ADR-016-livestation-cho-backend.md)); đích dài hạn là một `HybridSimulator` EV2Gym-first sau cùng
-bề mặt ([ADR-011](docs/adr/ADR-011-mot-simulator-sau-be-mat-cong-khai.md)). LLM chỉ ở hai đầu: hiểu câu (intake,
+định là xương sống** — Dispatch → AC/DC Optimizer → Global Coordinator → Guard. Đã chạy thật trên kernel chung
+([ADR-019](docs/adr/ADR-019-unified-core-hop-dong-dung-chung.md), thay [ADR-016](docs/adr/ADR-016-livestation-cho-backend.md)). LLM chỉ ở hai đầu: hiểu câu (intake,
 intent, patch có schema) và diễn đạt kết quả đã tính. LangGraph giữ cho hội thoại + HITL interrupt.
 
 Nguyên tắc 3 trụ của Brief vẫn giữ:
@@ -68,7 +69,7 @@ P-019/
 │   │   ├── identity.py                UserProfile (danh tính đã xác thực)
 │   │   ├── station.py                 StationConfig, ConnectorState, StationState, Tariff, LoadPoint
 │   │   ├── charging.py                VehicleSpec, ChargeRequest (FR2), EnergyEstimate (FR3), Booking,
-│   │   │                              ConsentScope, ScheduleProposal (FR4), SchedulePlan, StrategyName A–D
+│   │   │                              ConsentScope, ScheduleProposal (FR4, certainty), SchedulePlan, StrategyName B0–M3b
 │   │   ├── control.py                 Role, Command, GuardRule (7 luật), GuardVerdict, Approval, DecisionLogEntry
 │   │   ├── events.py                  EventType (FR8), StationEvent, WsMessage + payload có kiểu (FR16)
 │   │   ├── simulation.py              Scenario, Incident, SimulationTrace, KpiReport (MT1–MT6), BenchmarkReport
@@ -100,7 +101,8 @@ P-019/
 │   │   ├── control_loop.py         🧩 on_event(event, rt), run_forever, resolve_approval (T2.6, T3.2)
 │   │   ├── event_bus.py            🧩 pub/sub in-process (T2.6)
 │   │   ├── realtime.py             🧩 sổ kết nối WebSocket: register / unregister / broadcast (T3.6)
-│   │   └── simulation_service.py   🧩 chạy kịch bản S8 + benchmark A–D (T1.5, T3.4, T3.5)
+│   │   ├── admission.py            ✅ quote / booking / đổi yêu cầu trên bản fork, ước tính có điều kiện (ADR-019)
+│   │   └── simulation_service.py   ✅ chạy kịch bản S8 + benchmark B0–M3b + baseline có version (T3.4, T3.5)
 │   ├── db/                         TẦNG LƯU TRỮ (ADR-005) — chỉ repository.py được gọi vào
 │   │   ├── base.py, types.py       ✅ DeclarativeBase, UtcDateTime (từ chối datetime không múi giờ)
 │   │   ├── tables.py               ✅ 9 bảng: users, bookings, idempotency_keys, schedule_plans, approvals,
@@ -108,10 +110,9 @@ P-019/
 │   │   ├── session.py              ✅ engine + session_scope; chuẩn hoá URL Neon → postgresql+psycopg://
 │   │   └── mappers.py              🧩 Row ↔ model Pydantic (T1.6)
 │   ├── optimizer/                  TRỤ 2 — F2/F3 (TV1) — code thuần
-│   │   ├── __init__.py, base.py    ✅ get_scheduler(A_fcfs | A_edf | B | C | D), PlanningContext, Scheduler
-│   │   ├── baselines.py            🧩 FCFS, EDF (A — T1.5), Oracle (D — T3.4)
-│   │   ├── mpc.py, lp_model.py     🧩 MPC cửa sổ trượt B/C + LP một bước (T2.1)
-│   │   └── assignment.py           🧩 gán đầu nối + hàng đợi (FR7, T2.2)
+│   │   ├── dispatch/, zones/       ✅ dispatch FCFS / EDF / LLF; LP vùng AC / DC (HiGHS), equal share — gốc simulator
+│   │   ├── coordination/           ✅ Global Coordinator (fixed share / dynamic slack)
+│   │   └── registry.py             ✅ POLICIES B0 / M2b / M3a / M3b (version 1). A–D (LP backend) đã xoá ở ADR-019
 │   ├── forecast/                   F6 — HOÃN khỏi sprint 20–26/11 (ADR-015); stub giữ nguyên, không làm
 │   │   ├── datasets.py, features.py   🧩 nạp dữ liệu phiên sạc, feature không rò rỉ nhãn (T1.3, T2.3)
 │   │   ├── predict.py, train.py, evaluate.py   🧩 3 forecaster cùng interface, CLI train, MAE (T2.3)
@@ -156,7 +157,8 @@ P-019/
 │   ├── test_models/, test_services/, test_guard/, test_optimizer/, test_forecast/, test_simulator/, test_llm_chat/
 ├── eval/
 │   ├── run_agent_eval.py           ✅ --offline (kiểm dataset + ngưỡng) · 🧩 chạy Agent thật (T4.2)
-│   ├── run_benchmark.py            🧩 benchmark A–D → results/benchmark.{md,json} (T3.4)
+│   ├── run_benchmark.py            ✅ benchmark B0 / M2b / M3a / M3b → results/benchmark.{md,json}, source generated (T3.4)
+│   ├── evidence/*-baseline/        📄 baseline có version (manifest.json) — S8 đọc; results/archive/: bảng A–D deprecated
 │   ├── datasets/charging_requests.jsonl  📄 25 câu có nhãn cho F1 (PRD cần ≥ 50 — T4.2)
 │   └── run_eval.py, judge.py, …       (giữ) eval pipeline RAG của template
 ├── scripts/export_openapi.py       ✅ ghi / kiểm frontend/openapi.json
@@ -187,7 +189,7 @@ Tên dưới đây lấy từ master context §5, §10 và ADR; chữ ký **chư
 
 | Thành phần | Vai trò | Nguồn / ADR |
 |---|---|---|
-| Simulator v1.2 (`src/simulator/core/kernel.py`, `hybrid.py`, `core/queue.py`, `core/ev2gym_adapter.py`) | `HybridSimulator` + `QueueController`; AC native EV2Gym, DC = `SyntheticTaperV1` hoặc `VehicleProfilesDCModel` | Đã merge, **chỉ chạy R&D offline** — backend dùng `LiveStation` (ADR-016) · ADR-011 |
+| Simulator v1.2 (`src/simulator/core/kernel.py`, `hybrid.py`, `core/queue.py`, `core/ev2gym_adapter.py`) | `HybridSimulator` + `QueueController`; AC native EV2Gym, DC = `SyntheticTaperV1` hoặc `VehicleProfilesDCModel` | Đã merge; backend dùng cùng kernel qua `HybridStation` (ADR-018, ADR-019) |
 | `src/simulator/base.py` (bản mới) | Bề mặt công khai duy nhất của simulator; thay `StationReader` / `StationActuator` | ADR-011 |
 | `Algorithms` (`src/simulator/core/algorithms.py`) | Một registry DispatchPolicy / ZonePowerOptimizer / GlobalCoordinator, dùng chung live / benchmark / what-if | ADR-011 |
 | Guard hai lớp | Lớp vật lý (lưới, tủ, cổng, xe; pre-apply + post-apply) và lớp chính sách (ngân sách vùng, quyền, phê duyệt) | ADR-011 (sửa một phần ADR-002) |
@@ -238,10 +240,10 @@ Các khoá bổ sung:
 | FR3 kWh do code tính | `services/energy.py` | TV3 | — | ✅ `test_services/test_energy.py` · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
 | FR4 phương án thay thế | `ScheduleProposal` validator, `charging_service.quote` | TV1/TV3 | T2.2 | ✅ `test_models` · ⏭ `test_infeasible_quote_has_alternative` |
 | FR5 Agent không ra lệnh trạm | ranh giới import | TV3 | — | ✅ `test_architecture.py` |
-| FR6 tối ưu công suất (LP liên tục + receding horizon; không phải MILP) | `optimizer/mpc.py`, `lp_model.py` (đích: ZonePowerOptimizer AC/DC trong simulator, ADR-011) | TV1 | T2.1 | ⏭ `test_optimizer/test_optimizer_contracts.py` (giới hạn tổng, giá rẻ, tất định) |
+| FR6 tối ưu công suất (LP liên tục + receding horizon; không phải MILP) | `optimizer/zones/` (LP AC/DC) qua `StationKernel.propose` (ADR-019; `mpc` / `lp_model` đã xoá) | TV1 | T2.1 | ✅ `src/simulator/tests`, `tests/test_refactor/test_differential.py` |
 | FR7, AC2 gán đầu nối, hàng đợi | `optimizer/assignment.py`, `simulator/parking_queue.py` | TV1/TV3 | T2.2 | ⏭ `test_waiting_cars_are_ordered_by_earliest_deadline`, `test_flows.py::test_walk_in_when_full_gets_queue_position` |
 | FR8 tính lại khi có sự kiện | `services/control_loop.py`, `event_bus.py`, `runtime.py` | TV3 | T2.6 | ⏭ `test_every_event_type_triggers_replan`, `test_concurrent_events_are_serialized`, `test_change_booking_triggers_replan` |
-| FR9 deadline là ràng buộc cứng | `PlanningContext`, `lp_model` | TV1 | T2.1 | ⏭ `test_forecast_never_relaxes_declared_deadline`, `test_no_energy_is_scheduled_after_declared_deadline` |
+| FR9 deadline là ràng buộc cứng | `PlanningContext`, zone optimizer | TV1 | T2.1 | ⏭ `test_forecast_never_relaxes_declared_deadline`, `test_no_energy_is_scheduled_after_declared_deadline` |
 | FR10–11 cân bằng tải, simulator | `simulator/*` | TV3/TV1 | T1.4 | ✅ `test_simulator/test_factory.py` · ⏭ `test_adapter_contract_*` |
 | FR12, AC6 7 luật Guard | `guard/rules.py`, `checker.py`, `dispatcher.py` | TV3 | T3.1 | ✅ `test_guard/test_checker.py` · ⏭ `test_each_rule_blocks_its_violation`, `test_blocked_command_never_reaches_actuator` |
 | FR13, AC4 phê duyệt | `guard/approval.py`, `control_loop.resolve_approval` | TV3 | T3.2 | ⏭ `test_guard/test_dispatcher.py` (trong/ngoài phạm vi đồng ý, re-check), `test_expired_approval_is_never_applied` |
@@ -249,7 +251,7 @@ Các khoá bổ sung:
 | FR14 nhật ký quyết định | `DecisionLogEntry`, `repository.append_decision`, bảng `decision_log` | TV3 | T1.6 | ✅ `test_decision_log_has_no_update_or_delete_function` · ⏭ `test_decision_log_is_append_only_and_ordered` |
 | FR15–16 web 2 vai trò, WS | `api/resident.py`, `operations.py`, `ws.py`, `services/realtime.py`, `frontend/` | TV4 | T2.7, T3.6 | ✅ `test_contract.py`, `test_openapi_snapshot.py`, vitest (24 test) · ⏭ `test_ws_requires_auth_message` |
 | FR17, MT7 dự báo F6 — **HOÃN** (ADR-015) | `forecast/*` | TV2 | T2.3 | HOÃN; test hiện có giữ nguyên: ✅ `test_label_is_forbidden_as_feature` · ⏭ `test_unplug_time_never_leaks`, `test_split_is_temporal_not_random` |
-| FR18, AC7 sự cố + đối chứng A–D | `config/scenarios/`, `simulation_service`, `simulator/kpi.py`, `eval/run_benchmark.py` | TV1 | T3.4, T3.5 | ✅ `test_services/test_catalog.py`, `test_kpi_report_covers_every_prd_metric` · ⏭ KPI theo từng bước |
+| FR18, AC7 sự cố + đối chứng B0 / M2b / M3a / M3b | `config/scenarios/`, `simulation_service`, baseline `eval/evidence/*-baseline/`, `eval/run_benchmark.py` | TV1 | T3.4, T3.5 | ✅ `test_services/test_catalog.py`, `test_kpi_report_covers_every_prd_metric` · ⏭ KPI theo từng bước |
 | AC1 đặt lịch qua chat | `api/routes.py`, `llm_chat/graph.py`, `charging_service` | TV3 | T2.5 | ✅ `test_charging_agent.py` (interrupt mang phương án, xác nhận một lần) · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
 | AC3 cao điểm tối | `simulation_service.run_scenario` | TV1 | T3.4 | ⏭ `test_peak_evening_respects_limit_and_meets_deadlines` |
 | AC8 deploy + 2 vai trò | `Dockerfile`, `render.yaml`, `.github/workflows/ci.yml`, Vercel | TV4 | T4.4 | job CI `docker-smoke`: build image + `/health`, `/ready` trong container |
@@ -346,7 +348,7 @@ Quy ước (ADR-008):
 5. `guard.dispatcher.submit(commands, ctx, actuator, sinks)`: checker → (approval) → `apply_commands` → `DecisionLogEntry`.
 6. `sinks.notify` → `services.realtime.broadcast` → WebSocket đẩy `schedule_changed` / `approval_request` /
    `command_blocked` lên web.
-7. Trạm là `LiveStation`; vòng nền `control_loop.run_forever` (bật trên deploy) tiến đồng hồ trạm, phát `TICK` để tính
+7. Trạm là `HybridStation` (kernel chung với simulator); vòng nền `control_loop.run_forever` (bật trên deploy) tiến đồng hồ trạm, phát `TICK` để tính
    lại lịch và cho phê duyệt quá hạn hết hiệu lực.
 
 Benchmark chạy **cùng** `on_event` và cùng đường Guard, chỉ khác `StationRuntime`
@@ -387,7 +389,7 @@ Benchmark chạy **cùng** `on_event` và cùng đường Guard, chỉ khác `St
 | Frontend | Next.js trong `frontend/`, chỉ nhận `openapi.json` từ backend | [ADR-009](docs/adr/ADR-009-frontend-nextjs.md) |
 | Bài toán | Bãi hybrid AC/DC, fixture nền `mvp1`, ràng buộc ba tầng, `supply_mode` | [ADR-010](docs/adr/ADR-010-bai-hybrid-ac-dc.md) |
 | Simulator (đích) | Một `HybridSimulator` sau `src/simulator/base.py` + `SimulatorGateway`; một bộ `Algorithms`; Guard hai lớp | [ADR-011](docs/adr/ADR-011-mot-simulator-sau-be-mat-cong-khai.md) |
-| Simulator (hiện tại) | `LiveStation` cho backend (live + benchmark backend); `HybridSimulator` là R&D offline; không trộn số liệu | [ADR-016](docs/adr/ADR-016-livestation-cho-backend.md) |
+| Simulator (hiện tại) | Một kernel `StationKernel`: `HybridStation` (backend) + `HybridSimulator` (CLI / golden); `LiveStation` đã xoá; không trộn số khác `TimeConfig` | [ADR-018](docs/adr/ADR-018-backend-chay-engine-simulator.md), [ADR-019](docs/adr/ADR-019-unified-core-hop-dong-dung-chung.md) (thay ADR-016) |
 | Dữ liệu cấu hình | Một danh mục xe có provenance từng trường + mọi kịch bản trong `config/scenarios/` | [ADR-012](docs/adr/ADR-012-mot-danh-muc-xe-va-kich-ban.md) |
 | Vai trò LLM | Workflow xác định là xương sống; LLM ở hai đầu; LangGraph cho hội thoại + HITL | [ADR-013](docs/adr/ADR-013-workflow-xac-dinh-llm-hai-dau.md) |
 | AI-4 / AI-1 | `DecisionTrace`, counterfactual không apply, Proposal/HITL, Copilot theo role, job nền | [ADR-014](docs/adr/ADR-014-decision-trace-counterfactual-hitl.md) |

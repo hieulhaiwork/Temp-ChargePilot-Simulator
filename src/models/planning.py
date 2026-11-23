@@ -33,8 +33,6 @@ class PlanningContext:
     # AC4: cư dân đã TỪ CHỐI một điều chỉnh → phạm vi consent của booking đó thành ràng buộc cứng,
     # nếu không vòng tính lại sau sẽ đề xuất đúng lệnh vừa bị từ chối.
     hard_consent_booking_ids: frozenset[str] = frozenset()
-    # CHỈ chiến lược D (oracle): toàn bộ yêu cầu của kịch bản, kể cả xe chưa đến. Live luôn để trống.
-    oracle_bookings: tuple[Booking, ...] = ()
 
 
 class Scheduler(Protocol):
