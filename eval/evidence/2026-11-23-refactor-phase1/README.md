@@ -34,8 +34,12 @@ python -c "import sys,pathlib; sys.path.insert(0,'eval'); import run_benchmark a
 
 ## 2. Simulator standalone (MVP-1/2/3)
 
-So với raw evidence [`../2026-11-22/raw/sim-hardware/`](../2026-11-22/raw/sim-hardware/), bỏ các trường timing:
-[`raw/golden_vs_evidence_2026-11-22.txt`](raw/golden_vs_evidence_2026-11-22.txt).
+So với raw evidence [`../2026-11-22/raw/sim-hardware/`](../2026-11-22/raw/sim-hardware/). Bằng chứng hợp lệ là
+lần kiểm lại bằng `cmpbench.py` bản chặt: so mọi trường trừ thời gian tường, chỉ cho phép khác ở
+`/metadata/{run_id,command,algorithms/*/config_source}`, lệch thì exit 1. Kết quả: 11/11 cặp OK (Phase 0 và Phase 1),
+xem [`raw/recheck_strict_cmpbench.txt`](raw/recheck_strict_cmpbench.txt).
+[`raw/golden_vs_evidence_2026-11-22.txt`](raw/golden_vs_evidence_2026-11-22.txt) là output của bản cũ. Bản cũ bỏ sót
+`rejected_solver_plan_count` và luôn trả exit 0 (xem PHASE1_REPORT §9); file này chỉ giữ để tham khảo.
 
 | Lệnh | Khác biệt KPI |
 |---|---|

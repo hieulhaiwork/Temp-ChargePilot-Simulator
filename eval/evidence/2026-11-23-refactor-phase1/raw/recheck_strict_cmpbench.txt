@@ -1,0 +1,36 @@
+MVP3 evidence-vs-phase0: OK — 0 unexpected, 0 allowed metadata
+MVP2 evidence-vs-phase0: OK — 0 unexpected, 0 allowed metadata
+MVP1 evidence-vs-phase0: OK — 0 unexpected, 2 allowed metadata
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP1+mvp3cfg evidence-vs-phase0: OK — 0 unexpected, 6 allowed metadata
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+VINFAST evidence-vs-phase0: OK — 0 unexpected, 3 allowed metadata
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP3 evidence-vs-phase1: OK — 0 unexpected, 0 allowed metadata
+MVP2 evidence-vs-phase1: OK — 0 unexpected, 0 allowed metadata
+MVP1 evidence-vs-phase1: OK — 0 unexpected, 2 allowed metadata
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP1+mvp3cfg evidence-vs-phase1: OK — 0 unexpected, 6 allowed metadata
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+VINFAST evidence-vs-phase1: OK — 0 unexpected, 3 allowed metadata
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP1 script-mode evidence-vs-phase1: OK — 0 unexpected, 2 allowed metadata
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+OVERALL rc=0

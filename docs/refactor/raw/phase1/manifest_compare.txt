@@ -197,4 +197,4 @@ SAME (src/models/simulation_core.py) src/simulator/src/scenario.py::_optional_zo
 SAME (src/models/simulation_core.py) src/simulator/src/scenario.py::_limit_events
 SAME (src/models/simulation_core.py) src/simulator/src/scenario.py::_tariff
 
-# definitions not identical: 0
+# definitions compared: 198; not identical: 0

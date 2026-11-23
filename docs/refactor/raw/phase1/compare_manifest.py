@@ -19,7 +19,11 @@ def parse(text: str) -> dict[str, dict[str, str]]:
         if line.startswith("#") or not line.strip():
             continue
         path, _, _, defs = (part.strip() for part in line.split("|"))
-        out[path] = dict(item.split("=", 1) for item in defs.split())
+        items = [item.split("=", 1) for item in defs.split()]
+        names = [name for name, _ in items]
+        if len(names) != len(set(names)):
+            raise SystemExit(f"duplicate top-level names in {path}: cannot compare by name")
+        out[path] = dict(items)
     return out
 
 
@@ -54,8 +58,10 @@ def main() -> int:
             if not status.startswith(("SAME", "MOVED-SAME")):
                 changed += 1
             print(f"{status:12} {path}::{name}")
-    print(f"\n# definitions not identical: {changed}")
-    return 0
+    total = sum(len(defs) for defs in before.values())
+    print(f"\n# definitions compared: {total}; not identical: {changed}")
+    # Cổng kiểm: khác biệt / mất định nghĩa => exit 1 (không chỉ in ra).
+    return 1 if changed or total == 0 else 0
 
 
 if __name__ == "__main__":

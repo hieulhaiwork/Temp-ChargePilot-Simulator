@@ -64,6 +64,15 @@ test_config 9, test_eval_scripts 7.
 Khớp với PROJECT_STATE: M3a tổng 127/270 SLA, TOU rẻ hơn M2b 21.75 USD; M3b +7 DC / −10 AC so với M3a.
 Latency (không dùng để so): decision p95 M2b 5.1-6.0 ms, M3a/M3b khoảng 12.3 ms trên máy này.
 So sánh: `golden_vs_evidence_2026-11-22.txt` (script `cmpbench.py`: bỏ các khoá timing, so số với dung sai tương đối 1e-9).
+
+> **Đính chính 2026-11-23 (sau review).** Bản `cmpbench.py` dùng để ra kết luận ở bảng trên có hai lỗi.
+> (1) Regex "timing" bỏ qua **mọi** khoá chứa `solver`/`path`/`created`/…, nên đã không so
+> `rejected_solver_plan_count` (KPI) và `algorithm_metadata/*/solver` (cấu hình).
+> (2) Script luôn trả exit 0; kết luận lấy từ output in ra, không phải từ exit code.
+> Script đã được viết lại: chỉ bỏ đúng trường thời gian tường, chỉ cho phép khác ở `/metadata/{run_id,command,
+> algorithms/*/config_source}`, khác ở chỗ khác thì exit 1 (mutation `rejected_solver_plan_count += 1` bị bắt, exit 1).
+> Chạy lại trên **cùng output Phase 0**: 5/5 cặp OK, 0 khác biệt ngoài danh sách cho phép
+> (`raw/phase1/recheck_strict_cmpbench.txt`). Kết luận ở bảng trên **giữ nguyên**, nhưng bằng chứng hợp lệ là lần chạy lại này.
 Output đầy đủ khoảng 22 MB, không commit, nằm ở scratchpad phiên làm việc.
 
 ## 5. Benchmark Backend (`eval/run_benchmark.py --seeds 1,2,3,4,5`)

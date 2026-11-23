@@ -111,3 +111,26 @@ thì 2 test fail; `src.models` import `src.guard` thì test vòng fail.
 Cần giải quyết trước một việc: `src/optimizer/__init__.py` hiện import `get_scheduler`, kéo theo LP backend và
 pydantic. Khi simulator import `src.optimizer.dispatch`, chế độ standalone sẽ hỏng. Đề xuất cho `src/optimizer/__init__.py`
 nạp trễ hoặc chuyển `get_scheduler` sang `src/optimizer/backend/…`. Đây là đổi public import path, nên cần bạn quyết.
+
+## 9. Đính chính sau review (2026-11-23)
+
+Review chỉ ra `compare_manifest.py` luôn `return 0`. Kiểm lại thì có **ba lỗi trong công cụ kiểm chứng**:
+
+| # | Lỗi | Ảnh hưởng tới kết luận đã báo | Sửa |
+|---|---|---|---|
+| 1 | `compare_manifest.py` in số định nghĩa khác nhưng luôn exit 0 | Con số "198/198 trùng" đọc từ output in ra là đúng (chạy lại vẫn ra 198/0). Nhưng script **không dùng được làm cổng tự động**, và báo cáo đã không nói điều này. | Exit 1 khi có định nghĩa khác/mất hoặc không so được gì; fail nếu một file có hai tên trùng (đã kiểm: manifest Phase 0/1 không có tên trùng). Mutation đổi hash `ACRollingLP` cho exit 1. |
+| 2 | `cmpbench.py` luôn exit 0 | Như trên: kết luận lấy từ output, không có cổng. | Exit 1 khi lệch ngoài danh sách cho phép. |
+| 3 | Regex "timing" của `cmpbench.py` khớp theo **chuỗi con** (`solver`, `path`, `created`, `python`…) | Đã **không so** `rejected_solver_plan_count` (KPI) và `algorithm_metadata/*/solver` (cấu hình). Câu "0 khác biệt KPI ngoài timing" ở BASELINE và mục 6 **chưa được kiểm đủ** cho các trường đó. | Chỉ bỏ đúng tên trường thời gian tường (`decision_latency_ms`, `solver_latency_ms`, `solver_latency_by_zone_ms`, `latency_p95_target_ms`, `solver_ms`, `decision_ms`, `software`, `platform`, `python`); chỉ cho phép khác ở `/metadata/{run_id,command,algorithms/*/config_source}`. |
+
+**Kiểm lại** bằng công cụ đã sửa, trên đúng các output đã chạy ở Phase 0 và Phase 1:
+- 11/11 cặp OK (MVP-3, MVP-2, mvp1, mvp1+mvp3cfg, vinfast × Phase 0/1, cộng mvp1 script mode).
+- 0 khác biệt ngoài danh sách cho phép.
+- Kết quả: `raw/phase1/recheck_strict_cmpbench.txt`. Mutation `rejected_solver_plan_count += 1` bị bắt, exit 1.
+
+`compare_manifest.py` chạy lại cho exit 0 với 198 định nghĩa so được, 0 khác (`raw/phase1/manifest_compare.txt`).
+
+**Kết luận của Phase 0/1 không đổi, nhưng trước lần kiểm lại này, một phần chưa có bằng chứng đầy đủ.** Từ nay mọi
+script so sánh dùng làm bằng chứng phải trả exit khác 0 khi lệch, và phải có mutation test trước khi trích kết quả.
+
+Phần **không** bị ảnh hưởng: so benchmark backend 225 run dùng so sánh trực tiếp mọi KPI (trừ `replan_p95_seconds`),
+không qua regex. pytest/golden regression của simulator là test thật có assert.
