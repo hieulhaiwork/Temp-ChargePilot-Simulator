@@ -556,8 +556,8 @@ class HybridStation:
             detail = "Tới giờ rời" if metadata.get("reason") == "declared_departure" else "Xe DC rút sau khi đầy"
             self.kernel.setpoints.pop(v.id, None)
         elif kind == "CHARGE_COMPLETED":
-            # Phiên đổi trạng thái giải phóng công suất: tính lại ngay, không chờ mốc 15' (PHASE0_FINDINGS §2 #4).
-            event_type, detail = EventType.REPLAN_REQUESTED, f"Xe {v.id} sạc xong"
+            # Kernel báo phiên đạt target: giải phóng công suất → tính lại ngay, không chờ mốc 15' (PHASE0 §2 #4).
+            event_type, detail = EventType.CHARGE_COMPLETED, f"Xe {v.id} sạc xong"
         else:
             return  # PLUGGED_IN: hệ quả của lệnh ASSIGN vừa áp, không phải mốc mới
         self._events.append(

@@ -1302,7 +1302,7 @@ export interface components {
          * @description FR8 — mọi sự kiện đều kích hoạt tính lại lịch.
          * @enum {string}
          */
-        EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "replan_requested";
+        EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "charge_completed" | "replan_requested";
         /**
          * FieldProvenance
          * @description Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).

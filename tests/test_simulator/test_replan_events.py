@@ -49,7 +49,8 @@ def _visit(bid, zone="AC", hours=10.0, soc=0.4, target=0.8, battery=60.0, cap=11
     )
 
 
-def test_charge_completion_requests_a_replan_once():
+def test_charge_completion_is_its_own_event_once_and_not_a_replan_request():
+    """Quyết định 2 (Phase 4): kernel phát CHARGE_COMPLETED, backend nhận đúng loại đó, tách khỏi REPLAN_REQUESTED."""
     sim = HybridStation(catalog.load_station_config(), start=NOW)
     sim.upsert_vehicle(_visit("dc", zone="DC", soc=0.5, target=0.52, cap=60))
     sim.apply_commands(
@@ -58,10 +59,31 @@ def test_charge_completion_requests_a_replan_once():
     events = []
     for _ in range(10):
         events += sim.step(1)
-    replans = [e for e in events if e.type == EventType.REPLAN_REQUESTED]
+    completed = [e for e in events if e.type == EventType.CHARGE_COMPLETED]
     done = sim.queue.sessions["dc"].completed_at
-    assert done is not None and len(replans) == 1
-    assert replans[0].booking_id == "dc" and replans[0].occurred_at == NOW + timedelta(minutes=done)
+    assert done is not None and len(completed) == 1
+    assert completed[0].booking_id == "dc" and completed[0].occurred_at == NOW + timedelta(minutes=done)
+    assert not [e for e in events if e.type == EventType.REPLAN_REQUESTED]
+
+
+async def test_events_of_the_same_minute_trigger_one_replan(clean_db):
+    """Sạc xong + xe đến cùng phút → một lần tính lại (không replan trùng cùng timestamp); cả hai được ghi nhận."""
+    from src.models.events import StationEvent
+    from src.services import control_loop
+    from tests.test_services.test_control_and_charging import _sim_runtime
+
+    rt = _sim_runtime()
+    recorded: list = []
+    rt.store = replace(rt.store, record_event=recorded.append)
+    now = rt.clock()
+    events = [
+        StationEvent(type=EventType.CHARGE_COMPLETED, occurred_at=now, booking_id="x"),
+        StationEvent(type=EventType.VEHICLE_ARRIVED, occurred_at=now, booking_id="y"),
+    ]
+    before = len(rt.recorder.replan_durations_s)
+    await control_loop.on_minute(rt, events)
+    assert len(rt.recorder.replan_durations_s) == before + 1
+    assert [e.type for e in recorded] == [EventType.CHARGE_COMPLETED, EventType.VEHICLE_ARRIVED]
 
 
 def test_budget_deviation_is_recorded_and_replanned_but_is_not_a_physical_violation():

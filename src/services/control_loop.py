@@ -125,8 +125,10 @@ async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
         try:
             async with rt.lock:
                 events = rt.sync_clock()
-            for event in events:
-                await event_bus.publish(event)
+            if events:
+                # Mọi sự kiện trạm của lượt này (xe đến / rời, sạc xong, vượt budget…) → MỘT lần tính lại, không
+                # replan trùng cùng thời điểm (ADR-019 Phase 4, quyết định 2). Sự cố nguồn vẫn chạy trước (AC5).
+                await on_minute(rt, events)
             now = rt.clock()
             if not events and (now - last_tick >= tick_every or decision_due(rt.simulator, now)):
                 await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))

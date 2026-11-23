@@ -1060,6 +1060,7 @@
           "connector_fault",
           "connector_restored",
           "power_limit_changed",
+          "charge_completed",
           "replan_requested"
         ],
         "title": "EventType",
