@@ -106,3 +106,26 @@ mà không cần FastAPI, DB hay LLM, và standalone dùng **cùng** Planning Co
    - đồ thị `models/optimizer/guard/simulator` không vòng, tính cả import tương đối.
 6. Shim ở vị trí cũ là alias `sys.modules` (cùng object module), để test patch `linprog` vẫn tác động đúng
    implementation. Danh sách shim còn lại: `docs/refactor/PHASE2_REPORT.md` §4.
+
+## Quyết định 2026-11-23 sau review Phase 2 (Tech Lead): thay thế, không chạy song song
+
+Phase 2 được duyệt. Từ đây đổi nguyên tắc của toàn bộ refactor:
+
+1. **Thay thế kiến trúc cũ, không duy trì song song.** Hệ thống chưa chấm, chưa final. Được phép:
+   - sửa interface, import, service contract, cấu trúc package;
+   - xoá implementation cũ / trùng khi đã xác định đúng chức năng thay thế;
+   - để Backend/Frontend tạm không chạy ở commit trung gian. Integration test fail tạm phải ghi vào sổ
+     expected-failures và xử lý trước nghiệm thu cuối.
+
+   Không tạo adapter/shim mới chỉ để giữ thiết kế đã quyết định bỏ. LiveStation và LP backend A–D không cần ở
+   production path khi Unified Core đã thay được.
+2. **Vẫn bảo toàn:** implementation gốc simulator MVP-1/2/3, công thức vật lý, objective của optimizer, hard safety
+   constraints, benchmark evidence. Mọi thay đổi semantics phải phân loại và giải thích riêng.
+3. **Kế hoạch rút còn hai phase** (chi tiết: `docs/refactor/PLAN.md`):
+   - Phase 3 = Unified Runtime + Booking Migration (gộp Phase 3 + 4 cũ). Dừng cuối phase để Tech Lead review.
+   - Phase 4 = Cleanup + Final Integration (gộp Phase 5 + 6 cũ).
+4. B0/M2b/M3a/M3b là baseline có version, không tuning lại. Optimizer mới phải có registration/config riêng.
+5. Cùng policy/config/state phải cho kết quả planning tương đương. Cùng setpoint đã duyệt và cùng physics config
+   phải cho kết quả thực thi tương đương.
+
+Mục "tương thích tạm" ở phần cập nhật Phase 2 (shim, `__getattr__`) được xoá ở Phase 4. Không thêm shim mới.
