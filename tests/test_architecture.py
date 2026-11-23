@@ -76,15 +76,35 @@ ORM_ALLOWED_FILES = {SRC / "services" / "repository.py"}
 MODELS_FORBIDDEN_THIRD_PARTY = ("sqlalchemy", "fastapi", "starlette", "langchain", "langgraph", "openai", "yaml")
 
 
-def _imported_modules(path: Path) -> set[str]:
+def _module_name(path: Path, root: Path = ROOT) -> str:
+    parts = list(path.relative_to(root).with_suffix("").parts)
+    return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
+
+
+def _resolve_from(node: ast.ImportFrom, path: Path, root: Path) -> str | None:
+    """Tên tuyệt đối của `from <module> import …`, kể cả import tương đối (`from ..x import y`)."""
+    if not node.level:
+        return node.module
+    package = _module_name(path, root).split(".")
+    if path.name != "__init__.py":
+        package = package[:-1]
+    if node.level - 1 > len(package):
+        return None
+    base = package[: len(package) - (node.level - 1)]
+    return ".".join([*base, node.module] if node.module else base) or None
+
+
+def _imported_modules(path: Path, root: Path = ROOT) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             found.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            found.add(node.module)
-            found.update(f"{node.module}.{alias.name}" for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            module = _resolve_from(node, path, root)
+            if module:
+                found.add(module)
+                found.update(f"{module}.{alias.name}" for alias in node.names)
     return found
 
 
@@ -341,21 +361,32 @@ def test_only_transitional_adapters_reach_into_simulator_internals():
     assert not offenders, "Chỉ adapter chuyển tiếp (ADR-019) được chạm src.simulator.src:\n" + "\n".join(offenders)
 
 
-def test_core_layers_have_no_import_cycle():
-    """Đồ thị gói models / optimizer / guard / simulator phải một chiều (không vòng)."""
-    layers = ("models", "optimizer", "guard", "simulator")
+CORE_LAYERS = ("models", "optimizer", "guard", "simulator")
+
+
+def _layer_graph(root: Path, layers: tuple[str, ...]) -> dict[str, set[str]]:
+    """Cạnh tầng → tầng trong `<root>/src`, tính cả import tuyệt đối lẫn tương đối."""
     graph: dict[str, set[str]] = {layer: set() for layer in layers}
     for layer in layers:
-        for path in (SRC / layer).rglob("*.py"):
-            for module in _imported_modules(path):
+        for path in (root / "src" / layer).rglob("*.py"):
+            for module in _imported_modules(path, root):
                 parts = module.split(".")
                 if len(parts) > 1 and parts[0] == "src" and parts[1] in layers and parts[1] != layer:
                     graph[layer].add(parts[1])
+    return graph
 
-    def reaches(start: str, goal: str, seen: set[str]) -> bool:
+
+def _layers_in_cycles(graph: dict[str, set[str]]) -> list[str]:
+    def reaches(start: str, goal: str, seen: frozenset[str]) -> bool:
         return any(nxt == goal or (nxt not in seen and reaches(nxt, goal, seen | {nxt})) for nxt in graph[start])
 
-    cycles = [layer for layer in layers if reaches(layer, layer, {layer})]
+    return [layer for layer in graph if reaches(layer, layer, frozenset({layer}))]
+
+
+def test_core_layers_have_no_import_cycle():
+    """Đồ thị gói models / optimizer / guard / simulator phải một chiều (không vòng)."""
+    graph = _layer_graph(ROOT, CORE_LAYERS)
+    cycles = _layers_in_cycles(graph)
     assert not cycles, f"Vòng phụ thuộc giữa các tầng core: {cycles} — {graph}"
 
 
@@ -420,6 +451,43 @@ def test_orm_checker_detects_violation(tmp_path):
     bad = tmp_path / "bad.py"
     bad.write_text("from sqlalchemy.orm import Session\nfrom src.db import tables\n", encoding="utf-8")
     assert all(_violates(module, ORM_MODULES) for module in _imported_modules(bad))
+
+
+def test_relative_imports_are_resolved_to_absolute_modules(tmp_path):
+    pkg = tmp_path / "src" / "simulator" / "src" / "engine"
+    pkg.mkdir(parents=True)
+    (pkg / "__init__.py").write_text("from . import hybrid\nfrom .queue import Q\n", encoding="utf-8")
+    mod = pkg / "hybrid.py"
+    mod.write_text("from ..algorithms import resolve\nfrom . import queue\nfrom .... import models\n", encoding="utf-8")
+    found = _imported_modules(mod, tmp_path)
+    assert {"src.simulator.src.algorithms", "src.simulator.src.algorithms.resolve"} <= found
+    assert {"src.simulator.src.engine", "src.simulator.src.engine.queue"} <= found
+    assert "src.models" in found  # 4 chấm từ src/simulator/src/engine → src
+    init = _imported_modules(pkg / "__init__.py", tmp_path)
+    assert {"src.simulator.src.engine.hybrid", "src.simulator.src.engine.queue.Q"} <= init
+    # Kiểm trên code thật: engine của simulator chỉ dùng import tương đối.
+    real = _imported_modules(SRC / "simulator" / "src" / "engine" / "hybrid.py")
+    assert "src.simulator.src.engine.queue" in real
+
+
+def test_cycle_detector_finds_a_cycle_made_only_of_relative_imports(tmp_path):
+    """Negative test: vòng optimizer ↔ guard chỉ bằng import tương đối phải bị phát hiện."""
+    for layer, imports in (("optimizer", "from ..guard import rules\n"), ("guard", "from ..optimizer import lp\n")):
+        (tmp_path / "src" / layer).mkdir(parents=True)
+        (tmp_path / "src" / layer / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "src" / layer / "mod.py").write_text(imports, encoding="utf-8")
+    graph = _layer_graph(tmp_path, ("optimizer", "guard"))
+    assert graph == {"optimizer": {"guard"}, "guard": {"optimizer"}}
+    assert sorted(_layers_in_cycles(graph)) == ["guard", "optimizer"]
+    (tmp_path / "src" / "guard" / "mod.py").write_text("from .rules import x\n", encoding="utf-8")
+    assert not _layers_in_cycles(_layer_graph(tmp_path, ("optimizer", "guard")))
+
+
+def test_boundary_checker_sees_relative_imports(tmp_path):
+    bad = tmp_path / "src" / "optimizer" / "zones" / "lp.py"
+    bad.parent.mkdir(parents=True)
+    bad.write_text("from ...guard.physical import validator\n", encoding="utf-8")
+    assert any(_violates(m, BOUNDARIES["optimizer"]) for m in _imported_modules(bad, tmp_path))
 
 
 def test_standalone_probe_really_blocks_the_backend_stack():
