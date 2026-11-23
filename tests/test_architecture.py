@@ -272,6 +272,7 @@ CORE_CONTRACTS = (
     "src.models.physical_constraints",
     "src.models.physical_limits",
     "src.models.scheduling",
+    "src.models.decisions",  # ADR-019 Phase 3: ProposedDecision / ApprovedDecision / AppliedResult / TimeConfig
 )
 # Vị trí cũ trong simulator — nay chỉ re-export. Ngoài src/simulator/ phải import thẳng từ src.models.
 CORE_CONTRACT_SHIMS = {
