@@ -596,7 +596,7 @@ export interface paths {
         };
         /**
          * Benchmark
-         * @description US8 — bảng A–D gần nhất (eval/run_benchmark.py sinh ra).
+         * @description US8 — bảng B0 / M2b / M3a / M3b của baseline có version hiện hành; `source` ghi nguồn + version + điều kiện đo.
          */
         get: operations["benchmark_api_v1_simulation_benchmark_get"];
         put?: never;
@@ -866,7 +866,7 @@ export interface components {
         ApprovalStatus: "pending" | "approved" | "rejected" | "expired";
         /**
          * BenchmarkReport
-         * @description Bảng A–D cùng tập phiên, cùng biểu giá (PRD §8). Lưu ở eval/results/benchmark.json.
+         * @description Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.
          */
         BenchmarkReport: {
             /**
@@ -878,7 +878,59 @@ export interface components {
             notes?: string[];
             /** Runs */
             runs: components["schemas"]["SimulationRunResult"][];
+            /** @description Nguồn và version của bảng (Phase 4) */
+            source?: components["schemas"]["BenchmarkSource"] | null;
         };
+        /**
+         * BenchmarkSource
+         * @description Nguồn + điều kiện đo của bảng benchmark (Phase 4 quyết định 8): không so hai bảng khác điều kiện.
+         */
+        BenchmarkSource: {
+            /** Baseline Id */
+            baseline_id?: string | null;
+            /** Code Commit */
+            code_commit?: string | null;
+            kind: components["schemas"]["BenchmarkSourceKind"];
+            /** Libraries */
+            libraries?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Path
+             * @description Đường dẫn trong repo của dữ liệu
+             */
+            path?: string | null;
+            /** Policies */
+            policies?: string[];
+            /** Scenarios */
+            scenarios?: string[];
+            /** Seeds */
+            seeds?: number[];
+            /**
+             * Status
+             * @description provisional = baseline tạm; final = baseline nghiệm thu
+             */
+            status?: string | null;
+            /**
+             * Time Config
+             * @description TimeConfig của trạm khi đo (P1)
+             */
+            time_config?: {
+                [key: string]: number | null;
+            };
+            /** Version */
+            version?: string | null;
+        };
+        /**
+         * BenchmarkSourceKind
+         * @enum {string}
+         */
+        BenchmarkSourceKind: "versioned_baseline" | "generated";
         /**
          * Booking
          * @description Lịch sạc đã chốt của một cư dân.

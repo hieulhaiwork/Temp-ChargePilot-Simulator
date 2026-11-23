@@ -33,6 +33,11 @@ const STRATEGIES: [Strategy, string][] = [
   ["M3b", "M3b · LLF + LP AC/DC + slack động"],
 ];
 const label = (s: Strategy) => STRATEGIES.find(([k]) => k === s)?.[1] ?? s;
+/** Tiêu đề cột: policy + seed (baseline có 5 seed / policy, đọc từ ghi chú của run). */
+const column = (r: Run) => {
+  const seed = /seed (\d+)/.exec(r.notes ?? "")?.[1];
+  return seed ? `${label(r.strategy)} · seed ${seed}` : label(r.strategy);
+};
 
 /** Hàng của bảng đối chứng: [tên, mục tiêu, giá trị, kiểm đạt (null = chỉ theo dõi)]. */
 const KPI_ROWS: [string, string, (r: Run) => string, ((r: Run) => boolean) | null][] = [
@@ -73,7 +78,7 @@ function BenchTable({ runs }: { runs: Run[] }) {
             <th>Mục tiêu</th>
             {runs.map((r) => (
               <th key={r.run_id} className="num">
-                {label(r.strategy)}
+                {column(r)}
               </th>
             ))}
           </tr>
@@ -100,7 +105,7 @@ function BenchTable({ runs }: { runs: Run[] }) {
 }
 
 function downloadCsv(runs: Run[]) {
-  const head = ["Chỉ số", ...runs.map((r) => label(r.strategy))];
+  const head = ["Chỉ số", ...runs.map(column)];
   const lines = [head, ...KPI_ROWS.map(([name, , value]) => [name, ...runs.map(value)])].map((row) => row.map((c) => `"${c.replaceAll('"', '""')}"`).join(","));
   const url = URL.createObjectURL(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
@@ -272,12 +277,23 @@ export default function OperatorSimulationPage() {
       <Panel label="Bảng đối chứng">
         <SectionHead title="Bảng đối chứng B0 / M2b / M3a / M3b" icon="chart" sub="✓ đạt mục tiêu · ✕ chưa đạt" />
         <DataBlock endpoint="GET /api/v1/simulation/benchmark" query={queries.benchmark()} loadingLines={6}>
-          {() => <BenchTable runs={runs} />}
+          {(report) => (
+            <>
+              {report.source ? (
+                <p className="hint" style={{ margin: "0 0 10px" }} data-testid="bench-source">
+                  Nguồn: {report.source.kind === "versioned_baseline" ? "baseline có version" : "số vừa sinh"} {report.source.baseline_id ?? ""} · version {report.source.version ?? "—"}
+                  {report.source.status === "provisional" ? " (tạm)" : ""} · code {report.source.code_commit?.slice(0, 7) ?? "—"} · seed {report.source.seeds?.join(", ") || "—"} · vật lý{" "}
+                  {report.source.time_config?.physics_step_minutes ?? "—"}′, quyết định ≤ {report.source.time_config?.decision_interval_minutes ?? "—"}′. Chỉ so các cột cùng điều kiện đo.
+                </p>
+              ) : null}
+              <BenchTable runs={runs} />
+            </>
+          )}
         </DataBlock>
         {runs.some((r) => r.kpis.on_time_rate < 0.95) ? (
           <div style={{ marginTop: 12 }}>
             <Notice title="Có lần chạy chưa đạt MT1" tone="gold" icon="alert">
-              Tỉ lệ đúng hạn dưới 95%. Xem ghi chú của lần chạy trong eval/results.
+              Tỉ lệ đúng hạn dưới 95%. Xem ghi chú và nguồn của bảng ở trên.
             </Notice>
           </div>
         ) : null}

@@ -1,4 +1,4 @@
-"""Hợp đồng mô phỏng & đánh giá: kịch bản, sự cố, trace, KPI, benchmark A–D.
+"""Hợp đồng mô phỏng & đánh giá: kịch bản, sự cố, trace, KPI, benchmark B0 / M2b / M3a / M3b có nguồn + version.
 
 Vì sao tồn tại: màn S8 (F7) và báo cáo eval (AC7) phải dùng CÙNG định nghĩa KPI và
 cùng định dạng kịch bản, nếu không số trên web và số trong báo cáo sẽ lệch nhau.
@@ -122,9 +122,32 @@ class SimulationRunResult(BaseModel):
     notes: str = ""
 
 
+class BenchmarkSourceKind(StrEnum):
+    VERSIONED_BASELINE = "versioned_baseline"  # số đã đo, lưu có version ở eval/evidence/*-baseline/ (manifest.json)
+    GENERATED = "generated"  # vừa sinh bằng eval/run_benchmark.py — chưa phải baseline chính thức
+
+
+class BenchmarkSource(BaseModel):
+    """Nguồn + điều kiện đo của bảng benchmark (Phase 4 quyết định 8): không so hai bảng khác điều kiện."""
+
+    kind: BenchmarkSourceKind
+    baseline_id: str | None = None
+    version: str | None = None
+    status: str | None = Field(default=None, description="provisional = baseline tạm; final = baseline nghiệm thu")
+    code_commit: str | None = None
+    path: str | None = Field(default=None, description="Đường dẫn trong repo của dữ liệu")
+    scenarios: list[str] = Field(default_factory=list)
+    policies: list[str] = Field(default_factory=list)
+    seeds: list[int] = Field(default_factory=list)
+    time_config: dict[str, int | None] = Field(default_factory=dict, description="TimeConfig của trạm khi đo (P1)")
+    libraries: dict[str, str] = Field(default_factory=dict)
+    note: str = ""
+
+
 class BenchmarkReport(BaseModel):
-    """Bảng A–D cùng tập phiên, cùng biểu giá (PRD §8). Lưu ở eval/results/benchmark.json."""
+    """Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version."""
 
     generated_at: AwareDatetime
     runs: list[SimulationRunResult]
     notes: list[str] = Field(default_factory=list)
+    source: BenchmarkSource | None = Field(default=None, description="Nguồn và version của bảng (Phase 4)")

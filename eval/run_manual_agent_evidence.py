@@ -648,7 +648,7 @@ def _write_docx(report: dict, docx_path: Path) -> None:
             (
                 "API LLM thật + Dịch vụ sạc giả lập trong bộ nhớ (AGENT_DEMO_SERVICES=True)"
                 if meta["agent_demo_services"]
-                else "API LLM thật + Dịch vụ sạc trực tiếp (LiveStation)",
+                else "API LLM thật + Dịch vụ sạc trực tiếp (HybridStation, kernel dùng chung với simulator)",
                 {},
             ),
         ],

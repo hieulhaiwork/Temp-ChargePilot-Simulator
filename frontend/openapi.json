@@ -184,7 +184,7 @@
         "type": "string"
       },
       "BenchmarkReport": {
-        "description": "Bảng A–D cùng tập phiên, cùng biểu giá (PRD §8). Lưu ở eval/results/benchmark.json.",
+        "description": "Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.",
         "properties": {
           "generated_at": {
             "format": "date-time",
@@ -204,6 +204,17 @@
             },
             "title": "Runs",
             "type": "array"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BenchmarkSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nguồn và version của bảng (Phase 4)"
           }
         },
         "required": [
@@ -212,6 +223,132 @@
         ],
         "title": "BenchmarkReport",
         "type": "object"
+      },
+      "BenchmarkSource": {
+        "description": "Nguồn + điều kiện đo của bảng benchmark (Phase 4 quyết định 8): không so hai bảng khác điều kiện.",
+        "properties": {
+          "baseline_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Id"
+          },
+          "code_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Commit"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/BenchmarkSourceKind"
+          },
+          "libraries": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Libraries",
+            "type": "object"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Đường dẫn trong repo của dữ liệu",
+            "title": "Path"
+          },
+          "policies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Policies",
+            "type": "array"
+          },
+          "scenarios": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "array"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "provisional = baseline tạm; final = baseline nghiệm thu",
+            "title": "Status"
+          },
+          "time_config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "TimeConfig của trạm khi đo (P1)",
+            "title": "Time Config",
+            "type": "object"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "BenchmarkSource",
+        "type": "object"
+      },
+      "BenchmarkSourceKind": {
+        "enum": [
+          "versioned_baseline",
+          "generated"
+        ],
+        "title": "BenchmarkSourceKind",
+        "type": "string"
       },
       "Booking": {
         "description": "Lịch sạc đã chốt của một cư dân.",
@@ -6414,7 +6551,7 @@
     },
     "/api/v1/simulation/benchmark": {
       "get": {
-        "description": "US8 — bảng A–D gần nhất (eval/run_benchmark.py sinh ra).",
+        "description": "US8 — bảng B0 / M2b / M3a / M3b của baseline có version hiện hành; `source` ghi nguồn + version + điều kiện đo.",
         "operationId": "benchmark_api_v1_simulation_benchmark_get",
         "responses": {
           "200": {

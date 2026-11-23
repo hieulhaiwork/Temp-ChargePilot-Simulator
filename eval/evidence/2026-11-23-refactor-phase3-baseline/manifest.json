@@ -1,0 +1,35 @@
+{
+  "baseline_id": "backend-phase3",
+  "version": "2026-11-23-phase3",
+  "status": "provisional",
+  "status_note": "Baseline tạm của Phase 4. Baseline chính thức cuối refactor sinh ở vòng nghiệm thu, sau khi nhánh core xử lý budget deviation (TECHLEAD_PHASE4_DECISIONS mục 3, 8).",
+  "code_commit": "c5632cbba5a8eaa1b61e0280c59dfdf0224467e2",
+  "code_branch": "feature/unified-core-p3",
+  "generated_at": "2026-11-23T10:21:46.800026Z",
+  "copied_from": "eval/evidence/2026-11-23-refactor-phase3/raw/backend_benchmark_seeds1-5.json",
+  "copy_sha256": "0ecab1d22df564b02b7fc8eb522a6526bffd0226ca3d9ae4eb6e48ee68581e28",
+  "command": "eval/run_benchmark.py --seeds 1,2,3,4,5 (RESULTS_DIR trỏ ra thư mục tạm)",
+  "engine": "HybridStation (StationKernel dùng chung với simulator)",
+  "scenarios": ["connector_failure", "hybrid_evening", "hybrid_power_drop", "peak_evening", "power_drop"],
+  "config": "config/station.yaml, config/tariff.yaml, config/vehicles.yaml, config/scenarios/*.yaml tại code_commit",
+  "policies": ["B0", "M2b", "M3a", "M3b"],
+  "policy_registry": "src/optimizer/registry.py POLICIES, version 1",
+  "seeds": [1, 2, 3, 4, 5],
+  "runs": 100,
+  "time_config": {
+    "physics_step_minutes": 1,
+    "decision_interval_minutes": 15,
+    "planning_horizon_minutes": null
+  },
+  "libraries": {
+    "os": "Windows 11",
+    "python": "3.12.10",
+    "ev2gym": "2.0.0",
+    "numpy": "2.5.5",
+    "scipy": "1.18.1"
+  },
+  "not_comparable_with": [
+    "eval/evidence/2026-11-23-refactor-phase2 (khác cấu hình thời gian / interval quyết định — ADR-019 P1)",
+    "eval/results/archive/2026-11-22-pre-refactor (A–D, LP backend đã bỏ)"
+  ]
+}
