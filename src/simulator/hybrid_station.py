@@ -282,9 +282,21 @@ class HybridStation:
     def step(self, minutes: int) -> list[StationEvent]:
         """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC."""
         self._events = []
+        kernel = self.kernel
         for _ in range(max(minutes, 0)):
-            self.kernel.advance(self.kernel.now + 1)
-            self.kernel.observe()
+            result = kernel.advance(kernel.now + 1)
+            if result.budget_deviation_kw and not kernel._deviation_reported:
+                # Assigned budget (Coordinator) ≠ hard cap: vượt budget không phải vi phạm vật lý — ghi + tính lại một lần.
+                kernel._deviation_reported = True
+                detail = ", ".join(f"{zone} +{kw:.3f} kW" for zone, kw in sorted(result.budget_deviation_kw.items()))
+                self._events.append(
+                    StationEvent(
+                        type=EventType.REPLAN_REQUESTED,
+                        occurred_at=self._at(result.end),
+                        detail=f"Công suất thực vượt budget vùng ({detail})",
+                    )
+                )
+            kernel.observe()
         return self._drain()
 
     @_locked
@@ -542,8 +554,11 @@ class HybridStation:
             event_type = EventType.VEHICLE_DEPARTED
             detail = "Tới giờ rời" if metadata.get("reason") == "declared_departure" else "Xe DC rút sau khi đầy"
             self.kernel.setpoints.pop(v.id, None)
+        elif kind == "CHARGE_COMPLETED":
+            # Phiên đổi trạng thái giải phóng công suất: tính lại ngay, không chờ mốc 15' (PHASE0_FINDINGS §2 #4).
+            event_type, detail = EventType.REPLAN_REQUESTED, f"Xe {v.id} sạc xong"
         else:
-            return  # PLUGGED_IN / CHARGE_COMPLETED: chưa phát (Phase 3 bước 4 thêm mốc tính lại khi sạc xong)
+            return  # PLUGGED_IN: hệ quả của lệnh ASSIGN vừa áp, không phải mốc mới
         self._events.append(
             StationEvent(
                 type=event_type, occurred_at=self._at(when), connector_id=connector_id, booking_id=v.id, detail=detail

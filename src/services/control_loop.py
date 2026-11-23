@@ -46,14 +46,16 @@ def _ws(kind: WsMessageType, payload, rt: StationRuntime) -> WsMessage:
     return WsMessage(type=kind, payload=payload.model_dump(mode="json"), sent_at=rt.clock())
 
 
-async def on_event(event: StationEvent, rt: StationRuntime) -> SchedulePlan:
+async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[StationEvent, ...] = ()) -> SchedulePlan:
     """Tính lại lịch cho một sự kiện, tuần tự dưới rt.lock. Mục tiêu p95 ≤ 2 s (MT5).
 
-    Việc nặng (solver) chạy trên thread solver duy nhất (services/solver.py) để không chặn WebSocket.
+    `batch`: các sự kiện khác của CÙNG thời điểm (đã xảy ra, ghi nhận + đồng bộ trạng thái booking) — gộp vào một lần
+    tính lại thay vì replan trùng (ADR-019 Phase 3). Việc nặng (solver) chạy trên thread solver duy nhất
+    (services/solver.py) để không chặn WebSocket.
     """
     async with rt.lock:
         started = time.perf_counter()
-        side_events = rt.sync_clock()
+        side_events = (*rt.sync_clock(), *batch)
         for e in (*side_events, event):
             rt.store.record_event(e)
             await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
@@ -88,7 +90,8 @@ async def on_event(event: StationEvent, rt: StationRuntime) -> SchedulePlan:
 
 
 async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
-    """Vòng nền: simulator.step, phát TICK mỗi planning_step_minutes, approval.expire_overdue — tới khi `stop` được set."""
+    """Vòng nền: simulator.step, phát TICK ở mốc quyết định kế tiếp của kernel (boundary: TOU, xe đến / rời, rút DC;
+    trần planning_step_minutes), approval.expire_overdue — tới khi `stop` được set."""
     from src.config import get_settings
     from src.services import event_bus
 
@@ -102,7 +105,8 @@ async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
             for event in events:
                 await event_bus.publish(event)
             now = rt.clock()
-            if not events and now - last_tick >= tick_every:
+            due = getattr(rt.simulator, "next_decision_at", None)
+            if not events and (now - last_tick >= tick_every or (due is not None and now >= due)):
                 await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))
                 last_tick = now
             elif events:

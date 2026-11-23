@@ -169,6 +169,12 @@ def _run_sync(coro):
     return box["value"]
 
 
+def _decision_due(sim, now: datetime) -> bool:
+    """Tới mốc quyết định kế tiếp do kernel tính (boundary), hoặc chưa có quyết định nào."""
+    due = sim.next_decision_at
+    return due is None or now >= due
+
+
 def _is_feasible(outcome: SessionOutcome, booking: Booking) -> bool:
     hours = (booking.request.deadline - outcome.arrival_time).total_seconds() / 3600
     return booking.max_charge_power_kw * hours >= outcome.requested_kwh - ON_TIME_TOL_KWH
@@ -189,12 +195,12 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
     incidents = {i.at_minute: [] for i in scenario.incidents}
     for inc in scenario.incidents:
         incidents[inc.at_minute].append(inc)
-    step = config.optimizer.planning_step_minutes
     minute_load: list[tuple[datetime, float, float]] = []
     skipped: list[str] = []  # sự cố trỏ tới cổng không có trong topology hiện hành (kịch bản legacy_ac_only)
+    carried: list[StationEvent] = []  # sự kiện trạm phát ra ở cuối phút trước (xe đến / rời, sạc xong)
     for minute in range(scenario.duration_hours * 60):
         now = sim.now
-        events: list[StationEvent] = []
+        events, carried = carried, []
         while pending and pending[0].created_at <= now:
             booking = pending.pop(0)
             rt.store.save_booking(booking)
@@ -205,20 +211,20 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
                 events += sim.inject_incident(Incident.model_validate(inc.model_dump(exclude={"at_minute"})))
             except ValueError:
                 skipped.append(f"{inc.type.value}@{inc.at_minute}' ({inc.connector_id})")
-        if not events and minute % step == 0:
+        if not events and _decision_due(sim, now):
+            # Mốc boundary của quyết định trước (TOU, rút DC, trần planning_step_minutes) — PHASE3_DESIGN §3.
             events.append(StationEvent(type=EventType.TICK, occurred_at=now))
-        # Sự cố nguồn phải đi trước để bảo vệ khẩn cấp chạy ngay (AC5); các sự kiện khác gộp vào một lần tính lại.
+        # Sự cố nguồn phải đi trước để bảo vệ khẩn cấp chạy ngay (AC5); mọi sự kiện khác của CÙNG phút gộp vào MỘT lần
+        # tính lại (không replan trùng).
         urgent = [e for e in events if e.type == EventType.POWER_LIMIT_CHANGED]
         for event in urgent:
             await control_loop.on_event(event, rt)
         rest = [e for e in events if e.type != EventType.POWER_LIMIT_CHANGED]
         if rest:
-            await control_loop.on_event(rest[-1], rt)
+            await control_loop.on_event(rest[-1], rt, batch=tuple(rest[:-1]))
         state = sim.state()
         minute_load.append((now, state.total_power_kw, state.available_power_kw))
-        for event in sim.step(1):
-            if event.type in (EventType.VEHICLE_ARRIVED, EventType.VEHICLE_DEPARTED):
-                await control_loop.on_event(event, rt)
+        carried = sim.step(1)
     by_id = {b.booking_id: b for b in bookings}
     outcomes = [o.model_copy(update={"feasible": _is_feasible(o, by_id[o.booking_id])}) for o in sim.outcomes()]
     arrived = {o.booking_id for o in outcomes}

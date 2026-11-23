@@ -115,6 +115,7 @@ class SimulatorScheduler:
                 logger.exception("%s: Physical Guard từ chối đề xuất — lịch an toàn (0 kW)", self.name.value)
                 self.last_diagnostics = {"reason_codes": [ReasonCode.REJECTED_BEFORE_APPLY]}
                 assignments, setpoints, interval = {}, {}, fallback
+                station.kernel.next_decision_minute = station.kernel.now + fallback
             queue = [b for b in ctx.state.queue if b not in assignments.values()]
             return _to_plan(self.name, ctx, station, assignments, setpoints, queue, interval, started)
 
