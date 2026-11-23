@@ -262,7 +262,7 @@ def test_load_points_window(clean_db):
 def _plan(version: int) -> SchedulePlan:
     return SchedulePlan(
         version=version,
-        strategy=StrategyName.OPT_NO_ML,
+        strategy=StrategyName.SIM_M3A,
         created_at=NOW,
         horizon_start=NOW,
         step_minutes=15,

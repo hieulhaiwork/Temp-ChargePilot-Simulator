@@ -2021,10 +2021,13 @@ export interface components {
         };
         /**
          * StrategyName
-         * @description Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8).
+         * @description Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.
+         *
+         *     A_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký
+         *     trong registry rồi mới thêm giá trị ở đây.
          * @enum {string}
          */
-        StrategyName: "A_fcfs" | "A_edf" | "B" | "C" | "D" | "B0" | "M2b" | "M3a" | "M3b";
+        StrategyName: "B0" | "M2b" | "M3a" | "M3b";
         /**
          * SupplyMode
          * @description Cách hai vùng lấy điện (ADR-010). `shared` là [GIẢ ĐỊNH] — chưa có số liệu lưới tại site.

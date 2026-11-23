@@ -2611,13 +2611,8 @@
         "type": "object"
       },
       "StrategyName": {
-        "description": "Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8).",
+        "description": "Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.\n\nA_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký\ntrong registry rồi mới thêm giá trị ở đây.",
         "enum": [
-          "A_fcfs",
-          "A_edf",
-          "B",
-          "C",
-          "D",
           "B0",
           "M2b",
           "M3a",

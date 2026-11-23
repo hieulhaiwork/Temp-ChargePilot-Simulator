@@ -2,7 +2,7 @@
 
 /**
  * S8 · Mô phỏng kịch bản (mockup docs/mockups/van-hanh/operator-simulation.html; spec 21 §3.4; FR18, FR11 · US6, US8 · AC3, AC5, AC7 · MT1–MT6).
- * Chạy kịch bản trong config/scenarios với chiến lược A–D (POST /simulation/runs, chạy đồng bộ — không tự gửi lại),
+ * Chạy kịch bản trong config/scenarios với policy B0 / M2b / M3a / M3b (POST /simulation/runs, chạy đồng bộ — không tự gửi lại),
  * bơm sự cố (POST /simulation/incidents, luôn hỏi xác nhận), bảng đối chứng từ GET /simulation/benchmark.
  * Giá trị trên màn này là kết quả MÔ PHỎNG, không phải số đo của trạm sạc thật.
  */
@@ -25,12 +25,12 @@ type Strategy = components["schemas"]["StrategyName"];
 type Run = components["schemas"]["SimulationRunResult"];
 type IncidentType = components["schemas"]["IncidentType"];
 
+/** Policy của Planning Core (registry, version 1). A–D (LP backend cũ) đã bỏ ở Phase 4. */
 const STRATEGIES: [Strategy, string][] = [
-  ["A_fcfs", "A · FCFS"],
-  ["A_edf", "A · EDF"],
-  ["B", "B · Tối ưu, không ML"],
-  ["C", "C · Tối ưu + dự báo"],
-  ["D", "D · Biết trước"],
+  ["B0", "B0 · FCFS + chia đều"],
+  ["M2b", "M2b · LLF + LP DC"],
+  ["M3a", "M3a · LLF + LP AC/DC (mặc định)"],
+  ["M3b", "M3b · LLF + LP AC/DC + slack động"],
 ];
 const label = (s: Strategy) => STRATEGIES.find(([k]) => k === s)?.[1] ?? s;
 
@@ -115,7 +115,7 @@ export default function OperatorSimulationPage() {
   const scenarios = useQuery(queries.scenarios());
   const benchmark = useQuery(queries.benchmark());
   const [scenario, setScenario] = useState("");
-  const [strategy, setStrategy] = useState<Strategy>("C");
+  const [strategy, setStrategy] = useState<Strategy>("M3a");
   const [nVehicles, setNVehicles] = useState(30);
   const [seed, setSeed] = useState(42);
   const [extraRuns, setExtraRuns] = useState<Run[]>([]);
@@ -149,7 +149,7 @@ export default function OperatorSimulationPage() {
     <>
       <PageHead
         title="Mô phỏng kịch bản"
-        sub="Chạy lại kịch bản, bơm sự cố và so chiến lược A–D. Kết quả là mô phỏng, không phải số đo của trạm thật."
+        sub="Chạy lại kịch bản, bơm sự cố và so policy B0 / M2b / M3a / M3b. Kết quả là mô phỏng, không phải số đo của trạm thật."
         actions={
           <button type="button" className="btn btn-secondary" disabled={!runs.length} onClick={() => downloadCsv(runs)}>
             <Icon name="download" />
@@ -270,7 +270,7 @@ export default function OperatorSimulationPage() {
         </Panel>
       </div>
       <Panel label="Bảng đối chứng">
-        <SectionHead title="Bảng đối chứng A–D" icon="chart" sub="✓ đạt mục tiêu · ✕ chưa đạt" />
+        <SectionHead title="Bảng đối chứng B0 / M2b / M3a / M3b" icon="chart" sub="✓ đạt mục tiêu · ✕ chưa đạt" />
         <DataBlock endpoint="GET /api/v1/simulation/benchmark" query={queries.benchmark()} loadingLines={6}>
           {() => <BenchTable runs={runs} />}
         </DataBlock>

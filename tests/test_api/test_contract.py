@@ -115,8 +115,16 @@ async def test_scenarios_listed_for_operator(client, as_role):
 
 async def test_simulation_run_unknown_scenario_is_404(client, as_role):
     as_role(Role.OPERATOR)
-    response = await client.post("/api/v1/simulation/runs", json={"scenario_id": "khong_co", "strategy": "B"})
+    response = await client.post("/api/v1/simulation/runs", json={"scenario_id": "khong_co", "strategy": "M3a"})
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("strategy", ["A_fcfs", "A_edf", "B", "C", "D"])
+async def test_simulation_run_rejects_removed_lp_strategies(client, as_role, strategy):
+    """Phase 4 quyết định 1: A–D không còn trong hợp đồng → 422 ở lớp validate, không tới service."""
+    as_role(Role.OPERATOR)
+    response = await client.post("/api/v1/simulation/runs", json={"scenario_id": "peak_evening", "strategy": strategy})
+    assert response.status_code == 422
 
 
 def test_websocket_without_auth_message_is_closed_4401():

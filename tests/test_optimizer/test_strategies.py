@@ -8,14 +8,13 @@ import pytest
 
 from src.models.charging import StrategyName
 from src.services import catalog, simulation_service
-from src.services.errors import DomainError
 from src.services.hybrid_planner import SIMULATOR_STRATEGIES
 from src.services.runtime import make_scheduler, make_station
 from tests.factories import NOW
 
 pytest.importorskip("ev2gym")
 
-REMOVED = [StrategyName.FCFS, StrategyName.EDF, StrategyName.OPT_NO_ML, StrategyName.OPT_ML, StrategyName.ORACLE]
+REMOVED = ["A_fcfs", "A_edf", "B", "C", "D"]  # LP backend cũ — bỏ hẳn ở Phase 4 (quyết định 1)
 
 
 @pytest.mark.parametrize("name", sorted(SIMULATOR_STRATEGIES))
@@ -26,10 +25,28 @@ def test_every_runtime_strategy_is_a_planning_core_policy(name):
     assert station.kernel.policy_id == name.value
 
 
+def test_strategy_enum_is_exactly_the_registry_policies():
+    """Không còn giá trị nào của StrategyName mà Planning Core không chạy được (S8 / OpenAPI dùng enum này)."""
+    assert set(StrategyName) == set(SIMULATOR_STRATEGIES)
+    assert [s.value for s in StrategyName] == ["B0", "M2b", "M3a", "M3b"]
+
+
 @pytest.mark.parametrize("name", REMOVED)
 def test_removed_lp_strategies_fail_loudly(name):
-    with pytest.raises(DomainError, match="đã bỏ ở Phase 3"):
-        make_scheduler(name, lambda: None)
+    """Thay cho `make_scheduler(A–D) → DomainError` của Phase 3: giá trị cũ giờ bị từ chối ngay ở hợp đồng."""
+    with pytest.raises(ValueError):
+        StrategyName(name)
+
+
+@pytest.mark.parametrize("name", REMOVED)
+def test_removed_lp_strategies_are_rejected_by_settings(name, monkeypatch):
+    from pydantic import ValidationError
+
+    from src.config import Settings
+
+    monkeypatch.setenv("LIVE_STRATEGY", name)
+    with pytest.raises(ValidationError):
+        Settings()
 
 
 @pytest.fixture(scope="module")

@@ -176,14 +176,12 @@ class ScheduleProposal(BaseModel):
 
 
 class StrategyName(StrEnum):
-    """Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8)."""
+    """Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.
 
-    FCFS = "A_fcfs"  # A — đến trước phục vụ trước, chia công suất đơn giản
-    EDF = "A_edf"  # A — ưu tiên hạn rời gần nhất
-    OPT_NO_ML = "B"  # B — cùng bộ tối ưu, KHÔNG có ML (mốc đo giá trị AI)
-    OPT_ML = "C"  # C — bộ tối ưu + dự báo thời điểm rút đầu nối (phương án chính)
-    ORACLE = "D"  # D — biết trước tương lai (cận trên lý tưởng)
-    # Thuật toán của simulator R&D (src/simulator/benchmark_mvp3.py POLICIES), chạy trên HybridStation — ADR-018.
+    A_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký
+    trong registry rồi mới thêm giá trị ở đây.
+    """
+
     SIM_B0 = "B0"  # FCFS + Equal Share AC/DC + Fixed Share
     SIM_M2B = "M2b"  # LLF + DC rolling LP + Fixed Share
     SIM_M3A = "M3a"  # LLF + AC/DC LP + Fixed Share (policy tham chiếu cho demo)

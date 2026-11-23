@@ -147,3 +147,34 @@ def test_neon_connection_string_is_normalized_to_psycopg3():
 
 def test_utc_constant_used_in_tests_is_utc():
     assert NOW.astimezone(UTC).hour == 12
+
+
+def _plan_row(version: int, strategy: str) -> tables.SchedulePlanRow:
+    return tables.SchedulePlanRow(
+        version=version,
+        strategy=strategy,
+        created_at=NOW,
+        horizon_start=NOW,
+        step_minutes=15,
+        solve_time_s=None,
+        payload={},
+    )
+
+
+def test_revision_0002_drops_plans_of_removed_lp_strategies(tmp_path):
+    """Phase 4 quyết định 1: lịch lưu của A–D không đọc lại được (enum đã bỏ) → 0002 xoá, lịch B0–M3b giữ nguyên."""
+    url = f"sqlite:///{(tmp_path / 'p.db').as_posix()}"
+    cfg = _alembic_config(url)
+    command.upgrade(cfg, "0001")
+    engine = make_engine(url)
+    try:
+        with Session(engine) as session:
+            for version, strategy in enumerate(["A_fcfs", "A_edf", "B", "C", "D", "B0", "M3a"], start=1):
+                session.add(_plan_row(version, strategy))
+            session.commit()
+        command.upgrade(cfg, "head")
+        with Session(engine) as session:
+            kept = sorted(session.scalars(select(tables.SchedulePlanRow.strategy)).all())
+        assert kept == ["B0", "M3a"]
+    finally:
+        engine.dispose()
