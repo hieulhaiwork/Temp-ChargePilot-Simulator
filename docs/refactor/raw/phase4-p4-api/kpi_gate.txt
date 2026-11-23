@@ -1,0 +1,59 @@
+# module map: docs/refactor/raw/phase2/module_map.txt (4 cặp, không thêm cặp — nhánh api không di chuyển module)
+MVP1 report vs evidence: OK - 0 unexpected, 8 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+[MVP1 report vs evidence] rc=0
+MVP1+mvp3cfg report vs evidence: OK - 0 unexpected, 12 allowed
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+[MVP1+mvp3cfg report vs evidence] rc=0
+MVP1+mvp3cfg DecisionTrace vs evidence: OK - 0 unexpected, 0 allowed
+[MVP1+mvp3cfg DecisionTrace vs evidence] rc=0
+VINFAST report vs evidence: OK - 0 unexpected, 9 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+[VINFAST report vs evidence] rc=0
+MVP2 vs evidence: OK - 0 unexpected, 0 allowed
+[MVP2 vs evidence] rc=0
+MVP3 vs evidence-2026-11-22: OK - 0 unexpected, 16 allowed
+   allowed    /algorithm_metadata/B0/dispatch/AC/implementation
+   allowed    /algorithm_metadata/B0/dispatch/DC/implementation
+   allowed    /algorithm_metadata/B0/optimizers/AC/implementation
+   allowed    /algorithm_metadata/B0/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M2b/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M2b/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M2b/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M2b/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M3a/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M3a/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M3a/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M3a/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M3b/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M3b/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M3b/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M3b/optimizers/DC/implementation
+[MVP3 vs evidence-2026-11-22] rc=0
+compared=6 OVERALL rc=0

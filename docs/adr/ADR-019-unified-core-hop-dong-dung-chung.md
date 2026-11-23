@@ -159,3 +159,21 @@ Chi tiết: `docs/refactor/PHASE3_DESIGN.md`, `docs/refactor/PHASE3_REPORT.md`, 
    còn dùng") đã thoả: `_what_if` không còn dùng.
 8. **Ranh giới:** không nới luật. `SIMULATOR_CORE_TRANSITIONAL` thêm `tests/test_refactor/test_differential.py`
    (test so CLI ↔ backend phải dựng `HybridSimulator` + algorithms của simulator).
+
+## Cập nhật Phase 4 — nhánh `feature/unified-core-p4-api` (2026-11-23, quyết định 1, 5, 8, 9 của Tech Lead)
+
+Chi tiết: `docs/refactor/TECHLEAD_PHASE4_DECISIONS.md`, `docs/refactor/PHASE4_P4-API_REPORT.md`.
+
+1. **A–D bỏ hẳn.** `StrategyName` = B0 / M2b / M3a / M3b (đúng `SIMULATOR_STRATEGIES`); `LIVE_STRATEGY` chỉ nhận 4
+   giá trị này; API trả 422 với A–D. Alembic `0002_drop_lp_strategy_plans` xoá lịch lưu của A–D. Policy mới phải có
+   `Registration` trong registry rồi mới thêm giá trị enum.
+2. **Quote / admission là ước tính có điều kiện, không phải SLA.** `ScheduleProposal.certainty` = `estimate` |
+   `conditional` (conditional ⇔ có phê duyệt HITL chờ trong lúc chạy bản fork, đếm `approvals_pending_for_booking` /
+   `_for_others`), `assumptions` = giả định do code sinh: (a) chỉ biết xe đã đặt lịch / đang ở bãi, (b) không tính sự cố
+   tương lai, (c) lệnh chờ duyệt coi như chưa thực thi. Không mô hình xác suất đồng ý. Test admission ↔ thực thi giữ
+   nguyên, thêm ca có điều kiện.
+3. **Baseline có version.** `eval/evidence/2026-11-23-refactor-phase3-baseline/` (`manifest.json` + bản chép số Phase 3);
+   `GET /simulation/benchmark` đọc thư mục này và trả `BenchmarkReport.source`. Số sinh bằng `eval/run_benchmark.py`
+   mang `source.kind = generated`, không tự thành baseline. Baseline chính thức cuối sinh ở vòng nghiệm thu.
+4. **Archive.** Bảng A–D cũ: `eval/results/archive/2026-11-22-pre-refactor/` (deprecated). Nhãn của evidence lịch sử:
+   `eval/evidence/2026-11-23-refactor-phase4/ARCHIVE_LABELS.md` (evidence cũ không sửa).
