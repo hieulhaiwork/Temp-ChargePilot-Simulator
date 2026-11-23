@@ -31,8 +31,8 @@ from src.models.api import ErrorCode, Notification, NotificationKind
 from src.models.charging import BookingStatus, SchedulePlan
 from src.models.control import Approval, ApprovalStatus, Command, CommandSource, CommandType, DecisionLogEntry, Role
 from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
+from src.models.planning import PlanningContext
 from src.models.station import LoadPoint, StationState
-from src.optimizer.base import PlanningContext
 from src.services import solver
 from src.services.errors import DomainError
 from src.services.runtime import StationRuntime

@@ -7,8 +7,8 @@ config/station.yaml (ADR-010): AC-01-1, AC-02-1 (11 kW), DC-01-1, DC-01-2 (60 kW
 from datetime import datetime, timedelta, timezone
 
 from src.models.charging import Booking, BookingStatus, ChargeMode, ChargeRequest, ConsentScope, EnergyEstimate
+from src.models.planning import PlanningContext
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationState
-from src.optimizer.base import PlanningContext
 from src.services import catalog
 
 VN = timezone(timedelta(hours=7))

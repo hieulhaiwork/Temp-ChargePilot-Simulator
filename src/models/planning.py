@@ -1,8 +1,7 @@
-"""Interface chung của mọi chiến lược lập lịch — A, B, C, D (PRD §8).
+"""Ngữ cảnh lập lịch của backend + Protocol `Scheduler` (chuyển từ `src/optimizer/base.py`, ADR-019 Phase 3).
 
-Vì sao có Protocol (abstraction có lý do cụ thể): benchmark A–D phải chạy CÙNG một
-interface trên cùng tập phiên, cùng biểu giá. Mỗi chiến lược nhận PlanningContext,
-trả SchedulePlan — đổi chiến lược = đổi một dòng ở màn S8 hoặc eval/run_benchmark.py.
+Vì sao ở `src/models`: control_loop, Planning Core backend (`services/hybrid_planner.py`), admission và test cùng dùng;
+không còn thuộc gói LP cũ. Pydantic thuần, không phụ thuộc ORM. Mỗi chiến lược nhận PlanningContext, trả SchedulePlan.
 """
 
 from collections.abc import Mapping

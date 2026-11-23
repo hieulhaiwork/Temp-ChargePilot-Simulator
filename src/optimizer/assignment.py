@@ -19,8 +19,8 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from src.models.charging import Booking, BookingStatus
+from src.models.planning import PlanningContext
 from src.models.station import ConnectorStatus
-from src.optimizer.base import PlanningContext
 
 
 @dataclass(frozen=True)

@@ -13,7 +13,7 @@ Quote / booking (`services/charging_service._what_if`) vẫn dùng `assignment` 
 """
 
 from src.models.charging import StrategyName
-from src.optimizer.base import PlanningContext, Scheduler
+from src.models.planning import PlanningContext, Scheduler
 from src.optimizer.baselines import EdfScheduler, FcfsScheduler, OracleScheduler
 from src.optimizer.mpc import MpcScheduler
 

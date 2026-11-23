@@ -9,9 +9,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.models.charging import ConsentScope, StrategyName
+from src.models.planning import PlanningContext
 from src.models.station import StationState
 from src.optimizer.assignment import assign_connectors
-from src.optimizer.base import PlanningContext
 from src.optimizer.lp_model import solve_power_allocation, solve_with_unmet
 from src.optimizer.strategies import get_scheduler
 from src.services import catalog

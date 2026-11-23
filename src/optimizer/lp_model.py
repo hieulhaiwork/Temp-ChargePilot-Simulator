@@ -34,8 +34,8 @@ from scipy.optimize import linprog
 from scipy.sparse import coo_matrix
 
 from src.models.charging import SchedulePlan, StrategyName
+from src.models.planning import PlanningContext
 from src.optimizer.assignment import Assignment
-from src.optimizer.base import PlanningContext
 from src.optimizer.horizon import build_grid, constraint_groups, prices, session_windows, to_session_plans
 
 

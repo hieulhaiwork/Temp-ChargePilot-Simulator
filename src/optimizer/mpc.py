@@ -13,8 +13,8 @@ Owner: TV1. Task: T2.1.
 from dataclasses import replace
 
 from src.models.charging import SchedulePlan, StrategyName
+from src.models.planning import PlanningContext
 from src.optimizer.assignment import assign_connectors
-from src.optimizer.base import PlanningContext
 from src.optimizer.lp_model import solve_power_allocation
 
 

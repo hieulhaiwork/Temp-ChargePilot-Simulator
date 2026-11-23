@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from src.models.charging import Booking, PowerSlot, SessionPlan
+from src.models.planning import PlanningContext
 from src.optimizer.assignment import Assignment, remaining_kwh
-from src.optimizer.base import PlanningContext
 
 EPS = 1e-6
 

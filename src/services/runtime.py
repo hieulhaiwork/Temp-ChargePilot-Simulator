@@ -30,10 +30,10 @@ from src.models.api import Notification, NotificationKind
 from src.models.charging import Booking, BookingStatus, SchedulePlan, StrategyName
 from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEntry, Role
 from src.models.events import StationEvent, WsMessage, WsMessageType
+from src.models.planning import Scheduler
 from src.models.simulation import Scenario
 from src.models.station import LoadPoint, StationConfig, Tariff
 from src.models.station_protocols import StationSimulator, VehicleVisit
-from src.optimizer.base import Scheduler
 from src.optimizer.strategies import get_scheduler
 from src.simulator.live import LiveStation
 

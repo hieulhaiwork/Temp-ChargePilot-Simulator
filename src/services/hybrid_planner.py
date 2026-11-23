@@ -1,20 +1,19 @@
-"""Bộ lập lịch backend dùng NGUYÊN thuật toán của simulator R&D (M2b / M3a / M3b) — simulator là gốc.
+"""Bộ lập lịch backend: Planning Core của `StationKernel` + bước nghiệp vụ consent (ADR-019 Phase 3).
 
-Vì sao ở `src/services/` chứ không ở `src/optimizer/`: test kiến trúc cấm optimizer import `src.simulator`. Ở đây chỉ
-ghép lại đúng các bước của `src/simulator/src/engine/hybrid.py:HybridSimulator.step` — dispatch theo vùng →
-coordinator chia ngân sách → optimizer theo vùng → Guard vật lý của simulator — trên trạng thái thật của
-`HybridStation`, rồi trả `SchedulePlan` như mọi `Scheduler`. Lệnh vẫn đi `diff_commands` → `guard/dispatcher.py`
-(ADR-002): bộ lập lịch không chạm trạm.
+Không còn bản chép của `HybridSimulator.step`: `decide()` gọi `kernel.propose` (dispatch → coordinator → optimizer →
+Physical Guard, cùng code với simulator standalone) trên trạm đang chạy, rồi áp consent cư dân và `kernel.approve`
+(plan bị consent chỉnh phải qua lại CÙNG Physical Guard). Kết quả thành `SchedulePlan`; lệnh vẫn đi `diff_commands` →
+`guard/dispatcher.py` (7 luật Business Guard + HITL, ADR-002) trước khi tới trạm. Admission (quote / booking) gọi
+CÙNG `decide()` trên bản fork của trạm (`services/admission.py`).
 
-Chọn thuật toán: bảng `POLICIES` của `src/optimizer/registry.py` (nguồn của số MVP-2 / MVP-3), dựng bằng
-`resolve_algorithms` của simulator. Không sửa code simulator.
+Chọn thuật toán: bảng `POLICIES` của `src/optimizer/registry.py`, dựng bằng `resolve_algorithms`, gắn vào kernel của
+trạm qua `HybridStation.configure` (một policy cho mỗi runtime).
 
-[GIẢ ĐỊNH] / khác biệt đã biết so với HybridSimulator.run():
-  - Khoảng quyết định = `optimizer.planning_step_minutes` (15') hoặc tới lần tính lại kế tiếp do sự kiện; simulator chạy
-    tới mốc kế tiếp của kịch bản. Setpoint giữ nguyên giữa hai lần tính; trạm tự cắt theo đường sạc DC mỗi phút.
+[GIẢ ĐỊNH] / khác biệt đã biết so với HybridSimulator.run() (docs/refactor/PHASE3_DESIGN.md §2–§3):
+  - Interval quyết định = tới mốc boundary kế tiếp (xe đến / rời, rút DC, đổi giá TOU), trần
+    `optimizer.planning_step_minutes`; vật lý 1'. Simulator standalone (tương thích) dùng trần `timestep`, vật lý = interval.
   - Biểu giá TOU của backend (`config/tariff.yaml`) đổi sang `Tariff` của simulator cho 48 giờ tới.
-  - Consent của cư dân (lùi giờ / giảm công suất) chưa là ràng buộc của thuật toán simulator — lệnh vượt consent vẫn bị
-    `guard/approval.py` giữ lại chờ duyệt như mọi chiến lược.
+  - Lệnh vượt consent vẫn bị `guard/approval.py` giữ lại chờ duyệt như mọi chiến lược.
 """
 
 import logging
@@ -22,16 +21,14 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from types import MappingProxyType
 
-from src.guard.physical.validator import guard, validate_budgets, validate_dispatch
 from src.models.charging import PowerSlot, SchedulePlan, SessionPlan, StrategyName
+from src.models.decisions import ApprovedDecision, ReasonCode
 from src.models.physical_constraints import TOL, ConstraintViolationError
-from src.models.scheduling.observations import Candidate, VehicleObservation
-from src.models.scheduling.optimization import PowerProposal
+from src.models.planning import PlanningContext
+from src.models.scheduling.observations import Candidate
 from src.models.simulation_core import Tariff as SimTariff
 from src.models.station import Tariff
-from src.optimizer.base import PlanningContext
 from src.optimizer.registry import POLICIES as REGISTRY_POLICIES
 from src.simulator.src.algorithms import Algorithms, resolve_algorithms
 
@@ -44,6 +41,7 @@ POLICIES: Mapping[StrategyName, tuple[str, str, str, str]] = {
     for strategy in (StrategyName.SIM_B0, StrategyName.SIM_M2B, StrategyName.SIM_M3A, StrategyName.SIM_M3B)
 }
 SIMULATOR_STRATEGIES = frozenset(POLICIES)
+POLICY_VERSION = "1"  # B0 / M2b / M3a / M3b đóng băng (registry.POLICIES)
 TARIFF_HORIZON_HOURS = 48
 
 
@@ -53,7 +51,7 @@ def selection(strategy: StrategyName) -> dict:
 
 
 class SimulatorScheduler:
-    """`Scheduler` (src/optimizer/base.py) cho M2b / M3a / M3b. `station` trả HybridStation đang chạy."""
+    """Scheduler (`src/models/planning.py`) cho B0 / M2b / M3a / M3b. `station` trả HybridStation đang chạy."""
 
     def __init__(self, name: StrategyName, station: Callable[[], object]) -> None:
         if name not in POLICIES:
@@ -63,103 +61,62 @@ class SimulatorScheduler:
         self._algorithms: Algorithms | None = None
         self.metadata: dict = {}
         self.last_diagnostics: dict = {}
+        self.configure(station())
 
-    def algorithms(self) -> Algorithms:
+    def algorithms(self, station=None) -> Algorithms:
         if self._algorithms is None:
+            scenario = (station or self._station()).scenario
             self._algorithms, self.metadata = resolve_algorithms(
-                selection(self.name), self._station().scenario, f"backend:{self.name.value}"
+                selection(self.name), scenario, f"backend:{self.name.value}"
             )
         return self._algorithms
+
+    def configure(self, station) -> None:
+        """Gắn policy vào kernel của trạm (giữ qua reset). Fork của admission mang theo cấu hình này."""
+        station.configure(self.algorithms(station), self.name.value, POLICY_VERSION)
+
+    def decide(self, station, ctx: PlanningContext) -> ApprovedDecision:
+        """propose (Planning Core) → consent (nghiệp vụ) → approve (Physical Guard lại nếu bị chỉnh). Gọi dưới khoá trạm."""
+        kernel = station.kernel
+        if kernel.algorithms is not self.algorithms(station):
+            self.configure(station)
+        scenario = replace(kernel.scenario, tariff=_sim_tariff(ctx.tariff, ctx.now, kernel.now))
+        proposal = kernel.propose(scenario=scenario)
+        forced = _start_minimums(ctx, proposal.observation, proposal.interval_minutes)
+        fitted = _fit_with_minimums(
+            proposal.setpoints_kw, forced, proposal.candidates, proposal.budgets.output_kw, proposal.effective_limits
+        )
+        approved = kernel.approve(proposal, fitted, adjustments=forced)
+        self.last_diagnostics = {
+            "policy": {"id": proposal.policy_id, "version": proposal.policy_version},
+            "state_version": proposal.state_version,
+            "interval_minutes": proposal.interval_minutes,
+            "planning_interval_minutes": proposal.planning_interval_minutes,
+            "budgets_kw": dict(proposal.budgets.output_kw),
+            "consent_forced_start_kw": forced,
+            "reason_codes": list(approved.reason_codes),
+            **{zone: proposal.diagnostics[zone] for zone in proposal.diagnostics},
+        }
+        return approved
 
     def plan(self, ctx: PlanningContext) -> SchedulePlan:
         started = time.perf_counter()
         station = self._station()
-        interval = ctx.config.optimizer.planning_step_minutes
+        fallback = ctx.config.optimizer.planning_step_minutes
         # Giữ khoá trạm suốt lúc đọc: plan() chạy trên thread solver, request khác có thể step() trạm cùng lúc.
         with station.lock:
             try:
-                assignments, setpoints, queue = self._decide(station, ctx, interval)
+                approved = self.decide(station, ctx)
+                assignments = dict(approved.proposal.assignments)
+                setpoints = dict(approved.setpoints_kw)
+                interval = approved.proposal.interval_minutes
             except ConstraintViolationError:
-                # Guard simulator từ chối đề xuất: không cấp điện mới, giữ gán cổng hiện tại.
-                logger.exception("%s: Guard simulator từ chối đề xuất — lịch an toàn (0 kW)", self.name.value)
-                assignments, setpoints, queue = {}, {}, list(ctx.state.queue)
+                # REJECTED_BEFORE_APPLY: không cấp điện mới, giữ gán cổng hiện tại (lịch an toàn 0 kW).
+                logger.exception("%s: Physical Guard từ chối đề xuất — lịch an toàn (0 kW)", self.name.value)
+                self.last_diagnostics = {"reason_codes": [ReasonCode.REJECTED_BEFORE_APPLY]}
+                assignments, setpoints, interval = {}, {}, fallback
+            queue = [b for b in ctx.state.queue if b not in assignments.values()]
             return _to_plan(self.name, ctx, station, assignments, setpoints, queue, interval, started)
-
-    # ---- các bước của HybridSimulator.step ---------------------------------------------------
-
-    def _decide(self, station, ctx: PlanningContext, interval: int) -> tuple[dict, dict, list[str]]:
-        algorithms = self.algorithms()
-        base = station.scheduling_observation(interval)
-        scenario = replace(base.scenario, tariff=_sim_tariff(ctx.tariff, ctx.now, base.minute))
-        limits = base.limits()
-
-        # 1. dispatch theo vùng (xe đang chờ → cổng trống), kiểm bằng validate_dispatch của simulator
-        assignments: dict[str, str] = {}
-        for zone, policy in algorithms.dispatch.items():
-            observation = station.dispatch_observation(zone)
-            plan = policy(observation)
-            validate_dispatch(observation, plan)
-            assignments.update(plan)
-
-        # 2. quan sát SAU dispatch (như hybrid.py: candidates gồm cả xe vừa được gán)
-        vehicles = dict(base.vehicles)
-        ports = dict(base.ports)
-        candidates = dict(base.candidates)
-        for port, vid in assignments.items():
-            cabinet, _ = station.queue.connectors[port]
-            item = vehicles[vid]
-            vehicles[vid] = VehicleObservation(item.vehicle, "CHARGING", item.soc, port, base.minute, item.completed_at)
-            ports[port] = vid
-            allowed = min(cabinet.port_kw, station.adapter.acceptance_kw(item.vehicle, interval))
-            candidates[vid] = Candidate(cabinet, allowed)
-        queues = {zone: tuple(v for v in q if v not in assignments.values()) for zone, q in base.queues.items()}
-        observation = replace(
-            base,
-            scenario=scenario,
-            vehicles=MappingProxyType(vehicles),
-            ports=MappingProxyType(ports),
-            queues=MappingProxyType(queues),
-            candidates=MappingProxyType(candidates),
-        )
-
-        # 3. coordinator chia ngân sách vùng, kiểm bằng validate_budgets
-        demand = MappingProxyType(
-            {
-                zone: sum(c.allowed_kw for c in candidates.values() if c.cabinet.zone == zone)
-                for zone in scenario.zone_kw
-            }
-        )
-        budgets = algorithms.coordinator(observation, demand)
-        validate_budgets(observation, budgets)
-
-        # 4. optimizer theo vùng (như HybridSimulator._power_plan)
-        setpoints: dict[str, float] = {}
-        diagnostics: dict = {"budgets_kw": dict(budgets.output_kw)}
-        for zone, optimizer in algorithms.optimizers.items():
-            eligible = {vid: c for vid, c in candidates.items() if c.cabinet.zone == zone}
-            zone_scenario = scenario
-            if not getattr(optimizer, "uses_published_limits", False):
-                zone_scenario = limits.as_optimizer_scenario(scenario)
-            zone_obs = replace(observation, scenario=zone_scenario, candidates=MappingProxyType(eligible))
-            proposal = optimizer(zone_obs, zone, budgets.output_kw[zone])
-            if isinstance(proposal, PowerProposal):
-                diagnostics[zone] = proposal.diagnostics
-                proposal = proposal.output_kw
-            if not isinstance(proposal, Mapping) or proposal.keys() - eligible.keys():
-                raise ConstraintViolationError(f"{zone} optimizer đề xuất xe không hợp lệ")
-            setpoints.update({vid: float(kw) for vid, kw in proposal.items()})
-
-        # 5. Consent cư dân "được lùi giờ bắt đầu tối đa" (backend, ADR-018): quá hạn mà chưa sạc → buộc bắt đầu
-        forced = _start_minimums(ctx, observation, interval)
-        setpoints = _fit_with_minimums(setpoints, forced, candidates, budgets.output_kw, limits)
-        diagnostics["consent_forced_start_kw"] = forced
-
-        # 6. Guard vật lý của simulator trên đề xuất cuối, với ngân sách coordinator vừa giao
-        guard(scenario, candidates, setpoints, budgets.output_kw, limits=limits)
-        self.last_diagnostics = diagnostics
-
-        waiting = [b for b in ctx.state.queue if b not in assignments.values()]
-        return assignments, setpoints, waiting
 
 
 def _start_minimums(ctx: PlanningContext, observation, interval: int) -> dict[str, float]:

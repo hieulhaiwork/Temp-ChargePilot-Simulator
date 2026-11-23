@@ -17,8 +17,8 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from src.models.charging import SchedulePlan, StrategyName
+from src.models.planning import PlanningContext
 from src.optimizer.assignment import Assignment, assign_connectors
-from src.optimizer.base import PlanningContext
 from src.optimizer.horizon import (
     EPS,
     Group,
