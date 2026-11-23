@@ -290,6 +290,8 @@ SIMULATOR_CORE_TRANSITIONAL = {
     "src/simulator/hybrid_station.py",
     "src/services/hybrid_planner.py",
     "tests/test_simulator/test_hybrid_station.py",
+    # Phase 3: differential CLI ↔ backend phải dựng HybridSimulator + algorithms của simulator cạnh HybridStation.
+    "tests/test_refactor/test_differential.py",
 }
 # Stack backend: simulator standalone không được kéo theo
 BACKEND_STACK = ("pydantic", "fastapi", "starlette", "sqlalchemy", "alembic", "langchain", "langgraph", "openai")
