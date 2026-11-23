@@ -18,7 +18,8 @@ TIMING_KEY = re.compile(
     r"^(decision_latency_ms|solver_latency_ms|solver_latency_by_zone_ms|latency_p95_target_ms|solver_ms|"
     r"decision_ms|software|platform|python)$"
 )
-ALLOWED = re.compile(r"^/metadata/(run_id|command|algorithms/.*/config_source)$")
+# command: argv của lần chạy (độ dài hoặc thứ tự tham số CLI có thể khác) — chỉ metadata, không phải kết quả.
+ALLOWED = re.compile(r"^/metadata/(run_id|command(\[\d+\])?|algorithms/.*/config_source)$")
 IMPLEMENTATION = re.compile(r"/implementation$")
 
 

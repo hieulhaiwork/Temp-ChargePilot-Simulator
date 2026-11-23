@@ -13,9 +13,14 @@
 - **Trạng thái**: backend chạy thật (DB, auth, Guard, optimizer, `LiveStation`, WebSocket, chat). Stub còn lại
   (`raise NotImplementedError("[Txx] …")` → 501) chỉ là F6 forecast, đang hoãn (ADR-015).
   Backlog: `grep -rn 'NotImplementedError("\[T' src/ --include=*.py`.
-- **Simulator là gốc** (ADR-018): backend chạy `HybridStation` (`src/simulator/hybrid_station.py`) dựng từ engine
-  `src/simulator/src/` và thuật toán simulator `M3a` (mặc định) / `M3b` / `M2b` / `B0` (`src/services/hybrid_planner.py`).
-  KHÔNG sửa `src/simulator/src/` để cho khớp backend — sửa backend. `LiveStation` chỉ là dự phòng (`STATION_ENGINE=live`).
+- **Simulator là gốc** (ADR-018, ADR-019 Unified Core): backend chạy `HybridStation` (`src/simulator/hybrid_station.py`)
+  dựng từ engine simulator, với policy `M3a` (mặc định) / `M3b` / `M2b` / `B0` (`src/services/hybrid_planner.py`).
+  Refactor Unified Core đang chạy theo phase (`docs/refactor/`, nhánh `feature/unified-core`). Code gốc MVP-1/2/3 chỉ
+  được **di chuyển** (thuật toán: `src/optimizer/{dispatch,zones,coordination,registry.py}`; Physical Guard:
+  `src/guard/physical/validator.py`; hợp đồng: `src/models/{simulation_core,scheduling,physical_*,charging_physics}`),
+  logic giữ nguyên và chứng minh bằng `scripts/refactor/compare_ast_manifest.py`. Vị trí cũ trong `src/simulator/src/`
+  là shim. KHÔNG sửa thuật toán, objective, tham số solver hay vật lý để cho khớp backend — sửa backend.
+  Simulator phải chạy standalone (không FastAPI / DB / LLM). `LiveStation` chỉ là dự phòng (`STATION_ENGINE=live`).
 - **LLM**: `LLM_PROVIDER=openai` (OpenAI, hoặc Gemini / OpenRouter qua `OPENAI_BASE_URL`) · `local` · `mock` (chỉ
   dev/test, cấm ở production). Test và eval offline dùng LLM giả; để `OPENAI_API_KEY` RỖNG khi chưa có key (chuỗi
   placeholder bị coi là key thật).
@@ -67,14 +72,17 @@ make web-check     # lint + typecheck + test + build của frontend/
 
 ```
 src/
-  models/      # hợp đồng dữ liệu Pydantic (không import tầng nào khác)
+  models/      # hợp đồng dữ liệu Pydantic (không import tầng nào khác) + hợp đồng core thuần stdlib (ADR-019):
+               #   simulation_core, scheduling/, physical_constraints, physical_limits, charging_physics, station_protocols
   agents/      # Trụ 1: graph.py, state.py, nodes/, tools/charging.py, guardrails.py, prompts.py
   services/    # tầng ứng dụng: charging_service, station_service, control_loop, runtime, event_bus,
                #   realtime, auth, repository, catalog, energy, llm, errors
-  optimizer/   # Trụ 2: baselines (A, D), mpc + lp_model (B, C), assignment
+  optimizer/   # Trụ 2: dispatch/, zones/ (AC/DC LP), coordination/, registry.py (policy B0/M2b/M3a/M3b) — gốc simulator;
+               #   strategies.py + baselines/mpc/lp_model/assignment: LP backend A–D cũ (quote/booking còn dùng)
   forecast/    # F6: dự báo lúc rút đầu nối (cấm feature unplug_time)
-  guard/       # Trụ 3: rules (7 luật), checker, approval, emergency, dispatcher (chokepoint)
-  simulator/   # base.py (StationReader / StationActuator) · live.py LiveStation (backend) · src/ HybridSimulator (R&D)
+  guard/       # Trụ 3: rules (7 luật), checker, approval, emergency, dispatcher (chokepoint);
+               #   physical/validator.py (Physical Guard gốc) + physical/adapter.py (map DTO backend)
+  simulator/   # src/ engine HybridSimulator (queue, EV2Gym, charging_models, evaluation) · hybrid_station.py · live.py
   db/          # SQLAlchemy: tables (9 bảng), session, mappers
   api/         # REST /api/v1 + WebSocket: auth, catalog, resident, operations, simulation, routes (/chat), ws
 config/        # station.yaml, vehicles.yaml, tariff.yaml, scenarios/
@@ -89,7 +97,7 @@ Chi tiết: `ARCHITECTURE.md` (sườn thư mục, ranh giới, truy vết FR �
 
 ## Quyết định kỹ thuật (ADR ngắn)
 
-Bản đầy đủ: `docs/adr/` (ADR-001 … ADR-018).
+Bản đầy đủ: `docs/adr/` (ADR-001 … ADR-019).
 
 - **Contract-first, stub trả 501** (ADR-004): app luôn khởi động được, `/docs` đủ endpoint, việc còn lại đọc được từ code.
 - **Guard là chokepoint** (ADR-002): mọi lệnh tới trạm, kể cả benchmark, đi qua `guard/dispatcher.py`.

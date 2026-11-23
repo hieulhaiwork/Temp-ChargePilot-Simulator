@@ -80,3 +80,29 @@ mà không cần FastAPI, DB hay LLM, và standalone dùng **cùng** Planning Co
   không chứa trường này. Metadata `implementation` của thuật toán chưa đổi vì thuật toán chưa di chuyển.
 - `tests/test_architecture.py` thêm 9 test (nhóm 7), không xoá hay nới luật cũ.
 - Rủi ro: shim là lớp gián tiếp tạm thời và phải xoá ở Phase 6 khi không còn caller (deletion manifest).
+
+## Cập nhật Phase 2 (2026-11-23)
+
+1. **Thuật toán** đã chuyển về `src/optimizer/`:
+   - `dispatch/` (arrival_order, edf, least_laxity);
+   - `zones/` (ac_lp, rolling_lp, equal_share, deadline_first);
+   - `coordination/` (fixed_budget, dynamic_slack);
+   - `registry.py`: `Registration`, `DISPATCH`, `OPTIMIZERS`, `COORDINATORS`, và **một** bảng `POLICIES`
+     B0/M2b/M3a/M3b, dùng chung cho `benchmark_mvp3` và `hybrid_planner`.
+
+   Phần ghép với vật lý (`Algorithms`, `DC_MODELS`, `resolve_algorithms`) ở lại `src/simulator/src/algorithms.py`.
+2. **Physical Guard gốc** nằm ở `src/guard/physical/validator.py`. Adapter backend nằm ở
+   `src/guard/physical/adapter.py`. `src/guard/physical/__init__.py` chỉ nạp validator; tên cũ của adapter còn dùng
+   được qua `__getattr__` (tương thích tạm).
+3. `StationReader`/`StationActuator`/`VehicleVisit` chuyển sang `src/models/station_protocols.py`, để
+   `guard/dispatcher.py` không import simulator.
+4. `src/optimizer/__init__.py` không import gì. `get_scheduler` nằm ở `src/optimizer/strategies.py`; tên cũ vẫn dùng
+   được qua `__getattr__`.
+5. **Luật ranh giới mới** (`tests/test_architecture.py`):
+   - simulator được import `src.optimizer.{dispatch,zones,coordination,registry}` và `src.guard.physical.validator`,
+     không gì khác của optimizer/guard;
+   - guard cấm import simulator;
+   - gói thuật toán chỉ import hợp đồng core;
+   - đồ thị `models/optimizer/guard/simulator` không vòng, tính cả import tương đối.
+6. Shim ở vị trí cũ là alias `sys.modules` (cùng object module), để test patch `linprog` vẫn tác động đúng
+   implementation. Danh sách shim còn lại: `docs/refactor/PHASE2_REPORT.md` §4.

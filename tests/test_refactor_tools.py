@@ -177,12 +177,41 @@ def test_sim_output_allows_timing_and_run_metadata_only(tmp_path):
     assert result.returncode == 0, result.stdout
 
 
+def test_sim_output_allows_reordered_command_argv_but_not_other_metadata(tmp_path):
+    a = _json(tmp_path, "a.json", _variant(**{"metadata.command": ["run", "--x", "--y"]}))
+    reordered = _json(tmp_path, "b.json", _variant(**{"metadata.command": ["run", "--y", "--x"]}))
+    assert _run("compare_sim_output.py", a, reordered, "t").returncode == 0
+    other = _variant(**{"metadata.command": ["run", "--x", "--y"]})
+    other["metadata"]["engine"] = "changed"
+    assert _run("compare_sim_output.py", a, _json(tmp_path, "c.json", other), "t").returncode == 1
+
+
 def test_sim_output_fails_on_kpi_change(tmp_path):
     for field, value in (("on_time", 8), ("rejected_solver_plan_count", 1)):
         other = _variant(**{f"cases.0.policies.M3a.{field}": value})
         result = _run("compare_sim_output.py", _json(tmp_path, "a.json", BASE), _json(tmp_path, "b.json", other), "t")
         assert result.returncode == 1, field
         assert field in result.stdout
+
+
+def _bench(*runs) -> dict:
+    return {
+        "runs": [
+            {"scenario_id": sc, "strategy": st, "notes": f"30 phiên (seed {seed})", "kpis": kpis}
+            for sc, st, seed, kpis in runs
+        ]
+    }
+
+
+def test_backend_benchmark_gate(tmp_path):
+    base = _bench(("hybrid_evening", "M3a", 1, {"on_time_rate": 0.4, "replan_p95_seconds": 0.02}))
+    same = _bench(("hybrid_evening", "M3a", 1, {"on_time_rate": 0.4, "replan_p95_seconds": 0.09}))
+    kpi = _bench(("hybrid_evening", "M3a", 1, {"on_time_rate": 0.41, "replan_p95_seconds": 0.02}))
+    missing = _bench(("hybrid_evening", "M3a", 2, {"on_time_rate": 0.4, "replan_p95_seconds": 0.02}))
+    a = _json(tmp_path, "a.json", base)
+    assert _run("compare_backend_benchmark.py", a, _json(tmp_path, "b.json", same)).returncode == 0
+    assert _run("compare_backend_benchmark.py", a, _json(tmp_path, "c.json", kpi)).returncode == 1
+    assert _run("compare_backend_benchmark.py", a, _json(tmp_path, "d.json", missing)).returncode == 1
 
 
 def test_sim_output_implementation_path_needs_declared_module_map(tmp_path):
