@@ -29,6 +29,8 @@ from src.models.control import Approval, ApprovalKind, Command, DecisionLogEntry
 from src.models.events import WsMessage, WsMessageType
 from src.models.station_protocols import StationActuator
 
+SAFETY_REDUCTION_NOTE = "Giảm tải an toàn"  # tiền tố ghi chú: giảm tải được ưu tiên, không chờ HITL (ADR-019 Phase 4)
+
 
 @dataclass(frozen=True)
 class DispatchSinks:
@@ -80,7 +82,7 @@ async def submit(
         kind = approval_rules.requires_approval(cmd, booking)
         if kind is not None and is_safety_reduction(cmd, ctx):
             # Fail-safe (ADR-019 Phase 4, quyết định 3): giảm tải khi trạm đang vượt trần cứng không chờ người duyệt.
-            notes[i] = f"Giảm tải an toàn — thực thi ngay, không chờ {kind.value} (trạm đang vượt trần cứng)"
+            notes[i] = f"{SAFETY_REDUCTION_NOTE} — thực thi ngay, không chờ {kind.value} (trạm đang vượt trần cứng)"
             kind = None
         if kind is None:
             to_apply.append((i, cmd))

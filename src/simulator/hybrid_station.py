@@ -31,6 +31,7 @@ import functools
 import logging
 import math
 import threading
+from collections import deque
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -39,7 +40,7 @@ from zoneinfo import ZoneInfo
 
 from src.models.charging_physics import DCChargingModel
 from src.models.control import Command, CommandType
-from src.models.decisions import ApprovedDecision, TimeConfig
+from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
 from src.models.physical_limits import EffectiveLimits
 from src.models.scheduling.observations import SchedulingObservation
@@ -48,14 +49,16 @@ from src.models.simulation import Scenario as BackendScenario
 from src.models.simulation_core import Cabinet, Scenario, Vehicle
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationConfig, StationState
 from src.models.station_protocols import VehicleVisit
-from src.simulator.core.algorithms import Algorithms, default_algorithms
+from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms
 from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
 from src.simulator.core.ev2gym_adapter import EV2GymAdapter
 from src.simulator.core.kernel import SOC_TOL, StationKernel
 from src.simulator.core.queue import QueueController, Session
+from src.simulator.evaluation.trace import decision_record
 
 logger = logging.getLogger(__name__)
 EPS = 1e-6
+APPLIED_BUFFER_STEPS = 24 * 60  # tối đa một ngày bước 1' giữa hai lần drain (vòng nền drain ≤ 15')
 # Độ phân giải lệnh công suất: control_loop.diff_commands không gửi lệnh khi đổi < POWER_TOL_KW (khoá bằng test).
 COMMAND_RESOLUTION_KW = 0.01
 END_MINUTE = 10**9  # "end rất lớn" — trạm live không có chân trời
@@ -182,6 +185,8 @@ class HybridStation:
         self.available_power_kw = available_kw
         self._visits: dict[str, VehicleVisit] = {}
         self._events: list[StationEvent] = []
+        # Kết quả từng bước vật lý từ lần drain trước — DecisionTrace backend đóng quyết định bằng số đo thật.
+        self._applied: deque[AppliedResult] = deque(maxlen=APPLIED_BUFFER_STEPS)
 
     def configure(self, algorithms: Algorithms, policy_id: str, policy_version: str = "1") -> None:
         """Chọn policy (thuật toán) cho Planning Core của kernel — composition root gọi một lần."""
@@ -288,6 +293,7 @@ class HybridStation:
         kernel = self.kernel
         for _ in range(max(minutes, 0)):
             result = kernel.advance(kernel.now + 1)
+            self._applied.append(result)
             if result.budget_deviation_kw and not kernel._deviation_reported:
                 # Assigned budget (Coordinator) ≠ hard cap: vượt budget không phải vi phạm vật lý — ghi + tính lại một lần.
                 kernel._deviation_reported = True
@@ -416,6 +422,7 @@ class HybridStation:
         twin.is_fork = True
         twin._visits = dict(self._visits)
         twin._events = []
+        twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
         twin.kernel = self.kernel.fork(emit=twin._emit)
         return twin
 
@@ -425,6 +432,83 @@ class HybridStation:
             raise RuntimeError("apply_approved chỉ dùng cho bản fork (admission); trạm thật đi guard/dispatcher.py")
         with self.lock:
             self.kernel.apply_approved(approved)
+
+    # ---- DecisionTrace (ADR-019 Phase 4, quyết định 6) ----------------------------------
+
+    @_locked
+    def drain_applied(self) -> list[AppliedResult]:
+        """Kết quả các bước vật lý từ lần gọi trước (rồi xoá) — để đóng DecisionTrace của quyết định đang hiệu lực."""
+        results, self._applied = list(self._applied), deque(maxlen=APPLIED_BUFFER_STEPS)
+        return results
+
+    @_locked
+    def decision_facts(self, approved: ApprovedDecision, results: Sequence[AppliedResult]) -> dict:
+        """Facts của một quyết định theo ĐÚNG schema DecisionTrace của simulator (`evaluation/trace.decision_record`).
+
+        `results`: các bước vật lý đã chạy dưới quyết định này. Công suất thực = trung bình theo thời gian, năng lượng
+        nạp = tổng; khoảng = số phút thực sự chạy (quyết định có thể bị thay sớm bởi sự kiện). Chưa chạy phút nào thì
+        giữ khoảng đã lập kế hoạch và công suất thực 0.
+        """
+        proposal = approved.proposal
+        minutes = sum(r.end - r.minute for r in results)
+        kw_minutes: dict[str, float] = {}
+        stored: dict[str, float] = {}
+        for result in results:
+            for vid, kw in result.actual_kw.items():
+                kw_minutes[vid] = kw_minutes.get(vid, 0.0) + kw * (result.end - result.minute)
+            for vid, kwh in result.stored_kwh.items():
+                stored[vid] = stored.get(vid, 0.0) + kwh
+        observation = proposal.observation
+        if minutes > 0 and minutes != observation.interval_minutes:
+            observation = replace(observation, interval_minutes=minutes)
+        power_by_vehicle = {
+            vid: {
+                "requested_output_kw": approved.setpoints_kw.get(vid, 0.0),
+                "allowed_output_kw": candidate.allowed_kw,
+                "actual_output_kw": kw_minutes.get(vid, 0.0) / minutes if minutes else 0.0,
+            }
+            for vid, candidate in proposal.candidates.items()
+        }
+        return decision_record(
+            observation,
+            proposal.dispatch,
+            proposal.assignments,
+            proposal.demand,
+            proposal.budgets,
+            algorithm_labels(self.kernel.algorithms),
+            power_by_vehicle,
+            {vid: stored.get(vid, 0.0) for vid in proposal.candidates},
+            proposal.diagnostics,
+        )
+
+    def guard_inputs(self, approved: ApprovedDecision) -> dict:
+        """Đúng đầu vào Physical Guard đã dùng cho quyết định (để replay / debug lại phán quyết từ trace)."""
+        proposal = approved.proposal
+        limits = proposal.effective_limits
+        return {
+            "candidates": {
+                vid: {
+                    "cabinet": c.cabinet.id,
+                    "zone": c.cabinet.zone,
+                    "ports": c.cabinet.ports,
+                    "port_kw": c.cabinet.port_kw,
+                    "cabinet_kw": c.cabinet.output_kw,
+                    "allowed_kw": c.allowed_kw,
+                }
+                for vid, c in proposal.candidates.items()
+            },
+            "budgets_kw": dict(proposal.budgets.output_kw),
+            "limits": {
+                "minute": limits.minute,
+                "conversion": limits.conversion,
+                "grid_input_kw": limits.grid_input_kw,
+                "zone_output_kw": dict(limits.zone_output_kw),
+                "cabinet_output_kw": dict(limits.cabinet_output_kw),
+                "independent_grid_input_kw": None
+                if limits.independent_grid_input_kw is None
+                else dict(limits.independent_grid_input_kw),
+            },
+        }
 
     # ---- Báo cáo cho KPI (benchmark) ----------------------------------------------------
 

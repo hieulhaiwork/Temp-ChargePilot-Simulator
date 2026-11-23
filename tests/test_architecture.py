@@ -342,6 +342,8 @@ SIMULATOR_INTERNAL_CONSUMERS = {
     "tests/test_refactor/test_differential.py",
     # chính bộ kiểm này (test_one_station_kernel_drives_offline_and_backend)
     "tests/test_architecture.py",
+    # DecisionTrace backend phải có ĐÚNG schema của DecisionTrace HybridSimulator (dựng bản offline để so)
+    "tests/test_services/test_decision_trace.py",
 }
 SIMULATOR_INTERNALS = ("src.simulator.core", "src.simulator.hybrid", "src.simulator.evaluation")
 # Stack backend: simulator standalone không được kéo theo

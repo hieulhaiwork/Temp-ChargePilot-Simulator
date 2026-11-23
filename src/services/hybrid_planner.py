@@ -62,6 +62,7 @@ class SimulatorScheduler:
         self._algorithms: Algorithms | None = algorithms
         self.metadata: dict = {}
         self.last_diagnostics: dict = {}
+        self.last_approved: ApprovedDecision | None = None
         self.configure(station())
 
     def algorithms(self, station=None) -> Algorithms:
@@ -106,8 +107,10 @@ class SimulatorScheduler:
         fallback = ctx.config.optimizer.planning_step_minutes
         # Giữ khoá trạm suốt lúc đọc: plan() chạy trên thread solver, request khác có thể step() trạm cùng lúc.
         with station.lock:
+            self.last_approved = None
             try:
                 approved = self.decide(station, ctx)
+                self.last_approved = approved  # DecisionTrace backend (services/decision_trace.py)
                 assignments = dict(approved.proposal.assignments)
                 setpoints = dict(approved.setpoints_kw)
                 interval = approved.proposal.interval_minutes

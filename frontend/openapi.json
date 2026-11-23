@@ -592,6 +592,18 @@
             "title": "Connector Id",
             "type": "string"
           },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "DecisionTrace của lần tính lại sinh lệnh này (ADR-019 Phase 4) — None nếu không có",
+            "title": "Correlation Id"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",

@@ -69,6 +69,9 @@ class Command(BaseModel):
     based_on_state_at: AwareDatetime = Field(description="Luật dữ liệu cũ (FR12)")
     created_at: AwareDatetime
     reason: str = ""
+    correlation_id: str | None = Field(
+        default=None, description="DecisionTrace của lần tính lại sinh lệnh này (ADR-019 Phase 4) — None nếu không có"
+    )
 
     @model_validator(mode="after")
     def _check_payload(self) -> "Command":

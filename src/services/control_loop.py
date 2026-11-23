@@ -23,6 +23,7 @@ import logging
 import time
 from datetime import timedelta
 from typing import Literal
+from uuid import uuid4
 
 from src.guard import approval as approval_rules
 from src.guard import dispatcher, emergency
@@ -42,7 +43,7 @@ from src.models.control import (
 from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
 from src.models.planning import PlanningContext
 from src.models.station import LoadPoint, StationState
-from src.services import solver
+from src.services import decision_trace, solver
 from src.services.errors import DomainError
 from src.services.runtime import StationRuntime
 
@@ -64,27 +65,45 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
     """
     async with rt.lock:
         started = time.perf_counter()
+        correlation_id = uuid4().hex  # DecisionTrace của lần tính lại này; gắn vào mọi Command nó sinh ra
         side_events = (*rt.sync_clock(), *batch)
+        # Quyết định trước kết thúc tại đây: đóng trace của nó bằng số đo vật lý thật tới thời điểm này.
+        decision_trace.close_open(rt)
         for e in (*side_events, event):
             rt.store.record_event(e)
             await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
+        emergency_entries: list[DecisionLogEntry] = []
         if event.type == EventType.POWER_LIMIT_CHANGED and event.new_power_limit_kw is not None:
-            await _emergency(rt, event.new_power_limit_kw)
+            emergency_entries = await _emergency(rt, event.new_power_limit_kw, correlation_id)
         _sync_booking_status(rt, (*side_events, event))
 
         ctx = build_planning_context(rt)
         plan = await solver.run_async(rt.scheduler.plan, ctx)
         version = max(rt.plan.version if rt.plan else 0, ctx.state.schedule_version) + 1
         plan = plan.model_copy(update={"version": version})
-        commands = _filter_held(rt, diff_commands(rt.plan, plan, ctx.state))
+        wanted = [
+            c.model_copy(update={"correlation_id": correlation_id}) for c in diff_commands(rt.plan, plan, ctx.state)
+        ]
+        commands = _filter_held(rt, wanted)
+        entries = []
         if commands:
-            await dispatcher.submit(
+            entries = await dispatcher.submit(
                 commands,
                 build_guard_context(rt, None),
                 rt.simulator,
                 rt.sinks,
                 approval_ttl_minutes=rt.config.guard.approval_ttl_minutes,
             )
+        decision_trace.open_trace(
+            rt,
+            correlation_id=correlation_id,
+            event=event,
+            batch=side_events,
+            plan=plan,
+            entries=entries,
+            emergency=emergency_entries,
+            held_for_approval={c.booking_id for c in wanted if c not in commands and c.booking_id},
+        )
         rt.plan = plan
         rt.store.save_plan(plan)
         _sync_booking_status(rt, ())
@@ -300,12 +319,15 @@ def diff_commands(previous: SchedulePlan | None, new: SchedulePlan, state: Stati
 # ---- nội bộ ------------------------------------------------------------------------------
 
 
-async def _emergency(rt: StationRuntime, new_limit_kw: float) -> None:
-    """AC5: hạ công suất NGAY, độc lập optimizer; báo cư dân SAU."""
+async def _emergency(
+    rt: StationRuntime, new_limit_kw: float, correlation_id: str | None = None
+) -> list[DecisionLogEntry]:
+    """AC5: hạ công suất NGAY, độc lập optimizer; báo cư dân SAU. Trả nhật ký lệnh (cho DecisionTrace)."""
     state = rt.simulator.state()
     commands = emergency.curtail_to_limit(state, new_limit_kw, rt.clock(), rt.config.power_conversion_efficiency)
     if not commands:
-        return
+        return []
+    commands = [c.model_copy(update={"correlation_id": correlation_id}) for c in commands]
     entries = await dispatcher.submit(commands, build_guard_context(rt, None), rt.simulator, rt.sinks)
     bookings = {b.booking_id: b for b in rt.store.active_bookings()}
     for entry in entries:
@@ -321,6 +343,7 @@ async def _emergency(rt: StationRuntime, new_limit_kw: float) -> None:
         )
         rt.store.add_notification(booking.resident_id, note)
         await rt.sinks.notify(_ws(WsMessageType.NOTIFICATION, note, rt), booking.resident_id)
+    return entries
 
 
 def _filter_held(rt: StationRuntime, commands: list[Command]) -> list[Command]:

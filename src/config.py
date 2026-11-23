@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     # Chiến lược chạy thật: mặc định M3a — policy tham chiếu cho demo (SIMULATOR_INTEGRATION_CONTRACT.md §2).
     live_strategy: str = "M3a"
     sim_time_scale: float = Field(default=1.0, gt=0, le=3600)  # 1 = thời gian thật; 60 = 1 phút thật = 1 giờ mô phỏng
+    # DecisionTrace backend (ADR-019 Phase 4, quyết định 6): tóm tắt vận hành luôn vào DB (bảng decision_traces);
+    # trace chi tiết (JSONL, một file / ngày) chỉ ghi khi đặt thư mục này — artifact có kiểm soát, không commit.
+    decision_trace_dir: str = ""
     # ADR-008: chỉ đặt ở backend TEST để nhận URL preview của Vercel; production dùng cors_origins chính xác.
     cors_origin_regex: str = ""
 

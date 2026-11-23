@@ -1080,6 +1080,11 @@ export interface components {
             /** Connector Id */
             connector_id: string;
             /**
+             * Correlation Id
+             * @description DecisionTrace của lần tính lại sinh lệnh này (ADR-019 Phase 4) — None nếu không có
+             */
+            correlation_id?: string | null;
+            /**
              * Created At
              * Format: date-time
              */
