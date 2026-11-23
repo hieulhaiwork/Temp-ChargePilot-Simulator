@@ -1,7 +1,8 @@
-"""Shared tolerance and error for physical validation."""
+"""Compatibility re-export (ADR-019 Phase 1): tolerance and error moved to `src.models.physical_constraints`.
 
-TOL = 1e-7
+`valid_kw` (formerly defined in `safety/guard.py`) lives there too; it is re-exported here for `safety.guard`.
+"""
 
+from src.models.physical_constraints import TOL, ConstraintViolationError, valid_kw
 
-class ConstraintViolationError(ValueError):
-    pass
+__all__ = ["TOL", "ConstraintViolationError", "valid_kw"]

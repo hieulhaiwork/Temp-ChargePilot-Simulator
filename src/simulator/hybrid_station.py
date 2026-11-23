@@ -42,22 +42,22 @@ from datetime import datetime, timedelta
 from types import MappingProxyType
 from zoneinfo import ZoneInfo
 
+from src.models.charging_physics import DCChargingModel
 from src.models.control import Command, CommandType
 from src.models.events import EventType, StationEvent
+from src.models.physical_constraints import ConstraintViolationError
+from src.models.physical_limits import EffectiveLimits, effective_limits
+from src.models.scheduling.dispatch import DispatchObservation
+from src.models.scheduling.observations import Candidate, SchedulingObservation, VehicleObservation
 from src.models.simulation import Incident, IncidentType, SessionOutcome
 from src.models.simulation import Scenario as BackendScenario
+from src.models.simulation_core import Cabinet, Scenario, Vehicle
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationConfig, StationState
 from src.simulator.base import VehicleVisit
-from src.simulator.src.charging_models.base import DCChargingModel
 from src.simulator.src.charging_models.synthetic_dc import SyntheticTaperV1
-from src.simulator.src.dispatch.base import DispatchObservation
 from src.simulator.src.engine.ev2gym_adapter import EV2GymAdapter
 from src.simulator.src.engine.queue import QueueController, Session
-from src.simulator.src.observations import Candidate, SchedulingObservation, VehicleObservation
-from src.simulator.src.safety.constraints import ConstraintViolationError
 from src.simulator.src.safety.guard import guard, validate_response
-from src.simulator.src.safety.limits import EffectiveLimits, effective_limits
-from src.simulator.src.scenario import Cabinet, Scenario, Vehicle
 
 logger = logging.getLogger(__name__)
 EPS = 1e-6

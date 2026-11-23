@@ -21,10 +21,13 @@ if __package__:
     from .src.safety.constraints import ConstraintViolationError
     from .src.scenario import Scenario
 else:
-    from src.algorithms import resolve_algorithms
-    from src.engine.hybrid import HybridSimulator
-    from src.safety.constraints import ConstraintViolationError
-    from src.scenario import Scenario
+    # Script mode (`python src/simulator/run.py`): put the repository root first so `src` is the repository package
+    # and shared contracts in `src.models` resolve (ADR-019). Only this entrypoint bootstraps the path.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from src.simulator.src.algorithms import resolve_algorithms
+    from src.simulator.src.engine.hybrid import HybridSimulator
+    from src.simulator.src.safety.constraints import ConstraintViolationError
+    from src.simulator.src.scenario import Scenario
 
 ROOT = Path(__file__).resolve().parent
 SCENARIOS = ROOT / "scenario"

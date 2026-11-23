@@ -14,14 +14,14 @@ from collections.abc import Mapping
 from math import inf
 
 from src.models.charging import Booking
+from src.models.physical_constraints import TOL, ConstraintViolationError
+from src.models.physical_limits import EffectiveLimits
+from src.models.scheduling.dispatch import DispatchObservation
+from src.models.scheduling.observations import Candidate, VehicleObservation
+from src.models.simulation_core import Cabinet, Vehicle
 from src.models.station import ConnectorSpec, ConnectorState, ConnectorStatus, StationConfig, StationState, SupplyMode
-from src.simulator.src.dispatch.base import DispatchObservation
-from src.simulator.src.observations import Candidate, VehicleObservation
-from src.simulator.src.safety.constraints import TOL, ConstraintViolationError
 from src.simulator.src.safety.guard import guard as simulator_guard
 from src.simulator.src.safety.guard import validate_dispatch
-from src.simulator.src.safety.limits import EffectiveLimits
-from src.simulator.src.scenario import Cabinet, Vehicle
 
 EMPTY_PREFIX = "(cổng trống) "  # mã "xe" giả cho cổng không có xe — không bao giờ là ứng viên hợp lệ
 

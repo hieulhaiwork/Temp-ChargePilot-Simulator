@@ -16,11 +16,11 @@ pytest.importorskip("ev2gym")
 from src.models.control import Command, CommandSource, CommandType  # noqa: E402
 from src.models.events import EventType  # noqa: E402
 from src.models.simulation import Incident, IncidentType  # noqa: E402
+from src.models.simulation_core import Scenario  # noqa: E402
 from src.services import catalog  # noqa: E402
 from src.simulator.base import VehicleVisit  # noqa: E402
 from src.simulator.hybrid_station import HybridStation  # noqa: E402
 from src.simulator.src.engine.hybrid import HybridSimulator  # noqa: E402
-from src.simulator.src.scenario import Scenario  # noqa: E402
 from tests.factories import NOW  # noqa: E402
 
 MVP1 = Path(__file__).resolve().parents[2] / "src" / "simulator" / "scenario" / "mvp1.json"

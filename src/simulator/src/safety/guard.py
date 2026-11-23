@@ -2,19 +2,14 @@
 
 from collections import defaultdict
 from collections.abc import Mapping
-from math import isclose, isfinite
-from numbers import Real
+from math import isclose
 
 from ..coordination.base import ZoneBudgets
 from ..dispatch.base import DispatchObservation
 from ..observations import Candidate, SchedulingObservation
 from ..scenario import Scenario, Vehicle
-from .constraints import TOL, ConstraintViolationError
+from .constraints import TOL, ConstraintViolationError, valid_kw  # valid_kw: src.models.physical_constraints (ADR-019)
 from .limits import EffectiveLimits, effective_limits
-
-
-def valid_kw(value, upper: float) -> bool:
-    return isinstance(value, Real) and not isinstance(value, bool) and 0 <= value <= upper + TOL and isfinite(value)
 
 
 def validate_dispatch(observation: DispatchObservation, plan: Mapping[str, str]) -> None:

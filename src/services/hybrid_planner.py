@@ -25,14 +25,14 @@ from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 
 from src.models.charging import PowerSlot, SchedulePlan, SessionPlan, StrategyName
+from src.models.physical_constraints import TOL, ConstraintViolationError
+from src.models.scheduling.observations import Candidate, VehicleObservation
+from src.models.scheduling.optimization import PowerProposal
+from src.models.simulation_core import Tariff as SimTariff
 from src.models.station import Tariff
 from src.optimizer.base import PlanningContext
 from src.simulator.src.algorithms import Algorithms, resolve_algorithms
-from src.simulator.src.observations import Candidate, VehicleObservation
-from src.simulator.src.optimizers.base import PowerProposal
-from src.simulator.src.safety.constraints import TOL, ConstraintViolationError
 from src.simulator.src.safety.guard import guard, validate_budgets, validate_dispatch
-from src.simulator.src.scenario import Tariff as SimTariff
 
 logger = logging.getLogger(__name__)
 
