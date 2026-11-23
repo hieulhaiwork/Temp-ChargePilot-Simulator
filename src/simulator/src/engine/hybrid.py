@@ -80,6 +80,7 @@ class StationKernel:
         self.active_budget_kw: Mapping[str, float] | None = None
         self.next_decision_minute: int | None = None
         self._deviation_reported = False
+        self.command_resolution_kw = 0.0  # actuator quantisation per connector (backend: control_loop.POWER_TOL_KW)
         self.rejected_allocation_count = 0
         self.applied_constraint_violation_count = 0
         self.budget_deviation_count = 0
@@ -536,8 +537,10 @@ class StationKernel:
             budget = assigned_kw if assigned_kw is not None else self.active_budget_kw
             if not self.strict and budget:
                 for zone, cap in budget.items():
-                    total = sum(kw for vid, kw in actual.items() if step_candidates[vid].cabinet.zone == zone)
-                    if total > cap + TOL:
+                    members = [vid for vid in actual if step_candidates[vid].cabinet.zone == zone]
+                    total = sum(actual[vid] for vid in members)
+                    # Held setpoints are quantised by the actuator (command resolution per connector), not a deviation.
+                    if total > cap + max(TOL, self.command_resolution_kw * len(members)):
                         deviation[zone] = max(deviation.get(zone, 0.0), total - cap)
             self.now = end
             self.state_version += 1
@@ -546,7 +549,8 @@ class StationKernel:
                 break
         if deviation:
             self.budget_deviation_count += 1
-            LOGGER.warning("minute=%s actual zone output above the assigned budget: %s", start, deviation)
+            if not self._deviation_reported:
+                LOGGER.warning("minute=%s actual zone output above the assigned budget: %s", start, deviation)
         duration = self.now - start
         if steps == 1:
             actual_kw = last_actual

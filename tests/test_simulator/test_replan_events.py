@@ -115,3 +115,17 @@ def test_next_decision_is_capped_by_the_planning_step_and_by_departures():
         replace(context([booking("long", zone="AC", kwh=5, hours=10)], sim.state()), tariff=_tariff(time(22)))
     )
     assert sim.next_decision_at == sim.now + timedelta(minutes=sim.config.optimizer.planning_step_minutes)
+
+
+def test_command_resolution_matches_the_control_loop_and_is_not_a_budget_deviation():
+    from src.services import control_loop
+    from src.simulator import hybrid_station
+
+    assert hybrid_station.COMMAND_RESOLUTION_KW == control_loop.POWER_TOL_KW
+    sim = HybridStation(catalog.load_station_config(), start=NOW)
+    sim.upsert_vehicle(_visit("ac"))
+    sim.apply_commands(
+        [_cmd(CommandType.ASSIGN_CONNECTOR, "AC-01-1", "ac"), _cmd(CommandType.SET_POWER, "AC-01-1", "ac", 11)]
+    )
+    sim.kernel.active_budget_kw = {"AC": 10.995, "DC": 78.0}  # lệnh cũ chưa được gửi lại vì chênh < 0,01 kW
+    assert sim.step(3) == [] and sim.kernel.budget_deviation_count == 0

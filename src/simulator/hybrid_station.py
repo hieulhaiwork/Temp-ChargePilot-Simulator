@@ -56,6 +56,8 @@ from src.simulator.src.engine.queue import QueueController, Session
 
 logger = logging.getLogger(__name__)
 EPS = 1e-6
+# Độ phân giải lệnh công suất: control_loop.diff_commands không gửi lệnh khi đổi < POWER_TOL_KW (khoá bằng test).
+COMMAND_RESOLUTION_KW = 0.01
 END_MINUTE = 10**9  # "end rất lớn" — trạm live không có chân trời
 
 
@@ -176,6 +178,7 @@ class HybridStation:
             policy_version=self._policy[1],
             emit=self._emit,
         )
+        self.kernel.command_resolution_kw = COMMAND_RESOLUTION_KW
         self.available_power_kw = available_kw
         self._visits: dict[str, VehicleVisit] = {}
         self._events: list[StationEvent] = []
