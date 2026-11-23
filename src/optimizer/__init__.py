@@ -1,35 +1,28 @@
-"""Bộ tối ưu (F2/F3) — trụ 2 của nguyên tắc: "Bộ tối ưu tính phương án". Owner: TV1.
+"""Bộ tối ưu — trụ 2: "Bộ tối ưu tính phương án". Một nơi sở hữu thuật toán điều phối / lập lịch (ADR-019).
 
-Ranh giới (tests/test_architecture.py): optimizer là code THUẦN — nhận PlanningContext,
-trả SchedulePlan. Không đọc file, không gọi API/LLM/DB, không gửi lệnh tới simulator.
-Nhờ vậy benchmark A–D chạy cùng interface, cùng tập phiên, cùng biểu giá (PRD §8).
+Gói này KHÔNG import gì lúc nạp: simulator standalone import các gói con thuần (không Pydantic / FastAPI / DB).
 
-    base.py        PlanningContext + Scheduler Protocol
-    baselines.py   A (FCFS, EDF) và D (oracle)
-    mpc.py         B / C — MPC cửa sổ trượt
-    lp_model.py    bài LP của một bước MPC (công thức ở docstring)
-    assignment.py  gán đầu nối + hàng đợi (FR7)
+    dispatch/       FCFS/FIFO, EDF, LLF (gán xe chờ → cổng trống)        — code gốc simulator MVP-1/2/3
+    zones/          AC 2-stage LP, DC rolling LP, equal share, deadline first — code gốc simulator
+    coordination/   Fixed budget / Fixed share, Dynamic slack             — code gốc simulator
+    registry.py     MỘT registry thuật toán + bảng policy B0/M2b/M3a/M3b
+    strategies.py   chiến lược backend A–D (`get_scheduler`) — LP / MPC cũ, còn dùng cho quote/booking
+    base.py, baselines.py, mpc.py, lp_model.py, horizon.py, assignment.py — LP backend cũ (chưa xoá)
+
+Ranh giới (tests/test_architecture.py): không import simulator, guard, services, agents, api, db, forecast.
 """
 
-from src.models.charging import StrategyName
-from src.optimizer.base import PlanningContext, Scheduler
-from src.optimizer.baselines import EdfScheduler, FcfsScheduler, OracleScheduler
-from src.optimizer.mpc import MpcScheduler
-
-__all__ = ["PlanningContext", "Scheduler", "get_scheduler"]
+_COMPAT = {"get_scheduler", "PlanningContext", "Scheduler"}
 
 
-def get_scheduler(name: StrategyName) -> Scheduler:
-    """Một chiến lược cho mỗi mã A–D — dùng chung cho benchmark và màn S8."""
-    match name:
-        case StrategyName.FCFS:
-            return FcfsScheduler()
-        case StrategyName.EDF:
-            return EdfScheduler()
-        case StrategyName.OPT_NO_ML:
-            return MpcScheduler(use_forecast=False)
-        case StrategyName.OPT_ML:
-            return MpcScheduler(use_forecast=True)
-        case StrategyName.ORACLE:
-            return OracleScheduler()
-    raise ValueError(f"Chiến lược không hỗ trợ: {name!r}")
+def __getattr__(name: str):
+    """Tương thích tạm (ADR-019 Phase 2, xoá ở Phase 6): `from src.optimizer import get_scheduler` vẫn chạy.
+
+    Chỉ nạp `strategies` (kéo theo Pydantic) khi có người truy cập đúng các tên cũ này, nên `import src.optimizer.dispatch`
+    của simulator standalone không chạm stack backend.
+    """
+    if name in _COMPAT:
+        from src.optimizer import strategies
+
+        return getattr(strategies, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

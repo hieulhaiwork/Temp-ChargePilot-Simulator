@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 
 from src.models.charging import StrategyName
-from src.optimizer import get_scheduler
+from src.optimizer.strategies import get_scheduler
 from src.services import catalog, simulation_service
 from tests.factories import NOW, booking, context, energy_of, state
 
