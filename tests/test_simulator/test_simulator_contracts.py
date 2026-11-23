@@ -13,8 +13,8 @@ import pytest
 from src.models.control import Command, CommandSource, CommandType
 from src.models.events import EventType, StationEvent
 from src.models.simulation import Incident, IncidentType, KpiReport, SessionOutcome
+from src.models.station_protocols import StationActuator, StationReader, VehicleVisit
 from src.services import catalog, simulation_service
-from src.simulator.base import StationActuator, StationReader, VehicleVisit
 from src.simulator.live import LiveStation
 from tests.factories import NOW
 

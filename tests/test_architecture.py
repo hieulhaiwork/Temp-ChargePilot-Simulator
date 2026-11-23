@@ -35,13 +35,15 @@ BOUNDARIES: dict[str, tuple[str, ...]] = {
     # ADR-007: router chỉ gọi src/services (và src.agents.graph cho /chat) — không gọi thẳng các trụ hay DB
     "api": ("src.guard", "src.optimizer", "src.simulator", "src.forecast", "src.db"),
     # F4: Guard là code xác định, chạy được khi LLM sập
-    "guard": ("src.agents", "src.services.llm", "src.api", "src.db", "src.optimizer", "src.forecast"),
+    # ADR-019: Guard không import simulator (simulator dùng guard.physical.validator → cấm chiều ngược để không vòng)
+    "guard": ("src.agents", "src.services.llm", "src.api", "src.db", "src.optimizer", "src.forecast", "src.simulator"),
     # Optimizer thuần: context vào → plan ra (benchmark A–D cùng interface)
     "optimizer": ("src.agents", "src.api", "src.services", "src.simulator", "src.guard", "src.db", "src.forecast"),
     "forecast": ("src.agents", "src.api", "src.services", "src.simulator", "src.guard", "src.optimizer", "src.db"),
     # ADR-019: simulator dùng thuật toán của optimizer (dispatch/zones/coordination/registry) — không dùng LP backend cũ;
     # phạm vi được phép khoá chặt hơn ở test_simulator_uses_only_algorithm_packages
-    "simulator": ("src.agents", "src.api", "src.services", "src.guard", "src.db", "src.forecast"),
+    # và chỉ Physical Guard gốc (guard.physical.validator) — khoá ở test_simulator_uses_only_the_physical_validator
+    "simulator": ("src.agents", "src.api", "src.services", "src.db", "src.forecast"),
     # ADR-005: tầng persistence chỉ biết hợp đồng dữ liệu và cấu hình
     "db": (
         "src.agents",
@@ -286,7 +288,6 @@ CORE_CONTRACT_SHIMS = {
 SIMULATOR_CORE_TRANSITIONAL = {
     "src/simulator/hybrid_station.py",
     "src/services/hybrid_planner.py",
-    "src/guard/physical.py",
     "tests/test_simulator/test_hybrid_station.py",
 }
 # Stack backend: simulator standalone không được kéo theo
@@ -407,6 +408,28 @@ def test_simulator_uses_only_algorithm_packages_of_the_optimizer():
     assert not offenders, "Simulator chỉ dùng gói thuật toán của optimizer (ADR-019):\n" + "\n".join(offenders)
 
 
+def test_simulator_uses_only_the_physical_validator_of_the_guard():
+    """Simulator gọi Physical Guard gốc; không chạm luật nghiệp vụ / consent / HITL / dispatcher / adapter backend."""
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in sorted((SRC / "simulator").rglob("*.py"))
+        for module in sorted(_imported_modules(path))
+        if _violates(module, ("src.guard",)) and not _violates(module, ("src.guard.physical.validator",))
+    ]
+    assert not offenders, "\n".join(offenders)
+
+
+def test_physical_guard_package_keeps_the_old_public_api_without_loading_the_backend():
+    code = (
+        "import sys; import src.guard.physical as p; assert 'pydantic' not in sys.modules, 'eager adapter';"
+        "from src.guard.physical import check_dispatch, check_site_allocation, check_connector_allocation;"
+        "from src.guard.physical import adapter; assert check_dispatch is adapter.check_dispatch;"
+        "from src.guard.physical import validator; assert p.guard is validator.guard"
+    )
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
 def test_optimizer_algorithm_packages_depend_only_on_contracts():
     """dispatch / zones / coordination / registry chỉ import hợp đồng core + chính nhóm thuật toán + numpy/scipy."""
     offenders = []
@@ -467,6 +490,9 @@ def test_simulator_imports_without_the_backend_stack():
         "src.optimizer.zones.rolling_lp",
         "src.optimizer.coordination.dynamic_slack",
         "src.optimizer.dispatch.least_laxity",
+        "src.optimizer.registry",
+        "src.guard.physical",
+        "src.guard.physical.validator",
     )
     code = _STANDALONE_PROBE.format(blocked=set(BACKEND_STACK), modules=modules)
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)

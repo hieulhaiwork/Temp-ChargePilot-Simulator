@@ -11,6 +11,6 @@ class ConstraintViolationError(ValueError):
 
 
 # Moved verbatim from src/simulator/src/safety/guard.py (ADR-019 Phase 1) so optimizers and the Guard share one
-# numeric validity predicate without optimizer -> guard imports. `safety.guard` re-exports it.
+# numeric validity predicate without optimizer -> guard imports. `src.guard.physical.validator` imports it.
 def valid_kw(value, upper: float) -> bool:
     return isinstance(value, Real) and not isinstance(value, bool) and 0 <= value <= upper + TOL and isfinite(value)

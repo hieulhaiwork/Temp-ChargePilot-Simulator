@@ -35,7 +35,7 @@ from src.models.station import (
     StationConfig,
     StationState,
 )
-from src.simulator.base import VehicleVisit
+from src.models.station_protocols import VehicleVisit
 
 logger = logging.getLogger(__name__)
 EPS_KWH = 1e-6

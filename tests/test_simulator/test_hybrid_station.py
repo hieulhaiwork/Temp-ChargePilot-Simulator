@@ -17,8 +17,8 @@ from src.models.control import Command, CommandSource, CommandType  # noqa: E402
 from src.models.events import EventType  # noqa: E402
 from src.models.simulation import Incident, IncidentType  # noqa: E402
 from src.models.simulation_core import Scenario  # noqa: E402
+from src.models.station_protocols import VehicleVisit  # noqa: E402
 from src.services import catalog  # noqa: E402
-from src.simulator.base import VehicleVisit  # noqa: E402
 from src.simulator.hybrid_station import HybridStation  # noqa: E402
 from src.simulator.src.engine.hybrid import HybridSimulator  # noqa: E402
 from tests.factories import NOW  # noqa: E402

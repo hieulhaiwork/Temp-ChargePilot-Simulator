@@ -32,9 +32,9 @@ from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEnt
 from src.models.events import StationEvent, WsMessage, WsMessageType
 from src.models.simulation import Scenario
 from src.models.station import LoadPoint, StationConfig, Tariff
+from src.models.station_protocols import StationSimulator, VehicleVisit
 from src.optimizer.base import Scheduler
 from src.optimizer.strategies import get_scheduler
-from src.simulator.base import StationSimulator, VehicleVisit
 from src.simulator.live import LiveStation
 
 logger = logging.getLogger(__name__)

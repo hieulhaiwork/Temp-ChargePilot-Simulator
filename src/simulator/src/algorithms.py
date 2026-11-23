@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from types import MappingProxyType
 
+from src.guard.physical.validator import guard
 from src.optimizer.coordination.fixed_budget import FixedBudgetCoordinator
 from src.optimizer.dispatch.arrival_order import arrival_order
 from src.optimizer.registry import COORDINATORS, DISPATCH, OPTIMIZERS, Registration
@@ -16,7 +17,6 @@ from .coordination.base import GlobalCoordinator
 from .dispatch.base import DispatchPolicy
 from .optimizers.base import SchedulingPolicy, ZonePowerOptimizer
 from .safety.constraints import TOL
-from .safety.guard import guard
 from .scenario import Scenario
 
 ZONES = ("AC", "DC")

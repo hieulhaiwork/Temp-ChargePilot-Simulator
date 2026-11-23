@@ -27,7 +27,7 @@ from src.guard.checker import check, check_batch
 from src.guard.rules import GuardContext
 from src.models.control import Approval, ApprovalKind, Command, DecisionLogEntry
 from src.models.events import WsMessage, WsMessageType
-from src.simulator.base import StationActuator
+from src.models.station_protocols import StationActuator
 
 
 @dataclass(frozen=True)

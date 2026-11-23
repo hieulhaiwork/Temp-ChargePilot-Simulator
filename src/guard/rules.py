@@ -21,7 +21,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from src.guard import physical
+from src.guard.physical import adapter as physical
 from src.models.charging import Booking
 from src.models.control import Command, CommandSource, CommandType, GuardRule, Role, Violation
 from src.models.station import ConnectorState, StationConfig, StationState

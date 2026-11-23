@@ -8,3 +8,6 @@ src/simulator/src/optimizers/deadline_first.py -> src/optimizer/zones/deadline_f
 src/simulator/src/coordination/fixed_budget.py -> src/optimizer/coordination/fixed_budget.py
 src/simulator/src/coordination/dynamic_slack.py -> src/optimizer/coordination/dynamic_slack.py
 src/optimizer/__init__.py -> src/optimizer/strategies.py
+src/simulator/src/safety/guard.py -> src/guard/physical/validator.py
+src/guard/physical.py -> src/guard/physical/adapter.py
+src/simulator/base.py -> src/models/station_protocols.py

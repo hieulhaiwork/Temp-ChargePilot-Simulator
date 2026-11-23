@@ -6,6 +6,8 @@ from logging import getLogger
 from time import perf_counter
 from types import MappingProxyType
 
+from src.guard.physical.validator import guard, validate_budgets, validate_dispatch, validate_response
+
 from ..algorithms import Algorithms, algorithm_labels, default_algorithms
 from ..coordination.base import ZoneBudgets
 from ..dispatch.base import DispatchObservation
@@ -14,7 +16,6 @@ from ..evaluation.trace import decision_record
 from ..observations import Candidate, SchedulingObservation, VehicleObservation
 from ..optimizers.base import PowerProposal, SchedulingPolicy
 from ..safety.constraints import ConstraintViolationError
-from ..safety.guard import guard, validate_budgets, validate_dispatch, validate_response
 from ..safety.limits import EffectiveLimits, effective_limits, environment_boundary
 from ..scenario import Scenario, clock
 from .ev2gym_adapter import EV2GymAdapter

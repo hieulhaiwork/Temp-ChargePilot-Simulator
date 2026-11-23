@@ -1,4 +1,4 @@
-"""Lớp VẬT LÝ của Guard = Guard của HybridSimulator (`src/simulator/src/safety/guard.py`), ADR-017.
+"""Adapter backend → Physical Guard gốc (`src/guard/physical/validator.py`, chuyển từ simulator ở ADR-019 Phase 2), ADR-017.
 
 Vì sao tồn tại: nhóm lấy simulator làm chuẩn an toàn vật lý. Thay vì viết lại logic tương đương (dễ trôi), module
 này dịch `StationConfig` + `StationState` + lô lệnh sang kiểu của simulator rồi gọi đúng các hàm kiểm của nó:
@@ -13,6 +13,8 @@ Không import gì kéo theo ev2gym (gói `safety` / `scenario` / `observations` 
 from collections.abc import Mapping
 from math import inf
 
+from src.guard.physical.validator import guard as simulator_guard
+from src.guard.physical.validator import validate_dispatch
 from src.models.charging import Booking
 from src.models.physical_constraints import TOL, ConstraintViolationError
 from src.models.physical_limits import EffectiveLimits
@@ -20,8 +22,6 @@ from src.models.scheduling.dispatch import DispatchObservation
 from src.models.scheduling.observations import Candidate, VehicleObservation
 from src.models.simulation_core import Cabinet, Vehicle
 from src.models.station import ConnectorSpec, ConnectorState, ConnectorStatus, StationConfig, StationState, SupplyMode
-from src.simulator.src.safety.guard import guard as simulator_guard
-from src.simulator.src.safety.guard import validate_dispatch
 
 EMPTY_PREFIX = "(cổng trống) "  # mã "xe" giả cho cổng không có xe — không bao giờ là ứng viên hợp lệ
 
