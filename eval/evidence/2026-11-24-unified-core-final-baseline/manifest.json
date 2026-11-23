@@ -7,7 +7,7 @@
   "code_branch": "feature/unified-core-p4-final",
   "generated_at": "2026-11-23T17:22:34.515808Z",
   "copied_from": "eval/run_benchmark.py --seeds 1,2,3,4,5 chạy trên code_commit (RESULTS_DIR trỏ ra thư mục tạm)",
-  "copy_sha256": "0053c4ddadf050e738529046d874d86e236b1bdc0a5d28471054f287152f71ab",
+  "copy_sha256": "323e4799f8029cd10d048e11af4e8da741f8ec66e9c50ec8a4bb6c1c69cc31fb",
   "command": "eval/run_benchmark.py --seeds 1,2,3,4,5 (RESULTS_DIR trỏ ra thư mục tạm)",
   "engine": "HybridStation (StationKernel dùng chung với simulator)",
   "scenarios": [
@@ -50,5 +50,6 @@
     "eval/results/archive/2026-11-22-pre-refactor (A–D, LP backend đã bỏ)",
     "eval/evidence/2026-11-23-refactor-phase3-baseline (cùng điều kiện, nhưng trước sửa lỗi làm tròn setpoint; so như trước / sau sửa lỗi, không như hai optimizer)"
   ],
-  "previous_baseline": "eval/evidence/2026-11-23-refactor-phase3-baseline (backend-phase3, provisional)"
+  "previous_baseline": "eval/evidence/2026-11-23-refactor-phase3-baseline (backend-phase3, provisional)",
+  "copy_sha256_note": "sha256 của benchmark.json với xuống dòng LF (checkout Windows có thể đổi sang CRLF)"
 }

@@ -4,6 +4,7 @@
 > backend chạy trên `LiveStation`; `HybridSimulator` giữ vai trò R&D offline. Phần còn lại giữ nguyên.
 
 - Trạng thái: Proposed — chờ nhóm duyệt
+- **Sửa đổi bởi [ADR-019](ADR-019-unified-core-hop-dong-dung-chung.md)** (2026-11-24): còn đúng ý "một simulator", nay là một `StationKernel` (`src/simulator/core/kernel.py`) cho backend và standalone; registry thuật toán ở `src/optimizer/registry.py`; Guard vật lý ở `src/guard/physical/validator.py`. Phần về `SimulatorGateway` / bề mặt `src/simulator/base.py` đã thay bằng `src/models/station_protocols.py`.
 - Ngày: 2026-11-21
 - Sửa đổi một phần: ADR-002 (nội dung `src/simulator/base.py`; hệ quả "benchmark đi chung đường Guard"),
   ADR-007 (`StationRuntime.simulator`, chế độ benchmark)

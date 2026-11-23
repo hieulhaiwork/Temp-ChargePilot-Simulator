@@ -24,7 +24,7 @@
   [`docs/PRD.md`](docs/PRD.md) (đang viết song song). Nghiệp vụ: [`docs/business-overview.md`](docs/business-overview.md).
 - **Stack**: Python 3.12 / FastAPI / LangGraph 1.x / Pydantic v2 / SQLAlchemy 2 + Alembic (SQLite local, Postgres Neon)
   · web Next.js 16 + TypeScript trong `frontend/`. Simulator: **một kernel** `StationKernel`
-  (`src/simulator/src/engine/hybrid.py`, EV2Gym 2.0.0 AC native + DC extension) — `HybridStation` cho backend,
+  (`src/simulator/core/kernel.py` + `src/simulator/hybrid.py`, EV2Gym 2.0.0 AC native + DC extension) — `HybridStation` cho backend,
   `HybridSimulator` cho CLI / golden (ADR-018, ADR-019).
 - **Trạng thái code** (nhánh refactor `feature/unified-core*`, 23/11; chi tiết `docs/refactor/`):
   - Backend chạy thật: DB (Neon/SQLite), auth JWT, Guard 7 luật, Planning Core B0 / M2b / M3a / M3b, `HybridStation`, WebSocket, chat

@@ -1,6 +1,7 @@
 # ADR-017: Guard backend dùng cùng hợp đồng an toàn vật lý với HybridSimulator
 
 - Trạng thái: Proposed — chờ nhóm duyệt
+- **Sửa đổi bởi [ADR-019](ADR-019-unified-core-hop-dong-dung-chung.md)** (2026-11-24): hợp đồng an toàn giữ nguyên; Guard gốc chuyển về `src/guard/physical/validator.py`, adapter backend ở `src/guard/physical/adapter.py`. Tách deadband lệnh / lệch budget / vi phạm trần cứng; lệnh giảm tải an toàn không bị anti-flapping / HITL giữ (Phase 4).
 - Ngày: 2026-11-22
 - Liên quan: ADR-002 (Guard là chokepoint), ADR-010 (ràng buộc ba tầng), ADR-011 (Guard hai lớp), ADR-016
 - Nguồn đối chiếu: `src/simulator/src/safety/guard.py`, `safety/limits.py`, `scenario.py`,

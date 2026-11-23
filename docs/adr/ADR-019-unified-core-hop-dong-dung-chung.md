@@ -177,3 +177,24 @@ Chi tiết: `docs/refactor/TECHLEAD_PHASE4_DECISIONS.md`, `docs/refactor/PHASE4_
    mang `source.kind = generated`, không tự thành baseline. Baseline chính thức cuối sinh ở vòng nghiệm thu.
 4. **Archive.** Bảng A–D cũ: `eval/results/archive/2026-11-22-pre-refactor/` (deprecated). Nhãn của evidence lịch sử:
    `eval/evidence/2026-11-23-refactor-phase4/ARCHIVE_LABELS.md` (evidence cũ không sửa).
+
+## Cập nhật Phase 4 — tích hợp + nghiệm thu cuối (2026-11-24, nhánh `feature/unified-core-p4-final`)
+
+Theo `docs/refactor/TECHLEAD_PHASE4_DECISIONS.md`. Chi tiết: `docs/refactor/REFACTOR_REPORT.md`, `FINAL_MAP.md`.
+
+1. **Một kernel trong gói nội bộ** `src/simulator/core/` (`kernel.py`, `algorithms.py`, `queue.py`,
+   `ev2gym_adapter.py`, `charging_models/`). `HybridSimulator` ở `src/simulator/hybrid.py`, `evaluation/` ở
+   `src/simulator/evaluation/`. Gói `src/simulator/src/` và **mọi shim / `__getattr__` tương thích đã xoá**.
+2. Thêm `EventType.CHARGE_COMPLETED`, tách khỏi `REPLAN_REQUESTED`. Sự kiện cùng phút gộp thành một lần tính lại.
+3. Tách deadband lệnh 0,01 kW / cổng, lệch assigned budget, vi phạm trần cứng (TOL 1e-7).
+   - **Root-cause** của lệch AC +1,97 kW: setpoint làm tròn lên → Guard chặn cả lô hợp lệ.
+   - Sửa: lượng tử hoá xuống; lệnh không tăng công suất không bị `total_power_limit` chặn; lệnh giảm tải an toàn
+     không bị anti-flapping / HITL giữ.
+4. **DecisionTrace backend** cùng schema simulator, có `correlation_id` trên mọi `Command`. Bảng `decision_traces`
+   (Alembic `0002`) + artifact JSONL. Có replay Physical Guard từ trace.
+5. Bỏ hẳn A–D: enum, OpenAPI, S8, `PlanningContext.oracle_bookings`. Lịch lưu của A–D xoá bằng Alembic `0003`, vì là
+   dữ liệu dẫn xuất.
+6. Quote là **ước tính / có điều kiện** (`certainty`, `assumptions`, `approvals_pending_*`), không phải SLA.
+7. `/simulation/benchmark` trả baseline chính thức có version: `eval/evidence/2026-11-24-unified-core-final-baseline/`.
+8. Luật kiến trúc chặt hơn, không xoá luật nào: `llm_chat` / `agents` chỉ qua services; simulator chỉ dùng gói thuật
+   toán của optimizer + `guard.physical.validator`; không vòng `models / optimizer / guard / simulator`.

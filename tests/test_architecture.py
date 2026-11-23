@@ -41,7 +41,7 @@ BOUNDARIES: dict[str, tuple[str, ...]] = {
     # F4: Guard là code xác định, chạy được khi LLM sập
     # ADR-019: Guard không import simulator (simulator dùng guard.physical.validator → cấm chiều ngược để không vòng)
     "guard": ("src.agents", "src.services.llm", "src.api", "src.db", "src.optimizer", "src.forecast", "src.simulator"),
-    # Optimizer thuần: context vào → plan ra (benchmark A–D cùng interface)
+    # Optimizer thuần: thuật toán của registry, chỉ phụ thuộc hợp đồng core (ADR-019)
     "optimizer": ("src.agents", "src.api", "src.services", "src.simulator", "src.guard", "src.db", "src.forecast"),
     "forecast": ("src.agents", "src.api", "src.services", "src.simulator", "src.guard", "src.optimizer", "src.db"),
     # ADR-019: simulator dùng thuật toán của optimizer (dispatch/zones/coordination/registry) — không dùng LP backend cũ;

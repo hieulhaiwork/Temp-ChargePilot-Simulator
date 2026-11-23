@@ -127,7 +127,7 @@ class SimulatorScheduler:
 def _start_minimums(ctx: PlanningContext, observation, interval: int) -> dict[str, float]:
     """Xe nào phải bắt đầu sạc trong khoảng này theo consent.max_start_delay_minutes, và công suất tối thiểu.
 
-    Cùng quy tắc với LP backend (`optimizer/horizon.py:_start_requirement`): mốc là lúc xe cắm (`plugged_in_at`; xe vừa
+    Cùng quy tắc với LP backend cũ (đã xoá, ADR-019; `_start_requirement`): mốc là lúc xe cắm (`plugged_in_at`; xe vừa
     được gán = now); hạn = mốc + max_start_delay; khoảng nào kết thúc sau hạn mà xe chưa nhận điện thì phải sạc, mức
     = min(cho phép, đủ để giao phần còn thiếu trong khoảng). Đã bắt đầu rồi thì không ép (tạm dừng sau đó thuộc
     consent allow_power_reduction — chờ nhóm chốt, HANDOFF).

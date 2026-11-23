@@ -41,6 +41,8 @@
 - **3 trụ**: Agent hiểu yêu cầu (chat cư dân `src/llm_chat/`) → Optimizer tính lịch (`src/optimizer/`) → Guard kiểm soát mọi lệnh
   (`src/guard/`). Ranh giới import khoá bằng `tests/test_architecture.py`; nới ranh giới phải viết ADR trong `docs/adr/`.
 - **Chỉ `src/guard/dispatcher.py` gửi lệnh tới trạm** (`StationActuator.apply_commands`) — ADR-002.
+- **DecisionTrace** (ADR-019 Phase 4): mỗi lần tính lại ghi một trace cùng schema với simulator (`src/services/decision_trace.py`), có `correlation_id` gắn vào mọi `Command`; tóm tắt ở bảng `decision_traces`, chi tiết ở artifact JSONL. Lý do / WHY chỉ lấy từ facts của trace, không để LLM tự tạo.
+- **Ba loại sai lệch công suất** tách riêng: deadband lệnh 0,01 kW / cổng (lượng tử hoá, làm tròn xuống), lệch assigned budget của Coordinator (ghi + replan), vi phạm trần cứng (Physical Guard, TOL 1e-7). Lệnh giảm tải cần cho an toàn không bị anti-flapping / HITL giữ lại.
 - **Agent graph** (chat cư dân): `src/llm_chat/graph.py` — ReAct harness: guardrail → reason → act (tools, HITL
   interrupt cho risky tools, gồm `confirm_booking`) → assess → finalize (escape hatch max-iterations). Đừng thêm node mà
   không cập nhật state schema (`src/llm_chat/state.py`). Chỉ `src/api/routes.py` import `src.llm_chat.graph`. LLM

@@ -44,3 +44,19 @@ Trạng thái các mục Phase 3 ở trên:
 | `frontend/openapi.json`, `schema.d.ts` | Cả hai nhánh sinh lại | Sinh lại một lần sau gộp (brief) |
 | Tài liệu nhắc đường dẫn kernel `src/simulator/src/engine/hybrid.py` (PROJECT_CONTEXT, ARCHITECTURE) | Nhánh core chuyển kernel sang `src/simulator/core/` | Sửa đường dẫn sau gộp |
 | `docs/PRD.md`, `docs/business-overview.md`, phần thân `docs/plan/21-ui-spec.md` / `30-ai.md` còn mô tả A–D | Tài liệu yêu cầu / plan lịch sử; đã có banner hiện trạng ở `docs/plan/*`. PRD là mục tiêu nghiệp vụ — chủ dự án quyết định có sửa PRD §8 hay không | Chủ dự án |
+
+## Sau vòng tích hợp cuối (nhánh `feature/unified-core-p4-final`, 2026-11-24)
+
+Test tự động: **không có test fail** (`pytest` 516 passed / 8 skipped, simulator 163, frontend 28;
+`docs/refactor/raw/phase4-final/`).
+
+| Mục còn lại ở trên | Trạng thái |
+|---|---|
+| `oracle_bookings` | **Đã xoá** khỏi `PlanningContext`, `StationRuntime`, `build_sim_runtime`, `_memory_runtime`, `control_loop` (merge `157f403`) |
+| `make_scheduler` nhánh "A–D đã bỏ" | **Đã sửa**: lỗi chung "không có trong registry policy" (giữ chốt chặn) |
+| Chú thích A–D / `optimizer/horizon.py` | **Đã sửa** (`tests/test_architecture.py`, `services/hybrid_planner.py`) |
+| Alembic hai head | **Đã nối**: `0001 → 0002 (decision_traces) → 0003 (drop_lp_strategy_plans)`, một head; `tests/test_db` pass |
+| `openapi.json` / `schema.d.ts` | Sinh lại sau gộp: `export_openapi.py --check` khớp, `gen:api` không đổi nội dung |
+| Đường dẫn kernel trong tài liệu vận hành | **Đã sửa**: `PROJECT_CONTEXT.md`, `CLAUDE.md` dùng `src/simulator/core/` |
+| `/simulation/benchmark` | Trả **baseline chính thức** `eval/evidence/2026-11-24-unified-core-final-baseline/` |
+| PRD §8 / `docs/business-overview.md` còn mô tả A–D | **Còn mở: chờ chủ dự án** (mục tiêu nghiệp vụ, không sửa trong refactor) |
