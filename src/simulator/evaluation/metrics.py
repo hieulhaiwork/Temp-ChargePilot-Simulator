@@ -2,7 +2,7 @@
 
 from math import ceil
 
-from ..scenario import Scenario
+from src.models.simulation_core import Scenario
 
 
 def summarize(

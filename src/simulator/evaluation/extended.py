@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from math import ceil, fsum, isfinite
 from statistics import mean
 
-from ..safety.constraints import TOL
-from ..safety.limits import effective_limits
-from ..scenario import Scenario
+from src.models.physical_constraints import TOL
+from src.models.physical_limits import effective_limits
+from src.models.simulation_core import Scenario
 
 ENERGY_TOL_KWH = 1e-6
 

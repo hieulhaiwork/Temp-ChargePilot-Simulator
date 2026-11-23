@@ -1,9 +1,8 @@
 """Deterministic decision facts, built after the Guard verifies the applied interval."""
 
+from src.models.physical_constraints import TOL
+from src.models.simulation_core import clock
 from src.optimizer.dispatch.least_laxity import optimistic_laxity
-
-from ..safety.constraints import TOL
-from ..scenario import clock
 
 SCHEMA_VERSION = 2
 

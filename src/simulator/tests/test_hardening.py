@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
+from src.models.physical_constraints import ConstraintViolationError
+from src.models.simulation_core import Scenario, minute
+from src.optimizer.zones.equal_share import equal_share_policy
 from src.simulator import run
-from src.simulator.src.engine.ev2gym_adapter import Delivered, EV2GymAdapter
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.optimizers.equal_share import equal_share_policy
-from src.simulator.src.safety.constraints import ConstraintViolationError
-from src.simulator.src.scenario import Scenario, minute
+from src.simulator.core.ev2gym_adapter import Delivered, EV2GymAdapter
+from src.simulator.hybrid import HybridSimulator
 
 FIXTURE = Path(__file__).resolve().parents[1] / "scenario/mvp1.json"
 

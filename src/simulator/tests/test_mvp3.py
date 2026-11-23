@@ -7,15 +7,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.models.physical_constraints import TOL, ConstraintViolationError
+from src.models.scheduling.coordination import ZoneBudgets
+from src.models.simulation_core import Scenario, clock
+from src.optimizer.zones import ac_lp
 from src.simulator.benchmark_mvp3 import POLICIES, _selection, workload_mvp3
-from src.simulator.src.algorithms import resolve_algorithms
-from src.simulator.src.coordination.base import ZoneBudgets
-from src.simulator.src.engine import hybrid
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.evaluation.extended import audit, sample_run
-from src.simulator.src.optimizers import ac_lp
-from src.simulator.src.safety.constraints import TOL, ConstraintViolationError
-from src.simulator.src.scenario import Scenario, clock
+from src.simulator.core import kernel as hybrid
+from src.simulator.core.algorithms import resolve_algorithms
+from src.simulator.evaluation.extended import audit, sample_run
+from src.simulator.hybrid import HybridSimulator
 
 START = 18 * 60
 ROOT = Path(__file__).resolve().parents[1]

@@ -29,7 +29,7 @@ pyjwt>=2.8                 # T1.7 (D3, ADR-006) — ký/kiểm JWT 2 vai trò (F
 # ---- Duyệt 2026-11-22 (người phụ trách): LP của chiến lược B/C/D ----
 numpy>=1.26                # T2.1 — ma trận ràng buộc của LP (src/optimizer/lp_model.py)
 scipy>=1.11                # T2.1 — scipy.optimize.linprog(method="highs"): HiGHS kèm sẵn, thay cho highspy riêng
-# ---- Duyệt 2026-11-23: backend chạy trạm trên engine HybridSimulator (src/simulator/src/) — T1.4, FR11 ----
+# ---- Duyệt 2026-11-23: backend chạy trạm trên engine HybridSimulator (src/simulator/core/) — T1.4, FR11 ----
 # ev2gym==2.0.0 KHÔNG nằm trong file này: phải cài `--no-deps` (metadata của nó kéo gurobipy, pandas, matplotlib,
 # networkx… mà engine không dùng — src/simulator/requirements-ci.txt), và pip không cho --no-deps từng gói trong
 # requirements file. Bước cài riêng: Dockerfile, .github/workflows/ci.yml, `make install`. Đổi phiên bản → sửa cả 3.

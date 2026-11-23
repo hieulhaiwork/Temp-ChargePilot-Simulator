@@ -5,8 +5,8 @@ Quy ước: luật KHÔNG tự đọc DB/simulator — mọi dữ kiện nằm t
 và một test "lệnh hợp lệ không bị chặn oan" (tests/test_guard/).
 
 Công suất SAU lệnh: mọi lệnh cùng lô (ctx.batch) được áp giả định trước khi so giới hạn, nên
-một lô hạ A rồi tăng B không bị chặn oan. Hai luật vật lý GỌI Guard của HybridSimulator qua `physical.py`
-(`src/simulator/src/safety/guard.py`, ADR-017); ba tầng giới hạn (ADR-010):
+một lô hạ A rồi tăng B không bị chặn oan. Hai luật vật lý GỌI Guard của HybridSimulator qua `physical/adapter.py`
+(`src/guard/physical/validator.py`, ADR-017); ba tầng giới hạn (ADR-010):
   - cổng ≤ max_power_kw của cổng và ≤ Booking.max_charge_power_kw của xe;
     chỉ cấp điện cho cổng có xe đang sạc (không cổng trống, không xe đã đầy)  (connector_power_limit)
   - gán cổng: xe đã đến bãi, đang chờ (chưa ở cổng khác), đúng vùng, cổng trống (connector_power_limit)

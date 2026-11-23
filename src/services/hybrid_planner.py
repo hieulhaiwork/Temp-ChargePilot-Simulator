@@ -30,7 +30,7 @@ from src.models.scheduling.observations import Candidate
 from src.models.simulation_core import Tariff as SimTariff
 from src.models.station import Tariff
 from src.optimizer.registry import POLICIES as REGISTRY_POLICIES
-from src.simulator.src.algorithms import Algorithms, resolve_algorithms
+from src.simulator.core.algorithms import Algorithms, resolve_algorithms
 
 logger = logging.getLogger(__name__)
 

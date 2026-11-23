@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from math import isfinite
 
-from .base import VehicleBatteryState, energy_to_target
+from src.models.charging_physics import VehicleBatteryState, energy_to_target
 
 
 @dataclass(frozen=True)

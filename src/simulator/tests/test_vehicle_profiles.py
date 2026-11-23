@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
+from src.models.charging_physics import VehicleBatteryState
+from src.models.physical_constraints import TOL, ConstraintViolationError
+from src.models.simulation_core import Scenario
+from src.simulator.core.algorithms import resolve_algorithms
+from src.simulator.core.charging_models.dc_charging_models import resolve_dc_profile
+from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
+from src.simulator.hybrid import HybridSimulator
 from src.simulator.run import main
-from src.simulator.src.algorithms import resolve_algorithms
-from src.simulator.src.charging_models.base import VehicleBatteryState
-from src.simulator.src.charging_models.dc_charging_models import resolve_dc_profile
-from src.simulator.src.charging_models.synthetic_dc import SyntheticTaperV1
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.safety.constraints import TOL, ConstraintViolationError
-from src.simulator.src.scenario import Scenario
 
 FIXTURE = Path(__file__).resolve().parents[1] / "scenario/vinfast_dc_2port_120kw.json"
 

@@ -1,1 +1,0 @@
-"""Mandatory physical validation."""

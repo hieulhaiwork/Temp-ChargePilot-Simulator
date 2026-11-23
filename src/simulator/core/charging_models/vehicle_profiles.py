@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from math import isfinite
 from types import MappingProxyType
 
-from ..scenario import Scenario, Vehicle
-from .base import VehicleBatteryState
+from src.models.charging_physics import VehicleBatteryState
+from src.models.simulation_core import Scenario, Vehicle
+
 from .dc_charging_models import DCProfile, charge_dc_step, resolve_dc_profile
 from .synthetic_dc import SyntheticTaperV1
 

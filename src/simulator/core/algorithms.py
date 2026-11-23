@@ -5,19 +5,19 @@ from dataclasses import asdict, dataclass
 from types import MappingProxyType
 
 from src.guard.physical.validator import guard
+from src.models.charging_physics import DCChargingModel
+from src.models.physical_constraints import TOL
+from src.models.scheduling.coordination import GlobalCoordinator
+from src.models.scheduling.dispatch import DispatchPolicy
+from src.models.scheduling.optimization import SchedulingPolicy, ZonePowerOptimizer
+from src.models.simulation_core import Scenario
 from src.optimizer.coordination.fixed_budget import FixedBudgetCoordinator
 from src.optimizer.dispatch.arrival_order import arrival_order
 from src.optimizer.registry import COORDINATORS, DISPATCH, OPTIMIZERS, Registration
 from src.optimizer.zones.equal_share import zone_equal_share
 
-from .charging_models.base import DCChargingModel
 from .charging_models.synthetic_dc import SyntheticTaperV1
 from .charging_models.vehicle_profiles import INTEGRATION_SECONDS, PROFILE_VERSION, VehicleProfilesDCModel
-from .coordination.base import GlobalCoordinator
-from .dispatch.base import DispatchPolicy
-from .optimizers.base import SchedulingPolicy, ZonePowerOptimizer
-from .safety.constraints import TOL
-from .scenario import Scenario
 
 ZONES = ("AC", "DC")
 

@@ -7,10 +7,11 @@ from numbers import Real
 from ev2gym.models.ev import EV
 from ev2gym.models.ev_charger import EV_Charger
 
-from ..charging_models.base import DCChargingModel, VehicleBatteryState
-from ..charging_models.synthetic_dc import SyntheticTaperV1
-from ..safety.constraints import ConstraintViolationError
-from ..scenario import Cabinet, Scenario, Vehicle
+from src.models.charging_physics import DCChargingModel, VehicleBatteryState
+from src.models.physical_constraints import ConstraintViolationError
+from src.models.simulation_core import Cabinet, Scenario, Vehicle
+
+from .charging_models.synthetic_dc import SyntheticTaperV1
 
 
 class PrecisionEV(EV):

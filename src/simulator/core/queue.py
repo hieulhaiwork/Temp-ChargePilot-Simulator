@@ -4,7 +4,8 @@ from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ..scenario import Cabinet, Scenario, Vehicle
+from src.models.simulation_core import Cabinet, Scenario, Vehicle
+
 from .ev2gym_adapter import EV2GymAdapter
 
 

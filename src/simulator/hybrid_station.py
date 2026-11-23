@@ -2,7 +2,7 @@
 
 Vì sao tồn tại: backend cần một trạm sống lâu, nhận lệnh đã qua Guard (ADR-002) và nhận dữ kiện môi trường dần dần
 (booking, sự cố). Lớp này chỉ là adapter: mọi trạng thái vật lý, vòng tích phân (Physical Core) và lập kế hoạch
-(Planning Core) nằm trong `StationKernel` (src/simulator/src/engine/hybrid.py), dùng chung với simulator standalone.
+(Planning Core) nằm trong `StationKernel` (src/simulator/core/kernel.py), dùng chung với simulator standalone.
 Ở đây chỉ còn: dịch StationConfig ↔ Scenario, booking ↔ Vehicle, Command → primitive của kernel, sự kiện simulator →
 StationEvent, StationState / SessionOutcome cho backend.
 
@@ -48,11 +48,11 @@ from src.models.simulation import Scenario as BackendScenario
 from src.models.simulation_core import Cabinet, Scenario, Vehicle
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationConfig, StationState
 from src.models.station_protocols import VehicleVisit
-from src.simulator.src.algorithms import Algorithms, default_algorithms
-from src.simulator.src.charging_models.synthetic_dc import SyntheticTaperV1
-from src.simulator.src.engine.ev2gym_adapter import EV2GymAdapter
-from src.simulator.src.engine.hybrid import SOC_TOL, StationKernel
-from src.simulator.src.engine.queue import QueueController, Session
+from src.simulator.core.algorithms import Algorithms, default_algorithms
+from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
+from src.simulator.core.ev2gym_adapter import EV2GymAdapter
+from src.simulator.core.kernel import SOC_TOL, StationKernel
+from src.simulator.core.queue import QueueController, Session
 
 logger = logging.getLogger(__name__)
 EPS = 1e-6

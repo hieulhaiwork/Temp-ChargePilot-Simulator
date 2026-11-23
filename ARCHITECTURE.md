@@ -124,10 +124,11 @@ P-019/
 │   │   ├── emergency.py            🧩 AC5: hạ công suất ngay khi nguồn giảm (T3.2)
 │   │   └── dispatcher.py           🧩 CHOKEPOINT duy nhất gọi apply_commands; DispatchSinks (T3.1, T3.2)
 │   ├── simulator/                  FR11 (TV3 + TV1)
-│   │   ├── base.py                 ✅ StationReader (đọc) / StationActuator (ghi) + VehicleVisit — ADR-002, ADR-016
-│   │   ├── live.py                 ✅ LiveStation: trạm backend dùng cho live + mô phỏng S8 + benchmark (ADR-016)
-│   │   ├── run.py, benchmark*.py   ✅ CLI R&D chạy HybridSimulator offline (không phải đường của backend)
-│   │   ├── src/                    ✅ HybridSimulator v1.2 (engine/hybrid.py, queue.py, ev2gym_adapter.py…) — R&D
+│   │   ├── core/                   ✅ MỘT StationKernel (kernel.py) + queue / ev2gym_adapter / charging_models / algorithms — ADR-019
+│   │   ├── hybrid.py               ✅ HybridSimulator = kernel + trace / report (CLI, benchmark MVP-1/2/3, golden)
+│   │   ├── hybrid_station.py       ✅ HybridStation: trạm backend trên cùng kernel (StationReader / StationActuator ở src/models/station_protocols.py)
+│   │   ├── evaluation/             ✅ KPI, DecisionTrace (schema dùng chung simulator ↔ backend)
+│   │   ├── run.py, benchmark*.py   ✅ CLI chạy HybridSimulator standalone
 │   │   └── tests/                  ✅ bộ test R&D (golden regression), job CI `simulator`
 │   └── api/                        REST + WebSocket — router chỉ gọi src/services
 │       ├── deps.py                 ✅ get_current_user, ResidentUser, OperatorUser (401/403)
@@ -186,9 +187,9 @@ Tên dưới đây lấy từ master context §5, §10 và ADR; chữ ký **chư
 
 | Thành phần | Vai trò | Nguồn / ADR |
 |---|---|---|
-| Simulator v1.2 (`src/simulator/src/engine/hybrid.py`, `queue.py`, `ev2gym_adapter.py`) | `HybridSimulator` + `QueueController`; AC native EV2Gym, DC = `SyntheticTaperV1` hoặc `VehicleProfilesDCModel` | Đã merge, **chỉ chạy R&D offline** — backend dùng `LiveStation` (ADR-016) · ADR-011 |
+| Simulator v1.2 (`src/simulator/core/kernel.py`, `hybrid.py`, `core/queue.py`, `core/ev2gym_adapter.py`) | `HybridSimulator` + `QueueController`; AC native EV2Gym, DC = `SyntheticTaperV1` hoặc `VehicleProfilesDCModel` | Đã merge, **chỉ chạy R&D offline** — backend dùng `LiveStation` (ADR-016) · ADR-011 |
 | `src/simulator/base.py` (bản mới) | Bề mặt công khai duy nhất của simulator; thay `StationReader` / `StationActuator` | ADR-011 |
-| `Algorithms` (`src/simulator/src/algorithms.py`) | Một registry DispatchPolicy / ZonePowerOptimizer / GlobalCoordinator, dùng chung live / benchmark / what-if | ADR-011 |
+| `Algorithms` (`src/simulator/core/algorithms.py`) | Một registry DispatchPolicy / ZonePowerOptimizer / GlobalCoordinator, dùng chung live / benchmark / what-if | ADR-011 |
 | Guard hai lớp | Lớp vật lý (lưới, tủ, cổng, xe; pre-apply + post-apply) và lớp chính sách (ngân sách vùng, quyền, phê duyệt) | ADR-011 (sửa một phần ADR-002) |
 | `SimulatorGateway` | Adapter hợp đồng giữa service và engine: `create_session`, `get_state`, `submit_request`, `advance`, `replan`, `get_decision_trace`, `simulate_what_if`, `apply_approved_revision`, `get_kpis` | master context §10.3 · ADR-011 |
 | `DecisionTrace` | Trace từng interval: request / allowed / actual kW, constraint binding, reason code, `evidence_ref` | ADR-014 |
