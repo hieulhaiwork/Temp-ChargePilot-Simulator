@@ -1,0 +1,57 @@
+# Trích gọn (Phase 0): chỉ vị trí + mã lỗi, bỏ trích đoạn code.
+unformatted: File would be reformatted
+  --> docs\guide\agent-practices\guardrails.md:60:1
+unformatted: File would be reformatted
+  --> docs\guide\anti-patterns\common-mistakes.md:34:1
+unformatted: File would be reformatted
+   --> docs\guide\chapter-02.md:341:31
+unformatted: File would be reformatted
+   --> docs\guide\chapter-03.md:154:1
+unformatted: File would be reformatted
+    --> docs\guide\chapter-04.md:73:1
+unformatted: File would be reformatted
+   --> docs\guide\chapter-06.md:21:16
+unformatted: File would be reformatted
+   --> docs\guide\chapter-07.md:81:28
+unformatted: File would be reformatted
+    --> docs\guide\chapter-08.md:84:1
+unformatted: File would be reformatted
+   --> docs\guide\chapter-09.md:116:1
+unformatted: File would be reformatted
+   --> docs\guide\chapter-10.md:29:1
+unformatted: File would be reformatted
+   --> docs\guide\chapter-11.md:58:49
+unformatted: File would be reformatted
+   --> docs\guide\chapter-12.md:622:1
+unformatted: File would be reformatted
+   --> docs\guide\chapter-13.md:415:1
+unformatted: File would be reformatted
+  --> docs\guide\code-style\python.md:18:1
+unformatted: File would be reformatted
+   --> docs\guide\cost-management.md:90:1
+unformatted: File would be reformatted
+  --> docs\guide\langgraph\nodes-and-edges.md:55:1
+unformatted: File would be reformatted
+  --> docs\guide\langgraph\state.md:14:1
+unformatted: File would be reformatted
+  --> docs\guide\langgraph\tools.md:12:1
+unformatted: File would be reformatted
+  --> docs\guide\patterns\rag-pattern.md:51:1
+unformatted: File would be reformatted
+  --> docs\guide\testing\writing-tests.md:23:1
+unformatted: File would be reformatted
+   --> docs\guide\troubleshooting.md:177:1
+unformatted: File would be reformatted
+   --> docs\plan\10-backend.md:188:34
+unformatted: File would be reformatted
+  --> scripts\check_docs.py:14:1
+unformatted: File would be reformatted
+   --> scripts\log_antigravity.py:51:1
+unformatted: File would be reformatted
+   --> scripts\log_hook.py:6:1
+unformatted: File would be reformatted
+  --> scripts\log_manual.py:22:1
+unformatted: File would be reformatted
+  --> scripts\submit_log.py:12:1
+27 files would be reformatted, 305 files already formatted
+exit=1

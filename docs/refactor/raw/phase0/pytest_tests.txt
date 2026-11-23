@@ -1,0 +1,29 @@
+<REPO>\.venv\Lib\site-packages\pytest_asyncio\plugin.py:300: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the "fixture" caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 16%]
+........................................................................ [ 32%]
+..................................................ssssssss.............. [ 48%]
+........................................................................ [ 64%]
+........................................................................ [ 80%]
+........................................................................ [ 96%]
+................                                                         [100%]
+============================ slowest 15 durations =============================
+5.17s call     tests/test_eval_scripts.py::test_agent_eval_online_passes_thresholds_with_mock_llm
+4.38s call     tests/test_eval_scripts.py::test_run_eval_accepts_out_argument
+4.34s call     tests/test_eval_scripts.py::test_agent_eval_online_reports_missing_task
+2.57s call     tests/test_eval_scripts.py::test_judge_script_imports_from_repo_root
+2.34s setup    tests/test_optimizer/test_strategies.py::test_power_limit_is_never_exceeded_even_when_supply_drops
+1.88s call     tests/test_eval_scripts.py::test_benchmark_script_runs_from_repo_root
+1.78s call     tests/test_services/test_hybrid_planner.py::test_simulator_strategies_run_end_to_end_behind_the_guard[M3a]
+1.76s call     tests/test_services/test_hybrid_planner.py::test_simulator_strategies_run_end_to_end_behind_the_guard[M3b]
+0.71s call     tests/test_services/test_hybrid_planner.py::test_simulator_strategies_run_end_to_end_behind_the_guard[M2b]
+0.64s call     tests/test_architecture.py::test_frontend_only_consumes_generated_types
+0.43s call     tests/test_eval_scripts.py::test_agent_eval_offline_rejects_bad_labels
+0.41s call     tests/test_eval_scripts.py::test_agent_eval_offline_validates_dataset_without_llm
+0.41s call     tests/test_guard/test_physical.py::test_physical_layer_does_not_import_ev2gym
+0.39s call     tests/test_api/test_flows.py::test_ws_requires_auth_message
+0.35s call     tests/test_api/test_flows.py::test_operator_views_and_manual_assign
+440 passed, 8 skipped in 37.59s
+exit=0
