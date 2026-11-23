@@ -9,8 +9,8 @@ Kiểm chứng:
 
 import pytest
 
-from src.agents.guardrails import GuardrailViolation, guardrails
 from src.config import get_settings
+from src.llm_chat.guardrails import GuardrailViolation, guardrails
 from src.models.control import Role
 from src.services import charging_demo
 
@@ -52,7 +52,7 @@ async def test_mock_agent_multi_turn_propose_confirm_queue_and_explain(client, m
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
-    from src.agents import mock_llm
+    from src.llm_chat import mock_llm
 
     tz = ZoneInfo("Asia/Ho_Chi_Minh")
     fixed = datetime.now(tz).replace(hour=20, minute=0, second=0, microsecond=0)
@@ -156,8 +156,8 @@ def test_check_grounded_numbers_validates_kwh_and_connector():
 
 @pytest.mark.asyncio
 async def test_finalize_node_enforces_grounded_numbers():
-    from src.agents.nodes.finalize_node import _make_finalize
-    from src.models.schemas import FinalAnswer
+    from src.llm_chat.nodes.finalize_node import _make_finalize
+    from src.llm_chat.schemas import FinalAnswer
 
     async def _bad_generator(state, partial: bool = False) -> FinalAnswer:
         return FinalAnswer(answer="Sạc tại A05, nạp 99.9 kWh.", confidence=0.9, used_tools=[])
@@ -172,7 +172,7 @@ async def test_llm_generate_skips_second_llm_call_when_no_tools_used(monkeypatch
     """Tối ưu RPM: khi reason trả action='final' (không gọi tool) và đã có final_answer,
     llm_generate dùng luôn câu đó mà không tốn thêm 1 request LLM ở tầng generate.
     """
-    from src.agents.nodes import finalize_node
+    from src.llm_chat.nodes import finalize_node
 
     monkeypatch.setenv("LLM_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
@@ -210,7 +210,7 @@ def test_resolve_time_month_boundary_and_timezone():
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
-    from src.agents.mock_llm import _extract_draft, _resolve_time
+    from src.llm_chat.mock_llm import _extract_draft, _resolve_time
 
     tz = ZoneInfo("Asia/Ho_Chi_Minh")
     end_of_month = datetime(2026, 11, 30, 23, 30, tzinfo=tz)

@@ -34,7 +34,8 @@ intent, patch có schema) và diễn đạt kết quả đã tính. LangGraph gi
 
 Nguyên tắc 3 trụ của Brief vẫn giữ:
 
-1. **AI hiểu yêu cầu và giải thích** (`src/agents/`; Copilot WHY/WHAT-IF theo ADR-014)
+1. **AI hiểu yêu cầu và giải thích** (chat cư dân `src/llm_chat/`; AI-1 / Copilot WHY/WHAT-IF theo ADR-014 sẽ ở
+   `src/agents/`)
 2. **Bộ tối ưu tính phương án** (`src/optimizer/`; `src/forecast/` **HOÃN** theo ADR-015)
 3. **Bộ kiểm tra an toàn kiểm soát thực thi** (`src/guard/`): cửa duy nhất tới trạm giả lập (`src/simulator/`);
    ADR-011 tách hai lớp vật lý + chính sách
@@ -72,13 +73,15 @@ P-019/
 │   │   ├── events.py                  EventType (FR8), StationEvent, WsMessage + payload có kiểu (FR16)
 │   │   ├── simulation.py              Scenario, Incident, SimulationTrace, KpiReport (MT1–MT6), BenchmarkReport
 │   │   └── api.py                     DTO của API: Login, ErrorResponse/ErrorCode, ReadinessReport, QueueStatus, …
-│   ├── agents/                     TRỤ 1 — F1 (TV3)
+│   ├── agents/                     dành cho AI-1 / AI-4 (ADR-019) — chỉ có __init__.py, chưa có code
+│   ├── llm_chat/                   TRỤ 1 — F1 chat cư dân (TV3)
 │   │   ├── graph.py                ✅ entry → guardrail_check → reason → act → (human_review) → assess → finalize
 │   │   ├── state.py                ✅ AgentState: vòng ReAct + turn_context, history, draft_request, proposal
 │   │   ├── prompts.py              ✅ load_prompt / render (fail khi thiếu biến)
+│   │   ├── schemas.py              ✅ AgentDecision / FinalAnswer / AgentAnswer (nội bộ, không ở OpenAPI)
 │   │   ├── guardrails.py           ✅ chặn injection (có mẫu tiếng Việt) · 🧩 check_grounded_numbers (T2.5)
 │   │   ├── nodes/                  ✅ reason, act, human_review, assess, finalize (nhận RunnableConfig)
-│   │   │                              (giữ) safety, retrieve, synthesize, validate — pipeline RAG, gỡ ở T2.5
+│   │   │                              (giữ) safety, validate — pipeline RAG template còn test dùng
 │   │   └── tools/
 │   │       ├── charging.py         ✅ 6 tool sạc; resident_id lấy từ config["configurable"] (ADR-006);
 │   │       │                          tool gọi src/services — service còn stub thì tool nổi 501
@@ -149,7 +152,7 @@ P-019/
 │   ├── test_architecture.py        ✅ khoá ranh giới import, chokepoint Guard, ORM, frontend
 │   ├── test_api/                   ✅ hợp đồng OpenAPI + snapshot, envelope lỗi, 401/403/501 · ⏭ luồng AC1–AC6
 │   ├── test_db/                    ✅ migration lên/xuống, ràng buộc DB, datetime có múi giờ
-│   ├── test_models/, test_services/, test_guard/, test_optimizer/, test_forecast/, test_simulator/, test_agents/
+│   ├── test_models/, test_services/, test_guard/, test_optimizer/, test_forecast/, test_simulator/, test_llm_chat/
 ├── eval/
 │   ├── run_agent_eval.py           ✅ --offline (kiểm dataset + ngưỡng) · 🧩 chạy Agent thật (T4.2)
 │   ├── run_benchmark.py            🧩 benchmark A–D → results/benchmark.{md,json} (T3.4)
@@ -200,8 +203,9 @@ Khoá bằng `tests/test_architecture.py`. Muốn nới một quy tắc thì s�
 
 | Package | KHÔNG được import | Lý do |
 |---|---|---|
-| `src/agents` | `simulator`, `guard`, `optimizer`, `forecast`, `db`, `api` | FR5: Agent chỉ đi qua `services` |
-| `src/api` | `guard`, `optimizer`, `simulator`, `forecast`, `db` | ADR-007: router chỉ gọi `services` (và `agents.graph` cho `/chat`) |
+| `src/llm_chat` | `simulator`, `guard`, `optimizer`, `forecast`, `db`, `api`, `agents` | FR5: chat chỉ đi qua `services` |
+| `src/agents` | `simulator`, `guard`, `optimizer`, `forecast`, `db`, `api`, `llm_chat` | ADR-019: AI-1 / AI-4 chỉ đi qua `services` |
+| `src/api` | `guard`, `optimizer`, `simulator`, `forecast`, `db` | ADR-007: router chỉ gọi `services` (và `llm_chat.graph` cho `/chat`) |
 | `src/guard` | `agents`, `services.llm`, `api`, `db`, `optimizer`, `forecast` | F4: chạy được khi LLM sập |
 | `src/optimizer` | `agents`, `api`, `services`, `simulator`, `guard`, `db`, `forecast` | thuần: context vào → plan ra |
 | `src/forecast` | `agents`, `api`, `services`, `simulator`, `guard`, `optimizer`, `db` | thuần, train/eval offline |
@@ -215,7 +219,9 @@ Các khoá bổ sung:
 - Chỉ `src/db/` và `src/services/repository.py` được import `sqlalchemy` / `alembic` / `src.db`; chữ ký hàm của
   repository không lộ kiểu ORM (ADR-005).
 - `src/models/` không dùng `sqlalchemy`, `fastapi`, `langchain`, `langgraph`, `openai`, `yaml`.
-- `src/agents/` không tạo `Command`; tool của Agent chỉ gọi `src/services`.
+- `src/llm_chat/` và `src/agents/` chỉ import `src.services`, `src.models`, `src.config`, không tạo `Command`; tool
+  của chat chỉ gọi `src/services`. `src/agents/` thêm: không `sqlalchemy` / `src.db` / `services.repository` /
+  `StationActuator` / `src.guard`. Ngoài `src/llm_chat`, chỉ `src/api` import `src.llm_chat.graph` (ADR-019).
 - `frontend/src` không import gì ngoài `frontend/`, không đặt token trên URL (ADR-006, ADR-009).
 
 `src/services` là tầng tích hợp (không có quy tắc cấm riêng): nó nối các trụ lại với nhau qua `StationRuntime`.
@@ -227,7 +233,7 @@ Các khoá bổ sung:
 | Yêu cầu | Module chính | Owner | Task | Test / bằng chứng |
 |---|---|---|---|---|
 | FR1 đăng nhập 2 vai trò | `api/auth.py`, `api/deps.py`, `services/auth.py` | TV3 | T1.7 | ✅ `test_api/test_contract.py`, `test_errors.py` (401/403) · ⏭ `test_service_contracts.py::test_token_roundtrip` |
-| FR2 trích xuất yêu cầu | `models/charging.py:ChargeRequest`, `agents/tools/charging.py`, `prompts/charging_domain.md` | TV3 | T2.5 | ✅ `test_models/test_contracts.py`, `test_agents/test_charging_agent.py` · ⏭ `test_flows.py::test_chat_asks_for_missing_field_then_continues` |
+| FR2 trích xuất yêu cầu | `models/charging.py:ChargeRequest`, `llm_chat/tools/charging.py`, `prompts/charging_domain.md` | TV3 | T2.5 | ✅ `test_models/test_contracts.py`, `test_llm_chat/test_charging_agent.py` · ⏭ `test_flows.py::test_chat_asks_for_missing_field_then_continues` |
 | FR3 kWh do code tính | `services/energy.py` | TV3 | — | ✅ `test_services/test_energy.py` · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
 | FR4 phương án thay thế | `ScheduleProposal` validator, `charging_service.quote` | TV1/TV3 | T2.2 | ✅ `test_models` · ⏭ `test_infeasible_quote_has_alternative` |
 | FR5 Agent không ra lệnh trạm | ranh giới import | TV3 | — | ✅ `test_architecture.py` |
@@ -243,7 +249,7 @@ Các khoá bổ sung:
 | FR15–16 web 2 vai trò, WS | `api/resident.py`, `operations.py`, `ws.py`, `services/realtime.py`, `frontend/` | TV4 | T2.7, T3.6 | ✅ `test_contract.py`, `test_openapi_snapshot.py`, vitest (24 test) · ⏭ `test_ws_requires_auth_message` |
 | FR17, MT7 dự báo F6 — **HOÃN** (ADR-015) | `forecast/*` | TV2 | T2.3 | HOÃN; test hiện có giữ nguyên: ✅ `test_label_is_forbidden_as_feature` · ⏭ `test_unplug_time_never_leaks`, `test_split_is_temporal_not_random` |
 | FR18, AC7 sự cố + đối chứng A–D | `config/scenarios/`, `simulation_service`, `simulator/kpi.py`, `eval/run_benchmark.py` | TV1 | T3.4, T3.5 | ✅ `test_services/test_catalog.py`, `test_kpi_report_covers_every_prd_metric` · ⏭ KPI theo từng bước |
-| AC1 đặt lịch qua chat | `api/routes.py`, `agents/graph.py`, `charging_service` | TV3 | T2.5 | ✅ `test_charging_agent.py` (interrupt mang phương án, xác nhận một lần) · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
+| AC1 đặt lịch qua chat | `api/routes.py`, `llm_chat/graph.py`, `charging_service` | TV3 | T2.5 | ✅ `test_charging_agent.py` (interrupt mang phương án, xác nhận một lần) · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
 | AC3 cao điểm tối | `simulation_service.run_scenario` | TV1 | T3.4 | ⏭ `test_peak_evening_respects_limit_and_meets_deadlines` |
 | AC8 deploy + 2 vai trò | `Dockerfile`, `render.yaml`, `.github/workflows/ci.yml`, Vercel | TV4 | T4.4 | job CI `docker-smoke`: build image + `/health`, `/ready` trong container |
 | MT5 tính lại ≤ 2 s | `control_loop.on_event` | TV1/TV3 | T3.7 | ⏭ `test_replan_p95_under_two_seconds` |
@@ -360,7 +366,7 @@ Benchmark chạy **cùng** `on_event` và cùng đường Guard, chỉ khác `St
 - Danh tính (ADR-006): JWT HS256 hai vai trò; mật khẩu băm bằng `hashlib.scrypt`; tài khoản demo seed từ
   `SEED_USERS_JSON`. `resident_id` đi trong `config["configurable"]` — **LLM không đọc, không ghi được**.
 - WebSocket xác thực bằng bản tin đầu `{"type": "auth", "token"}`; không nhận token qua query string.
-- Input LLM: guardrail ở code (`agents/guardrails.py`) và ở prompt (`prompts/charging_safeguards.md`).
+- Input LLM: guardrail ở code (`llm_chat/guardrails.py`) và ở prompt (`prompts/charging_safeguards.md`).
   Lệnh trạm: Guard 7 luật (`guard/`), không phụ thuộc LLM.
 - Dữ liệu: chỉ dùng dữ liệu công khai hoặc giả lập; xoá tài khoản = ẩn danh hoá, giữ nhật ký (NFR riêng tư).
 - CORS chỉ mở cho domain frontend (`CORS_ORIGINS`).

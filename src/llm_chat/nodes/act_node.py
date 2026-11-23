@@ -19,9 +19,9 @@ import logging
 from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 
-from src.agents.state import AgentState
-from src.agents.tools import RISKY_TOOL_NAMES, TOOL_REGISTRY
-from src.agents.tools.charging import PROPOSAL_TOOL_NAME
+from src.llm_chat.state import AgentState
+from src.llm_chat.tools import RISKY_TOOL_NAMES, TOOL_REGISTRY
+from src.llm_chat.tools.charging import PROPOSAL_TOOL_NAME
 from src.models.charging import ScheduleProposal
 
 logger = logging.getLogger("ai20k.act")

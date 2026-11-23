@@ -1,7 +1,7 @@
 """Test tool registry + MCP-style tool — chạy được không cần MCP server thật."""
 
-from src.agents.tools import RISKY_TOOL_NAMES, TOOL_REGISTRY
-from src.agents.tools.mcp_tool import _mcp_call, mcp_knowledge_lookup
+from src.llm_chat.tools import RISKY_TOOL_NAMES, TOOL_REGISTRY
+from src.llm_chat.tools.mcp_tool import _mcp_call, mcp_knowledge_lookup
 
 
 def test_registry_lists_every_tool():

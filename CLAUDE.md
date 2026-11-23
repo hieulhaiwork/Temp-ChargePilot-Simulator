@@ -37,12 +37,14 @@
 
 - **Source of truth kỹ thuật**: code trong `src/`. File `.md` (kể cả file này) chỉ là
   tóm tắt — khi mâu thuẫn, CODE WINS (inspire team 011 source-of-truth rule).
-- **3 trụ**: Agent hiểu yêu cầu (`src/agents/`) → Optimizer tính lịch (`src/optimizer/`) → Guard kiểm soát mọi lệnh
+- **3 trụ**: Agent hiểu yêu cầu (chat cư dân `src/llm_chat/`) → Optimizer tính lịch (`src/optimizer/`) → Guard kiểm soát mọi lệnh
   (`src/guard/`). Ranh giới import khoá bằng `tests/test_architecture.py`; nới ranh giới phải viết ADR trong `docs/adr/`.
 - **Chỉ `src/guard/dispatcher.py` gửi lệnh tới trạm** (`StationActuator.apply_commands`) — ADR-002.
-- **Agent graph**: `src/agents/graph.py` — ReAct harness: guardrail → reason → act (tools, HITL interrupt cho risky
-  tools, gồm `confirm_booking`) → assess → finalize (escape hatch max-iterations). Đừng thêm node mà không cập nhật
-  state schema (`src/agents/state.py`).
+- **Agent graph** (chat cư dân): `src/llm_chat/graph.py` — ReAct harness: guardrail → reason → act (tools, HITL
+  interrupt cho risky tools, gồm `confirm_booking`) → assess → finalize (escape hatch max-iterations). Đừng thêm node mà
+  không cập nhật state schema (`src/llm_chat/state.py`). Chỉ `src/api/routes.py` import `src.llm_chat.graph`. LLM
+  provider dùng chung ở `src/services/llm.py`. `src/agents/` dành cho AI-1 / AI-4 (chưa có code): chỉ qua services,
+  không tạo `Command`, không DB / actuator.
 - **kWh do code tính** (`src/services/energy.py`, FR3), không do LLM. **`resident_id` lấy phía server**
   (JWT → `config["configurable"]`), không là tham số tool, LLM không đọc / ghi được (ADR-006).
 - **Prompts**: nằm ở `prompts/*.md` (external file, `{{placeholder}}`). KHÔNG nhúng prompt dài trong Python string.
@@ -52,7 +54,7 @@
 - **API**: router chỉ gọi `src/services`; lỗi theo envelope `{detail, code, request_id}` (ADR-008). Đổi model /
   endpoint → `python scripts/export_openapi.py` rồi `npm run gen:api` trong `frontend/` (ADR-009).
 - **Dependency**: lúc chạy ở `requirements-runtime.txt`, dev/test ở `requirements.txt`. Thêm gói phải ghi lý do + task.
-- **Safety guardrail**: 2 lớp — prompt (`prompts/charging_safeguards.md`) và code (`src/agents/guardrails.py`);
+- **Safety guardrail**: 2 lớp — prompt (`prompts/charging_safeguards.md`) và code (`src/llm_chat/guardrails.py`);
   lệnh trạm do Guard 7 luật kiểm (`src/guard/`), không phụ thuộc LLM.
 - **Logging hooks**: `.claude/.cursor/.codex/.gemini/.github` auto-log prompt vào
   `.ai-log/`. KHÔNG disable, KHÔNG bypass `--no-verify`. Luôn mở AI tool ở repo root, không mở trong `frontend/`.
@@ -78,7 +80,8 @@ src/
   models/      # hợp đồng dữ liệu Pydantic (không import tầng nào khác) + hợp đồng core thuần stdlib (ADR-019):
                #   simulation_core, scheduling/, decisions, physical_constraints, physical_limits, charging_physics,
                #   station_protocols; planning (PlanningContext, Pydantic)
-  agents/      # Trụ 1: graph.py, state.py, nodes/, tools/charging.py, guardrails.py, prompts.py
+  llm_chat/    # Trụ 1 (chat cư dân): graph.py, state.py, schemas.py, nodes/, tools/charging.py, guardrails.py, prompts.py
+  agents/      # dành cho AI-1 negotiation / AI-4 decision copilot (ADR-019) — chưa có code
   services/    # tầng ứng dụng: charging_service, admission, hybrid_planner, station_service, control_loop, runtime, event_bus,
                #   realtime, auth, repository, catalog, energy, llm, errors
   optimizer/   # Trụ 2: dispatch/, zones/ (AC/DC LP), coordination/, registry.py (policy B0/M2b/M3a/M3b) — gốc simulator;

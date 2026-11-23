@@ -7,7 +7,7 @@ reject thì tool bị chặn và graph vẫn kết thúc có kiểm soát.
 import pytest
 from langgraph.types import Command
 
-from src.models.schemas import AgentDecision
+from src.llm_chat.schemas import AgentDecision
 from tests.conftest import ScriptedReasoner, make_test_graph
 
 CONFIG = {"configurable": {"thread_id": "hitl-thread"}}
@@ -75,7 +75,7 @@ class _BrokenTool:
 
 @pytest.mark.asyncio
 async def test_approved_risky_tool_error_is_recorded_not_raised(monkeypatch):
-    from src.agents.nodes import human_review_node
+    from src.llm_chat.nodes import human_review_node
 
     monkeypatch.setitem(human_review_node.TOOL_REGISTRY, "send_email", _BrokenTool())
     reasoner = ScriptedReasoner([_email_decision(), _final()])

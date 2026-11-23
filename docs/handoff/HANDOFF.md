@@ -37,7 +37,7 @@ Docker, profile DC VinFast cho xe đến dần (`with_vinfast_profiles` TODO), c
    `HybridSimulator` + test "live = research".
 4. Production: PR `develop` → `main`, service Render riêng (Starter trước demo), Neon nhánh `main`,
    `RENDER_DEPLOY_HOOK_PROD`, đổi `NEXT_PUBLIC_API_URL` Production trên Vercel (plan 56 §3.5).
-5. Giới hạn tần suất `/chat` theo user; sửa regex phút trong `src/agents/mock_llm.py` (nhận tới 99).
+5. Giới hạn tần suất `/chat` theo user; sửa regex phút trong `src/llm_chat/mock_llm.py` (nhận tới 99).
 6. Runner: giữ VM laptop hay thuê VPS x86_64 (4 vCPU / 8 GB) — nhóm quyết.
 7. Deliverable BTC: `README.md`, `JOURNAL.md`, `WORKLOG.md` đã điền theo dự án (22/11). Còn thiếu: mã sinh viên trong
    README, phần tuần 1 của JOURNAL ("[nhóm bổ sung]"), video demo, pitch deck, `eval/results/report.md` với LLM thật.

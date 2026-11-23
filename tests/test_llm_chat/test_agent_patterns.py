@@ -6,12 +6,12 @@ Giúp regression safety khi đổi prompt/model (inspire team 008 eval-thinking)
 
 import pytest
 
-from src.agents.nodes.safety_node import safety_node
-from src.agents.nodes.validate_node import should_retry
-from src.agents.personas import PERSONAS, get_persona
-from src.agents.prompts import SHARED_RULES, build_system_prompt, load_prompt
 from src.config import get_settings
-from src.models.schemas import AgentAnswer
+from src.llm_chat.nodes.safety_node import safety_node
+from src.llm_chat.nodes.validate_node import should_retry
+from src.llm_chat.personas import PERSONAS, get_persona
+from src.llm_chat.prompts import SHARED_RULES, build_system_prompt, load_prompt
+from src.llm_chat.schemas import AgentAnswer
 
 
 @pytest.mark.asyncio

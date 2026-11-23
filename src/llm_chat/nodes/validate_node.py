@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import logging
 
-from src.agents.state import AgentState
 from src.config import get_settings
-from src.models.schemas import AgentAnswer
+from src.llm_chat.schemas import AgentAnswer
+from src.llm_chat.state import AgentState
 
 logger = logging.getLogger(__name__)
 

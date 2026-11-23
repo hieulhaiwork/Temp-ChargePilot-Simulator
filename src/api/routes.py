@@ -24,9 +24,9 @@ from langgraph.types import Command
 from openai import OpenAIError
 from pydantic import BaseModel, ValidationError
 
-from src.agents.graph import agent
 from src.api.deps import ResidentUser
 from src.config import get_settings
+from src.llm_chat.graph import agent
 from src.models.api import ErrorCode, UserProfile
 from src.models.charging import ScheduleProposal
 from src.models.schemas import ChatRequest, ChatResponse

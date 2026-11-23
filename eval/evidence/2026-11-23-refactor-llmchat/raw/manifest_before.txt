@@ -1,0 +1,28 @@
+# path | sha256(file)[:16] | sha256(ast, no docstrings/imports)[:16] | top-level defs: name=sha256[:12]
+src/agents/__init__.py | e3b0c44298fc1c14 | 3543b4693a36a109 | 
+src/agents/graph.py | 796a03baff7f2332 | 8fb5b98e2f71dd04 | logger=e6861ce403d3 __all__=42b6b1136d54 guardrail_check_node=993086889232 make_entry_node=dc7dd1873c6c route_after_guardrail=f0c3a96ba37a route_after_reason=4f7afd81853d route_after_act=f8694b60f860 route_after_assess=50985277e6de build_graph=a4bd75cccc7b agent=2348896de24e
+src/agents/guardrails.py | fc60769f3b58fc56 | 688164da71c65160 | logger=71ae15e7cdfb SchemaT=64fa33fd950e GuardrailViolation=452096394cd6 BANNED_INPUT_PATTERNS=4530a9f7389a BANNED_OUTPUT_PATTERNS=ec76aa00238c Guardrails=17060df0e44f guardrails=199eacb7cbc0
+src/agents/mock_llm.py | d7dd27ff51b1788f | 6d9f3871e7b0256c | _PCT_RE=33d99caa2ada _TIME_RE=dceb8cffd71c _VEHICLE_RE=0dd6539d0c98 _now_local=e229d26aee7d _resolve_time=4c8156f44652 _fmt_dt=2c164056b011 _fmt_vnd=0cabefdb0fb4 _fmt_num=256e2bf35170 _extract_draft=c9c37b5ada8c _missing_fields=40569c1b78bc mock_reason=71e4d11f69e1 mock_generate=3dcf4b24990f
+src/agents/nodes/__init__.py | e3b0c44298fc1c14 | 3543b4693a36a109 | 
+src/agents/nodes/act_node.py | bec64c99f2313f8f | 6011480cb6f9ccb8 | logger=f7a79d43ea4d TOOL_ERROR_PREFIX=120d31524b19 _parse_proposal=3358f6c40a68 act_node=0124b153361f
+src/agents/nodes/assess_node.py | bdc121563dbb1e2f | cb3acca60c823012 | logger=6bb6f22ee17a assess_node=2e89e96e30af
+src/agents/nodes/finalize_node.py | 09a9861a11cd0649 | 98b907688c4f3f91 | logger=cc0c146831ec GenerateFn=dcdeb1ec3c9e PARTIAL_NOTE=8f65c92ebcf1 build_generate_prompt=cd0b11f12775 llm_generate=f35ce1e50efa _with_reply=6d012d9498cd _make_finalize=6e676f9b7a1d
+src/agents/nodes/human_review_node.py | b6a4ce0e6eff93fd | e645693d8e92952c | logger=38eaa713380c human_review_node=975e92a790f1
+src/agents/nodes/reason_node.py | 0f8e651c50e440d7 | 68f5a0e4d9c310f1 | logger=132904c8a219 ReasonFn=e08f06b9eaab describe_tools=da27dd9baccf _format_history_line=b56ea6d8234b build_reason_prompt=0dda53440984 llm_reason=acf9565f1c88 make_reason_node=bdfe4bf780d2
+src/agents/nodes/retrieve_node.py | 8dda8a00fdeb81f1 | c0a8ee39e883a4ee | _MOCK_KB=df2dc3621b94 retrieve_node=5481d2b7f05d _retrieve_chunks=72ff463747fa
+src/agents/nodes/safety_node.py | 8d16a2dfceb4144b | 35a864df30d7dff8 | DANGER_KEYWORDS=cd5344c9cf25 DANGER_RESPONSE=5adc75ddf460 safety_node=f362eba1338f
+src/agents/nodes/synthesize_node.py | 425a89195ed8cea7 | af056e2e09b5a4d9 | logger=a6de9e8cbf15 synthesize_node=ae323bf3a46e _get_structured_answer=2aa1c1590e7f _parse_answer=976c3ed2e42f _render_answer=e198f5deb2bf
+src/agents/nodes/validate_node.py | 4b68159cc0674363 | 34ba9601a321ee32 | logger=a6de9e8cbf15 validate_node=0a72cee15e87 should_retry=958a66e1a087
+src/agents/personas.py | 48f423966eb44073 | 46daaeb914393e68 | Persona=f29b21c79f26 PERSONAS=893e6302408a get_persona=cab9dbcb962f
+src/agents/prompts.py | 1688102cd9882cf7 | 3c162d54856d392b | _PROMPTS_DIR=6fe2957e4789 SHARED_RULES=3d901aa55cb4 load_prompt=7b1653a22e3e _PLACEHOLDER=e2709f251e07 render=36643439e6d3 build_system_prompt=04948b3588f4
+src/agents/state.py | 2c251dfb121396fc | 4fe643952b63ceb9 | Stage=c8aafa958590 HISTORY_LIMIT=fff1988a1403 AgentState=faaf514b159f
+src/agents/tools/__init__.py | 556943044522bd96 | b742c200f8f364ad | TOOL_REGISTRY=227a7828a969 TEMPLATE_DEMO_TOOL_NAMES=c139de796b71 __all__=b0b7a358fe06
+src/agents/tools/charging.py | 1f5d418342f1b8a4 | 782e20d1f34a059e | PROPOSAL_TOOL_NAME=fcf75a37def3 CONFIRM_TOOL_NAME=dd98e10a047e _svc=ab50dbe65a12 _current_resident_id=13aa9954bc53 _chat_idempotency_key=a74b559e1501 lookup_vehicle=f8ab5d1d034c estimate_charging_energy=5f26fb4b2280 propose_charging_plan=ae46e5d61ebd confirm_booking=5a1b1e49d294 get_queue_status=0c559d9d8a52 explain_schedule=ef7ef0cf08da CHARGING_TOOLS=e1c31c227654
+src/agents/tools/knowledge.py | 42de9f6b112d3dba | 5d78791732d5425e | _SAFE_OPERATORS=58e439bab5ae search_knowledge=bd04908e7d6a calculate=6db28451d908 _eval_node=dda7472d4486 TOOLS=847169f2be78
+src/agents/tools/mcp_tool.py | 4ad3872b497a47d6 | 98862818f781ace9 | _MCP_SERVER_URL=b5f7f64bd9d8 _mcp_call=3be1433fca11 mcp_knowledge_lookup=d95e4fd04fa8
+src/agents/tools/risky_tools.py | 78c808fcfff833e9 | 511fde2b9a9f2d19 | RISKY_TOOL_NAMES=48ae4a0bb92c send_email=ff01f33fbf13
+src/models/schemas.py | 644bc537bd88a84b | 77b75588ff756db2 | ChatRequest=d58b0272dff1 ChatResponse=90716221dde3 AgentDecision=fb5a2383d00f FinalAnswer=9d2bc45e1bd7 AgentAnswer=a37747e1a07b
+src/services/llm.py | 5c358f337e1c3ed1 | d12113f3dedfe8d2 | TaskType=0797e660b891 _model_name=f3e33990962d get_llm=1d3e7fee9d65 get_structured_llm=4c75572ef01e describe_provider=80662a26a65a
+src/config.py | 256af13ff8a25eef | 09772e08eb45bcf1 | DEFAULT_DATABASE_URL=8970bbfbfaef Settings=bd8c2103da9d get_settings=202c40af3a55
+src/guard/__init__.py | ee9493a1a920027d | 5c04595997820c90 | 
+src/api/routes.py | 4a7bf63fd57627ec | 970aa04e86cad6ab | logger=9677ccc82564 router=4e04d0007d4a CHAT_STREAM_TIMEOUT_SECONDS=d470340d6d46 MAX_CONCURRENT_STREAMS_PER_USER=9084d9e7883c _active_user_streams=7c139c33e34a _config=37d7ffc59e80 _turn_context=655e6c8c0c27 _proposal_from=4f7768ee9fd0 _to_chat_response=f4b033aec21a _invoke=92e683dd8a83 chat=a1ec1ab16cf2 _sse=0e911d0b8b5e chat_stream=47883bfe7c55 ResumeRequest=7023a76db9df chat_resume=d2ffde16f3de agent_status=8d43b193bcbf reset_demo_state=5321766b75fb agent_playground_page=c94c37fcc00c _PLAYGROUND_HTML=78ffac89fe3d

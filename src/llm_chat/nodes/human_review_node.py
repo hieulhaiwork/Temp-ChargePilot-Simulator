@@ -19,10 +19,10 @@ import logging
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
-from src.agents.nodes.act_node import TOOL_ERROR_PREFIX
-from src.agents.state import AgentState
-from src.agents.tools import TOOL_REGISTRY
-from src.agents.tools.charging import CONFIRM_TOOL_NAME
+from src.llm_chat.nodes.act_node import TOOL_ERROR_PREFIX
+from src.llm_chat.state import AgentState
+from src.llm_chat.tools import TOOL_REGISTRY
+from src.llm_chat.tools.charging import CONFIRM_TOOL_NAME
 
 logger = logging.getLogger("ai20k.human_review")
 

@@ -73,7 +73,7 @@ Lưu prompt ở `prompts/*.md` với `{{placeholder}}`, KHÔNG nhúng Python str
 <context>{{context}}</context>
 ```
 
-Loader (`src/agents/prompts.py`): `@lru_cache` + `str.replace`. Lợi ích: đổi prompt
+Loader (`src/llm_chat/prompts.py`): `@lru_cache` + `str.replace`. Lợi ích: đổi prompt
 không cần deploy code; mentor review được; diff git rõ.
 
 ## Pattern 4: SHARED_RULES DRY (team 002)

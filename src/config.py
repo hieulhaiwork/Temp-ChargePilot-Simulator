@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # LLM provider — đổi qua lại bằng 1 dòng .env, không sửa code (src/services/llm.py):
     #   openai = gọi API (OPENAI_API_KEY + MODEL_*)
     #   local  = server OpenAI-compatible tự host (Ollama / vLLM / LM Studio trên VM) — LOCAL_LLM_*
-    #   mock   = bộ não luật cố định, KHÔNG gọi mạng (src/agents/mock_llm.py) — dev/test khi chưa có key/VM
+    #   mock   = bộ não luật cố định, KHÔNG gọi mạng (src/llm_chat/mock_llm.py) — dev/test khi chưa có key/VM
     llm_provider: Literal["openai", "local", "mock"] = "openai"
     local_llm_base_url: str = "http://localhost:11434/v1"  # Ollama mặc định; vLLM: http://<vm-ip>:8000/v1
     local_llm_api_key: str = "local"  # Ollama bỏ qua; vLLM chạy với --api-key thì điền đúng key đó

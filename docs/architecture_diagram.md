@@ -80,7 +80,7 @@ flowchart TB
 
 | Trụ | Package | Được làm | KHÔNG được làm |
 |---|---|---|---|
-| 1. AI hiểu yêu cầu (F1) | `src/agents/` | trích `ChargeRequest`, hỏi lại chỗ thiếu, giải thích lịch | tự tính kWh, tự quyết công suất, gửi lệnh trạm (FR5) |
+| 1. AI hiểu yêu cầu (F1) | `src/llm_chat/` (chat cư dân; `src/agents/` dành cho AI-1 / AI-4) | trích `ChargeRequest`, hỏi lại chỗ thiếu, giải thích lịch | tự tính kWh, tự quyết công suất, gửi lệnh trạm (FR5) |
 | 2. Bộ tối ưu (F2/F3) | `src/optimizer/` | tính `SchedulePlan` từ `PlanningContext` | đọc file/DB/API, gọi LLM, gửi lệnh trạm |
 | 3. Bộ kiểm tra (F4) | `src/guard/` | kiểm 7 luật FR12, phê duyệt, khẩn cấp, **là cửa duy nhất tới trạm** | phụ thuộc LLM (phải chạy được khi LLM sập) |
 
@@ -121,7 +121,7 @@ flowchart TB
         ws["ws.py<br/>FR16"]
     end
 
-    subgraph AG["src/agents — Trụ 1: F1"]
+    subgraph AG["src/llm_chat — Trụ 1: F1 chat cư dân"]
         agraph["graph.py<br/>ReAct + HITL"]
         tools["tools/charging.py"]
     end
@@ -198,7 +198,8 @@ flowchart TB
 
 Mũi tên nghĩa là "được phép gọi". Ba điều sơ đồ này khoá lại:
 
-- Không có mũi tên nào từ `agents` tới `optimizer`, `guard`, `simulator` hay `db`: Agent chỉ đi qua `services` (FR5).
+- Không có mũi tên nào từ `llm_chat` (và `agents`, AI-1 / AI-4) tới `optimizer`, `guard`, `simulator` hay `db`: chỉ đi
+  qua `services` (FR5, ADR-019).
 - Không có mũi tên nào từ `api` tới `guard`, `optimizer`, `simulator` hay `db`: router chỉ gọi `services`; quyết định
   phê duyệt đi qua `control_loop.resolve_approval` (ADR-007).
 - `dispatcher` không tự biết ghi nhật ký vào đâu: nó nhận `DispatchSinks`. Chế độ chạy thật (`runtime.get_runtime`)
@@ -213,7 +214,7 @@ Giữ harness ReAct của template (ADR-001). ChargePilot thêm tool sạc, bộ
 `confirm_booking` là tool rủi ro: `interrupt()` của graph chính là bước cư dân bấm
 "Xác nhận" ở màn S3 (FR2).
 
-State (`src/agents/state.py:AgentState`) ngoài các field của vòng ReAct còn có: `turn_context` (server đặt mỗi lượt:
+State (`src/llm_chat/state.py:AgentState`) ngoài các field của vòng ReAct còn có: `turn_context` (server đặt mỗi lượt:
 `now`, `timezone`, `vehicle_model`, `display_name`), `history` (giữ 20 tin gần nhất), `draft_request` (các trường
 `ChargeRequest` đã thu được — thiếu thì hỏi lại, không đoán), `proposal` (`ScheduleProposal` gần nhất, payload của S3).
 `resident_id` **không** nằm trong state: nó đi trong `config["configurable"]` (ADR-006), LLM không đọc / ghi được.

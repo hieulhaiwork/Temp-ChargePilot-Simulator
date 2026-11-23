@@ -9,7 +9,8 @@ Các ranh giới:
   2. Chỉ guard/dispatcher.py đụng phần GHI của simulator — ADR-002.
   3. Chỉ src/db/** và services/repository.py biết ORM — ADR-005.
   4. Hợp đồng dữ liệu (src/models) không phụ thuộc thư viện hạ tầng.
-  5. Agent không có đường nào tạo lệnh điều khiển trạm — FR5.
+  5. Chat cư dân (src/llm_chat) và AI module vận hành (src/agents: AI-1/AI-4) không có đường nào tạo lệnh
+     điều khiển trạm, chỉ đi qua src/services — FR5, ADR-019.
   6. frontend/ không import gì từ ngoài frontend/ — ADR-009.
   7. Hợp đồng core dùng chung (scenario, observation, budget, limits, physics) nằm ở src/models, thuần stdlib;
      simulator chạy standalone không cần stack backend; chỉ adapter chuyển tiếp chạm src.simulator.src — ADR-019.
@@ -30,9 +31,11 @@ FRONTEND_SRC = ROOT / "frontend" / "src"
 
 # package trong src/ → các prefix module KHÔNG được import
 BOUNDARIES: dict[str, tuple[str, ...]] = {
-    # FR5: Agent chỉ đi qua src/services — không chạm bộ tối ưu, Guard, simulator, DB
-    "agents": ("src.simulator", "src.guard", "src.optimizer", "src.forecast", "src.db", "src.api"),
-    # ADR-007: router chỉ gọi src/services (và src.agents.graph cho /chat) — không gọi thẳng các trụ hay DB
+    # FR5 / ADR-019: AI-1 / AI-4 chỉ đi qua src/services — không chạm bộ tối ưu, Guard, simulator, DB, chat cư dân
+    "agents": ("src.simulator", "src.guard", "src.optimizer", "src.forecast", "src.db", "src.api", "src.llm_chat"),
+    # FR5 / ADR-019: chat cư dân chỉ đi qua src/services — không chạm bộ tối ưu, Guard, simulator, DB
+    "llm_chat": ("src.simulator", "src.guard", "src.optimizer", "src.forecast", "src.db", "src.api", "src.agents"),
+    # ADR-007: router chỉ gọi src/services (và src.llm_chat.graph cho /chat) — không gọi thẳng các trụ hay DB
     "api": ("src.guard", "src.optimizer", "src.simulator", "src.forecast", "src.db"),
     # F4: Guard là code xác định, chạy được khi LLM sập
     # ADR-019: Guard không import simulator (simulator dùng guard.physical.validator → cấm chiều ngược để không vòng)
@@ -200,29 +203,79 @@ def test_models_do_not_depend_on_infrastructure_libraries():
     assert not offenders, "src/models chỉ dùng thư viện chuẩn + pydantic:\n" + "\n".join(offenders)
 
 
-# ---- 5. Agent không ra lệnh trạm (FR5) -----------------------------------------------------
+# ---- 5. Chat cư dân và AI module không ra lệnh trạm (FR5, ADR-019) -------------------------
+
+_COMMAND_TYPES = {"src.models.control.Command", "src.models.control.CommandType", "src.models.control.CommandSource"}
 
 
-def test_agent_package_cannot_construct_station_commands():
-    """Agent không import Command / CommandType → về cấu trúc không tạo được lệnh điều khiển trạm."""
+@pytest.mark.parametrize("package", ["llm_chat", "agents"])
+def test_ai_packages_cannot_construct_station_commands(package):
+    """Không import Command / CommandType → về cấu trúc không tạo được lệnh điều khiển trạm."""
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in sorted((SRC / package).rglob("*.py"))
+        for module in sorted(_imported_modules(path))
+        if module in _COMMAND_TYPES
+    ]
+    assert not offenders, "Chỉ đề xuất qua services — không tự tạo Command (FR5):\n" + "\n".join(offenders)
+
+
+@pytest.mark.parametrize("package", ["llm_chat", "agents"])
+def test_ai_packages_only_use_services_models_config(package):
+    """src/llm_chat và src/agents chỉ import src.services, src.models, src.config và chính mình (ADR-019)."""
+    allowed = ("src.services", "src.models", "src.config", f"src.{package}")
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in sorted((SRC / package).rglob("*.py"))
+        for module in sorted(_imported_modules(path))
+        if module.startswith("src.") and not _violates(module, allowed)
+    ]
+    assert not offenders, "\n".join(offenders)
+
+
+def test_llm_chat_tools_only_call_the_services_layer():
+    """Tool chỉ import src.services.* và src.models.* (cùng thư viện ngoài) — không còn đường tắt nào khác."""
+    allowed = ("src.services", "src.models", "src.llm_chat", "src.config")
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in sorted((SRC / "llm_chat" / "tools").rglob("*.py"))
+        for module in sorted(_imported_modules(path))
+        if module.startswith("src.") and not _violates(module, allowed)
+    ]
+    assert not offenders, "\n".join(offenders)
+
+
+# AI-1 / AI-4 không chạm DB, actuator hay bộ gửi lệnh — kể cả qua cửa sau trong services/models.
+_AGENTS_FORBIDDEN = (
+    "sqlalchemy",
+    "alembic",
+    "src.db",
+    "src.services.repository",
+    "src.guard",
+    "src.simulator",
+    "src.models.station_protocols.StationActuator",
+)
+
+
+def test_agents_package_cannot_touch_db_actuator_or_bypass_guard():
     offenders = [
         f"{_rel(path)} imports {module}"
         for path in sorted((SRC / "agents").rglob("*.py"))
         for module in sorted(_imported_modules(path))
-        if module
-        in {"src.models.control.Command", "src.models.control.CommandType", "src.models.control.CommandSource"}
+        if _violates(module, _AGENTS_FORBIDDEN)
     ]
-    assert not offenders, "Agent chỉ đề xuất qua services — không tự tạo Command (FR5):\n" + "\n".join(offenders)
+    assert not offenders, "AI-1 / AI-4 chỉ đề xuất qua services (ADR-002, ADR-019):\n" + "\n".join(offenders)
 
 
-def test_agent_tools_only_call_the_services_layer():
-    """Tool chỉ import src.services.* và src.models.* (cùng thư viện ngoài) — không còn đường tắt nào khác."""
-    allowed = ("src.services", "src.models", "src.agents", "src.config")
+def test_only_api_imports_llm_chat_and_only_its_graph():
+    """Chat cư dân là lá của đồ thị: chỉ router /chat dùng, và chỉ qua src.llm_chat.graph."""
     offenders = [
         f"{_rel(path)} imports {module}"
-        for path in sorted((SRC / "agents" / "tools").rglob("*.py"))
+        for path in sorted(SRC.rglob("*.py"))
+        if not path.is_relative_to(SRC / "llm_chat")
         for module in sorted(_imported_modules(path))
-        if module.startswith("src.") and not _violates(module, allowed)
+        if _violates(module, ("src.llm_chat",))
+        and not (path.is_relative_to(SRC / "api") and _violates(module, ("src.llm_chat.graph",)))
     ]
     assert not offenders, "\n".join(offenders)
 
@@ -526,6 +579,7 @@ def test_boundary_checker_detects_violation(tmp_path):
     bad.write_text("from src.simulator.base import StationActuator\n", encoding="utf-8")
     modules = _imported_modules(bad)
     assert _violates("src.simulator.base.StationActuator", BOUNDARIES["agents"])
+    assert _violates("src.simulator.base.StationActuator", BOUNDARIES["llm_chat"])
     assert "src.simulator.base" in modules
 
 

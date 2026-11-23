@@ -232,9 +232,9 @@ def run_online(dataset: Path, out: Path | None, delay_seconds: float = 0.0) -> i
     import asyncio
     import os
 
-    from src.agents.graph import build_graph
-    from src.agents.guardrails import GuardrailViolation, guardrails
     from src.config import get_settings
+    from src.llm_chat.graph import build_graph
+    from src.llm_chat.guardrails import GuardrailViolation, guardrails
     from src.services import charging_demo
 
     get_settings.cache_clear()

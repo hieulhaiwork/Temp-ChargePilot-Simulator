@@ -32,7 +32,7 @@ async def test_agent_status(client):
 @pytest.mark.asyncio
 async def test_chat_without_session_id_gets_own_session(client, monkeypatch, resident):
     from src.api import routes
-    from src.models.schemas import AgentDecision
+    from src.llm_chat.schemas import AgentDecision
     from tests.conftest import ScriptedReasoner, make_test_graph
 
     final = AgentDecision(thought="t", action="final", enough_data=True, final_answer="ok")
@@ -54,7 +54,7 @@ async def test_resume_requires_session_id(client, resident):
 @pytest.mark.asyncio
 async def test_chat_analysis_only_lists_tool_names(client, monkeypatch, resident):
     from src.api import routes
-    from src.models.schemas import AgentDecision
+    from src.llm_chat.schemas import AgentDecision
     from tests.conftest import ScriptedReasoner, make_test_graph
 
     lookup = AgentDecision(
@@ -75,7 +75,7 @@ async def test_chat_analysis_only_lists_tool_names(client, monkeypatch, resident
 @pytest.mark.asyncio
 async def test_resume_surfaces_second_interrupt(client, monkeypatch, resident):
     from src.api import routes
-    from src.models.schemas import AgentDecision
+    from src.llm_chat.schemas import AgentDecision
     from tests.conftest import ScriptedReasoner, make_test_graph
 
     email = AgentDecision(
@@ -96,7 +96,7 @@ async def test_resume_surfaces_second_interrupt(client, monkeypatch, resident):
 @pytest.mark.asyncio
 async def test_chat_stream_returns_sse_events(client, monkeypatch, resident):
     from src.api import routes
-    from src.models.schemas import AgentDecision
+    from src.llm_chat.schemas import AgentDecision
     from tests.conftest import ScriptedReasoner, make_test_graph
 
     final = AgentDecision(thought="t", action="final", enough_data=True, final_answer="Xin chào cư dân")
