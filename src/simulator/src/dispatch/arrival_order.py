@@ -1,8 +1,11 @@
-"""Shared FIFO/FCFS arrival-order selection."""
+"""Compatibility alias (ADR-019 Phase 2): this module moved to `src.optimizer.dispatch.arrival_order`.
 
-from .base import DispatchObservation
+`sys.modules` maps the old name to the SAME module object, so attribute access, private helpers and monkeypatching
+(e.g. tests patching `linprog`) act on the real implementation. Remove in Phase 6 once no caller uses the old path.
+"""
 
+import sys
 
-def arrival_order(observation: DispatchObservation) -> dict[str, str]:
-    """FIFO/FCFS: arrival order, stable vehicle ID for simultaneous arrivals."""
-    return dict(zip(observation.empty_ports, observation.waiting))
+from src.optimizer.dispatch import arrival_order as _module
+
+sys.modules[__name__] = _module

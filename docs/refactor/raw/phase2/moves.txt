@@ -1,0 +1,10 @@
+src/simulator/src/dispatch/arrival_order.py -> src/optimizer/dispatch/arrival_order.py
+src/simulator/src/dispatch/edf.py -> src/optimizer/dispatch/edf.py
+src/simulator/src/dispatch/least_laxity.py -> src/optimizer/dispatch/least_laxity.py
+src/simulator/src/optimizers/ac_lp.py -> src/optimizer/zones/ac_lp.py
+src/simulator/src/optimizers/rolling_lp.py -> src/optimizer/zones/rolling_lp.py
+src/simulator/src/optimizers/equal_share.py -> src/optimizer/zones/equal_share.py
+src/simulator/src/optimizers/deadline_first.py -> src/optimizer/zones/deadline_first.py
+src/simulator/src/coordination/fixed_budget.py -> src/optimizer/coordination/fixed_budget.py
+src/simulator/src/coordination/dynamic_slack.py -> src/optimizer/coordination/dynamic_slack.py
+src/optimizer/__init__.py -> src/optimizer/strategies.py

@@ -39,7 +39,9 @@ BOUNDARIES: dict[str, tuple[str, ...]] = {
     # Optimizer thuần: context vào → plan ra (benchmark A–D cùng interface)
     "optimizer": ("src.agents", "src.api", "src.services", "src.simulator", "src.guard", "src.db", "src.forecast"),
     "forecast": ("src.agents", "src.api", "src.services", "src.simulator", "src.guard", "src.optimizer", "src.db"),
-    "simulator": ("src.agents", "src.api", "src.services", "src.optimizer", "src.guard", "src.db", "src.forecast"),
+    # ADR-019: simulator dùng thuật toán của optimizer (dispatch/zones/coordination/registry) — không dùng LP backend cũ;
+    # phạm vi được phép khoá chặt hơn ở test_simulator_uses_only_algorithm_packages
+    "simulator": ("src.agents", "src.api", "src.services", "src.guard", "src.db", "src.forecast"),
     # ADR-005: tầng persistence chỉ biết hợp đồng dữ liệu và cấu hình
     "db": (
         "src.agents",
@@ -293,7 +295,9 @@ BACKEND_STACK = ("pydantic", "fastapi", "starlette", "sqlalchemy", "alembic", "l
 
 def _module_files(prefix: str) -> list[Path]:
     base = ROOT.joinpath(*prefix.split("."))
-    return sorted(base.rglob("*.py")) if base.is_dir() else [base.with_suffix(".py")]
+    if base.is_dir():
+        return sorted(base.rglob("*.py"))
+    return [path for path in [base.with_suffix(".py")] if path.exists()]
 
 
 def _is_core_contract(module: str) -> bool:
@@ -383,6 +387,39 @@ def _layers_in_cycles(graph: dict[str, set[str]]) -> list[str]:
     return [layer for layer in graph if reaches(layer, layer, frozenset({layer}))]
 
 
+# Gói thuật toán của optimizer dùng chung cho simulator standalone + backend (ADR-019). Phần còn lại của src/optimizer
+# (base, baselines, mpc, lp_model, horizon, assignment, strategies) là LP backend cũ, kéo theo Pydantic.
+OPTIMIZER_ALGORITHMS = (
+    "src.optimizer.dispatch",
+    "src.optimizer.zones",
+    "src.optimizer.coordination",
+    "src.optimizer.registry",
+)
+
+
+def test_simulator_uses_only_algorithm_packages_of_the_optimizer():
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in sorted((SRC / "simulator").rglob("*.py"))
+        for module in sorted(_imported_modules(path))
+        if _violates(module, ("src.optimizer",)) and not _violates(module, OPTIMIZER_ALGORITHMS)
+    ]
+    assert not offenders, "Simulator chỉ dùng gói thuật toán của optimizer (ADR-019):\n" + "\n".join(offenders)
+
+
+def test_optimizer_algorithm_packages_depend_only_on_contracts():
+    """dispatch / zones / coordination / registry chỉ import hợp đồng core + chính nhóm thuật toán + numpy/scipy."""
+    offenders = []
+    for prefix in OPTIMIZER_ALGORITHMS:
+        for path in _module_files(prefix):
+            for module in sorted(_imported_modules(path)):
+                if module.startswith("src.") and not (
+                    _is_core_contract(module) or _violates(module, OPTIMIZER_ALGORITHMS)
+                ):
+                    offenders.append(f"{_rel(path)} imports {module}")
+    assert not offenders, "\n".join(offenders)
+
+
 def test_core_layers_have_no_import_cycle():
     """Đồ thị gói models / optimizer / guard / simulator phải một chiều (không vòng)."""
     graph = _layer_graph(ROOT, CORE_LAYERS)
@@ -414,6 +451,11 @@ def test_simulator_imports_without_the_backend_stack():
         "src.simulator.src.evaluation.extended",
         "src.simulator.src.evaluation.trace",
         *CORE_CONTRACTS,
+        *(prefix for prefix in OPTIMIZER_ALGORITHMS if prefix != "src.optimizer.registry"),
+        "src.optimizer.zones.ac_lp",
+        "src.optimizer.zones.rolling_lp",
+        "src.optimizer.coordination.dynamic_slack",
+        "src.optimizer.dispatch.least_laxity",
     )
     code = _STANDALONE_PROBE.format(blocked=set(BACKEND_STACK), modules=modules)
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)

@@ -1,18 +1,11 @@
-"""Example deadline-priority power allocation."""
+"""Compatibility alias (ADR-019 Phase 2): this module moved to `src.optimizer.zones.deadline_first`.
 
-from ..observations import SchedulingObservation
+`sys.modules` maps the old name to the SAME module object, so attribute access, private helpers and monkeypatching
+(e.g. tests patching `linprog`) act on the real implementation. Remove in Phase 6 once no caller uses the old path.
+"""
 
+import sys
 
-def deadline_first(observation: SchedulingObservation, zone: str, budget_kw: float) -> dict[str, float]:
-    """Example greedy allocation, for experiments with the optimizer interface."""
-    remaining = budget_kw
-    cabinet_left = {cab.id: cab.output_kw for cab in observation.scenario.cabinets if cab.zone == zone}
-    plan = {}
-    for vid in sorted(observation.candidates, key=lambda vid: (observation.vehicles[vid].vehicle.departure, vid)):
-        candidate = observation.candidates[vid]
-        cid = candidate.cabinet.id
-        kw = min(candidate.allowed_kw, remaining, cabinet_left[cid])
-        plan[vid] = kw
-        remaining -= kw
-        cabinet_left[cid] -= kw
-    return plan
+from src.optimizer.zones import deadline_first as _module
+
+sys.modules[__name__] = _module

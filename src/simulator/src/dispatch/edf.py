@@ -1,15 +1,11 @@
-"""Earliest-deadline-first selection for waiting vehicles."""
+"""Compatibility alias (ADR-019 Phase 2): this module moved to `src.optimizer.dispatch.edf`.
 
-from .base import DispatchObservation
+`sys.modules` maps the old name to the SAME module object, so attribute access, private helpers and monkeypatching
+(e.g. tests patching `linprog`) act on the real implementation. Remove in Phase 6 once no caller uses the old path.
+"""
 
+import sys
 
-def earliest_deadline(observation: DispatchObservation) -> dict[str, str]:
-    ordered = sorted(
-        observation.waiting,
-        key=lambda vid: (
-            observation.vehicles[vid].vehicle.departure,
-            observation.vehicles[vid].vehicle.arrival,
-            vid,
-        ),
-    )
-    return dict(zip(observation.empty_ports, ordered))
+from src.optimizer.dispatch import edf as _module
+
+sys.modules[__name__] = _module
