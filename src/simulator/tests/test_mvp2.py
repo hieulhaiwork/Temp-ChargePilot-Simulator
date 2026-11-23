@@ -7,11 +7,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.models.simulation_core import Scenario, clock
+from src.optimizer.zones import rolling_lp
+from src.simulator.core.algorithms import resolve_algorithms
+from src.simulator.hybrid import HybridSimulator
 from src.simulator.run import main
-from src.simulator.src.algorithms import resolve_algorithms
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.optimizers import rolling_lp
-from src.simulator.src.scenario import Scenario, clock
 from src.simulator.tests.golden_util import canonical_parts
 
 ROOT = Path(__file__).resolve().parents[1]

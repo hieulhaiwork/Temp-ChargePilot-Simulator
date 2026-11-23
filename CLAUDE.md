@@ -18,10 +18,11 @@
   Refactor Unified Core đang chạy theo phase (`docs/refactor/`, nhánh `feature/unified-core`). Code gốc MVP-1/2/3 chỉ
   được **di chuyển** (thuật toán: `src/optimizer/{dispatch,zones,coordination,registry.py}`; Physical Guard:
   `src/guard/physical/validator.py`; hợp đồng: `src/models/{simulation_core,scheduling,physical_*,charging_physics}`),
-  logic giữ nguyên và chứng minh bằng `scripts/refactor/compare_ast_manifest.py`. Vị trí cũ trong `src/simulator/src/`
-  là shim. KHÔNG sửa thuật toán, objective, tham số solver hay vật lý để cho khớp backend — sửa backend.
-  Simulator phải chạy standalone (không FastAPI / DB / LLM). Phase 3: **một kernel** `StationKernel`
-  (`src/simulator/src/engine/hybrid.py`, `observe/propose/approve/apply_approved/advance`) cho cả `HybridSimulator` và
+  logic giữ nguyên và chứng minh bằng `scripts/refactor/compare_ast_manifest.py`. Gói cũ `src/simulator/src/` và mọi
+  shim đã xoá (Phase 4). KHÔNG sửa thuật toán, objective, tham số solver hay vật lý để cho khớp backend — sửa backend.
+  Simulator phải chạy standalone (không FastAPI / DB / LLM). **Một kernel** `StationKernel`
+  (`src/simulator/core/kernel.py`, `observe/propose/approve/apply_approved/advance`; vật lý / sự kiện ở
+  `src/simulator/core/{ev2gym_adapter,charging_models,queue}`) cho cả `HybridSimulator` (`src/simulator/hybrid.py`) và
   `HybridStation`; quote / booking chạy cùng kernel trên bản fork (`src/services/admission.py`). LP backend A–D và
   `LiveStation` đã xoá (`docs/refactor/DELETION_MANIFEST.md`).
 - **LLM**: `LLM_PROVIDER=openai` (OpenAI, hoặc Gemini / OpenRouter qua `OPENAI_BASE_URL`) · `local` · `mock` (chỉ
@@ -89,7 +90,7 @@ src/
   forecast/    # F6: dự báo lúc rút đầu nối (cấm feature unplug_time)
   guard/       # Trụ 3: rules (7 luật), checker, approval, emergency, dispatcher (chokepoint);
                #   physical/validator.py (Physical Guard gốc) + physical/adapter.py (map DTO backend)
-  simulator/   # src/ engine: StationKernel + HybridSimulator (queue, EV2Gym, charging_models, evaluation) · hybrid_station.py
+  simulator/   # core/ (StationKernel, queue, EV2Gym, charging_models, algorithms) · hybrid.py · evaluation/ · hybrid_station.py
   db/          # SQLAlchemy: tables (9 bảng), session, mappers
   api/         # REST /api/v1 + WebSocket: auth, catalog, resident, operations, simulation, routes (/chat), ws
 config/        # station.yaml, vehicles.yaml, tariff.yaml, scenarios/

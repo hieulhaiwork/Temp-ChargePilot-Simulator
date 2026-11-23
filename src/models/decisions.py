@@ -65,7 +65,11 @@ class ReasonCode:
     STALE_STATE = "STALE_STATE"
     VIOLATION_AFTER_APPLY = "VIOLATION_AFTER_APPLY"
     BUDGET_DEVIATION = "BUDGET_DEVIATION"
+    # Tổng vùng vượt assigned budget nhưng nằm trong command deadband (0,01 kW × số cổng): độ phân giải lệnh, KHÔNG
+    # phải sai lệch điều phối, KHÔNG phải vi phạm cứng (ADR-019 Phase 4, quyết định 3).
+    COMMAND_DEADBAND = "COMMAND_DEADBAND"
     CHARGE_COMPLETED = "CHARGE_COMPLETED"
+    LOAD_REDUCTION_PRIORITY = "LOAD_REDUCTION_PRIORITY"  # giảm tải an toàn không chờ anti-flapping / HITL
 
 
 @dataclass(frozen=True)
@@ -113,6 +117,16 @@ class ApprovedDecision:
 
 @dataclass(frozen=True)
 class AppliedResult:
+    """Ba loại "vượt" tách riêng (ADR-019 Phase 4, quyết định 3):
+
+    - violations: HARD — Physical Guard sau thực thi (cổng / tủ / vùng vật lý / nguồn, TOL 1e-7).
+    - budget_deviation_kw: tổng vùng vượt assigned budget của Coordinator QUÁ command deadband — sai lệch điều phối
+      (ví dụ setpoint cũ còn giữ vì lệnh mới bị chặn / chờ duyệt); ghi + tính lại, không phải vi phạm cứng.
+    - command_deadband_kw: vượt budget nhưng ≤ deadband 0,01 kW × số cổng của vùng (lệnh không được gửi lại khi chênh
+      < 0,01 kW) — độ phân giải lệnh, không che sai lệch lớn hơn.
+    `stale_setpoint_kw`: xe có setpoint đang giữ lớn hơn setpoint đã duyệt (giải thích budget deviation).
+    """
+
     minute: int
     end: int
     physics_step_minutes: int
@@ -124,8 +138,19 @@ class AppliedResult:
     violations: tuple[str, ...] = ()
     budget_deviation_kw: Mapping[str, float] = field(default_factory=dict)
     state_version: int = 0
+    command_deadband_kw: Mapping[str, float] = field(default_factory=dict)
+    stale_setpoint_kw: Mapping[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        _freeze(self, "requested_kw", "allowed_kw", "actual_kw", "stored_kwh", "budget_deviation_kw")
+        _freeze(
+            self,
+            "requested_kw",
+            "allowed_kw",
+            "actual_kw",
+            "stored_kwh",
+            "budget_deviation_kw",
+            "command_deadband_kw",
+            "stale_setpoint_kw",
+        )
         object.__setattr__(self, "completed", tuple(self.completed))
         object.__setattr__(self, "violations", tuple(self.violations))

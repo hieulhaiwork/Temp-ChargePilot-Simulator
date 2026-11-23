@@ -36,9 +36,9 @@
 Từ repository root, dùng các import **đúng với code hiện tại**:
 
 ```python
-from src.simulator.src.scenario import Scenario
-from src.simulator.src.algorithms import resolve_algorithms
-from src.simulator.src.engine.hybrid import HybridSimulator
+from src.models.simulation_core import Scenario
+from src.simulator.core.algorithms import resolve_algorithms
+from src.simulator.hybrid import HybridSimulator
 
 scenario = Scenario.parse(combined_config)  # dict, KHÔNG phải hai file riêng
 algorithms, algorithm_metadata = resolve_algorithms(selection, scenario, "backend_simulation_gateway")
@@ -230,9 +230,9 @@ Trên Windows native, thay `.simulator/bin/python` bằng `.simulator/Scripts/py
 Tận dụng chính hàm ghép/validation ở script hoặc chuyển vào `src/services/simulator_gateway.py`:
 
 ```python
-from src.simulator.src.scenario import Scenario
-from src.simulator.src.algorithms import resolve_algorithms
-from src.simulator.src.engine.hybrid import HybridSimulator
+from src.models.simulation_core import Scenario
+from src.simulator.core.algorithms import resolve_algorithms
+from src.simulator.hybrid import HybridSimulator
 
 # station_dict, traffic_dict được load và validate từ nguồn đáng tin cậy.
 # compose(...) là helper trong integration_demo/run_split_demo.py;

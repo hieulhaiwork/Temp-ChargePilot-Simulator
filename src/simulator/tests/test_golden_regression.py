@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from src.simulator.src.algorithms import resolve_algorithms
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.scenario import Scenario
+from src.models.simulation_core import Scenario
+from src.simulator.core.algorithms import resolve_algorithms
+from src.simulator.hybrid import HybridSimulator
 from src.simulator.tests.golden_util import canonical_parts
 
 ROOT = Path(__file__).resolve().parents[1]

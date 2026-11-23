@@ -55,3 +55,40 @@ Giữ lại (vẫn có test dùng, chưa đủ điều kiện xoá): `nodes/safe
 `tools/{knowledge,mcp_tool,risky_tools}.py` (nằm trong `TOOL_REGISTRY`, ẩn khỏi prompt qua
 `TEMPLATE_DEMO_TOOL_NAMES`; `send_email` là tool risky mà `test_hitl.py`, `test_routes.py`, `eval/run_eval.py` dùng để
 kiểm HITL). Muốn xoá các file này phải chuyển những test đó sang tool sạc trước.
+
+## Phase 4 — nhánh `feature/unified-core-p4-core` (quyết định 7: kernel vào `src/simulator/core/`, xoá shim)
+
+Commit cuối còn mọi file dưới đây: `70d0eaf` (`git show 70d0eaf:<path>`).
+
+### Shim đã xoá (không có logic; đích đã có từ Phase 1–3)
+
+| Đã xoá | Loại | Đích (import thẳng) |
+|---|---|---|
+| `src/simulator/src/scenario.py` | re-export Phase 1 | `src.models.simulation_core` |
+| `src/simulator/src/observations.py` | re-export Phase 1 | `src.models.scheduling.observations` |
+| `src/simulator/src/charging_models/base.py` | re-export Phase 1 | `src.models.charging_physics` |
+| `src/simulator/src/safety/{constraints,limits}.py` | re-export Phase 1 | `src.models.physical_{constraints,limits}` |
+| `src/simulator/src/{dispatch,coordination,optimizers}/base.py` | re-export Phase 1 | `src.models.scheduling.{dispatch,coordination,optimization}` |
+| `src/simulator/src/dispatch/{arrival_order,edf,least_laxity}.py` | alias `sys.modules` Phase 2 | `src.optimizer.dispatch.*` |
+| `src/simulator/src/optimizers/{ac_lp,deadline_first,equal_share,rolling_lp}.py` | alias `sys.modules` Phase 2 | `src.optimizer.zones.*` |
+| `src/simulator/src/coordination/{dynamic_slack,fixed_budget}.py` | alias `sys.modules` Phase 2 | `src.optimizer.coordination.*` |
+| `src/simulator/src/safety/guard.py` | alias `sys.modules` Phase 2 | `src.guard.physical.validator` |
+| `src/simulator/base.py` | alias `sys.modules` Phase 2 | `src.models.station_protocols` |
+| `src/simulator/src/{,engine,dispatch,coordination,optimizers,safety}/__init__.py` | gói rỗng | — |
+| `src/guard/physical/__init__.py::_ADAPTER_NAMES`, `__getattr__` | tương thích Phase 2 | `src.guard.physical.adapter` (consumer trong repo đã import thẳng) |
+| `tests/test_architecture.py::test_core_contract_shims_reexport_the_same_objects`, `test_contracts_are_imported_from_models_outside_the_simulator`, `test_physical_guard_package_keeps_the_old_public_api_without_loading_the_backend` | test của shim | `test_compatibility_shims_are_gone`, `test_nobody_imports_removed_compatibility_paths`, `test_physical_guard_package_exports_only_the_validator_without_loading_the_backend` (chặt hơn) |
+
+### Di chuyển (`git mv`, chỉ đổi import; cổng AST `raw/phase4-p4core/ast_gate_step7.txt`)
+
+| Cũ | Mới |
+|---|---|
+| `src/simulator/src/engine/hybrid.py` (`StationKernel`) | `src/simulator/core/kernel.py` |
+| `src/simulator/src/engine/hybrid.py` (`HybridSimulator`, `ZERO_POWER`) | `src/simulator/hybrid.py` |
+| `src/simulator/src/engine/{queue,ev2gym_adapter}.py` | `src/simulator/core/{queue,ev2gym_adapter}.py` |
+| `src/simulator/src/algorithms.py` | `src/simulator/core/algorithms.py` |
+| `src/simulator/src/charging_models/{__init__,dc_charging_models,synthetic_dc,vehicle_profiles}.py` | `src/simulator/core/charging_models/…` |
+| `src/simulator/src/evaluation/{__init__,extended,metrics,trace}.py` | `src/simulator/evaluation/…` |
+
+Test của chủ simulator (`src/simulator/tests/*.py`), `tests/test_refactor/test_differential.py`,
+`tests/test_simulator/test_hybrid_station.py`: chỉ đổi dòng import; `test_mvp3.py` monkeypatch `hybrid.guard` giờ trỏ
+`src.simulator.core.kernel` (import `kernel as hybrid`), không đổi assert.

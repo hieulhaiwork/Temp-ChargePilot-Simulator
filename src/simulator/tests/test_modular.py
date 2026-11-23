@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from src.models.charging_physics import VehicleBatteryState, energy_to_target
+from src.models.physical_constraints import ConstraintViolationError
+from src.models.scheduling.coordination import ZoneBudgets
+from src.models.simulation_core import Scenario
+from src.simulator.core.algorithms import default_algorithms, resolve_algorithms
+from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
+from src.simulator.hybrid import HybridSimulator
 from src.simulator.run import main
-from src.simulator.src.algorithms import default_algorithms, resolve_algorithms
-from src.simulator.src.charging_models.base import VehicleBatteryState, energy_to_target
-from src.simulator.src.charging_models.synthetic_dc import SyntheticTaperV1
-from src.simulator.src.coordination.base import ZoneBudgets
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.safety.constraints import ConstraintViolationError
-from src.simulator.src.scenario import Scenario
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -315,8 +315,8 @@ def test_scenario_embedded_config_sets_only_specified_zone(config, tmp_path):
 
 
 def test_registry_can_configure_new_coordinator_and_dc_model(config, monkeypatch):
-    from src.simulator.src.algorithms import COORDINATORS, DC_MODELS, Registration
-    from src.simulator.src.coordination.fixed_budget import FixedBudgetCoordinator
+    from src.optimizer.coordination.fixed_budget import FixedBudgetCoordinator
+    from src.simulator.core.algorithms import COORDINATORS, DC_MODELS, Registration
 
     def configured_coordinator(params, scenario):
         budget = {**scenario.zone_kw, "DC": params["dc_kw"]}

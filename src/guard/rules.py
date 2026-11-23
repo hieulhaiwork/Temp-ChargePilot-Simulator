@@ -5,8 +5,8 @@ Quy ước: luật KHÔNG tự đọc DB/simulator — mọi dữ kiện nằm t
 và một test "lệnh hợp lệ không bị chặn oan" (tests/test_guard/).
 
 Công suất SAU lệnh: mọi lệnh cùng lô (ctx.batch) được áp giả định trước khi so giới hạn, nên
-một lô hạ A rồi tăng B không bị chặn oan. Hai luật vật lý GỌI Guard của HybridSimulator qua `physical.py`
-(`src/simulator/src/safety/guard.py`, ADR-017); ba tầng giới hạn (ADR-010):
+một lô hạ A rồi tăng B không bị chặn oan. Hai luật vật lý GỌI Guard của HybridSimulator qua `physical/adapter.py`
+(`src/guard/physical/validator.py`, ADR-017); ba tầng giới hạn (ADR-010):
   - cổng ≤ max_power_kw của cổng và ≤ Booking.max_charge_power_kw của xe;
     chỉ cấp điện cho cổng có xe đang sạc (không cổng trống, không xe đã đầy)  (connector_power_limit)
   - gán cổng: xe đã đến bãi, đang chờ (chưa ở cổng khác), đúng vùng, cổng trống (connector_power_limit)
@@ -101,6 +101,31 @@ def _occupant_after(cmd: Command, ctx: GuardContext, current: ConnectorState) ->
     return assigned or current.booking_id
 
 
+def is_load_reduction(cmd: Command, ctx: GuardContext) -> bool:
+    """Lệnh công suất KHÔNG tăng công suất cổng của nó (STOP / SET_POWER ≤ hiện tại) — không thể làm tổng tăng."""
+    if cmd.type not in POWER_COMMANDS:
+        return False
+    current = _connector(ctx, cmd.connector_id)
+    return current is not None and target_power_kw(cmd, current) <= current.power_kw + TOL_KW
+
+
+def site_over_hard_limit(ctx: GuardContext) -> str | None:
+    """Trạng thái HIỆN TẠI (chưa áp lệnh nào) đã vượt trần cứng tủ / vùng / nguồn? Trả mô tả, hoặc None."""
+    occupants = {c.connector_id: c.booking_id for c in ctx.state.connectors}
+    return physical.check_site_allocation(ctx.config, ctx.state, _power_after(ctx, ()), occupants)
+
+
+def is_safety_reduction(cmd: Command, ctx: GuardContext) -> bool:
+    """Giảm tải CẦN cho an toàn (ADR-019 Phase 4, quyết định 3): lệnh giảm khi trạm đang vượt trần cứng, hoặc lệnh
+    giảm của bảo vệ khẩn cấp. Loại lệnh này không bị anti_flapping / HITL giữ lại (fail-safe ưu tiên giảm tải)."""
+    if not is_load_reduction(cmd, ctx):
+        return False
+    current = _connector(ctx, cmd.connector_id)
+    if target_power_kw(cmd, current) >= current.power_kw - TOL_KW:
+        return False  # không thực sự giảm
+    return cmd.source == CommandSource.EMERGENCY or site_over_hard_limit(ctx) is not None
+
+
 def _is_on(cmd: Command, current: ConnectorState | None) -> bool | None:
     """Bật / tắt sau lệnh; None nếu lệnh không bật-tắt (ASSIGN_CONNECTOR)."""
     if cmd.type not in POWER_COMMANDS:
@@ -112,8 +137,13 @@ def _is_on(cmd: Command, current: ConnectorState | None) -> bool | None:
 
 
 def check_total_power(cmd: Command, ctx: GuardContext) -> Violation | None:
-    """Σ công suất SAU khi áp lệnh ≤ trần tủ / vùng / nguồn — Guard simulator (MT4 — 0 lần vượt, ADR-017)."""
-    if cmd.type not in POWER_COMMANDS:
+    """Σ công suất SAU khi áp lệnh ≤ trần tủ / vùng / nguồn — Guard simulator (MT4 — 0 lần vượt, ADR-017).
+
+    Lệnh giảm tải (không tăng công suất cổng của nó) không bao giờ làm tổng tăng nên không bị luật này chặn, kể cả
+    khi lệnh TĂNG khác cùng lô làm tổng vượt (lệnh tăng đó vẫn bị chặn). Trước Phase 4, một lệnh giảm AC bị chặn vì
+    lô có lệnh bật DC → setpoint AC cũ giữ nguyên → vượt budget AC +1,97 kW (PHASE3_REPORT §7).
+    """
+    if cmd.type not in POWER_COMMANDS or is_load_reduction(cmd, ctx):
         return None
     batch = _batch_with(cmd, ctx)
     occupants = {c.connector_id: c.booking_id for c in ctx.state.connectors}
@@ -143,8 +173,8 @@ def check_connector_power(cmd: Command, ctx: GuardContext) -> Violation | None:
 def check_anti_flapping(cmd: Command, ctx: GuardContext) -> Violation | None:
     """≤ config.guard.flap_max_toggles lần bật/tắt trong flap_window_minutes (S5: "lần 4/10 phút")."""
     current = _connector(ctx, cmd.connector_id)
-    if _is_on(cmd, current) is None:
-        return None
+    if _is_on(cmd, current) is None or is_safety_reduction(cmd, ctx):
+        return None  # tắt để giảm tải khi đang vượt trần cứng / khẩn cấp: an toàn thắng chống bật-tắt
     window_start = ctx.now - timedelta(minutes=ctx.config.guard.flap_window_minutes)
     history = sorted(
         (c for c in ctx.recent_commands if c.connector_id == cmd.connector_id and c.created_at >= window_start),

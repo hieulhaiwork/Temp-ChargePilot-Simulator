@@ -23,6 +23,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from src.models.charging import PowerSlot, SchedulePlan, SessionPlan, StrategyName
+from src.models.control import quantize_kw
 from src.models.decisions import ApprovedDecision, ReasonCode
 from src.models.physical_constraints import TOL, ConstraintViolationError
 from src.models.planning import PlanningContext
@@ -30,7 +31,7 @@ from src.models.scheduling.observations import Candidate
 from src.models.simulation_core import Tariff as SimTariff
 from src.models.station import Tariff
 from src.optimizer.registry import POLICIES as REGISTRY_POLICIES
-from src.simulator.src.algorithms import Algorithms, resolve_algorithms
+from src.simulator.core.algorithms import Algorithms, resolve_algorithms
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class SimulatorScheduler:
         self._algorithms: Algorithms | None = algorithms
         self.metadata: dict = {}
         self.last_diagnostics: dict = {}
+        self.last_approved: ApprovedDecision | None = None
         self.configure(station())
 
     def algorithms(self, station=None) -> Algorithms:
@@ -105,8 +107,10 @@ class SimulatorScheduler:
         fallback = ctx.config.optimizer.planning_step_minutes
         # Giữ khoá trạm suốt lúc đọc: plan() chạy trên thread solver, request khác có thể step() trạm cùng lúc.
         with station.lock:
+            self.last_approved = None
             try:
                 approved = self.decide(station, ctx)
+                self.last_approved = approved  # DecisionTrace backend (services/decision_trace.py)
                 assignments = dict(approved.proposal.assignments)
                 setpoints = dict(approved.setpoints_kw)
                 interval = approved.proposal.interval_minutes
@@ -202,7 +206,7 @@ def _to_plan(name, ctx, station, assignments, setpoints, queue, interval, starte
         bid = progress.booking_id
         connector = connector_of.get(bid, progress.connector_id)
         if connector:
-            slots = [PowerSlot(start=ctx.now, power_kw=round(max(setpoints.get(bid, 0.0), 0.0), 3))]
+            slots = [PowerSlot(start=ctx.now, power_kw=quantize_kw(setpoints.get(bid, 0.0)))]
         elif bid in etas:
             slots = [PowerSlot(start=etas[bid], power_kw=0.0)]  # ước tính lúc có cổng — cho ETA hàng chờ (AC2)
         else:

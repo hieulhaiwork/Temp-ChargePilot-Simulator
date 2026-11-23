@@ -13,7 +13,8 @@ Các ranh giới:
      điều khiển trạm, chỉ đi qua src/services — FR5, ADR-019.
   6. frontend/ không import gì từ ngoài frontend/ — ADR-009.
   7. Hợp đồng core dùng chung (scenario, observation, budget, limits, physics) nằm ở src/models, thuần stdlib;
-     simulator chạy standalone không cần stack backend; chỉ adapter chuyển tiếp chạm src.simulator.src — ADR-019.
+     simulator chạy standalone không cần stack backend; một kernel ở src/simulator/core, không còn shim tương
+     thích; ngoài simulator chỉ danh sách consumer được khai báo chạm src.simulator.core — ADR-019.
 """
 
 import ast
@@ -327,25 +328,24 @@ CORE_CONTRACTS = (
     "src.models.scheduling",
     "src.models.decisions",  # ADR-019 Phase 3: ProposedDecision / ApprovedDecision / AppliedResult / TimeConfig
 )
-# Vị trí cũ trong simulator — nay chỉ re-export. Ngoài src/simulator/ phải import thẳng từ src.models.
-CORE_CONTRACT_SHIMS = {
-    "src.simulator.src.scenario": "src.models.simulation_core",
-    "src.simulator.src.charging_models.base": "src.models.charging_physics",
-    "src.simulator.src.safety.constraints": "src.models.physical_constraints",
-    "src.simulator.src.safety.limits": "src.models.physical_limits",
-    "src.simulator.src.observations": "src.models.scheduling.observations",
-    "src.simulator.src.dispatch.base": "src.models.scheduling.dispatch",
-    "src.simulator.src.coordination.base": "src.models.scheduling.coordination",
-    "src.simulator.src.optimizers.base": "src.models.scheduling.optimization",
-}
-# Adapter chuyển tiếp còn chạm engine / thuật toán / guard của simulator. Phase 2–3 (ADR-019) thu hẹp danh sách này.
-SIMULATOR_CORE_TRANSITIONAL = {
-    "src/simulator/hybrid_station.py",
+# Phase 4 (ADR-019, quyết định 7): mọi shim tương thích đã xoá. Các đường cũ này KHÔNG được tồn tại / import lại.
+REMOVED_COMPAT_MODULES = (
+    "src.simulator.src",  # cả gói: re-export Phase 1, alias sys.modules Phase 2, engine cũ
+    "src.simulator.base",  # alias của src.models.station_protocols
+)
+# Ngoài src/simulator/ (và CLI của nó) chỉ các file này được chạm kernel / engine / evaluation của simulator.
+SIMULATOR_INTERNAL_CONSUMERS = {
+    # cấu hình algorithms (resolve_algorithms) cho policy backend
     "src/services/hybrid_planner.py",
     "tests/test_simulator/test_hybrid_station.py",
-    # Phase 3: differential CLI ↔ backend phải dựng HybridSimulator + algorithms của simulator cạnh HybridStation.
+    # differential CLI ↔ backend phải dựng HybridSimulator + algorithms của simulator cạnh HybridStation.
     "tests/test_refactor/test_differential.py",
+    # chính bộ kiểm này (test_one_station_kernel_drives_offline_and_backend)
+    "tests/test_architecture.py",
+    # DecisionTrace backend phải có ĐÚNG schema của DecisionTrace HybridSimulator (dựng bản offline để so)
+    "tests/test_services/test_decision_trace.py",
 }
+SIMULATOR_INTERNALS = ("src.simulator.core", "src.simulator.hybrid", "src.simulator.evaluation")
 # Stack backend: simulator standalone không được kéo theo
 BACKEND_STACK = ("pydantic", "fastapi", "starlette", "sqlalchemy", "alembic", "langchain", "langgraph", "openai")
 
@@ -375,15 +375,29 @@ def test_core_contracts_are_pure_stdlib():
     assert not offenders, "Hợp đồng core chỉ dùng stdlib + chính nhóm hợp đồng (ADR-019):\n" + "\n".join(offenders)
 
 
-def test_core_contract_shims_reexport_the_same_objects():
-    """Vị trí cũ trong simulator trả về ĐÚNG đối tượng ở src.models (isinstance / identity không đổi)."""
-    import importlib
+def test_compatibility_shims_are_gone():
+    """Không còn file của gói shim, không alias `sys.modules[__name__]`, không `__getattr__` cấp module trong src/."""
+    leftovers = [_rel(path) for path in sorted((SRC / "simulator" / "src").rglob("*.py"))]
+    leftovers += [_rel(SRC / "simulator" / "base.py")] if (SRC / "simulator" / "base.py").exists() else []
+    for path in sorted(SRC.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef) and node.name == "__getattr__":
+                leftovers.append(f"{_rel(path)}:{node.lineno} module __getattr__")
+            if isinstance(node, ast.Assign) and "sys.modules[__name__]" in ast.unparse(node.targets[0]):
+                leftovers.append(f"{_rel(path)}:{node.lineno} sys.modules alias")
+    assert not leftovers, "Shim tương thích phải xoá (ADR-019 Phase 4):\n" + "\n".join(leftovers)
 
-    for old, new in CORE_CONTRACT_SHIMS.items():
-        shim, target = importlib.import_module(old), importlib.import_module(new)
-        assert shim.__all__, old
-        for name in shim.__all__:
-            assert getattr(shim, name) is getattr(target, name), f"{old}.{name}"
+
+def test_nobody_imports_removed_compatibility_paths():
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in [*_python_files_outside_simulator(), *sorted((SRC / "simulator").rglob("*.py"))]
+        if "__pycache__" not in path.parts
+        for module in sorted(_imported_modules(path))
+        if _violates(module, REMOVED_COMPAT_MODULES)
+    ]
+    assert not offenders, "\n".join(offenders)
 
 
 def _python_files_outside_simulator() -> list[Path]:
@@ -396,30 +410,37 @@ def _python_files_outside_simulator() -> list[Path]:
     ]
 
 
-def test_contracts_are_imported_from_models_outside_the_simulator():
-    offenders = [
-        f"{_rel(path)} imports {module} — dùng {CORE_CONTRACT_SHIMS[module]}"
-        for path in _python_files_outside_simulator()
-        for module in sorted(_imported_modules(path))
-        if module in CORE_CONTRACT_SHIMS
-    ]
-    assert not offenders, "\n".join(offenders)
-
-
-# CLI của simulator (cùng package) được dùng engine nội bộ
-SIMULATOR_CLI = {"src/simulator/run.py", "src/simulator/benchmark.py", "src/simulator/benchmark_mvp3.py"}
-
-
-def test_only_transitional_adapters_reach_into_simulator_internals():
-    candidates = _python_files_outside_simulator() + sorted((SRC / "simulator").glob("*.py"))
+def test_only_declared_consumers_reach_into_simulator_internals():
+    """Ngoài src/simulator/: backend đi qua HybridStation (services/runtime), không dựng kernel / engine riêng."""
     offenders = [
         f"{_rel(path)} imports {module}"
-        for path in candidates
-        if _rel(path) not in SIMULATOR_CORE_TRANSITIONAL | SIMULATOR_CLI
+        for path in _python_files_outside_simulator()
+        if _rel(path) not in SIMULATOR_INTERNAL_CONSUMERS
         for module in sorted(_imported_modules(path))
-        if module.startswith("src.simulator.src.")
+        if _violates(module, SIMULATOR_INTERNALS)
     ]
-    assert not offenders, "Chỉ adapter chuyển tiếp (ADR-019) được chạm src.simulator.src:\n" + "\n".join(offenders)
+    assert not offenders, "Chỉ consumer được khai báo (ADR-019) được chạm kernel simulator:\n" + "\n".join(offenders)
+
+
+def test_one_station_kernel_drives_offline_and_backend():
+    """Quyết định 7: HybridSimulator LÀ StationKernel; HybridStation giữ đúng lớp đó (không engine thứ hai)."""
+    from src.simulator import hybrid_station
+    from src.simulator.core.kernel import StationKernel
+    from src.simulator.hybrid import HybridSimulator
+
+    assert issubclass(HybridSimulator, StationKernel)
+    assert hybrid_station.StationKernel is StationKernel
+    assert "StationKernel(" in (SRC / "simulator" / "hybrid_station.py").read_text(encoding="utf-8")
+    kernels = [
+        path
+        for path in sorted((SRC / "simulator").rglob("*.py"))
+        if "__pycache__" not in path.parts
+        and any(
+            isinstance(node, ast.ClassDef) and node.name.endswith("Kernel")
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        )
+    ]
+    assert [_rel(path) for path in kernels] == ["src/simulator/core/kernel.py"]
 
 
 CORE_LAYERS = ("models", "optimizer", "guard", "simulator")
@@ -475,12 +496,13 @@ def test_simulator_uses_only_the_physical_validator_of_the_guard():
     assert not offenders, "\n".join(offenders)
 
 
-def test_physical_guard_package_keeps_the_old_public_api_without_loading_the_backend():
+def test_physical_guard_package_exports_only_the_validator_without_loading_the_backend():
+    """Không còn `__getattr__` tương thích: tên adapter cũ chỉ lấy được từ `src.guard.physical.adapter`."""
     code = (
         "import sys; import src.guard.physical as p; assert 'pydantic' not in sys.modules, 'eager adapter';"
-        "from src.guard.physical import check_dispatch, check_site_allocation, check_connector_allocation;"
-        "from src.guard.physical import adapter; assert check_dispatch is adapter.check_dispatch;"
-        "from src.guard.physical import validator; assert p.guard is validator.guard"
+        "assert not hasattr(p, 'check_dispatch'), 'compat __getattr__';"
+        "from src.guard.physical import validator; assert p.guard is validator.guard;"
+        "from src.guard.physical.adapter import check_dispatch, check_site_allocation, check_connector_allocation"
     )
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
@@ -536,10 +558,15 @@ def test_simulator_imports_without_the_backend_stack():
         "src.simulator.run",
         "src.simulator.benchmark",
         "src.simulator.benchmark_mvp3",
-        "src.simulator.src.algorithms",
-        "src.simulator.src.engine.hybrid",
-        "src.simulator.src.evaluation.extended",
-        "src.simulator.src.evaluation.trace",
+        "src.simulator.core",
+        "src.simulator.core.algorithms",
+        "src.simulator.core.kernel",
+        "src.simulator.core.queue",
+        "src.simulator.core.ev2gym_adapter",
+        "src.simulator.core.charging_models.vehicle_profiles",
+        "src.simulator.hybrid",
+        "src.simulator.evaluation.extended",
+        "src.simulator.evaluation.trace",
         *CORE_CONTRACTS,
         *(prefix for prefix in OPTIMIZER_ALGORITHMS if prefix != "src.optimizer.registry"),
         "src.optimizer.zones.ac_lp",
@@ -581,6 +608,7 @@ def test_boundary_checker_detects_violation(tmp_path):
     assert _violates("src.simulator.base.StationActuator", BOUNDARIES["agents"])
     assert _violates("src.simulator.base.StationActuator", BOUNDARIES["llm_chat"])
     assert "src.simulator.base" in modules
+    assert any(_violates(module, REMOVED_COMPAT_MODULES) for module in modules)
 
 
 def test_orm_checker_detects_violation(tmp_path):
@@ -601,9 +629,9 @@ def test_relative_imports_are_resolved_to_absolute_modules(tmp_path):
     assert "src.models" in found  # 4 chấm từ src/simulator/src/engine → src
     init = _imported_modules(pkg / "__init__.py", tmp_path)
     assert {"src.simulator.src.engine.hybrid", "src.simulator.src.engine.queue.Q"} <= init
-    # Kiểm trên code thật: engine của simulator chỉ dùng import tương đối.
-    real = _imported_modules(SRC / "simulator" / "src" / "engine" / "hybrid.py")
-    assert "src.simulator.src.engine.queue" in real
+    # Kiểm trên code thật: kernel nạp queue / adapter trong cùng gói core bằng import tương đối.
+    real = _imported_modules(SRC / "simulator" / "core" / "kernel.py")
+    assert {"src.simulator.core.queue", "src.simulator.core.ev2gym_adapter"} <= real
 
 
 def test_cycle_detector_finds_a_cycle_made_only_of_relative_imports(tmp_path):

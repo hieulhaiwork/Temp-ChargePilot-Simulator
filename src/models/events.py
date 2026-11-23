@@ -26,7 +26,11 @@ class EventType(StrEnum):
     CONNECTOR_FAULT = "connector_fault"
     CONNECTOR_RESTORED = "connector_restored"
     POWER_LIMIT_CHANGED = "power_limit_changed"
-    REPLAN_REQUESTED = "replan_requested"  # vận hành bấm "Lập lịch lại" (S6) / sau khi phê duyệt bị từ chối
+    # Xe đạt SOC mục tiêu (kernel phát cuối bước vật lý): phiên đổi trạng thái, công suất được giải phóng
+    # (ADR-019 Phase 4, quyết định 2). Tách khỏi REPLAN_REQUESTED; gộp với sự kiện cùng thời điểm, một lần tính lại.
+    CHARGE_COMPLETED = "charge_completed"
+    # vận hành bấm "Lập lịch lại" (S6) / sau phê duyệt / trạm báo công suất thực vượt budget vùng (một lần / quyết định)
+    REPLAN_REQUESTED = "replan_requested"
 
 
 class StationEvent(BaseModel):

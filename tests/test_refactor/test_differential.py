@@ -25,9 +25,9 @@ from src.models.station_protocols import VehicleVisit  # noqa: E402
 from src.optimizer.registry import POLICIES  # noqa: E402
 from src.optimizer.zones import rolling_lp  # noqa: E402
 from src.services import catalog  # noqa: E402
+from src.simulator.core.algorithms import default_algorithms, resolve_algorithms  # noqa: E402
+from src.simulator.hybrid import HybridSimulator  # noqa: E402
 from src.simulator.hybrid_station import HybridStation  # noqa: E402
-from src.simulator.src.algorithms import default_algorithms, resolve_algorithms  # noqa: E402
-from src.simulator.src.engine.hybrid import HybridSimulator  # noqa: E402
 from tests.factories import NOW  # noqa: E402
 
 TOL = 1e-9

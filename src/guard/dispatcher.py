@@ -24,10 +24,12 @@ from dataclasses import dataclass, replace
 
 from src.guard import approval as approval_rules
 from src.guard.checker import check, check_batch
-from src.guard.rules import GuardContext
-from src.models.control import Approval, ApprovalKind, Command, DecisionLogEntry
+from src.guard.rules import POWER_COMMANDS, GuardContext, check_total_power, is_load_reduction, is_safety_reduction
+from src.models.control import Approval, ApprovalKind, Command, DecisionLogEntry, GuardVerdict
 from src.models.events import WsMessage, WsMessageType
 from src.models.station_protocols import StationActuator
+
+SAFETY_REDUCTION_NOTE = "Giảm tải an toàn"  # tiền tố ghi chú: giảm tải được ưu tiên, không chờ HITL (ADR-019 Phase 4)
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,8 @@ async def submit(
     verdicts = check_batch(commands, ctx)
     entries: list[DecisionLogEntry | None] = [None] * len(commands)
     to_apply: list[tuple[int, Command]] = []
+    notes: dict[int, str] = {}
+    held: list[tuple[int, Command, ApprovalKind]] = []
     for i, (cmd, verdict) in enumerate(zip(commands, verdicts, strict=True)):
         if not verdict.passed:
             entry = DecisionLogEntry(timestamp=ctx.now, command=cmd, verdict=verdict, executed=False, note="Guard chặn")
@@ -76,9 +80,32 @@ async def submit(
             continue
         booking = _booking_for(cmd, ctx)
         kind = approval_rules.requires_approval(cmd, booking)
+        if kind is not None and is_safety_reduction(cmd, ctx):
+            # Fail-safe (ADR-019 Phase 4, quyết định 3): giảm tải khi trạm đang vượt trần cứng không chờ người duyệt.
+            notes[i] = f"{SAFETY_REDUCTION_NOTE} — thực thi ngay, không chờ {kind.value} (trạm đang vượt trần cứng)"
+            kind = None
         if kind is None:
             to_apply.append((i, cmd))
             continue
+        held.append((i, cmd, kind))
+    # Lệnh TĂNG được Guard duyệt với giả định cả lô cùng áp. Lệnh nào của lô bị giữ chờ duyệt thì không áp ⇒ kiểm
+    # lại từng lệnh tăng trên đúng tập sẽ áp; lệnh tăng chỉ hợp lệ nhờ một lệnh giảm đang chờ duyệt thì không áp.
+    to_apply, dropped = _without_unsafe_increases(to_apply, ctx) if held else (to_apply, [])
+    for i, cmd, verdict in dropped:
+        verdicts[i] = verdict
+        entry = DecisionLogEntry(
+            timestamp=ctx.now,
+            command=cmd,
+            verdict=verdict,
+            executed=False,
+            note="Guard chặn: lệnh tăng phụ thuộc lệnh giảm cùng lô đang chờ phê duyệt",
+        )
+        sinks.log_decision(entry)
+        await sinks.notify(_message(WsMessageType.COMMAND_BLOCKED, entry, ctx.now), None)
+        entries[i] = entry
+    for i, cmd, kind in held:
+        verdict = verdicts[i]
+        booking = _booking_for(cmd, ctx)
         pending = approval_rules.open_approval(cmd, verdict, kind, booking=booking, ttl_minutes=approval_ttl_minutes)
         sinks.save_approval(pending)
         entry = DecisionLogEntry(
@@ -96,10 +123,32 @@ async def submit(
     if to_apply:
         actuator.apply_commands([cmd for _, cmd in to_apply])
         for i, cmd in to_apply:
-            entry = DecisionLogEntry(timestamp=ctx.now, command=cmd, verdict=verdicts[i], executed=True)
+            entry = DecisionLogEntry(
+                timestamp=ctx.now, command=cmd, verdict=verdicts[i], executed=True, note=notes.get(i, "")
+            )
             sinks.log_decision(entry)
             entries[i] = entry
     return [e for e in entries if e is not None]
+
+
+def _without_unsafe_increases(
+    to_apply: list[tuple[int, Command]], ctx: GuardContext
+) -> tuple[list[tuple[int, Command]], list[tuple[int, Command, GuardVerdict]]]:
+    """Giữ mọi lệnh không tăng tải; nhận lần lượt từng lệnh tăng nếu luật tổng công suất vẫn qua trên tập đã nhận."""
+    kept = [(i, cmd) for i, cmd in to_apply if cmd.type not in POWER_COMMANDS or is_load_reduction(cmd, ctx)]
+    dropped = []
+    for i, cmd in to_apply:
+        if (i, cmd) in kept:
+            continue
+        trial = (*(c for _, c in kept), cmd)
+        violation = check_total_power(cmd, replace(ctx, batch=trial))
+        if violation is None:
+            kept.append((i, cmd))
+        else:
+            verdict = GuardVerdict(command_id=cmd.command_id, passed=False, violations=[violation], checked_at=ctx.now)
+            dropped.append((i, cmd, verdict))
+    order = {i: n for n, (i, _) in enumerate(to_apply)}
+    return sorted(kept, key=lambda item: order[item[0]]), dropped
 
 
 async def execute_approved(

@@ -54,6 +54,8 @@ class RuntimeStore:
     record_load: Callable[[LoadPoint], None]
     pending_approvals: Callable[[], list[Approval]]
     add_notification: Callable[[str, Notification], None]
+    # DecisionTrace (ADR-019 Phase 4): (trace, closed) — live: tóm tắt vào DB + artifact khi đóng; benchmark: bộ nhớ
+    save_trace: Callable[[dict, bool], None] = lambda trace, closed: None
 
 
 @dataclass
@@ -63,6 +65,7 @@ class SimRecorder:
     replan_durations_s: list[float] = field(default_factory=list)
     blocked_commands: int = 0
     load_trace: list[LoadPoint] = field(default_factory=list)
+    decision_traces: list[dict] = field(default_factory=list)  # DecisionTrace đã đóng (benchmark / admission / test)
 
 
 @dataclass
@@ -78,6 +81,7 @@ class StationRuntime:
     sinks: DispatchSinks  # nơi dispatcher ghi nhật ký / phê duyệt / thông báo
     store: RuntimeStore
     plan: SchedulePlan | None = None  # lịch hiện hành
+    open_trace: dict | None = None  # DecisionTrace của quyết định đang hiệu lực (đóng ở lần tính lại kế tiếp)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)  # on_event chạy tuần tự
     recent_commands: deque[Command] = field(default_factory=lambda: deque(maxlen=RECENT_COMMANDS))
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
@@ -177,7 +181,7 @@ def get_runtime() -> StationRuntime:
     global _live
     if _live is not None:
         return _live
-    from src.services import catalog, control_loop, event_bus, realtime, repository
+    from src.services import catalog, control_loop, decision_trace, event_bus, realtime, repository
 
     config = catalog.load_station_config()
     clock = _live_clock(config)
@@ -220,6 +224,7 @@ def get_runtime() -> StationRuntime:
         record_load=repository.append_load_point,
         pending_approvals=lambda: repository.list_approvals(status=ApprovalStatus.PENDING),
         add_notification=repository.add_notification,
+        save_trace=decision_trace.persist,
     )
     rt = StationRuntime(
         config=config,
@@ -328,6 +333,7 @@ def _memory_runtime(
         record_load=record_load,
         pending_approvals=lambda: [a for a in store_approvals.values() if a.status == ApprovalStatus.PENDING],
         add_notification=lambda resident_id, note: None,
+        save_trace=lambda trace, closed: rt_ref[0].recorder.decision_traces.append(trace) if closed else None,
     )
     rt = StationRuntime(
         config=config,

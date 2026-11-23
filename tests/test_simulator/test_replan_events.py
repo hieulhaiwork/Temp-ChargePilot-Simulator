@@ -49,7 +49,8 @@ def _visit(bid, zone="AC", hours=10.0, soc=0.4, target=0.8, battery=60.0, cap=11
     )
 
 
-def test_charge_completion_requests_a_replan_once():
+def test_charge_completion_is_its_own_event_once_and_not_a_replan_request():
+    """Quyết định 2 (Phase 4): kernel phát CHARGE_COMPLETED, backend nhận đúng loại đó, tách khỏi REPLAN_REQUESTED."""
     sim = HybridStation(catalog.load_station_config(), start=NOW)
     sim.upsert_vehicle(_visit("dc", zone="DC", soc=0.5, target=0.52, cap=60))
     sim.apply_commands(
@@ -58,10 +59,31 @@ def test_charge_completion_requests_a_replan_once():
     events = []
     for _ in range(10):
         events += sim.step(1)
-    replans = [e for e in events if e.type == EventType.REPLAN_REQUESTED]
+    completed = [e for e in events if e.type == EventType.CHARGE_COMPLETED]
     done = sim.queue.sessions["dc"].completed_at
-    assert done is not None and len(replans) == 1
-    assert replans[0].booking_id == "dc" and replans[0].occurred_at == NOW + timedelta(minutes=done)
+    assert done is not None and len(completed) == 1
+    assert completed[0].booking_id == "dc" and completed[0].occurred_at == NOW + timedelta(minutes=done)
+    assert not [e for e in events if e.type == EventType.REPLAN_REQUESTED]
+
+
+async def test_events_of_the_same_minute_trigger_one_replan(clean_db):
+    """Sạc xong + xe đến cùng phút → một lần tính lại (không replan trùng cùng timestamp); cả hai được ghi nhận."""
+    from src.models.events import StationEvent
+    from src.services import control_loop
+    from tests.test_services.test_control_and_charging import _sim_runtime
+
+    rt = _sim_runtime()
+    recorded: list = []
+    rt.store = replace(rt.store, record_event=recorded.append)
+    now = rt.clock()
+    events = [
+        StationEvent(type=EventType.CHARGE_COMPLETED, occurred_at=now, booking_id="x"),
+        StationEvent(type=EventType.VEHICLE_ARRIVED, occurred_at=now, booking_id="y"),
+    ]
+    before = len(rt.recorder.replan_durations_s)
+    await control_loop.on_minute(rt, events)
+    assert len(rt.recorder.replan_durations_s) == before + 1
+    assert [e.type for e in recorded] == [EventType.CHARGE_COMPLETED, EventType.VEHICLE_ARRIVED]
 
 
 def test_budget_deviation_is_recorded_and_replanned_but_is_not_a_physical_violation():
@@ -129,3 +151,41 @@ def test_command_resolution_matches_the_control_loop_and_is_not_a_budget_deviati
     )
     sim.kernel.active_budget_kw = {"AC": 10.995, "DC": 78.0}  # lệnh cũ chưa được gửi lại vì chênh < 0,01 kW
     assert sim.step(3) == [] and sim.kernel.budget_deviation_count == 0
+    # Quyết định 3 (Phase 4): phần vượt trong deadband được ghi RIÊNG, không lẫn với sai lệch / vi phạm cứng.
+    assert sim.kernel.command_deadband_count == 3
+    result = sim.kernel.advance(sim.kernel.now + 1)
+    assert dict(result.command_deadband_kw) == pytest.approx({"AC": 0.005})
+    assert not result.budget_deviation_kw and not result.violations
+    assert sim.kernel.deviation_metrics() == {
+        "applied_constraint_violation_count": 0,
+        "budget_deviation_count": 0,
+        "command_deadband_count": 4,
+    }
+
+
+def test_budget_deviation_names_the_stale_held_setpoint():
+    """Sai lệch budget > deadband: kernel chỉ ra xe có setpoint đang giữ cao hơn quyết định đã duyệt (lệnh chưa áp)."""
+    sim = HybridStation(catalog.load_station_config(), start=NOW)
+    sim.upsert_vehicle(_visit("ac"))
+    sim.apply_commands(
+        [_cmd(CommandType.ASSIGN_CONNECTOR, "AC-01-1", "ac"), _cmd(CommandType.SET_POWER, "AC-01-1", "ac", 9.25)]
+    )
+    sim.kernel.active_budget_kw = {"AC": 7.279, "DC": 78.0}
+    sim.kernel.active_setpoints_kw = {"ac": 7.279}  # quyết định mới; lệnh giảm chưa tới trạm
+    result = sim.kernel.advance(sim.kernel.now + 1)
+    assert dict(result.budget_deviation_kw) == pytest.approx({"AC": 9.25 - 7.279})
+    assert dict(result.stale_setpoint_kw) == pytest.approx({"ac": 9.25 - 7.279})
+    assert not result.command_deadband_kw and not result.violations
+
+
+def test_phase3_ac_budget_deviation_at_minute_560_is_gone(caplog):
+    """Tái hiện PHASE3_REPORT §7: `peak_evening` seed 2 M3b từng log AC +1,97 kW ở phút 560 (lệnh giảm AC bị chặn vì
+    làm tròn lên). Sau khi lệnh được lượng tử hoá xuống + giảm tải được ưu tiên: không còn budget deviation."""
+    import logging
+
+    from src.services import simulation_service
+
+    scenario = catalog.load_scenario("peak_evening").model_copy(update={"seed": 2})
+    with caplog.at_level(logging.WARNING, logger="src.simulator.core.kernel"):
+        simulation_service.run_scenario(scenario, StrategyName.SIM_M3B)
+    assert not [r for r in caplog.records if "budget deviation" in r.getMessage()]

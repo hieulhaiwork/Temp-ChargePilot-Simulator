@@ -28,6 +28,7 @@ from src.db.tables import (
     ApprovalRow,
     BookingRow,
     DecisionLogRow,
+    DecisionTraceRow,
     IdempotencyKeyRow,
     LoadPointRow,
     NotificationRow,
@@ -38,6 +39,7 @@ from src.db.tables import (
 from src.models.api import ErrorCode, Notification
 from src.models.charging import Booking, BookingStatus, SchedulePlan
 from src.models.control import Approval, ApprovalStatus, DecisionLogEntry
+from src.models.decision_trace import DecisionTraceSummary
 from src.models.events import StationEvent
 from src.models.identity import UserRecord
 from src.models.station import LoadPoint
@@ -302,6 +304,31 @@ def list_decisions(
     q = q.order_by(DecisionLogRow.seq.desc()).limit(limit)
     with db_session.session_scope() as s:
         return [mappers.row_to_decision(r) for r in s.scalars(q)]
+
+
+# ---- DecisionTrace backend (ADR-019 Phase 4, quyết định 6) ------------------------------
+
+
+def save_decision_trace(summary: DecisionTraceSummary) -> None:
+    """Ghi tóm tắt (mở) rồi ghi đè cùng correlation_id khi quyết định được đóng bằng số đo thật."""
+    _ensure()
+    with db_session.session_scope() as s:
+        s.merge(mappers.trace_to_row(summary))
+
+
+def get_decision_trace(correlation_id: str) -> DecisionTraceSummary | None:
+    _ensure()
+    with db_session.session_scope() as s:
+        row = s.get(DecisionTraceRow, correlation_id)
+        return mappers.row_to_trace(row) if row else None
+
+
+def list_decision_traces(limit: int = 100) -> list[DecisionTraceSummary]:
+    """Mới nhất trước."""
+    _ensure()
+    q = select(DecisionTraceRow).order_by(DecisionTraceRow.decided_at.desc()).limit(limit)
+    with db_session.session_scope() as s:
+        return [mappers.row_to_trace(r) for r in s.scalars(q)]
 
 
 # ---- Thông báo (FR15) -------------------------------------------------------------------
