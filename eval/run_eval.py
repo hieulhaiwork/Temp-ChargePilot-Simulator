@@ -35,9 +35,9 @@ from pydantic import BaseModel, Field
 # Bootstrap import từ repo root khi chạy `python eval/run_eval.py`
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.agents.graph import build_graph  # noqa: E402
-from src.agents.state import AgentState  # noqa: E402
 from src.config import get_settings  # noqa: E402
+from src.llm_chat.graph import build_graph  # noqa: E402
+from src.llm_chat.state import AgentState  # noqa: E402
 from src.models.schemas import AgentDecision, FinalAnswer  # noqa: E402
 from src.services.llm import get_llm  # noqa: E402
 

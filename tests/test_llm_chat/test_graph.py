@@ -6,7 +6,7 @@ should_continue no-op, không escape hatch, không guardrail input.
 
 import pytest
 
-from src.agents.graph import (
+from src.llm_chat.graph import (
     agent,
     route_after_act,
     route_after_assess,

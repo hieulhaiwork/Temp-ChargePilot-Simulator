@@ -8,7 +8,7 @@ import logging
 import pytest
 from pydantic import ValidationError
 
-from src.agents.guardrails import GuardrailViolation, guardrails
+from src.llm_chat.guardrails import GuardrailViolation, guardrails
 from src.models.schemas import AgentDecision, FinalAnswer
 
 # ---------------------------------------------------------------------------

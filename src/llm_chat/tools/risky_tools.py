@@ -10,7 +10,7 @@ from langchain_core.tools import tool
 
 # Tập tool bắt buộc HITL — graph đọc set này để route (kiểu frozenset như
 # BLOCKED_MODULES của team 010 VibeSchool: một hằng số duy nhất để audit).
-# confirm_booking (src/agents/tools/charging.py): chốt lịch sạc chỉ sau khi cư dân bấm
+# confirm_booking (src/llm_chat/tools/charging.py): chốt lịch sạc chỉ sau khi cư dân bấm
 # "Xác nhận" ở màn S3 — interrupt() của graph chính là bước xác nhận của FR2.
 RISKY_TOOL_NAMES: frozenset[str] = frozenset({"send_email", "confirm_booking"})
 

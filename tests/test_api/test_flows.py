@@ -434,7 +434,7 @@ def mock_llm_real_services(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "mock")
     monkeypatch.setenv("AGENT_DEMO_SERVICES", "false")
     # LLM giả hiểu "7h sáng mai" theo đồng hồ của nó — khoá về cùng mốc với đồng hồ trạm.
-    monkeypatch.setattr("src.agents.mock_llm._now_local", lambda state: T0)
+    monkeypatch.setattr("src.llm_chat.mock_llm._now_local", lambda state: T0)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

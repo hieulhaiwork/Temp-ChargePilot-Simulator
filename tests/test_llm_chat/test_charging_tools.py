@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.agents.tools import RISKY_TOOL_NAMES, TOOL_REGISTRY
+from src.llm_chat.tools import RISKY_TOOL_NAMES, TOOL_REGISTRY
 from src.models.charging import ChargeRequest
 from src.models.schemas import AgentDecision
 from src.services.errors import DomainError

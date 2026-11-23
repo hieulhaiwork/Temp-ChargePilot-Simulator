@@ -5,7 +5,7 @@
 - openai: gọi API OpenAI. Cascade theo task — model rẻ cho classify, model mạnh cho generate.
 - local:  server OpenAI-compatible tự host (Ollama, vLLM, LM Studio… trên VM). Cùng client ChatOpenAI,
           chỉ khác `base_url` — nên lỗi kết nối vẫn là OpenAIError → routes trả 503 như API thật.
-- mock:   KHÔNG có LLM. Graph dùng bộ não luật cố định ở src/agents/mock_llm.py (xem graph.py).
+- mock:   KHÔNG có LLM. Graph dùng bộ não luật cố định ở src/llm_chat/mock_llm.py (xem graph.py).
           Gọi get_llm() khi mock là bug → raise ngay.
 
 Task type:
@@ -43,7 +43,7 @@ def get_llm(task_type: TaskType = "generate") -> BaseChatModel:
     """
     settings = get_settings()
     if settings.llm_provider == "mock":
-        raise RuntimeError("LLM_PROVIDER=mock không có LLM thật — graph phải dùng src/agents/mock_llm.py")
+        raise RuntimeError("LLM_PROVIDER=mock không có LLM thật — graph phải dùng src/llm_chat/mock_llm.py")
 
     model = _model_name(settings, task_type)
     if task_type == "judge" and (not model or model == _model_name(settings, "generate")):
@@ -85,7 +85,7 @@ def describe_provider() -> dict:
     """Tóm tắt cấu hình LLM đang dùng (KHÔNG chứa key) — cho /status và trang playground."""
     settings = get_settings()
     if settings.llm_provider == "mock":
-        return {"provider": "mock", "model": "rule-based (src/agents/mock_llm.py)"}
+        return {"provider": "mock", "model": "rule-based (src/llm_chat/mock_llm.py)"}
     info = {"provider": settings.llm_provider, "model": _model_name(settings, "generate")}
     if settings.llm_provider == "local":
         info["base_url"] = settings.local_llm_base_url

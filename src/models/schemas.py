@@ -83,7 +83,7 @@ class FinalAnswer(BaseModel):
 
 
 class AgentAnswer(BaseModel):
-    """Output có cấu trúc của agent (pattern retrieve→synthesize→validate — src/agents/nodes/).
+    """Output có cấu trúc của agent (pattern retrieve→synthesize→validate — src/llm_chat/nodes/).
 
     - `verdict` là Literal → LLM không thể bịa giá trị ngoài tập cho phép.
     - `confidence` bị kẹp trong [0, 1] → không có confidence 1.5 hay -0.3.

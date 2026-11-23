@@ -7,7 +7,7 @@ Mock-first: nếu chưa có vector store (chroma/etc.), dùng knowledge base in-
 
 from __future__ import annotations
 
-from src.agents.state import AgentState
+from src.llm_chat.state import AgentState
 
 # Knowledge base mock. Thay bằng Chroma/Pinecone khi sẵn sàng.
 _MOCK_KB: dict[str, str] = {

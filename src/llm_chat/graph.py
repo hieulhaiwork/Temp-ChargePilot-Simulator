@@ -27,14 +27,14 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.types import Command
 
-from src.agents.guardrails import GuardrailViolation, guardrails
-from src.agents.nodes.act_node import act_node
-from src.agents.nodes.assess_node import assess_node
-from src.agents.nodes.finalize_node import GenerateFn, _make_finalize, llm_generate
-from src.agents.nodes.human_review_node import human_review_node
-from src.agents.nodes.reason_node import ReasonFn, llm_reason, make_reason_node
-from src.agents.state import HISTORY_LIMIT, AgentState
 from src.config import get_settings
+from src.llm_chat.guardrails import GuardrailViolation, guardrails
+from src.llm_chat.nodes.act_node import act_node
+from src.llm_chat.nodes.assess_node import assess_node
+from src.llm_chat.nodes.finalize_node import GenerateFn, _make_finalize, llm_generate
+from src.llm_chat.nodes.human_review_node import human_review_node
+from src.llm_chat.nodes.reason_node import ReasonFn, llm_reason, make_reason_node
+from src.llm_chat.state import HISTORY_LIMIT, AgentState
 
 logger = logging.getLogger("ai20k.graph")
 

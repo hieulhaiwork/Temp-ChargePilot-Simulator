@@ -1,7 +1,7 @@
 """Thiết lập môi trường cho TOÀN BỘ test — chạy trước mọi import của `src`.
 
 Vì sao ở đây (không ở conftest.py): `src.config.get_settings()` được cache ngay lần import đầu
-(conftest import src.agents.graph), nên biến môi trường phải được đặt TRƯỚC đó. Package
+(conftest import src.llm_chat.graph), nên biến môi trường phải được đặt TRƯỚC đó. Package
 `tests` được import trước `tests.conftest`.
 
 Test KHÔNG BAO GIỜ được chạm DB khai báo trong `.env` của máy dev (có thể là Postgres thật):

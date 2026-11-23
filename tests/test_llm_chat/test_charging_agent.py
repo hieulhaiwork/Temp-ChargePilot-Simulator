@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from src.agents.guardrails import GuardrailViolation, guardrails
-from src.agents.nodes.finalize_node import build_generate_prompt
-from src.agents.nodes.reason_node import build_reason_prompt, describe_tools
-from src.agents.prompts import render
-from src.agents.tools import TOOL_REGISTRY
-from src.agents.tools.charging import CHARGING_TOOLS
+from src.llm_chat.guardrails import GuardrailViolation, guardrails
+from src.llm_chat.nodes.finalize_node import build_generate_prompt
+from src.llm_chat.nodes.reason_node import build_reason_prompt, describe_tools
+from src.llm_chat.prompts import render
+from src.llm_chat.tools import TOOL_REGISTRY
+from src.llm_chat.tools.charging import CHARGING_TOOLS
 from src.models.api import QueueStatus
 from src.models.charging import Booking, BookingStatus, ChargeRequest, EnergyEstimate, ScheduleProposal
 from src.models.schemas import AgentDecision
@@ -268,7 +268,7 @@ def test_user_text_cannot_pull_other_placeholders_into_the_prompt():
 
 def test_no_long_prompt_is_embedded_in_node_modules():
     """Bất biến của dự án: prompt nằm ở prompts/*.md, không nhúng trong Python."""
-    nodes = Path(__file__).resolve().parents[2] / "src" / "agents" / "nodes"
+    nodes = Path(__file__).resolve().parents[2] / "src" / "llm_chat" / "nodes"
     offenders = [
         path.name
         for path in (

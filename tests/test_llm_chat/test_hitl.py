@@ -75,7 +75,7 @@ class _BrokenTool:
 
 @pytest.mark.asyncio
 async def test_approved_risky_tool_error_is_recorded_not_raised(monkeypatch):
-    from src.agents.nodes import human_review_node
+    from src.llm_chat.nodes import human_review_node
 
     monkeypatch.setitem(human_review_node.TOOL_REGISTRY, "send_email", _BrokenTool())
     reasoner = ScriptedReasoner([_email_decision(), _final()])

@@ -9,7 +9,7 @@ qua LLM (tránh LLM "quên" safeguard khi bị jailbreak).
 
 from __future__ import annotations
 
-from src.agents.state import AgentState
+from src.llm_chat.state import AgentState
 
 # Từ khoá nguy hiểm — short-circuit bypass LLM. Inspire team 005 DANGER_KEYWORDS.
 # Tuỳ domain, team bổ sung (y tế, pháp lý, tự hại, ...).

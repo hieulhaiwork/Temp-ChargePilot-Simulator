@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from src.agents.state import AgentState
+from src.llm_chat.state import AgentState
 
 logger = logging.getLogger("ai20k.assess")
 

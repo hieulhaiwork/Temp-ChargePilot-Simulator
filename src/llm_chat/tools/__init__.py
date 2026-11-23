@@ -10,7 +10,7 @@ chúng. T2.5: khi tool sạc chạy thật → chuyển các test đó sang tool
 để LLM không bị phân tâm bởi tool không liên quan.
 """
 
-from src.agents.tools.charging import (
+from src.llm_chat.tools.charging import (
     confirm_booking,
     estimate_charging_energy,
     explain_schedule,
@@ -18,9 +18,9 @@ from src.agents.tools.charging import (
     lookup_vehicle,
     propose_charging_plan,
 )
-from src.agents.tools.knowledge import calculate, search_knowledge
-from src.agents.tools.mcp_tool import mcp_knowledge_lookup
-from src.agents.tools.risky_tools import RISKY_TOOL_NAMES, send_email
+from src.llm_chat.tools.knowledge import calculate, search_knowledge
+from src.llm_chat.tools.mcp_tool import mcp_knowledge_lookup
+from src.llm_chat.tools.risky_tools import RISKY_TOOL_NAMES, send_email
 
 TOOL_REGISTRY: dict = {
     # ChargePilot F1 (T2.5)

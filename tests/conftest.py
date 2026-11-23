@@ -12,7 +12,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from langgraph.checkpoint.memory import MemorySaver
 
-from src.agents.graph import build_graph
+from src.llm_chat.graph import build_graph
 from src.models.schemas import AgentDecision, FinalAnswer
 
 

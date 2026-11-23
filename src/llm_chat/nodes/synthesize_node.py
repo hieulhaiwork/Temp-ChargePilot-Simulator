@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 import logging
 
-from src.agents.prompts import build_system_prompt
-from src.agents.state import AgentState
+from src.llm_chat.prompts import build_system_prompt
+from src.llm_chat.state import AgentState
 from src.models.schemas import AgentAnswer
 from src.services.llm import get_llm
 
