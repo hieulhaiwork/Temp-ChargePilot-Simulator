@@ -11,10 +11,15 @@ Các ranh giới:
   4. Hợp đồng dữ liệu (src/models) không phụ thuộc thư viện hạ tầng.
   5. Agent không có đường nào tạo lệnh điều khiển trạm — FR5.
   6. frontend/ không import gì từ ngoài frontend/ — ADR-009.
+  7. Hợp đồng core dùng chung (scenario, observation, budget, limits, physics) nằm ở src/models, thuần stdlib;
+     simulator chạy standalone không cần stack backend; chỉ adapter chuyển tiếp chạm src.simulator.src — ADR-019.
 """
 
 import ast
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -233,6 +238,172 @@ def test_frontend_never_puts_token_in_a_url():
     assert not offenders, f"Token không được đặt trên URL: {offenders}"
 
 
+# ---- 7. Hợp đồng core dùng chung + simulator standalone (ADR-019) ---------------------------
+
+# Hợp đồng mà optimizer, physical guard và simulator cùng dùng. Chỉ stdlib + chính nhóm này: simulator standalone
+# (requirements riêng, không có pydantic) phải import được.
+CORE_CONTRACTS = (
+    "src.models.simulation_core",
+    "src.models.charging_physics",
+    "src.models.physical_constraints",
+    "src.models.physical_limits",
+    "src.models.scheduling",
+)
+# Vị trí cũ trong simulator — nay chỉ re-export. Ngoài src/simulator/ phải import thẳng từ src.models.
+CORE_CONTRACT_SHIMS = {
+    "src.simulator.src.scenario": "src.models.simulation_core",
+    "src.simulator.src.charging_models.base": "src.models.charging_physics",
+    "src.simulator.src.safety.constraints": "src.models.physical_constraints",
+    "src.simulator.src.safety.limits": "src.models.physical_limits",
+    "src.simulator.src.observations": "src.models.scheduling.observations",
+    "src.simulator.src.dispatch.base": "src.models.scheduling.dispatch",
+    "src.simulator.src.coordination.base": "src.models.scheduling.coordination",
+    "src.simulator.src.optimizers.base": "src.models.scheduling.optimization",
+}
+# Adapter chuyển tiếp còn chạm engine / thuật toán / guard của simulator. Phase 2–3 (ADR-019) thu hẹp danh sách này.
+SIMULATOR_CORE_TRANSITIONAL = {
+    "src/simulator/hybrid_station.py",
+    "src/services/hybrid_planner.py",
+    "src/guard/physical.py",
+    "tests/test_simulator/test_hybrid_station.py",
+}
+# Stack backend: simulator standalone không được kéo theo
+BACKEND_STACK = ("pydantic", "fastapi", "starlette", "sqlalchemy", "alembic", "langchain", "langgraph", "openai")
+
+
+def _module_files(prefix: str) -> list[Path]:
+    base = ROOT.joinpath(*prefix.split("."))
+    return sorted(base.rglob("*.py")) if base.is_dir() else [base.with_suffix(".py")]
+
+
+def _is_core_contract(module: str) -> bool:
+    return _violates(module, CORE_CONTRACTS)
+
+
+def test_core_contracts_are_pure_stdlib():
+    offenders = []
+    for prefix in CORE_CONTRACTS:
+        for path in _module_files(prefix):
+            for module in sorted(_imported_modules(path)):
+                top = module.split(".")[0]
+                if top == "src":
+                    if not _is_core_contract(module):
+                        offenders.append(f"{_rel(path)} imports {module}")
+                elif top not in sys.stdlib_module_names and top != "__future__":
+                    offenders.append(f"{_rel(path)} imports {module}")
+    assert not offenders, "Hợp đồng core chỉ dùng stdlib + chính nhóm hợp đồng (ADR-019):\n" + "\n".join(offenders)
+
+
+def test_core_contract_shims_reexport_the_same_objects():
+    """Vị trí cũ trong simulator trả về ĐÚNG đối tượng ở src.models (isinstance / identity không đổi)."""
+    import importlib
+
+    for old, new in CORE_CONTRACT_SHIMS.items():
+        shim, target = importlib.import_module(old), importlib.import_module(new)
+        assert shim.__all__, old
+        for name in shim.__all__:
+            assert getattr(shim, name) is getattr(target, name), f"{old}.{name}"
+
+
+def _python_files_outside_simulator() -> list[Path]:
+    roots = [SRC, ROOT / "tests", ROOT / "eval", ROOT / "scripts"]
+    return [
+        path
+        for root in roots
+        for path in sorted(root.rglob("*.py"))
+        if not path.is_relative_to(SRC / "simulator") and "__pycache__" not in path.parts
+    ]
+
+
+def test_contracts_are_imported_from_models_outside_the_simulator():
+    offenders = [
+        f"{_rel(path)} imports {module} — dùng {CORE_CONTRACT_SHIMS[module]}"
+        for path in _python_files_outside_simulator()
+        for module in sorted(_imported_modules(path))
+        if module in CORE_CONTRACT_SHIMS
+    ]
+    assert not offenders, "\n".join(offenders)
+
+
+# CLI của simulator (cùng package) được dùng engine nội bộ
+SIMULATOR_CLI = {"src/simulator/run.py", "src/simulator/benchmark.py", "src/simulator/benchmark_mvp3.py"}
+
+
+def test_only_transitional_adapters_reach_into_simulator_internals():
+    candidates = _python_files_outside_simulator() + sorted((SRC / "simulator").glob("*.py"))
+    offenders = [
+        f"{_rel(path)} imports {module}"
+        for path in candidates
+        if _rel(path) not in SIMULATOR_CORE_TRANSITIONAL | SIMULATOR_CLI
+        for module in sorted(_imported_modules(path))
+        if module.startswith("src.simulator.src.")
+    ]
+    assert not offenders, "Chỉ adapter chuyển tiếp (ADR-019) được chạm src.simulator.src:\n" + "\n".join(offenders)
+
+
+def test_core_layers_have_no_import_cycle():
+    """Đồ thị gói models / optimizer / guard / simulator phải một chiều (không vòng)."""
+    layers = ("models", "optimizer", "guard", "simulator")
+    graph: dict[str, set[str]] = {layer: set() for layer in layers}
+    for layer in layers:
+        for path in (SRC / layer).rglob("*.py"):
+            for module in _imported_modules(path):
+                parts = module.split(".")
+                if len(parts) > 1 and parts[0] == "src" and parts[1] in layers and parts[1] != layer:
+                    graph[layer].add(parts[1])
+
+    def reaches(start: str, goal: str, seen: set[str]) -> bool:
+        return any(nxt == goal or (nxt not in seen and reaches(nxt, goal, seen | {nxt})) for nxt in graph[start])
+
+    cycles = [layer for layer in layers if reaches(layer, layer, {layer})]
+    assert not cycles, f"Vòng phụ thuộc giữa các tầng core: {cycles} — {graph}"
+
+
+_STANDALONE_PROBE = """
+import importlib.abc, sys
+BLOCKED = {blocked!r}
+class Block(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path=None, target=None):
+        if name.split(".")[0] in BLOCKED:
+            raise ImportError("standalone simulator must not import " + name)
+sys.meta_path.insert(0, Block())
+for module in {modules!r}:
+    importlib.import_module(module)
+"""
+
+
+def test_simulator_imports_without_the_backend_stack():
+    """Chế độ standalone: CLI, benchmark, golden, DecisionTrace không cần FastAPI / DB / LLM / pydantic."""
+    modules = (
+        "src.simulator.run",
+        "src.simulator.benchmark",
+        "src.simulator.benchmark_mvp3",
+        "src.simulator.src.algorithms",
+        "src.simulator.src.engine.hybrid",
+        "src.simulator.src.evaluation.extended",
+        "src.simulator.src.evaluation.trace",
+        *CORE_CONTRACTS,
+    )
+    code = _STANDALONE_PROBE.format(blocked=set(BACKEND_STACK), modules=modules)
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
+def test_simulator_script_mode_entrypoint_runs():
+    """`python src/simulator/run.py` (chế độ script trong README simulator) vẫn chạy."""
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    result = subprocess.run(
+        [sys.executable, str(SRC / "simulator" / "run.py"), "--list-scenarios"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "mvp1" in result.stdout.split()
+
+
 # ---- Tự kiểm: bộ dò phải bắt được vi phạm --------------------------------------------------
 
 
@@ -249,6 +420,12 @@ def test_orm_checker_detects_violation(tmp_path):
     bad = tmp_path / "bad.py"
     bad.write_text("from sqlalchemy.orm import Session\nfrom src.db import tables\n", encoding="utf-8")
     assert all(_violates(module, ORM_MODULES) for module in _imported_modules(bad))
+
+
+def test_standalone_probe_really_blocks_the_backend_stack():
+    code = _STANDALONE_PROBE.format(blocked=set(BACKEND_STACK), modules=("pydantic",))
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert result.returncode != 0 and "standalone simulator must not import pydantic" in result.stderr
 
 
 def test_frontend_checker_detects_escape():
