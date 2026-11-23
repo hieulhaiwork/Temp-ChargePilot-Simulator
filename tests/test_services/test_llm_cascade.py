@@ -90,7 +90,7 @@ def test_mock_provider_disallows_direct_get_llm(monkeypatch):
 
 
 def test_structured_llm_builds_for_openai_and_local(monkeypatch):
-    from src.models.schemas import FinalAnswer
+    from src.llm_chat.schemas import FinalAnswer
 
     assert get_structured_llm("generate", FinalAnswer) is not None
     monkeypatch.setenv("LLM_PROVIDER", "local")

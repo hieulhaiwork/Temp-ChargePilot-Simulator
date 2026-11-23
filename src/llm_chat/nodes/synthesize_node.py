@@ -11,8 +11,8 @@ import json
 import logging
 
 from src.llm_chat.prompts import build_system_prompt
+from src.llm_chat.schemas import AgentAnswer
 from src.llm_chat.state import AgentState
-from src.models.schemas import AgentAnswer
 from src.services.llm import get_llm
 
 logger = logging.getLogger(__name__)

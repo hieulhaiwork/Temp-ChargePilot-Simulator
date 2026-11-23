@@ -13,7 +13,7 @@ from src.llm_chat.graph import (
     route_after_guardrail,
     route_after_reason,
 )
-from src.models.schemas import AgentDecision
+from src.llm_chat.schemas import AgentDecision
 from tests.conftest import AlwaysToolReasoner, ScriptedReasoner, make_test_graph
 
 CONFIG = {"configurable": {"thread_id": "test-thread"}}

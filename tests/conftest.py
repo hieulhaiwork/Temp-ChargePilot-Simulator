@@ -13,7 +13,7 @@ from httpx import ASGITransport, AsyncClient
 from langgraph.checkpoint.memory import MemorySaver
 
 from src.llm_chat.graph import build_graph
-from src.models.schemas import AgentDecision, FinalAnswer
+from src.llm_chat.schemas import AgentDecision, FinalAnswer
 
 
 class ScriptedReasoner:

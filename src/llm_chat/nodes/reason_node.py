@@ -20,9 +20,9 @@ from src.config import get_settings
 from src.llm_chat.guardrails import guardrails
 from src.llm_chat.mock_llm import mock_reason
 from src.llm_chat.prompts import load_prompt, render
+from src.llm_chat.schemas import AgentDecision
 from src.llm_chat.state import AgentState
 from src.llm_chat.tools import RISKY_TOOL_NAMES, TEMPLATE_DEMO_TOOL_NAMES, TOOL_REGISTRY
-from src.models.schemas import AgentDecision
 from src.services.llm import get_structured_llm
 
 logger = logging.getLogger("ai20k.reason")

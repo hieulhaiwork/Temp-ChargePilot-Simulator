@@ -15,11 +15,11 @@ from src.llm_chat.guardrails import GuardrailViolation, guardrails
 from src.llm_chat.nodes.finalize_node import build_generate_prompt
 from src.llm_chat.nodes.reason_node import build_reason_prompt, describe_tools
 from src.llm_chat.prompts import render
+from src.llm_chat.schemas import AgentDecision
 from src.llm_chat.tools import TOOL_REGISTRY
 from src.llm_chat.tools.charging import CHARGING_TOOLS
 from src.models.api import QueueStatus
 from src.models.charging import Booking, BookingStatus, ChargeRequest, EnergyEstimate, ScheduleProposal
-from src.models.schemas import AgentDecision
 from src.services import charging_service
 from src.services.errors import DomainError
 from tests.conftest import ScriptedReasoner, make_test_graph

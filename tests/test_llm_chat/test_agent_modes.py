@@ -157,7 +157,7 @@ def test_check_grounded_numbers_validates_kwh_and_connector():
 @pytest.mark.asyncio
 async def test_finalize_node_enforces_grounded_numbers():
     from src.llm_chat.nodes.finalize_node import _make_finalize
-    from src.models.schemas import FinalAnswer
+    from src.llm_chat.schemas import FinalAnswer
 
     async def _bad_generator(state, partial: bool = False) -> FinalAnswer:
         return FinalAnswer(answer="Sạc tại A05, nạp 99.9 kWh.", confidence=0.9, used_tools=[])

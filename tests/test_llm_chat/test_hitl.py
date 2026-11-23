@@ -7,7 +7,7 @@ reject thì tool bị chặn và graph vẫn kết thúc có kiểm soát.
 import pytest
 from langgraph.types import Command
 
-from src.models.schemas import AgentDecision
+from src.llm_chat.schemas import AgentDecision
 from tests.conftest import ScriptedReasoner, make_test_graph
 
 CONFIG = {"configurable": {"thread_id": "hitl-thread"}}

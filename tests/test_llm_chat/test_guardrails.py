@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.llm_chat.guardrails import GuardrailViolation, guardrails
-from src.models.schemas import AgentDecision, FinalAnswer
+from src.llm_chat.schemas import AgentDecision, FinalAnswer
 
 # ---------------------------------------------------------------------------
 # Lớp 1a — input guardrail (prompt injection)

@@ -15,8 +15,8 @@ from src.config import get_settings
 from src.llm_chat.guardrails import GuardrailViolation, guardrails
 from src.llm_chat.mock_llm import mock_generate
 from src.llm_chat.prompts import SHARED_RULES, render
+from src.llm_chat.schemas import FinalAnswer
 from src.llm_chat.state import HISTORY_LIMIT, AgentState
-from src.models.schemas import FinalAnswer
 from src.services.llm import get_structured_llm
 
 logger = logging.getLogger("ai20k.finalize")

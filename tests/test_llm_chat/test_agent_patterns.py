@@ -11,7 +11,7 @@ from src.llm_chat.nodes.safety_node import safety_node
 from src.llm_chat.nodes.validate_node import should_retry
 from src.llm_chat.personas import PERSONAS, get_persona
 from src.llm_chat.prompts import SHARED_RULES, build_system_prompt, load_prompt
-from src.models.schemas import AgentAnswer
+from src.llm_chat.schemas import AgentAnswer
 
 
 @pytest.mark.asyncio

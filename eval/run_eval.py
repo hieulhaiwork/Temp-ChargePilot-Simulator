@@ -37,8 +37,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import get_settings  # noqa: E402
 from src.llm_chat.graph import build_graph  # noqa: E402
+from src.llm_chat.schemas import AgentDecision, FinalAnswer  # noqa: E402
 from src.llm_chat.state import AgentState  # noqa: E402
-from src.models.schemas import AgentDecision, FinalAnswer  # noqa: E402
 from src.services.llm import get_llm  # noqa: E402
 
 logger = logging.getLogger("ai20k.eval")
