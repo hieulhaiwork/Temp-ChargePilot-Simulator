@@ -1,20 +1,13 @@
 """Composition and explicit JSON registry for the modular simulator."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from types import MappingProxyType
-from typing import Any
 
-from src.optimizer.coordination.dynamic_slack import DynamicSlackCoordinator
-from src.optimizer.coordination.fixed_budget import FixedBudgetCoordinator, FixedShareCoordinator
+from src.optimizer.coordination.fixed_budget import FixedBudgetCoordinator
 from src.optimizer.dispatch.arrival_order import arrival_order
-from src.optimizer.dispatch.edf import earliest_deadline
-from src.optimizer.dispatch.least_laxity import least_laxity
-from src.optimizer.zones.ac_lp import FORECAST as AC_FORECAST
-from src.optimizer.zones.ac_lp import ACConfig, ACRollingLP
-from src.optimizer.zones.deadline_first import deadline_first
+from src.optimizer.registry import COORDINATORS, DISPATCH, OPTIMIZERS, Registration
 from src.optimizer.zones.equal_share import zone_equal_share
-from src.optimizer.zones.rolling_lp import FORECAST, SAMPLE_COUNT, LPConfig, RollingHorizonLP
 
 from .charging_models.base import DCChargingModel
 from .charging_models.synthetic_dc import SyntheticTaperV1
@@ -53,39 +46,6 @@ def default_algorithms() -> Algorithms:
     )
 
 
-@dataclass(frozen=True)
-class Registration:
-    implementation: Callable
-    version: str = "1"
-    parameters: tuple[str, ...] = ()
-    configure: Callable[[dict, Scenario], tuple[Any, dict]] | None = None
-
-    def build(self, supplied: dict, scenario: Scenario) -> tuple[Any, dict]:
-        if self.configure is None:
-            return self.implementation, {"parameters": supplied}
-        return self.configure(supplied, scenario)
-
-
-def _fixed_budget(
-    params: dict, scenario: Scenario, factory=FixedBudgetCoordinator
-) -> tuple[FixedBudgetCoordinator, dict]:
-    output_kw = params.get("output_kw", scenario.default_zone_budget_kw)
-    if not isinstance(output_kw, Mapping):
-        raise ValueError("coordinator.parameters.output_kw must map AC/DC to output kW")
-    return factory(output_kw), {"parameters": {"output_kw": dict(output_kw)}}
-
-
-def _fixed_share(params: dict, scenario: Scenario) -> tuple[FixedBudgetCoordinator, dict]:
-    return _fixed_budget(params, scenario, FixedShareCoordinator)
-
-
-def _dynamic_slack(params: dict, scenario: Scenario) -> tuple[DynamicSlackCoordinator, dict]:
-    return DynamicSlackCoordinator(), {
-        "parameters": {},
-        "shared_order": ["deadline_headroom", "fixed_reservation", "shared_slack"],
-    }
-
-
 def _synthetic_taper(params: dict, scenario: Scenario) -> tuple[SyntheticTaperV1, dict]:
     model = SyntheticTaperV1()
     return model, {
@@ -109,52 +69,6 @@ def _vehicle_profiles(params: dict, scenario: Scenario) -> tuple[VehicleProfiles
     }
 
 
-def _rolling_lp(params: dict, scenario: Scenario) -> tuple[RollingHorizonLP, dict]:
-    config = LPConfig(**params)
-    return RollingHorizonLP(config), {
-        "parameters": asdict(config),
-        "solver": "scipy.optimize.linprog(method=highs)",
-        "forecast": {**FORECAST, "acceptance_samples": SAMPLE_COUNT},
-        "nonoptimal_result": "fallback_equal_share",
-    }
-
-
-def _llf(params: dict, scenario: Scenario) -> tuple[DispatchPolicy, dict]:
-    return least_laxity, {
-        "parameters": {},
-        "laxity": "optimistic_ignores_taper_and_shared_demand",
-        "negative_laxity_order": "after_feasible_then_smallest_deficit_first",
-    }
-
-
-def _ac_rolling_lp(params: dict, scenario: Scenario) -> tuple[ACRollingLP, dict]:
-    config = ACConfig(**params)
-    return ACRollingLP(config), {
-        "parameters": asdict(config),
-        "solver": "scipy.optimize.linprog(method=highs)",
-        "objectives": ["minimum_total_shortfall_kwh", "minimum_tou_grid_cost"],
-        "forecast": AC_FORECAST,
-        "nonoptimal_result": "fallback_equal_share",
-    }
-
-
-DISPATCH = {
-    "fifo": Registration(arrival_order),
-    "fcfs": Registration(arrival_order),
-    "edf": Registration(earliest_deadline),
-    "llf": Registration(least_laxity, configure=_llf),
-}
-OPTIMIZERS = {
-    "equal_share": Registration(zone_equal_share),
-    "deadline_first": Registration(deadline_first),
-    "rolling_lp": Registration(RollingHorizonLP, parameters=tuple(asdict(LPConfig())), configure=_rolling_lp),
-    "ac_rolling_lp": Registration(ACRollingLP, parameters=tuple(asdict(ACConfig())), configure=_ac_rolling_lp),
-}
-COORDINATORS = {
-    "fixed_budget": Registration(FixedBudgetCoordinator, parameters=("output_kw",), configure=_fixed_budget),
-    "fixed_share": Registration(FixedShareCoordinator, parameters=("output_kw",), configure=_fixed_share),
-    "dynamic_slack": Registration(DynamicSlackCoordinator, configure=_dynamic_slack),
-}
 DC_MODELS = {
     "synthetic_taper_v1": Registration(SyntheticTaperV1, configure=_synthetic_taper),
     "vinfast_profiles_v0_1": Registration(VehicleProfilesDCModel, version=PROFILE_VERSION, configure=_vehicle_profiles),

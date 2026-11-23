@@ -10,6 +10,8 @@ from pathlib import Path
 from random import Random
 from tempfile import mkdtemp
 
+from src.optimizer.registry import POLICIES  # một nguồn policy (ADR-019); B0/M2b/M3a/M3b đóng băng
+
 from .benchmark import SEEDS, START, workload
 from .run import ROOT, write_json
 from .src.algorithms import resolve_algorithms
@@ -19,12 +21,6 @@ from .src.safety.constraints import TOL
 from .src.scenario import Scenario, clock
 
 FAMILIES = ("ac_flexibility_tou", "dc_congestion", "shared_source_scarcity", "site_curtailment", "independent_supply")
-POLICIES = {
-    "B0": ("fcfs", "equal_share", "equal_share", "fixed_share"),
-    "M2b": ("llf", "equal_share", "rolling_lp", "fixed_share"),
-    "M3a": ("llf", "ac_rolling_lp", "rolling_lp", "fixed_share"),
-    "M3b": ("llf", "ac_rolling_lp", "rolling_lp", "dynamic_slack"),
-}
 
 
 def _time(offset: int) -> str:

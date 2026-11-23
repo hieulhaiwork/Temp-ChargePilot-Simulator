@@ -420,6 +420,17 @@ def test_optimizer_algorithm_packages_depend_only_on_contracts():
     assert not offenders, "\n".join(offenders)
 
 
+def test_policy_bundles_have_a_single_source():
+    """B0 / M2b / M3a / M3b chỉ khai báo ở src/optimizer/registry.py; benchmark và backend dùng lại, không chép."""
+    from src.optimizer.registry import POLICIES
+    from src.services import hybrid_planner
+    from src.simulator import benchmark_mvp3
+
+    assert benchmark_mvp3.POLICIES is POLICIES
+    assert {strategy.value: bundle for strategy, bundle in hybrid_planner.POLICIES.items()} == POLICIES
+    assert all(bundle is POLICIES[strategy.value] for strategy, bundle in hybrid_planner.POLICIES.items())
+
+
 def test_core_layers_have_no_import_cycle():
     """Đồ thị gói models / optimizer / guard / simulator phải một chiều (không vòng)."""
     graph = _layer_graph(ROOT, CORE_LAYERS)

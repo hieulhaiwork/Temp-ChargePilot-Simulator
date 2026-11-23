@@ -54,7 +54,7 @@ def test_manifest_identical_code_passes(tmp_path):
     manifest = _manifest(tmp_path, mod)
     result = _run("compare_ast_manifest.py", manifest, "--", mod)
     assert result.returncode == 0, result.stdout
-    assert "not identical: 0" in result.stdout
+    assert "not identical (undeclared): 0; declared changes: 0" in result.stdout
 
 
 def test_manifest_ignores_imports_docstrings_and_format(tmp_path):
@@ -104,6 +104,25 @@ def test_manifest_accepts_declared_move_and_moved_definition(tmp_path):
     result = _run("compare_ast_manifest.py", manifest, "--moves", moves, "--", tmp_path / "new")
     assert result.returncode == 0, result.stdout
     assert "MOVED-SAME" in result.stdout
+
+
+def test_manifest_declared_change_must_be_listed_with_reason_and_be_real(tmp_path):
+    mod = _module(tmp_path, "pkg/a.py", ORIGINAL)
+    manifest = _manifest(tmp_path, mod)
+    mod.write_text(ORIGINAL.replace('"DC": 78', '"DC": 80'), encoding="utf-8")
+    key = f"{mod.as_posix()}::LIMIT"
+    ok = _module(tmp_path, "allow.txt", f"{key} | intentional: value now derived\n")
+    result = _run("compare_ast_manifest.py", manifest, "--allow-changed", ok, "--", mod)
+    assert result.returncode == 0, result.stdout
+    assert "DECLARED" in result.stdout
+    no_reason = _module(tmp_path, "noreason.txt", f"{key}\n")
+    assert _run("compare_ast_manifest.py", manifest, "--allow-changed", no_reason, "--", mod).returncode == 1
+    # khai báo cho một định nghĩa KHÔNG đổi → stale → fail; thay đổi khác không khai báo vẫn fail
+    stale = _module(tmp_path, "stale.txt", f"{key} | x\n{mod.as_posix()}::valid | not really changed\n")
+    result = _run("compare_ast_manifest.py", manifest, "--allow-changed", stale, "--", mod)
+    assert result.returncode == 1 and "STALE-DECL" in result.stdout
+    mod.write_text(ORIGINAL.replace('"DC": 78', '"DC": 80').replace("x >= 0", "x > 0"), encoding="utf-8")
+    assert _run("compare_ast_manifest.py", manifest, "--allow-changed", ok, "--", mod).returncode == 1
 
 
 def test_manifest_rejects_empty_and_duplicate_names(tmp_path):

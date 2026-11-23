@@ -60,6 +60,7 @@ def compare(before: dict, now: dict, moves: dict[str, str]) -> tuple[list[str], 
 
 
 def main(argv: list[str] | None = None) -> int:
+    sys.stdout.reconfigure(encoding="utf-8")
     argv = sys.argv[1:] if argv is None else argv
     if "--" not in argv:
         print("usage: compare_ast_manifest.py <manifest> [--moves FILE] -- <roots>", file=sys.stderr)
@@ -68,6 +69,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest")
     parser.add_argument("--moves")
+    parser.add_argument(
+        "--allow-changed",
+        help="file: one `path::name | reason` per line; declared intentional changes (each must really be CHANGED)",
+    )
     args = parser.parse_args(argv[:split])
     roots = argv[split + 1 :]
     try:
@@ -82,11 +87,28 @@ def main(argv: list[str] | None = None) -> int:
             if "->" in line:
                 old, new = (p.strip() for p in line.split("->"))
                 moves[old] = new
+    declared: dict[str, str] = {}
+    if args.allow_changed:
+        for line in Path(args.allow_changed).read_text(encoding="utf-8").splitlines():
+            if line.strip() and not line.startswith("#"):
+                key, _, reason = (part.strip() for part in line.partition("|"))
+                if not reason:
+                    print(f"ERROR: declared change without reason: {key}")
+                    return 1
+                declared[key] = reason
     report, bad = compare(before, now, moves)
+    changed = {line.split(maxsplit=1)[1] for line in report if line.startswith("CHANGED")}
+    accepted = changed & declared.keys()
+    stale = declared.keys() - changed
+    bad -= len(accepted)
     print("\n".join(report))
+    for key in sorted(accepted):
+        print(f"DECLARED     {key} — {declared[key]}")
+    for key in sorted(stale):
+        print(f"STALE-DECL   {key} — declared as changed but is not CHANGED")
     total = sum(len(defs) for defs in before.values())
-    print(f"\n# definitions compared: {total}; not identical: {bad}")
-    return 1 if bad or total == 0 else 0
+    print(f"\n# definitions compared: {total}; not identical (undeclared): {bad}; declared changes: {len(accepted)}")
+    return 1 if bad or stale or total == 0 else 0
 
 
 if __name__ == "__main__":

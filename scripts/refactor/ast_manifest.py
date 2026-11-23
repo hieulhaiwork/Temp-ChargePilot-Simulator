@@ -62,4 +62,5 @@ def manifest_lines(roots: list[str]) -> list[str]:
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
     print("\n".join(manifest_lines(sys.argv[1:])))

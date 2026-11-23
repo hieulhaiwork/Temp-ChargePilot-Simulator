@@ -6,7 +6,7 @@ coordinator chia ngân sách → optimizer theo vùng → Guard vật lý của 
 `HybridStation`, rồi trả `SchedulePlan` như mọi `Scheduler`. Lệnh vẫn đi `diff_commands` → `guard/dispatcher.py`
 (ADR-002): bộ lập lịch không chạm trạm.
 
-Chọn thuật toán: bảng `POLICIES` của `src/simulator/benchmark_mvp3.py` (nguồn của số MVP-2 / MVP-3), dựng bằng
+Chọn thuật toán: bảng `POLICIES` của `src/optimizer/registry.py` (nguồn của số MVP-2 / MVP-3), dựng bằng
 `resolve_algorithms` của simulator. Không sửa code simulator.
 
 [GIẢ ĐỊNH] / khác biệt đã biết so với HybridSimulator.run():
@@ -31,17 +31,17 @@ from src.models.scheduling.optimization import PowerProposal
 from src.models.simulation_core import Tariff as SimTariff
 from src.models.station import Tariff
 from src.optimizer.base import PlanningContext
+from src.optimizer.registry import POLICIES as REGISTRY_POLICIES
 from src.simulator.src.algorithms import Algorithms, resolve_algorithms
 from src.simulator.src.safety.guard import guard, validate_budgets, validate_dispatch
 
 logger = logging.getLogger(__name__)
 
-# Nguồn: src/simulator/benchmark_mvp3.py POLICIES — (dispatch DC, optimizer AC, optimizer DC, coordinator).
+# Một nguồn policy: src/optimizer/registry.py POLICIES (ADR-019) — (dispatch DC, optimizer AC, optimizer DC, coordinator).
+# Backend chỉ ánh xạ mã chiến lược sang khoá registry; không chép bảng.
 POLICIES: Mapping[StrategyName, tuple[str, str, str, str]] = {
-    StrategyName.SIM_B0: ("fcfs", "equal_share", "equal_share", "fixed_share"),
-    StrategyName.SIM_M2B: ("llf", "equal_share", "rolling_lp", "fixed_share"),
-    StrategyName.SIM_M3A: ("llf", "ac_rolling_lp", "rolling_lp", "fixed_share"),
-    StrategyName.SIM_M3B: ("llf", "ac_rolling_lp", "rolling_lp", "dynamic_slack"),
+    strategy: REGISTRY_POLICIES[strategy.value]
+    for strategy in (StrategyName.SIM_B0, StrategyName.SIM_M2B, StrategyName.SIM_M3A, StrategyName.SIM_M3B)
 }
 SIMULATOR_STRATEGIES = frozenset(POLICIES)
 TARIFF_HORIZON_HOURS = 48

@@ -12,6 +12,7 @@ Dùng:
 import argparse
 import json
 import re
+import sys
 
 TIMING_KEY = re.compile(
     r"^(decision_latency_ms|solver_latency_ms|solver_latency_by_zone_ms|latency_p95_target_ms|solver_ms|"
@@ -64,6 +65,7 @@ def classify(diffs: list, module_map: dict[str, str]) -> tuple[list, list]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser()
     parser.add_argument("baseline")
     parser.add_argument("candidate")
