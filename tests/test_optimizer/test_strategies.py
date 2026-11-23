@@ -1,58 +1,56 @@
-"""Bộ tối ưu (F2/F3): registry chiến lược A–D + nghiệm thu trên simulator (LiveStation) chạy thật."""
+"""Chiến lược của runtime (F2/F3): B0 / M2b / M3a / M3b trên Planning Core của kernel + nghiệm thu trên HybridStation.
 
-from datetime import timedelta
+LP backend A–D đã xoá ở ADR-019 Phase 3 (docs/refactor/DELETION_MANIFEST.md); test của nó được thay bằng các test dưới
+đây (cùng tiêu chí AC3 / AC5 / MT4 / MT5, chạy trên policy thực thi).
+"""
 
 import pytest
 
 from src.models.charging import StrategyName
-from src.optimizer.strategies import get_scheduler
 from src.services import catalog, simulation_service
-from tests.factories import NOW, booking, context, energy_of, state
+from src.services.errors import DomainError
+from src.services.hybrid_planner import SIMULATOR_STRATEGIES
+from src.services.runtime import make_scheduler, make_station
+from tests.factories import NOW
 
-BACKEND_STRATEGIES = [s for s in StrategyName if not s.value.startswith(("B0", "M2", "M3"))]
+pytest.importorskip("ev2gym")
+
+REMOVED = [StrategyName.FCFS, StrategyName.EDF, StrategyName.OPT_NO_ML, StrategyName.OPT_ML, StrategyName.ORACLE]
 
 
-@pytest.mark.parametrize("name", BACKEND_STRATEGIES)
-def test_every_benchmark_strategy_is_registered(name):
-    """PRD §8: mỗi mã A–D có đúng một chiến lược, cùng interface Scheduler.
+@pytest.mark.parametrize("name", sorted(SIMULATOR_STRATEGIES))
+def test_every_runtime_strategy_is_a_planning_core_policy(name):
+    station = make_station(catalog.load_station_config(), NOW)
+    scheduler = make_scheduler(name, lambda: station)
+    assert scheduler.name == name and callable(scheduler.plan)
+    assert station.kernel.policy_id == name.value
 
-    B0 / M2b / M3a / M3b là thuật toán simulator, dựng ở src/services/runtime.make_scheduler (ADR-018).
-    """
-    scheduler = get_scheduler(name)
-    assert scheduler.name == name
-    assert callable(scheduler.plan)
+
+@pytest.mark.parametrize("name", REMOVED)
+def test_removed_lp_strategies_fail_loudly(name):
+    with pytest.raises(DomainError, match="đã bỏ ở Phase 3"):
+        make_scheduler(name, lambda: None)
 
 
 @pytest.fixture(scope="module")
 def power_drop_runs():
     scenario = catalog.load_scenario("hybrid_power_drop")
-    return {s: simulation_service.run_scenario(scenario, s) for s in (StrategyName.FCFS, StrategyName.OPT_NO_ML)}
+    return {s: simulation_service.run_scenario(scenario, s) for s in (StrategyName.SIM_B0, StrategyName.SIM_M3A)}
 
 
 def test_power_limit_is_never_exceeded_even_when_supply_drops(power_drop_runs):
     """AC3 / AC5 / MT4: 24 h, nguồn rớt 106 → 40 kW và một cổng DC lỗi giữa chừng — 0 lần vượt giới hạn.
 
     Phần "≥ 95% đúng hạn" của AC3 KHÔNG được khẳng định ở đây: bãi `mvp1` chỉ có 2 cổng AC giữ xe qua đêm nên
-    kịch bản tổng hợp cố ý quá tải; tỉ lệ đúng hạn thật được báo trong eval/results/benchmark.md.
+    kịch bản tổng hợp cố ý quá tải; tỉ lệ đúng hạn thật được báo trong evidence benchmark.
     """
     for run in power_drop_runs.values():
         assert run.kpis.power_limit_violations == 0
         assert run.kpis.peak_load_kw <= 100 + 1e-6  # Σ ngân sách vùng 22 + 78 kW
 
 
-def test_forecast_never_relaxes_declared_deadline():
-    """FR9: chiến lược C với departure_forecast MUỘN hơn deadline vẫn giao đủ kWh trước deadline khai báo."""
-    b = booking("a1", kwh=20, hours=3)
-    ctx = context([b], state({"AC-01-1": "a1"}), departure_forecast={"a1": NOW + timedelta(hours=10)})
-    plan = get_scheduler(StrategyName.OPT_ML).plan(ctx)
-    deadline = b.request.deadline
-    session = next(s for s in plan.sessions if s.booking_id == "a1")
-    assert all(slot.start < deadline for slot in session.slots)
-    assert energy_of(plan, "a1") == pytest.approx(20, abs=0.01)
-
-
 def test_replan_p95_under_two_seconds(power_drop_runs):
-    """MT5: p95 thời gian tính lại ≤ 2 s (đặt lịch, walk-in, sự cố) — đo trên cùng đường on_event của production."""
-    p95 = power_drop_runs[StrategyName.OPT_NO_ML].kpis.replan_p95_seconds
+    """MT5: p95 thời gian tính lại ≤ 2 s — đo trên cùng đường on_event của production."""
+    p95 = power_drop_runs[StrategyName.SIM_M3A].kpis.replan_p95_seconds
     assert p95 is not None
     assert p95 <= 2.0

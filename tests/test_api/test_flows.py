@@ -1,6 +1,6 @@
 """Luồng đầu–cuối theo tiêu chí nghiệm thu của PRD §9 (sequence diagram: docs/plan/10-backend.md §6).
 
-Chạy trên runtime live THẬT (LiveStation + optimizer B + Guard + repository trên DB test). Đồng hồ trạm được
+Chạy trên runtime live THẬT (HybridStation + Planning Core M3a + Guard + repository trên DB test). Đồng hồ trạm được
 cố định bằng fixture `station_clock` để kết quả không phụ thuộc giờ chạy test (giá điện theo giờ).
 """
 

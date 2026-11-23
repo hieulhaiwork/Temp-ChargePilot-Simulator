@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 from src.config import get_settings
 from src.forecast.predict import DepartureForecaster
 from src.guard.dispatcher import DispatchSinks
-from src.models.api import Notification, NotificationKind
+from src.models.api import ErrorCode, Notification, NotificationKind
 from src.models.charging import Booking, BookingStatus, SchedulePlan, StrategyName
 from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEntry, Role
 from src.models.events import StationEvent, WsMessage, WsMessageType
@@ -34,8 +34,7 @@ from src.models.planning import Scheduler
 from src.models.simulation import Scenario
 from src.models.station import LoadPoint, StationConfig, Tariff
 from src.models.station_protocols import StationSimulator, VehicleVisit
-from src.optimizer.strategies import get_scheduler
-from src.simulator.live import LiveStation
+from src.services.errors import DomainError
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +71,8 @@ class StationRuntime:
 
     config: StationConfig
     tariff: Tariff
-    simulator: (
-        StationSimulator  # LiveStation | HybridStation; đọc qua .state()/.step(); KHÔNG gọi phần ghi ở ngoài dispatcher
-    )
-    scheduler: Scheduler  # optimizer.get_scheduler(strategy)
+    simulator: StationSimulator  # HybridStation; đọc qua .state()/.step(); KHÔNG gọi phần ghi ở ngoài dispatcher
+    scheduler: Scheduler  # SimulatorScheduler (Planning Core của kernel) — make_scheduler(strategy)
     forecaster: DepartureForecaster | None  # chỉ chiến lược C (F6 hoãn — ADR-015 → None)
     clock: Callable[[], datetime]  # trả thời điểm hiện tại CÓ múi giờ
     sinks: DispatchSinks  # nơi dispatcher ghi nhật ký / phê duyệt / thông báo
@@ -84,7 +81,7 @@ class StationRuntime:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)  # on_event chạy tuần tự
     recent_commands: deque[Command] = field(default_factory=lambda: deque(maxlen=RECENT_COMMANDS))
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
-    oracle_bookings: tuple[Booking, ...] = ()  # chỉ benchmark chiến lược D
+    oracle_bookings: tuple[Booking, ...] = ()  # PlanningContext.oracle_bookings — luôn rỗng (D đã bỏ, ADR-019 Phase 3)
     recorder: SimRecorder = field(default_factory=SimRecorder)
     live: bool = True
 
@@ -95,24 +92,28 @@ class StationRuntime:
 
 
 def make_station(config: StationConfig, start: datetime, engine: str | None = None):
-    """Trạm mô phỏng theo STATION_ENGINE (ADR-018): HybridStation (engine simulator, mặc định) hoặc LiveStation."""
+    """Trạm mô phỏng của backend: `HybridStation` trên kernel dùng chung với simulator (ADR-018, ADR-019 Phase 3).
+
+    `LiveStation` đã bị xoá (DELETION_MANIFEST); STATION_ENGINE chỉ còn "hybrid".
+    """
     engine = engine or get_settings().station_engine
-    if engine == "hybrid":
-        from src.simulator.hybrid_station import HybridStation  # cần ev2gym — import trễ cho môi trường "live"
+    if engine != "hybrid":
+        raise ValueError(f"STATION_ENGINE={engine!r} không còn được hỗ trợ — chỉ 'hybrid' (ADR-019 Phase 3)")
+    from src.simulator.hybrid_station import HybridStation  # cần ev2gym — import trễ
 
-        return HybridStation(config, start=start)
-    return LiveStation(config, start=start)
+    return HybridStation(config, start=start)
 
 
-def make_scheduler(strategy: StrategyName, station: Callable[[], object]) -> Scheduler:
-    """A–D: bộ tối ưu backend (src/optimizer). B0 / M2b / M3a / M3b: thuật toán simulator trên HybridStation."""
+def make_scheduler(strategy: StrategyName, station: Callable[[], object], algorithms=None) -> Scheduler:
+    """B0 / M2b / M3a / M3b: Planning Core của kernel (`SimulatorScheduler`). A–D (LP backend) đã bỏ ở Phase 3."""
     from src.services.hybrid_planner import SIMULATOR_STRATEGIES, SimulatorScheduler
 
-    if strategy in SIMULATOR_STRATEGIES:
-        if not hasattr(station(), "scheduling_observation"):
-            raise ValueError(f"Chiến lược {strategy.value} cần STATION_ENGINE=hybrid")
-        return SimulatorScheduler(strategy, station)
-    return get_scheduler(strategy)
+    if strategy not in SIMULATOR_STRATEGIES:
+        raise DomainError(
+            ErrorCode.NOT_FOUND,
+            f"Chiến lược {strategy.value} (LP backend A–D) đã bỏ ở Phase 3 (ADR-019) — dùng B0 / M2b / M3a / M3b",
+        )
+    return SimulatorScheduler(strategy, station, algorithms=algorithms)
 
 
 def visit_of(booking: Booking, now: datetime) -> VehicleVisit:
@@ -274,8 +275,41 @@ def build_sim_runtime(
     """
     simulator = make_station(config, start, engine)
     simulator.reset(scenario)
-    bookings: dict[str, Booking] = {}
-    approvals: dict[str, Approval] = {}
+    return _memory_runtime(
+        simulator, make_scheduler(strategy, lambda: simulator), config, tariff, oracle_bookings=oracle_bookings
+    )
+
+
+def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
+    """Runtime what-if cho admission: bản fork của trạm + CÙNG policy, control_loop, Guard; store trong bộ nhớ.
+
+    Trạm live không đổi. Phê duyệt đang chờ, lệnh gần đây (anti_flapping), booking đã từ chối và lịch hiện hành được
+    chép sang để bản fork đi đúng đường như runtime thật (PHASE3_DESIGN §6).
+    """
+    fork = rt.simulator.fork()
+    algorithms = getattr(rt.scheduler, "algorithms", None)
+    scheduler = make_scheduler(rt.scheduler.name, lambda: fork, algorithms() if callable(algorithms) else None)
+    frt = _memory_runtime(
+        fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
+    )
+    frt.plan = rt.plan
+    frt.recent_commands.extend(rt.recent_commands)
+    frt.rejected_booking_ids.update(rt.rejected_booking_ids)
+    return frt
+
+
+def _memory_runtime(
+    simulator,
+    scheduler: Scheduler,
+    config: StationConfig,
+    tariff: Tariff,
+    *,
+    bookings: list[Booking] = (),
+    approvals: list[Approval] = (),
+    oracle_bookings: tuple[Booking, ...] = (),
+) -> StationRuntime:
+    store_bookings: dict[str, Booking] = {b.booking_id: b for b in bookings}
+    store_approvals: dict[str, Approval] = {a.approval_id: a for a in approvals}
     rt_ref: list[StationRuntime] = []
 
     async def notify(message: WsMessage, resident_id: str | None) -> None:
@@ -286,25 +320,25 @@ def build_sim_runtime(
             rt_ref[0].recorder.load_trace.append(point)
 
     store = RuntimeStore(
-        active_bookings=lambda: [b for b in bookings.values() if b.status in ACTIVE],
-        get_booking=bookings.get,
-        save_booking=lambda b: bookings.__setitem__(b.booking_id, b),
+        active_bookings=lambda: [b for b in store_bookings.values() if b.status in ACTIVE],
+        get_booking=store_bookings.get,
+        save_booking=lambda b: store_bookings.__setitem__(b.booking_id, b),
         save_plan=lambda plan: None,
         record_event=lambda event: None,
         record_load=record_load,
-        pending_approvals=lambda: [a for a in approvals.values() if a.status == ApprovalStatus.PENDING],
+        pending_approvals=lambda: [a for a in store_approvals.values() if a.status == ApprovalStatus.PENDING],
         add_notification=lambda resident_id, note: None,
     )
     rt = StationRuntime(
         config=config,
         tariff=tariff,
         simulator=simulator,
-        scheduler=make_scheduler(strategy, lambda: simulator),
+        scheduler=scheduler,
         forecaster=None,
         clock=lambda: simulator.now,
         sinks=DispatchSinks(
             log_decision=lambda entry: _remember_executed(rt_ref, entry),
-            save_approval=lambda a: approvals.__setitem__(a.approval_id, a),
+            save_approval=lambda a: store_approvals.__setitem__(a.approval_id, a),
             notify=notify,
         ),
         store=store,

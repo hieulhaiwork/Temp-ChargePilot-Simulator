@@ -407,15 +407,13 @@ class HybridStation:
 
     @_locked
     def fork(self) -> "HybridStation":
-        """Bản sao sâu (EV2Gym, queue, setpoint, cổng lỗi, nguồn) để chạy what-if — trạm này không đổi."""
-        lock, self.lock = self.lock, None
-        try:
-            twin = copy.deepcopy(self)
-        finally:
-            self.lock = lock
+        """Bản sao (EV2Gym, queue, setpoint, cổng lỗi, nguồn) để chạy what-if — trạm này không đổi."""
+        twin = copy.copy(self)
         twin.lock = threading.RLock()
         twin.is_fork = True
-        twin.kernel.emit = twin._emit
+        twin._visits = dict(self._visits)
+        twin._events = []
+        twin.kernel = self.kernel.fork(emit=twin._emit)
         return twin
 
     def apply_approved(self, approved: ApprovedDecision) -> None:

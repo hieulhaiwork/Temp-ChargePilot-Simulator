@@ -389,8 +389,8 @@ def _layers_in_cycles(graph: dict[str, set[str]]) -> list[str]:
     return [layer for layer in graph if reaches(layer, layer, frozenset({layer}))]
 
 
-# Gói thuật toán của optimizer dùng chung cho simulator standalone + backend (ADR-019). Phần còn lại của src/optimizer
-# (base, baselines, mpc, lp_model, horizon, assignment, strategies) là LP backend cũ, kéo theo Pydantic.
+# Gói thuật toán của optimizer dùng chung cho simulator standalone + backend (ADR-019). LP backend cũ (base, baselines,
+# mpc, lp_model, horizon, assignment, strategies) đã xoá ở Phase 3 — src/optimizer chỉ còn các gói này.
 OPTIMIZER_ALGORITHMS = (
     "src.optimizer.dispatch",
     "src.optimizer.zones",

@@ -53,12 +53,12 @@ def selection(strategy: StrategyName) -> dict:
 class SimulatorScheduler:
     """Scheduler (`src/models/planning.py`) cho B0 / M2b / M3a / M3b. `station` trả HybridStation đang chạy."""
 
-    def __init__(self, name: StrategyName, station: Callable[[], object]) -> None:
+    def __init__(self, name: StrategyName, station: Callable[[], object], algorithms: Algorithms | None = None) -> None:
         if name not in POLICIES:
             raise ValueError(f"Không phải chiến lược simulator: {name!r}")
         self.name = name
         self._station = station
-        self._algorithms: Algorithms | None = None
+        self._algorithms: Algorithms | None = algorithms
         self.metadata: dict = {}
         self.last_diagnostics: dict = {}
         self.configure(station())

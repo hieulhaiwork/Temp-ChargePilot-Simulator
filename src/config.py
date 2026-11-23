@@ -79,9 +79,9 @@ class Settings(BaseSettings):
     # gian, không cần request. Mặc định TẮT cho local / test (đồng hồ thật làm test không tất định); deploy BẬT
     # (render*.yaml, docs/plan/56). Sự kiện vẫn luôn được xử lý ngay trong request dù bật hay tắt.
     control_loop_enabled: bool = False
-    # Trạm mô phỏng của backend (ADR-018): "hybrid" = HybridStation dựng từ engine simulator R&D (gốc, cần ev2gym);
-    # "live" = LiveStation cũ (không taper DC) — chỉ để dự phòng khi môi trường thiếu ev2gym.
-    station_engine: Literal["hybrid", "live"] = "hybrid"
+    # Trạm mô phỏng của backend (ADR-018, ADR-019 Phase 3): chỉ còn "hybrid" = HybridStation trên kernel dùng chung
+    # với simulator (cần ev2gym). LiveStation đã xoá (docs/refactor/DELETION_MANIFEST.md).
+    station_engine: Literal["hybrid"] = "hybrid"
     # Chiến lược chạy thật: mặc định M3a — policy tham chiếu cho demo (SIMULATOR_INTEGRATION_CONTRACT.md §2).
     live_strategy: str = "M3a"
     sim_time_scale: float = Field(default=1.0, gt=0, le=3600)  # 1 = thời gian thật; 60 = 1 phút thật = 1 giờ mô phỏng

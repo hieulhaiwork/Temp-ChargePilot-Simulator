@@ -126,7 +126,7 @@ def _sim_runtime():
     config, tariff = catalog.load_station_config(), catalog.load_tariff()
     scenario = catalog.load_scenario("hybrid_evening")
     start = datetime.combine(NOW.date(), scenario.start_time, tzinfo=NOW.tzinfo)
-    return build_sim_runtime(scenario, StrategyName.OPT_NO_ML, config, tariff, start)
+    return build_sim_runtime(scenario, StrategyName.SIM_M3A, config, tariff, start)
 
 
 async def test_every_event_type_triggers_replan():
@@ -179,14 +179,15 @@ async def test_concurrent_events_are_serialized():
 
 
 async def test_only_first_step_becomes_commands():
-    """Receding horizon: lịch 96 bước → diff_commands chỉ sinh lệnh cho bước t=0 (gán cổng + 1 lệnh công suất)."""
+    """Receding horizon: diff_commands chỉ sinh lệnh cho bước t=0 (gán cổng + 1 lệnh công suất).
+
+    Planning Core (M3a) chỉ trả bước hiện tại — LP backend cũ trả 96 bước (đã xoá, ADR-019 Phase 3)."""
     rt = _sim_runtime()
     b = booking("d1", zone="DC", kwh=40, hours=2, now=rt.clock())
     rt.store.save_booking(b)
     rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
     ctx = control_loop.build_planning_context(rt)
     plan = rt.scheduler.plan(ctx)
-    assert len(next(s for s in plan.sessions if s.booking_id == "d1").slots) > 1
     commands = control_loop.diff_commands(None, plan, ctx.state)
     assert [c.type for c in commands] == [CommandType.ASSIGN_CONNECTOR, CommandType.SET_POWER]
     first = next(s for s in plan.sessions if s.booking_id == "d1").slots[0]

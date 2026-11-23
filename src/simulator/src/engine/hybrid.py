@@ -13,6 +13,7 @@ and the four operations shared by the standalone simulator and the backend stati
 `guard` is looked up as this module's global at call time, so both Guard stages stay patchable in one place.
 """
 
+import copy
 from collections.abc import Mapping
 from dataclasses import replace
 from logging import getLogger
@@ -85,6 +86,25 @@ class StationKernel:
         self._constraint_failure = False
 
     # ---- state -------------------------------------------------------------------------------
+
+    def fork(self, emit=None) -> "StationKernel":
+        """Independent copy of the mutable physical state for what-if runs (admission).
+
+        Immutable inputs are shared: scenario, algorithms (stateless), DC model. Queue sessions and EV2Gym models are
+        deep-copied together so connector bookkeeping stays consistent; the original kernel is never touched.
+        """
+        twin = copy.copy(self)
+        memo = {id(self.scenario): self.scenario, id(self.adapter.dc_model): self.adapter.dc_model}
+        twin.queue, twin.adapter = copy.deepcopy((self.queue, self.adapter), memo)
+        twin.setpoints = dict(self.setpoints)
+        twin.faults = set(self.faults)
+        twin.output_kwh = dict(self.output_kwh)
+        twin.output_by_deadline_kwh = dict(self.output_by_deadline_kwh)
+        if emit is not None:
+            twin.emit = emit
+        elif "emit" in vars(twin):
+            del twin.emit
+        return twin
 
     def emit(self, when, kind, v, **metadata) -> None:
         return None

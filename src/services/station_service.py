@@ -32,11 +32,9 @@ AT_RISK_SLACK_MINUTES = 30
 def _at_risk_bookings(rt: StationRuntime, state) -> list[str]:
     """US5 — phiên có nguy cơ trễ hạn.
 
-    A–D (LP backend): lịch có đủ các bước tới hạn → nguy cơ khi lịch giao thiếu so với kWh còn thiếu.
-    Chiến lược simulator (B0 / M2b / M3a / M3b): lịch chỉ có bước hiện tại → dùng laxity (AT_RISK_SLACK_MINUTES).
+    Lịch của Planning Core chỉ có bước hiện tại → dùng laxity (AT_RISK_SLACK_MINUTES). Định nghĩa "lịch giao thiếu"
+    của LP backend A–D đã bỏ cùng LP backend (ADR-019 Phase 3).
     """
-    from src.services.hybrid_planner import SIMULATOR_STRATEGIES
-
     progress = {s.booking_id: s.delivered_grid_kwh for s in state.sessions}
     now = rt.clock()
     at_risk: list[str] = []
@@ -45,15 +43,10 @@ def _at_risk_bookings(rt: StationRuntime, state) -> list[str]:
         remaining = booking.energy.grid_energy_kwh - progress.get(booking.booking_id, 0.0)
         if remaining <= AT_RISK_KWH:
             continue
-        if rt.plan.strategy in SIMULATOR_STRATEGIES:
-            start = max(session.slots[0].start, now) if session and session.slots else now
-            hours_needed = remaining / max(booking.max_charge_power_kw, 1e-9)
-            slack = booking.request.deadline - start - timedelta(hours=hours_needed)
-            if slack < timedelta(minutes=AT_RISK_SLACK_MINUTES):
-                at_risk.append(booking.booking_id)
-            continue
-        planned = sum(x.power_kw for x in session.slots) * rt.plan.step_minutes / 60 if session else 0.0
-        if remaining - planned > AT_RISK_KWH:
+        start = max(session.slots[0].start, now) if session and session.slots else now
+        hours_needed = remaining / max(booking.max_charge_power_kw, 1e-9)
+        slack = booking.request.deadline - start - timedelta(hours=hours_needed)
+        if slack < timedelta(minutes=AT_RISK_SLACK_MINUTES):
             at_risk.append(booking.booking_id)
     return at_risk
 

@@ -19,7 +19,6 @@ Owner: TV3. Task: T2.2 (gán đầu nối, hàng đợi, idempotency), T2.5 (Age
 
 import hashlib
 import math
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -37,10 +36,7 @@ from src.models.charging import (
 )
 from src.models.events import EventType, StationEvent
 from src.models.station import StationConfig
-from src.optimizer.assignment import assign_connectors
-from src.optimizer.lp_model import solve_with_unmet
-from src.services import catalog, event_bus, repository, solver
-from src.services.control_loop import build_planning_context
+from src.services import admission, catalog, event_bus, repository
 from src.services.energy import estimate_energy
 from src.services.errors import DomainError
 from src.services.runtime import StationRuntime, get_runtime, visit_of
@@ -95,35 +91,18 @@ def _hypothetical(rt: StationRuntime, request: ChargeRequest, resident_id: str, 
     )
 
 
-def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None) -> ScheduleProposal:
-    """Thêm booking giả định vào PlanningContext, giải LP (chiến lược B), đọc điện thiếu — KHÔNG giữ chỗ."""
-    base = build_planning_context(rt)
-    others = tuple(b for b in base.bookings if b.booking_id != exclude)
-    ctx = replace(base, bookings=(*others, candidate), oracle_bookings=())
-    assignment = assign_connectors(ctx, "edf")
-    plan, unmet_by_booking = solver.run(solve_with_unmet, ctx, assignment, rt.scheduler.name)
-    session = next((s for s in plan.sessions if s.booking_id == candidate.booking_id), None)
+async def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None) -> ScheduleProposal:
+    """Admission: chạy policy thực thi trên bản fork của trạm với booking giả định — KHÔNG giữ chỗ (ADR-019 Phase 3)."""
+    result = await admission.evaluate(rt, candidate, exclude=exclude)
     energy = candidate.energy
     need = energy.grid_energy_kwh
-    unmet = unmet_by_booking.get(candidate.booking_id, need)
-    connector_id = session.connector_id if session else None
-    step = timedelta(minutes=plan.step_minutes)
-    tz = ZoneInfo(rt.config.timezone)
-    planned_start = session.slots[0].start if session and session.slots else None
-    planned_end = (session.slots[-1].start + step) if session and session.slots else None
+    unmet = result.unmet_kwh
+    connector_id = result.connector_id
+    planned_start = result.charge_start or result.plugged_at
+    planned_end = result.charge_end
     if planned_end and planned_end > candidate.request.deadline:
         planned_end = candidate.request.deadline
-    cost = None
-    if session and session.slots:
-        cost = round(
-            sum(
-                s.power_kw * plan.step_minutes / 60 * rt.tariff.price_at(s.start.astimezone(tz).time())
-                for s in session.slots
-            )
-        )
-    queue_position = (
-        (assignment.queue.index(candidate.booking_id) + 1) if candidate.booking_id in assignment.queue else None
-    )
+    queue_position = result.queue_position
     feasible = connector_id is not None and unmet <= UNMET_TOL_KWH
     reasons = [f"Cần {energy.grid_energy_kwh:.1f} kWh (tính bằng code từ dung lượng pin và hiệu suất, FR3)"]
     if connector_id:
@@ -134,6 +113,7 @@ def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None)
         reasons.append(f"Đang hết cổng {candidate.request.zone}: vị trí {queue_position} trong hàng đợi")
     if unmet > UNMET_TOL_KWH:
         reasons.append(f"Thiếu khoảng {unmet:.1f} kWh so với yêu cầu trước giờ lấy xe")
+    reasons.append(f"Mô phỏng theo đúng chiến lược đang vận hành ({result.policy}) trên bản sao trạng thái trạm")
     slack = (candidate.request.deadline - planned_end).total_seconds() / 60 if feasible and planned_end else None
     alternatives = [] if feasible else _alternatives(rt, candidate, need - unmet, planned_start, connector_id)
     return ScheduleProposal(
@@ -142,7 +122,7 @@ def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None)
         connector_id=connector_id,
         planned_start=planned_start,
         planned_end=planned_end,
-        estimated_cost_vnd=cost,
+        estimated_cost_vnd=result.cost_vnd,
         slack_minutes=round(slack) if slack is not None else None,
         queue_position=queue_position,
         reasons=reasons,
@@ -201,13 +181,13 @@ def _own_active(booking_id: str, resident_id: str) -> Booking:
 def quote(request: ChargeRequest, resident_id: str) -> ScheduleProposal:
     """What-if cho màn S3: hỏi bộ tối ưu phương án, KHÔNG giữ chỗ.
 
-    Cách làm (docs/plan/30-ai.md §5.3): thêm booking giả định vào PlanningContext, giải, đọc
-    điện thiếu. Không khả thi thì PHẢI trả ≥ 1 phương án thay thế (FR4 — ScheduleProposal ép
-    điều này). `reasons` do code sinh từ nghiệm, Agent chỉ diễn đạt lại.
+    Cách làm (ADR-019 Phase 3): chạy policy đang vận hành trên bản fork của trạm với booking giả định
+    (`services/admission.py`), đọc điện thiếu. Không khả thi thì PHẢI trả ≥ 1 phương án thay thế (FR4 —
+    ScheduleProposal ép điều này). `reasons` do code sinh từ kết quả, Agent chỉ diễn đạt lại.
     """
     rt = get_runtime()
     rt.sync_clock()
-    return _what_if(rt, _hypothetical(rt, request, resident_id, QUOTE_ID))
+    return admission.run_sync(_what_if(rt, _hypothetical(rt, request, resident_id, QUOTE_ID)))
 
 
 async def book(
@@ -236,7 +216,7 @@ async def book(
     rt.sync_clock()
     booking_id = uuid4().hex[:12]
     candidate = _hypothetical(rt, request, resident_id, booking_id)
-    proposal = _what_if(rt, candidate)
+    proposal = await _what_if(rt, candidate)
     if not proposal.feasible:
         raise DomainError(
             ErrorCode.PROPOSAL_EXPIRED,
@@ -292,7 +272,7 @@ async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str)
     rt = get_runtime()
     rt.sync_clock()
     candidate = _hypothetical(rt, request, resident_id, booking_id)
-    proposal = _what_if(rt, candidate, exclude=booking_id)
+    proposal = await _what_if(rt, candidate, exclude=booking_id)
     if not proposal.feasible:
         raise DomainError(
             ErrorCode.PROPOSAL_EXPIRED,

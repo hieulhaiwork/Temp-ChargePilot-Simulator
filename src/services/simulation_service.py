@@ -1,4 +1,4 @@
-"""Chạy kịch bản mô phỏng (màn S8, F7) và benchmark A–D (AC7).
+"""Chạy kịch bản mô phỏng (màn S8, F7) và benchmark B0 / M2b / M3a / M3b (AC7).
 
 Vì sao dùng CHUNG pipeline với vận hành thật: benchmark phải đo đúng đường code
 production (optimizer → Guard → simulator), nếu không "0 lần vượt giới hạn" (MT4) chỉ
@@ -18,12 +18,10 @@ thời lượng, giới hạn nguồn và sự cố; topology lấy từ config/
 Owner: TV1. Task: T1.5 (baseline A), T3.4 (B/C/D), T3.5 (sự cố).
 """
 
-import asyncio
 import json
 import math
 import random
 import statistics
-import threading
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -42,6 +40,7 @@ from src.models.simulation import (
 )
 from src.models.station import StationConfig, Tariff
 from src.services import catalog, control_loop, event_bus
+from src.services.admission import run_sync
 from src.services.charging_service import vehicle_power_cap
 from src.services.energy import estimate_energy
 from src.services.errors import DomainError
@@ -147,34 +146,6 @@ def compute_kpis(
 # ---- chạy kịch bản -----------------------------------------------------------------------
 
 
-def _run_sync(coro):
-    """Chạy coroutine từ code đồng bộ — kể cả khi đang ở trong event loop (chạy ở thread riêng)."""
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    box: dict = {}
-
-    def target() -> None:
-        try:
-            box["value"] = asyncio.run(coro)
-        except BaseException as exc:  # noqa: BLE001 — chuyển lỗi về thread gọi
-            box["error"] = exc
-
-    worker = threading.Thread(target=target)
-    worker.start()
-    worker.join()
-    if "error" in box:
-        raise box["error"]
-    return box["value"]
-
-
-def _decision_due(sim, now: datetime) -> bool:
-    """Tới mốc quyết định kế tiếp do kernel tính (boundary), hoặc chưa có quyết định nào."""
-    due = sim.next_decision_at
-    return due is None or now >= due
-
-
 def _is_feasible(outcome: SessionOutcome, booking: Booking) -> bool:
     hours = (booking.request.deadline - outcome.arrival_time).total_seconds() / 3600
     return booking.max_charge_power_kw * hours >= outcome.requested_kwh - ON_TIME_TOL_KWH
@@ -187,9 +158,7 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
     tz = ZoneInfo(config.timezone)
     start = datetime.combine(SIM_DATE, scenario.start_time, tzinfo=tz)
     bookings = generate_bookings(scenario, config, start)
-    rt: StationRuntime = build_sim_runtime(
-        scenario, strategy, config, tariff, start, tuple(bookings) if strategy == StrategyName.ORACLE else ()
-    )
+    rt: StationRuntime = build_sim_runtime(scenario, strategy, config, tariff, start)
     sim = rt.simulator
     pending = sorted(bookings, key=lambda b: (b.created_at, b.booking_id))
     incidents = {i.at_minute: [] for i in scenario.incidents}
@@ -211,17 +180,7 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
                 events += sim.inject_incident(Incident.model_validate(inc.model_dump(exclude={"at_minute"})))
             except ValueError:
                 skipped.append(f"{inc.type.value}@{inc.at_minute}' ({inc.connector_id})")
-        if not events and _decision_due(sim, now):
-            # Mốc boundary của quyết định trước (TOU, rút DC, trần planning_step_minutes) — PHASE3_DESIGN §3.
-            events.append(StationEvent(type=EventType.TICK, occurred_at=now))
-        # Sự cố nguồn phải đi trước để bảo vệ khẩn cấp chạy ngay (AC5); mọi sự kiện khác của CÙNG phút gộp vào MỘT lần
-        # tính lại (không replan trùng).
-        urgent = [e for e in events if e.type == EventType.POWER_LIMIT_CHANGED]
-        for event in urgent:
-            await control_loop.on_event(event, rt)
-        rest = [e for e in events if e.type != EventType.POWER_LIMIT_CHANGED]
-        if rest:
-            await control_loop.on_event(rest[-1], rt, batch=tuple(rest[:-1]))
+        await control_loop.on_minute(rt, events)
         state = sim.state()
         minute_load.append((now, state.total_power_kw, state.available_power_kw))
         carried = sim.step(1)
@@ -242,8 +201,6 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
     )
     if skipped:
         notes += f" Bỏ qua sự cố không khớp topology: {', '.join(skipped)}."
-    if strategy == StrategyName.OPT_ML:
-        notes += " C = B vì F6 hoãn (ADR-015): không có dự báo — KHÔNG tuyên bố AI cải thiện."
     return SimulationRunResult(
         run_id=uuid4().hex[:12],
         scenario_id=scenario.scenario_id,
@@ -257,7 +214,7 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
 
 def run_scenario(scenario: Scenario, strategy: StrategyName) -> SimulationRunResult:
     """Chạy trọn một kịch bản với một chiến lược, trả KPI (compute_kpis)."""
-    return _run_sync(_run(scenario, strategy))
+    return run_sync(_run(scenario, strategy))
 
 
 def run_benchmark(
@@ -318,10 +275,7 @@ def latest_benchmark() -> BenchmarkReport:
 
 
 def _engine_label(station) -> str:
-    """Ghi rõ engine trong mọi báo cáo (ADR-015/016/018): số của hai engine không trộn."""
-    from src.config import get_settings
-
-    name = type(station).__name__ if station is not None else None
-    if name == "HybridStation" or (name is None and get_settings().station_engine == "hybrid"):
-        return "HybridStation (engine simulator R&D: EV2Gym AC, đường sạc DC)"
-    return "LiveStation (không mô phỏng taper DC)"
+    """Ghi rõ engine và cấu hình thời gian (P1) trong mọi báo cáo: không so số giữa hai cấu hình khác nhau."""
+    time = getattr(station, "time", None)
+    detail = f"; vật lý {time.physics_step_minutes}', trần quyết định {time.decision_interval_minutes}'" if time else ""
+    return f"HybridStation (kernel dùng chung với simulator: EV2Gym AC, đường sạc DC{detail})"

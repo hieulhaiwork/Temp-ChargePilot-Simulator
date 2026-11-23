@@ -27,7 +27,8 @@ from src.models.simulation import BenchmarkReport  # noqa: E402
 from src.services import catalog, simulation_service  # noqa: E402
 
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
-ALL_STRATEGIES = ",".join(s.value for s in StrategyName)
+# A–D (LP backend) đã bỏ ở ADR-019 Phase 3: mặc định chạy các policy của Planning Core.
+ALL_STRATEGIES = ",".join(s.value for s in StrategyName if s.value in ("B0", "M2b", "M3a", "M3b"))
 
 
 def render_markdown(report: BenchmarkReport) -> str:

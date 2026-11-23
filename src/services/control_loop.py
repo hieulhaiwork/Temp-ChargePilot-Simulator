@@ -89,6 +89,29 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
         return plan
 
 
+def decision_due(simulator, now) -> bool:
+    """Tới mốc quyết định kế tiếp do kernel tính (boundary: TOU, xe đến / rời, rút DC, trần 15'), hoặc chưa có."""
+    due = getattr(simulator, "next_decision_at", None)
+    return due is None or now >= due
+
+
+async def on_minute(rt: StationRuntime, events: list[StationEvent]) -> SchedulePlan | None:
+    """Một phút của vòng điều khiển mô phỏng (benchmark + admission): MỘT lần tính lại cho mọi sự kiện cùng phút.
+
+    Không có sự kiện mà tới mốc quyết định → TICK. Sự cố nguồn đi trước để bảo vệ khẩn cấp chạy ngay (AC5).
+    """
+    events = list(events)
+    if not events and decision_due(rt.simulator, rt.clock()):
+        events.append(StationEvent(type=EventType.TICK, occurred_at=rt.clock()))
+    plan = None
+    for event in (e for e in events if e.type == EventType.POWER_LIMIT_CHANGED):
+        plan = await on_event(event, rt)
+    rest = [e for e in events if e.type != EventType.POWER_LIMIT_CHANGED]
+    if rest:
+        plan = await on_event(rest[-1], rt, batch=tuple(rest[:-1]))
+    return plan
+
+
 async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
     """Vòng nền: simulator.step, phát TICK ở mốc quyết định kế tiếp của kernel (boundary: TOU, xe đến / rời, rút DC;
     trần planning_step_minutes), approval.expire_overdue — tới khi `stop` được set."""
@@ -105,8 +128,7 @@ async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
             for event in events:
                 await event_bus.publish(event)
             now = rt.clock()
-            due = getattr(rt.simulator, "next_decision_at", None)
-            if not events and (now - last_tick >= tick_every or (due is not None and now >= due)):
+            if not events and (now - last_tick >= tick_every or decision_due(rt.simulator, now)):
                 await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))
                 last_tick = now
             elif events:
