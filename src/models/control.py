@@ -8,10 +8,27 @@ Các field `issued_by`, `based_on_schedule_version`, `based_on_state_at` tồn t
 Guard kiểm được các luật FR12: quyền thao tác, lịch đã cũ, dữ liệu cũ.
 """
 
+import math
 from enum import StrEnum
 from uuid import uuid4
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
+
+# Độ phân giải mã hoá công suất trong lịch / Command (kW). KHÁC với command deadband
+# (control_loop.POWER_TOL_KW = 0,01 kW: chênh nhỏ hơn thì không gửi lệnh mới).
+COMMAND_QUANTUM_KW = 0.001
+
+
+def quantize_kw(kw: float) -> float:
+    """Setpoint → giá trị gửi trạm, LÀM TRÒN XUỐNG theo COMMAND_QUANTUM_KW: không bao giờ lớn hơn setpoint đã qua
+    Physical Guard (trần cứng kiểm với TOL 1e-7).
+
+    Root-cause sai lệch AC +1,97 kW (PHASE3_REPORT §7; phút 560 `peak_evening` seed 2 M3b): kế hoạch dùng đúng 33,25 kW
+    đầu ra = 35 kW lưới × 0,95; làm tròn GẦN NHẤT đẩy AC 7,278906 → 7,279 kW (+0,094 W) nên lô lệnh vượt trần lưới vài W,
+    luật tổng công suất chặn cả lô (kể cả lệnh giảm AC) và setpoint AC cũ 9,25 kW tiếp tục chạy.
+    """
+    steps = math.floor(kw / COMMAND_QUANTUM_KW + 1e-9)  # +1e-9 bước: 4.35 không thành 4.349 vì sai số nhị phân
+    return max(0.0, round(steps * COMMAND_QUANTUM_KW, 9))
 
 
 class Role(StrEnum):

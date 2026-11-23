@@ -29,7 +29,16 @@ from src.guard import dispatcher, emergency
 from src.guard.rules import GuardContext
 from src.models.api import ErrorCode, Notification, NotificationKind
 from src.models.charging import BookingStatus, SchedulePlan
-from src.models.control import Approval, ApprovalStatus, Command, CommandSource, CommandType, DecisionLogEntry, Role
+from src.models.control import (
+    Approval,
+    ApprovalStatus,
+    Command,
+    CommandSource,
+    CommandType,
+    DecisionLogEntry,
+    Role,
+    quantize_kw,
+)
 from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
 from src.models.planning import PlanningContext
 from src.models.station import LoadPoint, StationState
@@ -39,7 +48,7 @@ from src.services.runtime import StationRuntime
 
 logger = logging.getLogger(__name__)
 
-POWER_TOL_KW = 0.01  # đổi công suất nhỏ hơn mức này không sinh lệnh (tránh lệnh rác)
+POWER_TOL_KW = 0.01  # command deadband: đổi công suất nhỏ hơn mức này không sinh lệnh (tránh lệnh rác)
 
 
 def _ws(kind: WsMessageType, payload, rt: StationRuntime) -> WsMessage:
@@ -284,7 +293,7 @@ def diff_commands(previous: SchedulePlan | None, new: SchedulePlan, state: Stati
         desired = first_power.get(booking_id, 0.0) if booking_id else 0.0
         current = conn.power_kw if conn.booking_id == booking_id else 0.0
         if abs(desired - current) > POWER_TOL_KW:
-            commands.append(command(CommandType.SET_POWER, conn.connector_id, booking_id, round(desired, 3)))
+            commands.append(command(CommandType.SET_POWER, conn.connector_id, booking_id, quantize_kw(desired)))
     return commands
 
 

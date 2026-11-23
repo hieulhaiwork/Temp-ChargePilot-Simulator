@@ -76,12 +76,16 @@ class StationKernel:
         self.output_by_deadline_kwh: dict[str, float] = {}
         # Planning memo of the last approved decision. Not physical state: does not bump state_version.
         self.active_budget_kw: Mapping[str, float] | None = None
+        self.active_setpoints_kw: Mapping[str, float] | None = None
         self.next_decision_minute: int | None = None
         self._deviation_reported = False
-        self.command_resolution_kw = 0.0  # actuator quantisation per connector (backend: control_loop.POWER_TOL_KW)
+        # Command deadband per connector (backend: control_loop.POWER_TOL_KW): a held setpoint is not re-sent for a
+        # change smaller than this. Classifies budget excess only; hard caps keep TOL 1e-7.
+        self.command_resolution_kw = 0.0
         self.rejected_allocation_count = 0
         self.applied_constraint_violation_count = 0
         self.budget_deviation_count = 0
+        self.command_deadband_count = 0
         self._constraint_failure = False
 
     # ---- state -------------------------------------------------------------------------------
@@ -112,6 +116,14 @@ class StationKernel:
         return {
             "rejected_allocation_count": self.rejected_allocation_count,
             "applied_constraint_violation_count": self.applied_constraint_violation_count,
+        }
+
+    def deviation_metrics(self) -> dict[str, int]:
+        """Hard violation / budget deviation / command deadband counted separately (physics steps affected)."""
+        return {
+            "applied_constraint_violation_count": self.applied_constraint_violation_count,
+            "budget_deviation_count": self.budget_deviation_count,
+            "command_deadband_count": self.command_deadband_count,
         }
 
     @property
@@ -377,6 +389,7 @@ class StationKernel:
                     self._constraint_failure = True
                 raise
         self.active_budget_kw = proposal.budgets.output_kw
+        self.active_setpoints_kw = final
         self.next_decision_minute = proposal.interval_end
         self._deviation_reported = False
         codes = (*proposal.reason_codes, *reason_codes)
@@ -481,6 +494,8 @@ class StationKernel:
         completed: list[str] = []
         violations: list[str] = []
         deviation: dict[str, float] = {}
+        deadband: dict[str, float] = {}
+        stale: dict[str, float] = {}
         steps = 0
         while self.now < until:
             end = until if step is None else min(self.now + step, until)
@@ -536,19 +551,38 @@ class StationKernel:
             if not self.strict and budget:
                 for zone, cap in budget.items():
                     members = [vid for vid in actual if step_candidates[vid].cabinet.zone == zone]
-                    total = sum(actual[vid] for vid in members)
-                    # Held setpoints are quantised by the actuator (command resolution per connector), not a deviation.
-                    if total > cap + max(TOL, self.command_resolution_kw * len(members)):
-                        deviation[zone] = max(deviation.get(zone, 0.0), total - cap)
+                    excess = sum(actual[vid] for vid in members) - cap
+                    if excess <= TOL:
+                        continue
+                    # Within the command deadband (not re-sent for < resolution per connector): command resolution,
+                    # recorded apart. Anything above it is a coordination deviation. Hard caps were checked above.
+                    if excess <= self.command_resolution_kw * len(members):
+                        deadband[zone] = max(deadband.get(zone, 0.0), excess)
+                    else:
+                        deviation[zone] = max(deviation.get(zone, 0.0), excess)
+                        approved = self.active_setpoints_kw or {}
+                        for vid in members:
+                            held = self.setpoints.get(vid, 0.0)
+                            if vid in approved and held > approved[vid] + self.command_resolution_kw:
+                                stale[vid] = held - approved[vid]
             self.now = end
             self.state_version += 1
             steps += 1
             if stop_on_completion and completed:
                 break
+        if deadband:
+            self.command_deadband_count += 1
+            LOGGER.debug("minute=%s zone output within the command deadband above budget: %s", start, deadband)
         if deviation:
             self.budget_deviation_count += 1
             if not self._deviation_reported:
-                LOGGER.warning("minute=%s actual zone output above the assigned budget: %s", start, deviation)
+                LOGGER.warning(
+                    "minute=%s budget deviation (actual zone output above the assigned budget beyond the command "
+                    "deadband): %s; held setpoints above the approved decision: %s",
+                    start,
+                    deviation,
+                    stale or "none",
+                )
         duration = self.now - start
         if steps == 1:
             actual_kw = last_actual
@@ -566,4 +600,6 @@ class StationKernel:
             violations=tuple(violations),
             budget_deviation_kw=deviation,
             state_version=self.state_version,
+            command_deadband_kw=deadband,
+            stale_setpoint_kw=stale,
         )

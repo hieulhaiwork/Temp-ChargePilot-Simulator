@@ -23,6 +23,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from src.models.charging import PowerSlot, SchedulePlan, SessionPlan, StrategyName
+from src.models.control import quantize_kw
 from src.models.decisions import ApprovedDecision, ReasonCode
 from src.models.physical_constraints import TOL, ConstraintViolationError
 from src.models.planning import PlanningContext
@@ -202,7 +203,7 @@ def _to_plan(name, ctx, station, assignments, setpoints, queue, interval, starte
         bid = progress.booking_id
         connector = connector_of.get(bid, progress.connector_id)
         if connector:
-            slots = [PowerSlot(start=ctx.now, power_kw=round(max(setpoints.get(bid, 0.0), 0.0), 3))]
+            slots = [PowerSlot(start=ctx.now, power_kw=quantize_kw(setpoints.get(bid, 0.0)))]
         elif bid in etas:
             slots = [PowerSlot(start=etas[bid], power_kw=0.0)]  # ước tính lúc có cổng — cho ETA hàng chờ (AC2)
         else:

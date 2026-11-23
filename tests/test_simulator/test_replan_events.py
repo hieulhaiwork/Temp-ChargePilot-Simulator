@@ -151,3 +151,41 @@ def test_command_resolution_matches_the_control_loop_and_is_not_a_budget_deviati
     )
     sim.kernel.active_budget_kw = {"AC": 10.995, "DC": 78.0}  # lệnh cũ chưa được gửi lại vì chênh < 0,01 kW
     assert sim.step(3) == [] and sim.kernel.budget_deviation_count == 0
+    # Quyết định 3 (Phase 4): phần vượt trong deadband được ghi RIÊNG, không lẫn với sai lệch / vi phạm cứng.
+    assert sim.kernel.command_deadband_count == 3
+    result = sim.kernel.advance(sim.kernel.now + 1)
+    assert dict(result.command_deadband_kw) == pytest.approx({"AC": 0.005})
+    assert not result.budget_deviation_kw and not result.violations
+    assert sim.kernel.deviation_metrics() == {
+        "applied_constraint_violation_count": 0,
+        "budget_deviation_count": 0,
+        "command_deadband_count": 4,
+    }
+
+
+def test_budget_deviation_names_the_stale_held_setpoint():
+    """Sai lệch budget > deadband: kernel chỉ ra xe có setpoint đang giữ cao hơn quyết định đã duyệt (lệnh chưa áp)."""
+    sim = HybridStation(catalog.load_station_config(), start=NOW)
+    sim.upsert_vehicle(_visit("ac"))
+    sim.apply_commands(
+        [_cmd(CommandType.ASSIGN_CONNECTOR, "AC-01-1", "ac"), _cmd(CommandType.SET_POWER, "AC-01-1", "ac", 9.25)]
+    )
+    sim.kernel.active_budget_kw = {"AC": 7.279, "DC": 78.0}
+    sim.kernel.active_setpoints_kw = {"ac": 7.279}  # quyết định mới; lệnh giảm chưa tới trạm
+    result = sim.kernel.advance(sim.kernel.now + 1)
+    assert dict(result.budget_deviation_kw) == pytest.approx({"AC": 9.25 - 7.279})
+    assert dict(result.stale_setpoint_kw) == pytest.approx({"ac": 9.25 - 7.279})
+    assert not result.command_deadband_kw and not result.violations
+
+
+def test_phase3_ac_budget_deviation_at_minute_560_is_gone(caplog):
+    """Tái hiện PHASE3_REPORT §7: `peak_evening` seed 2 M3b từng log AC +1,97 kW ở phút 560 (lệnh giảm AC bị chặn vì
+    làm tròn lên). Sau khi lệnh được lượng tử hoá xuống + giảm tải được ưu tiên: không còn budget deviation."""
+    import logging
+
+    from src.services import simulation_service
+
+    scenario = catalog.load_scenario("peak_evening").model_copy(update={"seed": 2})
+    with caplog.at_level(logging.WARNING, logger="src.simulator.core.kernel"):
+        simulation_service.run_scenario(scenario, StrategyName.SIM_M3B)
+    assert not [r for r in caplog.records if "budget deviation" in r.getMessage()]
