@@ -10,7 +10,7 @@
   Dựng trên AI20K Agent Template.
 - **Stack**: Python 3.12, FastAPI, LangGraph 1.x, LangChain 1.x, Pydantic v2, SQLAlchemy 2 + Alembic;
   web Next.js 16 + TypeScript trong `frontend/`.
-- **Trạng thái**: backend chạy thật (DB, auth, Guard, optimizer, `LiveStation`, WebSocket, chat). Stub còn lại
+- **Trạng thái**: backend chạy thật (DB, auth, Guard, optimizer, `HybridStation`, WebSocket, chat). Stub còn lại
   (`raise NotImplementedError("[Txx] …")` → 501) chỉ là F6 forecast, đang hoãn (ADR-015).
   Backlog: `grep -rn 'NotImplementedError("\[T' src/ --include=*.py`.
 - **Simulator là gốc** (ADR-018, ADR-019 Unified Core): backend chạy `HybridStation` (`src/simulator/hybrid_station.py`)
@@ -20,7 +20,10 @@
   `src/guard/physical/validator.py`; hợp đồng: `src/models/{simulation_core,scheduling,physical_*,charging_physics}`),
   logic giữ nguyên và chứng minh bằng `scripts/refactor/compare_ast_manifest.py`. Vị trí cũ trong `src/simulator/src/`
   là shim. KHÔNG sửa thuật toán, objective, tham số solver hay vật lý để cho khớp backend — sửa backend.
-  Simulator phải chạy standalone (không FastAPI / DB / LLM). `LiveStation` chỉ là dự phòng (`STATION_ENGINE=live`).
+  Simulator phải chạy standalone (không FastAPI / DB / LLM). Phase 3: **một kernel** `StationKernel`
+  (`src/simulator/src/engine/hybrid.py`, `observe/propose/approve/apply_approved/advance`) cho cả `HybridSimulator` và
+  `HybridStation`; quote / booking chạy cùng kernel trên bản fork (`src/services/admission.py`). LP backend A–D và
+  `LiveStation` đã xoá (`docs/refactor/DELETION_MANIFEST.md`).
 - **LLM**: `LLM_PROVIDER=openai` (OpenAI, hoặc Gemini / OpenRouter qua `OPENAI_BASE_URL`) · `local` · `mock` (chỉ
   dev/test, cấm ở production). Test và eval offline dùng LLM giả; để `OPENAI_API_KEY` RỖNG khi chưa có key (chuỗi
   placeholder bị coi là key thật).
@@ -64,7 +67,7 @@ make run           # uvicorn (make migrate trước lần đầu)
 make migrate       # alembic upgrade head
 make openapi       # ghi lại frontend/openapi.json
 make eval-agent    # python eval/run_agent_eval.py --offline
-make benchmark     # benchmark A–D (exit 2 khi pipeline còn stub)
+make benchmark     # benchmark B0 / M2b / M3a / M3b (exit 2 khi pipeline còn stub)
 make web-check     # lint + typecheck + test + build của frontend/
 ```
 
@@ -73,16 +76,17 @@ make web-check     # lint + typecheck + test + build của frontend/
 ```
 src/
   models/      # hợp đồng dữ liệu Pydantic (không import tầng nào khác) + hợp đồng core thuần stdlib (ADR-019):
-               #   simulation_core, scheduling/, physical_constraints, physical_limits, charging_physics, station_protocols
+               #   simulation_core, scheduling/, decisions, physical_constraints, physical_limits, charging_physics,
+               #   station_protocols; planning (PlanningContext, Pydantic)
   agents/      # Trụ 1: graph.py, state.py, nodes/, tools/charging.py, guardrails.py, prompts.py
-  services/    # tầng ứng dụng: charging_service, station_service, control_loop, runtime, event_bus,
+  services/    # tầng ứng dụng: charging_service, admission, hybrid_planner, station_service, control_loop, runtime, event_bus,
                #   realtime, auth, repository, catalog, energy, llm, errors
   optimizer/   # Trụ 2: dispatch/, zones/ (AC/DC LP), coordination/, registry.py (policy B0/M2b/M3a/M3b) — gốc simulator;
-               #   strategies.py + baselines/mpc/lp_model/assignment: LP backend A–D cũ (quote/booking còn dùng)
+               #   (LP backend A–D cũ đã xoá ở Phase 3)
   forecast/    # F6: dự báo lúc rút đầu nối (cấm feature unplug_time)
   guard/       # Trụ 3: rules (7 luật), checker, approval, emergency, dispatcher (chokepoint);
                #   physical/validator.py (Physical Guard gốc) + physical/adapter.py (map DTO backend)
-  simulator/   # src/ engine HybridSimulator (queue, EV2Gym, charging_models, evaluation) · hybrid_station.py · live.py
+  simulator/   # src/ engine: StationKernel + HybridSimulator (queue, EV2Gym, charging_models, evaluation) · hybrid_station.py
   db/          # SQLAlchemy: tables (9 bảng), session, mappers
   api/         # REST /api/v1 + WebSocket: auth, catalog, resident, operations, simulation, routes (/chat), ws
 config/        # station.yaml, vehicles.yaml, tariff.yaml, scenarios/

@@ -129,3 +129,33 @@ Phase 2 được duyệt. Từ đây đổi nguyên tắc của toàn bộ refac
    phải cho kết quả thực thi tương đương.
 
 Mục "tương thích tạm" ở phần cập nhật Phase 2 (shim, `__getattr__`) được xoá ở Phase 4. Không thêm shim mới.
+
+## Cập nhật Phase 3 (2026-11-23, nhánh `feature/unified-core-p3`, chờ Tech Lead review)
+
+Chi tiết: `docs/refactor/PHASE3_DESIGN.md`, `docs/refactor/PHASE3_REPORT.md`, `docs/refactor/DELETION_MANIFEST.md`.
+
+1. **Một kernel.** `StationKernel` (`src/simulator/src/engine/hybrid.py`): `observe / propose / approve /
+   apply_approved / advance`, `boundary()` là hàm boundary sự kiện duy nhất. `HybridSimulator` kế thừa kernel (giữ
+   facade `step()` / `run()`); `HybridStation` giữ một kernel và chỉ còn là adapter (StationConfig ↔ Scenario,
+   Command → primitive kernel, sự kiện → StationEvent). `SimulatorScheduler.decide` = `kernel.propose` → consent →
+   `kernel.approve`. Đã xoá `HybridStation._charge_one_minute`, `SimulatorScheduler._decide`.
+2. **Hợp đồng quyết định** `src/models/decisions.py` (stdlib, thêm vào `CORE_CONTRACTS`): `TimeConfig`,
+   `ProposedDecision`, `ApprovedDecision`, `AppliedResult`, `ReasonCode`. Plan bị nghiệp vụ chỉnh phải qua lại cùng
+   `guard(...)` trên cùng snapshot (`approve`).
+3. **Thời gian P1.** Tương thích golden = `TimeConfig()` (ZOH cả interval). Backend = vật lý 1', trần quyết định
+   `planning_step_minutes`. Interval quyết định / planning của backend = tới boundary kế tiếp (xe đến / rời, rút DC,
+   TOU), thay cho 15' cố định. Không so benchmark giữa hai cấu hình.
+4. **Replan.** Backend phát `REPLAN_REQUESTED` khi xe sạc xong và khi công suất thực vượt assigned budget (một lần /
+   quyết định); runtime phát `TICK` ở mốc boundary của quyết định trước; mọi sự kiện cùng phút gộp vào một lần tính lại
+   (`control_loop.on_minute`, `on_event(..., batch=)`). Chưa thêm `EventType` mới (để không đổi OpenAPI ở Phase 3).
+5. **Hard cap ≠ assigned budget** sau thực thi: offline `strict` giữ một lời gọi guard với budget (như cũ); backend
+   guard với trần vật lý + đo `budget_deviation_kw` riêng.
+6. **Admission** (`src/services/admission.py`): quote / booking / đổi yêu cầu chạy `control_loop` + cùng policy +
+   cùng Guard trên `runtime.fork_runtime` (bản sao trạng thái trạm). `PlanningContext` / `Scheduler` chuyển sang
+   `src/models/planning.py`.
+7. **Xoá** (đề xuất số phận A–D: bỏ, xem PHASE3_REPORT §5): `src/optimizer/{assignment,lp_model,horizon,mpc,baselines,
+   strategies}.py`, `src/simulator/live.py`, `optimizer/__init__.__getattr__`. `STATION_ENGINE` chỉ còn `hybrid`;
+   chọn A–D → `DomainError(not_found)`. Điểm 6 của "Quyết định" ("Không xoá `lp_model`/`assignment` khi `_what_if`
+   còn dùng") đã thoả: `_what_if` không còn dùng.
+8. **Ranh giới:** không nới luật. `SIMULATOR_CORE_TRANSITIONAL` thêm `tests/test_refactor/test_differential.py`
+   (test so CLI ↔ backend phải dựng `HybridSimulator` + algorithms của simulator).
