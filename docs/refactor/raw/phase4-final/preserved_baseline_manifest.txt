@@ -1,0 +1,35 @@
+# Baseline = phase3-merged/preserved_baseline_manifest.txt, bỏ src/simulator/src/charging_models/base.py (shim re-export Phase 1, chỉ có __all__; xoá ở Phase 4 quyết định 7; hợp đồng thật src/models/charging_physics.py vẫn được kiểm)
+# path | sha256(file)[:16] | sha256(ast, no docstrings/imports)[:16] | top-level defs: name=sha256[:12]
+src/simulator/src/charging_models/__init__.py | 2153cc899a00cd10 | 5c04595997820c90 | 
+src/simulator/src/charging_models/dc_charging_models.py | fcd027af4d2998b1 | 75c030266c7d91bc | _VF3_CURVE=ab17b1802552 _VF8_OLD_SHAPE_PROXY=e6a0be3c5587 _finite_nonnegative=9a3715fa4a6f _fraction=dfb5c1371327 _ratio=642ef38f139e _linear_curve=f84137dc696f _generic_heterogeneous=76774a8b7144 CurveKind=9d0329acbe0d DCProfile=2ea35efc5eb8 resolve_dc_profile=07e34e18ede5 DCStepResult=94b28ea797dc charge_dc_step=cebd4cdd0229
+src/simulator/src/charging_models/synthetic_dc.py | 502575385ce090d2 | d4ba54c50c9a7f0f | SyntheticTaperV1=5b19fd18bbd2
+src/simulator/src/charging_models/vehicle_profiles.py | 24ba2e371554178e | 8833e2e7413fb7b0 | PROFILE_VERSION=5b9c306af806 INTEGRATION_SECONDS=28d2586e9ed2 GENERIC_CURVE=19f4540015f3 VF8_SHAPE=912fd5e65b65 OEM_SOURCES=0e44f1f0cb2b CURVE_SOURCES=49fe4f98383a VehicleProfilesDCModel=f1c6c89c3929
+src/simulator/src/engine/ev2gym_adapter.py | e0c8e4b600451ff3 | 7311a9730b51e9d0 | PrecisionEV=80e2ee2f2878 DCEV=cb7bab16c827 Delivered=f9d97962384c EV2GymAdapter=d7d0c3e7bcce
+src/simulator/src/engine/queue.py | 9e06432660001190 | 85c7303dc14664e4 | Session=05806798271b QueueController=43bf67b9a820
+src/simulator/src/evaluation/__init__.py | 602b53a3c7b02ea4 | 5c04595997820c90 | 
+src/simulator/src/evaluation/extended.py | 7643b10a77482a99 | 8e4dd48edca9a9da | ENERGY_TOL_KWH=f7f23e47cdb5 percentile=f22c1e290c9f latency_summary=866eee9849ba _within_limit=1642640725e5 audit=d32978efd7f2 RunSample=fb81558d656b sample_run=e23d539229cc _session_metrics=f90cdc6be66e benchmark_metrics=812074067a95
+src/simulator/src/evaluation/metrics.py | f7836ab6aefeb116 | f125a3e52d6c932f | summarize=52ecb1ff27cd
+src/simulator/src/evaluation/trace.py | e02f022fdffcbc41 | 93ef8a6d1e16b31f | SCHEMA_VERSION=72263497eca1 _binding_constraints=8429afeb3dbc decision_record=ced1b24928b1
+src/models/charging_physics.py | febb81745e349fc3 | e038e8f7e7069670 | VehicleBatteryState=3ca3c20212bc DCChargingModel=3fc20433a40d energy_to_target=4ee8a043a11f
+src/models/physical_constraints.py | 0381bb8daae8f5fe | 02cf8393536553c7 | TOL=3f713a35590b ConstraintViolationError=3334483e533b valid_kw=7da82b1ca1ff
+src/models/physical_limits.py | 3f1609764c09bc6a | c25fe04473d62495 | EffectiveLimits=6452e381563d effective_limits=4ab6d28a22d3 environment_boundary=693ac8d5262b
+src/models/scheduling/__init__.py | c3ed772e74ff6c71 | 4a3f9adb3ded91bb | __all__=76f211043f9b
+src/models/scheduling/coordination.py | 19b15eee41e624a5 | e2a71441d7b44dda | ZoneBudgets=116cc196cc43 GlobalCoordinator=179796a614a7
+src/models/scheduling/dispatch.py | eab22bd28474c7f2 | f0e6049336c3220a | DispatchObservation=b1dd90c458e4 DispatchPolicy=d7a5bec68d5d
+src/models/scheduling/observations.py | 089f9cd37b410932 | ae7099466deaee1d | Candidate=d08f38c806e7 VehicleObservation=bfb1055dc24b SchedulingObservation=96a6d4c4179a
+src/models/scheduling/optimization.py | a8cedcca9a76cd06 | 8283c57ad178fcec | SchedulingPolicy=d070848de271 PowerProposal=9bcf6b1c6560 ZonePowerOptimizer=ba30db72ad36
+src/models/simulation_core.py | 24ba83fa21080745 | 99278886f6f99e19 | minute=0cfce85c463d clock=6d84309d0dd5 number=81fa4447f44f integer=b535cc24c066 identifier=d831ae029cf8 Cabinet=14f3f019ac2d Vehicle=ad4fa34f5cb5 LimitEvent=b2cd41a3e4da Tariff=84d0b2c2cab4 Scenario=fb447d71024c _zone_values=ff76cf44b8a7 _optional_zone_values=dec8c350cb3f _limit_events=8719da110949 _tariff=36b1a20560ae
+src/guard/physical/validator.py | f90fbc95d584886d | 160defd0d9920366 | validate_dispatch=ae7e4795b37c validate_budgets=1bac084c7499 _validate_supply=3357265856eb guard=624c82aae4ce validate_response=aea2361b4334
+src/optimizer/coordination/__init__.py | e3030f88e49d901d | 5c04595997820c90 | 
+src/optimizer/coordination/dynamic_slack.py | cb608444bebb71f7 | 25ea0cb1791cb8ba | DynamicSlackCoordinator=3a930b568e34
+src/optimizer/coordination/fixed_budget.py | d38480e1e1be37ba | 39d5402a0cd47a0c | FixedBudgetCoordinator=b6f9177bf334 FixedShareCoordinator=c3401b4b21a1
+src/optimizer/dispatch/__init__.py | 202f33293a3efee4 | 5c04595997820c90 | 
+src/optimizer/dispatch/arrival_order.py | b13e1f5fb0606b20 | 796ecc937f8b9946 | arrival_order=3ff87f64e9f7
+src/optimizer/dispatch/edf.py | fc5b78a8a58ad672 | 32280bb723fbf468 | earliest_deadline=dd52f8c32e7e
+src/optimizer/dispatch/least_laxity.py | 87e6204fd3939f71 | 916eadbbe109279f | optimistic_laxity=a401149e0cde least_laxity=d9b0ff20fa17
+src/optimizer/registry.py | cfc1bc8a348cff84 | 0a175cf2dbfb12de | Registration=4ad5c49bc507 _fixed_budget=ce9340a92c0a _fixed_share=78a117c5d407 _dynamic_slack=b047bc2fb124 _rolling_lp=f4a7b3dff69d _llf=396b89b14f2e _ac_rolling_lp=c714fb06473c DISPATCH=989003aace77 OPTIMIZERS=f6bee941df50 COORDINATORS=33ca03f4f399 POLICIES=cdbad019e667
+src/optimizer/zones/__init__.py | e6fd5fd50f60f0fc | 5c04595997820c90 | 
+src/optimizer/zones/ac_lp.py | f95a0646860f2a4a | d88ed6ae8a15667d | AC_TRANSITION_SOC=9a91a2df174d FORECAST=d86cf32c9296 ACConfig=ffc2ce833fee _boundaries=5f0373a4e821 _solve=757540cd205f ACRollingLP=3e9d8d374bc3
+src/optimizer/zones/deadline_first.py | 1f15bffb46e6afa4 | 8947eb180ecd605c | deadline_first=c06428bc14d9
+src/optimizer/zones/equal_share.py | 7b76241d96ab0391 | f95bdbb698d270cc | equal_share_policy=18963e371040 equal_share=77dcb3af5318 zone_equal_share=72f693b1f617 _equal_share_zone=223d251ffe55
+src/optimizer/zones/rolling_lp.py | 97ee6b65e9919921 | a9c98574d04a3e07 | SAMPLE_COUNT=c92cb202bf85 FORECAST=b8796b23792f LPConfig=e09138299621 _acceptance_line=63c1e24fbcb1 _blocks=d9be7052de35 _valid_primal=982ae87da12f RollingHorizonLP=0f0dc409faa3

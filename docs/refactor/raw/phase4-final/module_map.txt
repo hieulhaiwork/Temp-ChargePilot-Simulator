@@ -1,0 +1,5 @@
+src.simulator.src.dispatch=src.optimizer.dispatch
+src.simulator.src.optimizers=src.optimizer.zones
+src.simulator.src.coordination=src.optimizer.coordination
+src.simulator.src.safety.guard=src.guard.physical.validator
+src.simulator.src.charging_models=src.simulator.core.charging_models

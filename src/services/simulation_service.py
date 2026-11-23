@@ -52,7 +52,7 @@ from src.services.runtime import StationRuntime, build_sim_runtime, get_runtime,
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Baseline có version mà S8 hiển thị (Phase 4 quyết định 8). Baseline nghiệm thu cuối = thư mục mới + đổi hằng này.
-BENCHMARK_BASELINE_DIR = REPO_ROOT / "eval" / "evidence" / "2026-11-23-refactor-phase3-baseline"
+BENCHMARK_BASELINE_DIR = REPO_ROOT / "eval" / "evidence" / "2026-11-24-unified-core-final-baseline"
 SIM_DATE = date(2026, 11, 23)  # ngày tham chiếu cố định → cùng seed cùng kết quả (giá chỉ phụ thuộc giờ trong ngày)
 ON_TIME_TOL_KWH = 0.05
 DEMO_ONLY_VEHICLES = {"DEMO-60"}  # fixture test, không dùng cho mô phỏng

@@ -1,0 +1,6 @@
+B0 | AC 45/55 | DC 58/215 | TOU 916.15 USD | decision p95 0.413 ms
+M2b | AC 45/55 | DC 82/215 | TOU 917.88 USD | decision p95 5.687 ms
+M3a | AC 45/55 | DC 82/215 | TOU 896.13 USD | decision p95 11.651 ms
+M3b | AC 35/55 | DC 89/215 | TOU 953.20 USD | decision p95 12.244 ms
+<LOCAL_TMP>/claude\1ce8fb91e84c1e1f\01544b1a-7c39-4638-a6ad-226dc5999a72\scratchpad\finalout\mvp3\mvp3-benchmark-8k6b2qu6
+exit=0

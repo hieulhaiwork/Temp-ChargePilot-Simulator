@@ -1,0 +1,81 @@
+MVP3 vs evidence-2026-11-22: OK - 0 unexpected, 20 allowed
+   allowed    /algorithm_metadata/B0/dc_charging_model/implementation
+   allowed    /algorithm_metadata/B0/dispatch/AC/implementation
+   allowed    /algorithm_metadata/B0/dispatch/DC/implementation
+   allowed    /algorithm_metadata/B0/optimizers/AC/implementation
+   allowed    /algorithm_metadata/B0/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M2b/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M2b/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M2b/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M2b/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M2b/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M3a/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M3a/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M3a/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M3a/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M3a/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M3b/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M3b/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M3b/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M3b/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M3b/optimizers/DC/implementation
+MVP2 vs evidence: OK - 0 unexpected, 0 allowed
+MVP1 report vs evidence: OK - 0 unexpected, 9 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP1+mvp3cfg report vs evidence: OK - 0 unexpected, 13 allowed
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+VINFAST report vs evidence: OK - 0 unexpected, 10 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP1 script-mode vs evidence: OK - 0 unexpected, 9 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+MVP1 DecisionTrace vs phase0: OK - 0 unexpected, 0 allowed
+MVP1+mvp3cfg DecisionTrace vs evidence: OK - 0 unexpected, 0 allowed
+MVP1 replay.json vs phase0: OK - 0 unexpected, 12 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+MVP1 events.json vs phase0: OK - 0 unexpected, 0 allowed
+OVERALL rc=0
