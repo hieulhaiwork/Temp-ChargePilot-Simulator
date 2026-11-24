@@ -1,0 +1,39 @@
+# Cổng frontend nhánh review-a (2026-11-24), chạy trong frontend/ sau khi sinh lại openapi.json + schema.d.ts.
+# Output chép từ terminal (công cụ không cho redirect npm ra file trong phiên này).
+
+$ npm run gen:api
+> openapi-typescript ./openapi.json -o src/lib/api/schema.d.ts
+✨ openapi-typescript 7.13.0
+🚀 ./openapi.json → src/lib/api/schema.d.ts
+exit=0
+
+$ npm ci
+npm warn deprecated eslint@9.39.5: This version is no longer supported.
+added 453 packages, and audited 454 packages in 26s
+found 0 vulnerabilities
+exit=0
+
+$ npm run lint
+> eslint
+exit=0 (không cảnh báo)
+
+$ npm run typecheck
+> next typegen && tsc --noEmit
+✓ Types generated successfully
+exit=0
+
+$ npm test
+> vitest run
+ Test Files  4 passed (4)
+      Tests  28 passed (28)
+exit=0
+
+$ npm run build
+▲ Next.js 16.4.6 (Turbopack)
+✓ Compiled successfully in 3.5s
+  Finished TypeScript in 5.1s ...
+✓ Generating static pages using 11 workers (17/17) in 1077ms
+Route (app): / · /_not-found · /login · /operator · /operator/approvals · /operator/map · /operator/schedule ·
+  /operator/simulation · /resident · /resident/book · /resident/map · /resident/notifications ·
+  /resident/notifications/[approvalId] (partial prerender) · /resident/plan · /resident/profile
+exit=0
