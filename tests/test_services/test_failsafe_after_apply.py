@@ -16,6 +16,7 @@ pytest.importorskip("ev2gym")
 from src.models.charging import StrategyName  # noqa: E402
 from src.models.control import CommandSource  # noqa: E402
 from src.models.events import EventType, StationEvent  # noqa: E402
+from src.models.station import GuardSettings  # noqa: E402
 from src.services import catalog, control_loop  # noqa: E402
 from src.services.runtime import build_sim_runtime, visit_of  # noqa: E402
 from tests.factories import VN, booking  # noqa: E402
@@ -81,7 +82,10 @@ async def test_violation_after_apply_triggers_load_reduction_through_the_dispatc
 
 
 async def test_failsafe_is_opt_in_default_keeps_count_and_log_only(caplog):
-    assert catalog.load_station_config().guard.after_apply_failsafe is False
+    # Final Acceptance §1 (ngoại lệ được duyệt, ESCALATION trong FINAL_ACCEPTANCE_B_REPORT.md): station.yaml bật cờ;
+    # "tắt" giờ là cấu hình tường minh — kiểm giá trị mặc định của GuardSettings (thiếu khoá) vẫn là tắt.
+    assert catalog.load_station_config().guard.after_apply_failsafe is True
+    assert GuardSettings.model_fields["after_apply_failsafe"].default is False
     rt = await _charging_runtime(failsafe=False)
     sim = rt.simulator
     sim.available_power_kw = SILENT_LIMIT_KW

@@ -1409,7 +1409,7 @@ export interface components {
         GuardSettings: {
             /**
              * After Apply Failsafe
-             * @description Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Mặc định tắt (chỉ đếm + log như trước)
+             * @description Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Thiếu khoá = tắt (chỉ đếm + log như trước); config/station.yaml bật (Final Acceptance §1)
              * @default false
              */
             after_apply_failsafe: boolean;
