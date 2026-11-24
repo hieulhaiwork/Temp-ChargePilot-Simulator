@@ -176,18 +176,8 @@ async def _run(
     tariff = catalog.load_tariff()
     tz = ZoneInfo(config.timezone)
     start = datetime.combine(SIM_DATE, scenario.start_time, tzinfo=tz)
-    bookings = generate_bookings(scenario, config, start)
-    rt: StationRuntime = build_sim_runtime(scenario, strategy, config, tariff, start)
-    sim = rt.simulator
-    pending = sorted(bookings, key=lambda b: (b.created_at, b.booking_id))
-    incidents = {i.at_minute: [] for i in scenario.incidents}
-    for inc in scenario.incidents:
-        incidents[inc.at_minute].append(inc)
-    minute_load: list[tuple[datetime, float, float]] = []
-    skipped: list[str] = []  # sự cố trỏ tới cổng không có trong topology hiện hành (kịch bản legacy_ac_only)
-    applied = 0
     if strict_incidents:
-        # Fail-fast TRƯỚC khi chạy: kịch bản nghiên cứu mà sự cố không diễn ra thì kết quả sai nghĩa.
+        # Fail-fast TRƯỚC khi dựng trạm: kịch bản nghiên cứu mà sự cố không diễn ra thì kết quả sai nghĩa.
         known = {c.connector_id for c in config.connectors}
         invalid = [
             _incident_label(inc)
@@ -199,6 +189,16 @@ async def _run(
                 f"Kịch bản {scenario.scenario_id}: sự cố trỏ đầu nối không có trong topology hiện hành: "
                 f"{', '.join(invalid)} (strict_incidents)"
             )
+    bookings = generate_bookings(scenario, config, start)
+    rt: StationRuntime = build_sim_runtime(scenario, strategy, config, tariff, start)
+    sim = rt.simulator
+    pending = sorted(bookings, key=lambda b: (b.created_at, b.booking_id))
+    incidents = {i.at_minute: [] for i in scenario.incidents}
+    for inc in scenario.incidents:
+        incidents[inc.at_minute].append(inc)
+    minute_load: list[tuple[datetime, float, float]] = []
+    skipped: list[str] = []  # sự cố trỏ tới cổng không có trong topology hiện hành (kịch bản legacy_ac_only)
+    applied = 0
     carried: list[StationEvent] = []  # sự kiện trạm phát ra ở cuối phút trước (xe đến / rời, sạc xong)
     for minute in range(scenario.duration_hours * 60):
         now = sim.now
