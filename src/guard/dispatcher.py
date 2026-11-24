@@ -88,9 +88,10 @@ async def submit(
             to_apply.append((i, cmd))
             continue
         held.append((i, cmd, kind))
-    # Lệnh TĂNG được Guard duyệt với giả định cả lô cùng áp. Lệnh nào của lô bị giữ chờ duyệt thì không áp ⇒ kiểm
-    # lại từng lệnh tăng trên đúng tập sẽ áp; lệnh tăng chỉ hợp lệ nhờ một lệnh giảm đang chờ duyệt thì không áp.
-    to_apply, dropped = _without_unsafe_increases(to_apply, ctx) if held else (to_apply, [])
+    # Lệnh TĂNG được Guard duyệt với giả định cả lô cùng áp. Lệnh nào của lô không áp (Guard chặn HOẶC giữ chờ duyệt)
+    # ⇒ kiểm lại từng lệnh tăng trên đúng tập sẽ áp; lệnh tăng chỉ hợp lệ nhờ một lệnh giảm không được áp thì không áp.
+    partial = len(to_apply) < len(commands)
+    to_apply, dropped = _without_unsafe_increases(to_apply, ctx) if partial else (to_apply, [])
     for i, cmd, verdict in dropped:
         verdicts[i] = verdict
         entry = DecisionLogEntry(
@@ -98,7 +99,7 @@ async def submit(
             command=cmd,
             verdict=verdict,
             executed=False,
-            note="Guard chặn: lệnh tăng phụ thuộc lệnh giảm cùng lô đang chờ phê duyệt",
+            note="Guard chặn: lệnh tăng phụ thuộc lệnh giảm cùng lô không được áp (bị chặn / chờ phê duyệt)",
         )
         sinks.log_decision(entry)
         await sinks.notify(_message(WsMessageType.COMMAND_BLOCKED, entry, ctx.now), None)

@@ -124,3 +124,21 @@ async def test_increase_that_relies_on_a_reduction_held_for_approval_is_not_appl
     actuator, sinks = RecordingActuator(), Sinks()
     await dispatcher.submit([down, up], _ctx(_state(DC_01_1=60)), actuator, sinks.build())
     assert actuator.applied == [[down, up]]
+
+
+async def test_increase_that_relies_on_a_reduction_blocked_by_guard_is_not_applied():
+    """Final Review §4.5: lệnh hạ DC-01-1 60→0 bị CHÍNH Guard chặn (anti_flapping, trạm không vượt trần nên không
+    phải giảm tải an toàn) chứ không phải chờ duyệt. Lệnh tăng DC-01-2 0→45 chỉ qua `check_total_power` nhờ lệnh hạ đó
+    ⇒ áp riêng sẽ vượt lưới (60 + 45 > 106 × 0,95) ⇒ không được áp."""
+    history = tuple(
+        _cmd("DC-01-1", 60 if i % 2 == 0 else 0, created_at=NOW - timedelta(minutes=9 - i)) for i in range(5)
+    )
+    ctx = _ctx(_state(DC_01_1=60), recent_commands=history)
+    down, up = _cmd("DC-01-1", 0), _cmd("DC-01-2", 45)
+    verdicts = check_batch([down, up], ctx)
+    assert GuardRule.ANTI_FLAPPING in {v.rule for v in verdicts[0].violations} and verdicts[1].passed
+    actuator, sinks = RecordingActuator(), Sinks()
+    entries = await dispatcher.submit([down, up], ctx, actuator, sinks.build())
+    assert actuator.applied == []
+    assert [e.executed for e in entries] == [False, False]
+    assert GuardRule.TOTAL_POWER in {v.rule for v in entries[1].verdict.violations}
