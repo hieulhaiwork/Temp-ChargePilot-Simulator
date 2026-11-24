@@ -288,8 +288,15 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
     chép sang để bản fork đi đúng đường như runtime thật (PHASE3_DESIGN §6).
     """
     fork = rt.simulator.fork()
-    algorithms = getattr(rt.scheduler, "algorithms", None)
-    scheduler = make_scheduler(rt.scheduler.name, lambda: fork, algorithms() if callable(algorithms) else None)
+    # Final Review §4.4: thuật toán của bản fork là bản ĐÃ CÔ LẬP bởi `StationKernel.fork` (thành phần có trạng thái
+    # được fork / copy; thành phần khai báo stateless dùng chung — cùng object như trước). Không gắn lại bản live.
+    kernel = getattr(fork, "kernel", None)
+    live_algorithms = getattr(rt.scheduler, "algorithms", None)
+    if kernel is not None:
+        algorithms = kernel.algorithms
+    else:
+        algorithms = live_algorithms() if callable(live_algorithms) else None
+    scheduler = make_scheduler(rt.scheduler.name, lambda: fork, algorithms)
     frt = _memory_runtime(
         fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
     )

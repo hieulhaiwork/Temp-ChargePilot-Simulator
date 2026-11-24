@@ -43,7 +43,7 @@ from src.models.control import Command, CommandType
 from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
 from src.models.physical_limits import EffectiveLimits
-from src.models.scheduling.observations import SchedulingObservation
+from src.models.scheduling.observations import ObservationModel, SchedulingObservation
 from src.models.simulation import Incident, IncidentType, SessionOutcome
 from src.models.simulation import Scenario as BackendScenario
 from src.models.simulation_core import Cabinet, Scenario, Vehicle
@@ -95,10 +95,13 @@ class HybridStation:
         algorithms: Algorithms | None = None,
         policy_id: str = "custom",
         policy_version: str = "1",
+        observation_model: ObservationModel | None = None,
     ) -> None:
         if start.tzinfo is None:
             raise ValueError("start phải có múi giờ")
         self.config = config
+        # Final Review §4.3: lớp quan sát giữa ground truth và optimizer (mặc định PerfectObservation = như cũ)
+        self._observation_model = observation_model
         self.lock = threading.RLock()
         self.is_fork = False
         self._tz = ZoneInfo(config.timezone)
@@ -180,6 +183,7 @@ class HybridStation:
             policy_id=self._policy[0],
             policy_version=self._policy[1],
             emit=self._emit,
+            observation_model=self._observation_model,
         )
         self.kernel.command_resolution_kw = COMMAND_RESOLUTION_KW
         self.available_power_kw = available_kw
@@ -424,6 +428,11 @@ class HybridStation:
         twin._events = []
         twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
         twin.kernel = self.kernel.fork(emit=twin._emit)
+        # Thành phần có trạng thái đã được cô lập trong kernel.fork (Final Review §4.4): bản fork giữ bản của nó.
+        if self._algorithms is not None:
+            twin._algorithms = twin.kernel.algorithms
+        if self._observation_model is not None:
+            twin._observation_model = twin.kernel.observation_model
         return twin
 
     def apply_approved(self, approved: ApprovedDecision) -> None:

@@ -1,0 +1,205 @@
+"""Final Review §4.4 — cô lập bản fork của `StationKernel` (admission / WHAT-IF).
+
+Quy tắc (`src/simulator/core/isolation.py`): chỉ thành phần khai báo stateless được dùng chung; thành phần có trạng
+thái được `fork()` (nếu có) hoặc deep copy. Test đột biến: optimizer / DC model / RNG giả có trạng thái bị đổi trong
+bản fork không làm đổi bản live. Thành phần hiện có (đã khai báo) vẫn dùng chung như trước.
+"""
+
+import json
+import random
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from src.models.decisions import TimeConfig
+from src.models.scheduling.observations import PerfectObservation, SocEstimate, estimated
+from src.models.simulation_core import Scenario
+from src.optimizer.registry import POLICIES
+from src.optimizer.zones.equal_share import zone_equal_share
+from src.simulator.core import isolation
+from src.simulator.core.algorithms import default_algorithms, resolve_algorithms
+from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
+from src.simulator.core.ev2gym_adapter import EV2GymAdapter
+from src.simulator.core.kernel import StationKernel
+from src.simulator.core.queue import QueueController
+
+FIXTURE = Path(__file__).resolve().parents[1] / "scenario/mvp1.json"
+
+
+@pytest.fixture
+def scenario():
+    return Scenario.parse(json.loads(FIXTURE.read_bytes()))
+
+
+class CountingOptimizer:
+    """Optimizer có trạng thái (warm-start giả): đếm lần gọi, nhớ quan sát cuối. KHÔNG có fork() ⇒ deep copy."""
+
+    def __init__(self):
+        self.calls = 0
+        self.memory: list[int] = []
+
+    def __call__(self, observation, zone, budget_kw):
+        self.calls += 1
+        self.memory.append(observation.minute)
+        return zone_equal_share(observation, zone, budget_kw)
+
+
+class ForkableCoordinator:
+    """Thành phần có trạng thái tự định nghĩa snapshot bằng fork()."""
+
+    def __init__(self, inner, generation=0):
+        self.inner = inner
+        self.generation = generation
+        self.calls = 0
+
+    def fork(self):
+        return ForkableCoordinator(self.inner, self.generation + 1)
+
+    def __call__(self, observation, demand_kw):
+        self.calls += 1
+        return self.inner(observation, demand_kw)
+
+
+class CountingDCModel:
+    """DC charging model có trạng thái (đếm lần hỏi acceptance) bọc SyntheticTaperV1."""
+
+    def __init__(self):
+        self.inner = SyntheticTaperV1()
+        self.queries = 0
+
+    def acceptance_kw(self, state):
+        self.queries += 1
+        return self.inner.acceptance_kw(state)
+
+    def stored_kwh(self, state, setpoint_kw, interval_minutes, efficiency):
+        self.queries += 1
+        return self.inner.stored_kwh(state, setpoint_kw, interval_minutes, efficiency)
+
+
+class NoisyTelemetry:
+    """Mô hình quan sát ngẫu nhiên (RNG có trạng thái), nhớ giá trị theo phút để trả lời như nhau trong một phút."""
+
+    def __init__(self, seed=7):
+        self.rng = random.Random(seed)
+        self.cache: dict = {}
+
+    def observe(self, minute, truth):
+        rows = {}
+        for vid, row in truth.items():
+            key = (minute, vid)
+            if key not in self.cache:
+                self.cache[key] = min(1.0, max(0.0, row.soc + self.rng.uniform(-0.02, 0.02)))
+            rows[vid] = estimated(row, SocEstimate(self.cache[key], measured_at=minute, uncertainty=0.02))
+        return rows
+
+
+def _kernel(scenario, algorithms, dc_model=None, observation_model=None) -> StationKernel:
+    adapter = EV2GymAdapter(scenario, dc_model or algorithms.dc_charging_model)
+    return StationKernel(
+        scenario,
+        adapter,
+        QueueController(scenario),
+        algorithms,
+        time=TimeConfig(physics_step_minutes=1, decision_interval_minutes=15),
+        strict=False,
+        observation_model=observation_model,
+    )
+
+
+def _plan_and_run(kernel: StationKernel, minutes: int = 30) -> None:
+    """Vài vòng observe → propose → approve → apply → advance (như admission chạy trên bản fork)."""
+    until = kernel.now + minutes
+    while kernel.now < until:
+        kernel.observe()
+        approved = kernel.approve(kernel.propose())
+        kernel.apply_approved(approved)
+        kernel.advance(min(approved.proposal.interval_end, until))
+
+
+def test_registered_components_are_declared_and_shared_as_before(scenario):
+    for policy in POLICIES:
+        dispatch, ac, dc, coordinator = POLICIES[policy]
+        algorithms, _ = resolve_algorithms(
+            {"dispatch": {"DC": dispatch}, "optimizers": {"AC": ac, "DC": dc}, "coordinator": coordinator},
+            scenario,
+            "test",
+        )
+        kernel = _kernel(scenario, algorithms)
+        twin = kernel.fork()
+        assert twin.algorithms is kernel.algorithms  # cùng object: hành vi cũ, không copy thừa
+        assert twin.adapter.dc_model is kernel.adapter.dc_model
+        assert twin.observation_model is kernel.observation_model
+        assert isinstance(twin.observation_model, PerfectObservation)
+    for model in ("synthetic_taper_v1", "vinfast_profiles_v0_1"):
+        algorithms, _ = resolve_algorithms({"dc_charging_model": model}, scenario, "test")
+        assert isolation.is_shared(algorithms.dc_charging_model)
+    assert isolation.is_shared(default_algorithms().coordinator)
+
+
+def test_stateful_optimizer_in_the_fork_does_not_touch_the_live_one(scenario):
+    optimizer = CountingOptimizer()
+    algorithms = replace(default_algorithms(), optimizers={"AC": optimizer, "DC": optimizer})
+    live = _kernel(scenario, algorithms)
+    _plan_and_run(live, 15)
+    before = (optimizer.calls, list(optimizer.memory))
+    twin = live.fork()
+    copy = twin.algorithms.optimizers["AC"]
+    assert copy is not optimizer and copy is twin.algorithms.optimizers["DC"]  # một bản cho một object dùng chung
+    _plan_and_run(twin, 60)
+    assert copy.calls > before[0]
+    assert (optimizer.calls, optimizer.memory) == before
+    assert live.now == scenario.start + 15 and twin.now == scenario.start + 75
+
+
+def test_component_with_fork_uses_its_own_snapshot(scenario):
+    coordinator = ForkableCoordinator(default_algorithms().coordinator)
+    live = _kernel(scenario, replace(default_algorithms(), coordinator=coordinator))
+    twin = live.fork()
+    assert twin.algorithms.coordinator is not coordinator and twin.algorithms.coordinator.generation == 1
+    _plan_and_run(twin, 30)
+    assert twin.algorithms.coordinator.calls > 0 and coordinator.calls == 0
+
+
+def test_stateful_dc_model_is_forked_once_for_adapter_and_algorithms(scenario):
+    model = CountingDCModel()
+    live = _kernel(scenario, replace(default_algorithms(), dc_charging_model=model), dc_model=model)
+    assert live.adapter.dc_model is model
+    twin = live.fork()
+    assert twin.adapter.dc_model is twin.algorithms.dc_charging_model
+    assert twin.adapter.dc_model is not model
+    queries = model.queries
+    _plan_and_run(twin, 30)
+    assert twin.adapter.dc_model.queries > 0
+    assert model.queries == queries
+
+
+def test_stateful_rng_observation_model_is_isolated(scenario):
+    telemetry = NoisyTelemetry()
+    live = _kernel(scenario, default_algorithms(), observation_model=telemetry)
+    live.observe()
+    live._view()
+    state = telemetry.rng.getstate()
+    cache = dict(telemetry.cache)
+    twin = live.fork()
+    assert twin.observation_model is not telemetry
+    _plan_and_run(twin, 45)
+    assert telemetry.rng.getstate() == state and telemetry.cache == cache
+    assert len(twin.observation_model.cache) > len(cache)
+    # Bản fork bắt đầu từ ĐÚNG trạng thái RNG của live: cùng chuỗi số ngẫu nhiên tiếp theo.
+    assert random.Random().getstate() != state
+    probe = live.fork()
+    assert probe.observation_model.rng.random() == telemetry.rng.random()
+
+
+def test_undeclared_component_is_copied_not_shared():
+    class Unknown:
+        def __init__(self):
+            self.state = []
+
+    item = Unknown()
+    memo: dict = {}
+    copy = isolation.fork_component(item, memo)
+    assert copy is not item and isolation.fork_component(item, memo) is copy
+    assert not isolation.is_shared(item)
+    assert isolation.is_shared(zone_equal_share) and isolation.is_shared(PerfectObservation())
