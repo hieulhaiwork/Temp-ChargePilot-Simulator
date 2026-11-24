@@ -43,6 +43,7 @@ from zoneinfo import ZoneInfo
 
 from src.models.charging_physics import DCChargingModel
 from src.models.control import Command, CommandType
+from src.models.decision_trace import BackendAppliedSample
 from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
 from src.models.physical_constraints import ConstraintViolationError
@@ -213,7 +214,7 @@ class HybridStation:
         self._events: list[StationEvent] = []
         self._halted_on: tuple | None = None  # vi phạm mà step() đã dừng catch-up ở phút gần nhất (§1.3)
         # Kết quả từng bước vật lý từ lần drain trước — DecisionTrace backend đóng quyết định bằng số đo thật.
-        self._applied: deque[AppliedResult] = deque(maxlen=APPLIED_BUFFER_STEPS)
+        self._applied: deque[BackendAppliedSample] = deque(maxlen=APPLIED_BUFFER_STEPS)
 
     def configure(self, algorithms: Algorithms, policy_id: str, policy_version: str = "1") -> None:
         """Chọn policy (thuật toán) cho Planning Core của kernel — composition root gọi một lần."""
@@ -327,8 +328,9 @@ class HybridStation:
         failsafe = self.config.guard.after_apply_failsafe
         signalled = False
         for _ in range(max(minutes, 0)):
+            held = {vid: kernel.setpoints.get(vid, 0.0) for vid in self.queue.occupied.values()}
             result = kernel.advance(kernel.now + 1)
-            self._applied.append(result)
+            self._applied.append(BackendAppliedSample(result, held))
             halt = False
             if failsafe and result.violations:
                 if not signalled:
@@ -483,6 +485,9 @@ class HybridStation:
         twin = copy.copy(self)
         twin.lock = threading.RLock()
         twin.is_fork = True
+        twin.config = self.config.model_copy(deep=True)
+        twin._connector_to_port = dict(self._connector_to_port)
+        twin._port_to_connector = dict(self._port_to_connector)
         twin._visits = dict(self._visits)
         twin._events = []
         twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
@@ -506,19 +511,28 @@ class HybridStation:
 
     # ---- DecisionTrace (ADR-019 Phase 4, quyết định 6) ----------------------------------
 
-    @_locked
     def drain_applied(self) -> list[AppliedResult]:
+        return [sample.result for sample in self.drain_decision_samples()]
+
+    @_locked
+    def drain_decision_samples(self) -> list[BackendAppliedSample]:
         """Kết quả các bước vật lý từ lần gọi trước (rồi xoá) — để đóng DecisionTrace của quyết định đang hiệu lực."""
         results, self._applied = list(self._applied), deque(maxlen=APPLIED_BUFFER_STEPS)
         return results
 
     @_locked
-    def decision_facts(self, approved: ApprovedDecision, results: Sequence[AppliedResult]) -> dict:
+    def decision_labels(self) -> dict:
+        return algorithm_labels(self.kernel.algorithms)
+
+    @_locked
+    def decision_facts(
+        self, approved: ApprovedDecision, results: Sequence[AppliedResult], *, labels: dict, post_apply: str
+    ) -> dict:
         """Facts của một quyết định theo ĐÚNG schema DecisionTrace của simulator (`evaluation/trace.decision_record`).
 
         `results`: các bước vật lý đã chạy dưới quyết định này. Công suất thực = trung bình theo thời gian, năng lượng
-        nạp = tổng; khoảng = số phút thực sự chạy (quyết định có thể bị thay sớm bởi sự kiện). Chưa chạy phút nào thì
-        giữ khoảng đã lập kế hoạch và công suất thực 0.
+        nạp = tổng; khoảng = số phút thực sự chạy (quyết định có thể bị thay sớm bởi sự kiện).
+        Nếu chưa có mẫu, giữ khoảng lập kế hoạch và để số đo là null.
         """
         proposal = approved.proposal
         minutes = sum(r.end - r.minute for r in results)
@@ -540,17 +554,37 @@ class HybridStation:
             }
             for vid, candidate in proposal.candidates.items()
         }
-        return decision_record(
+        facts = decision_record(
             observation,
             proposal.dispatch,
             proposal.assignments,
             proposal.demand,
             proposal.budgets,
-            algorithm_labels(self.kernel.algorithms),
+            labels,
             power_by_vehicle,
             {vid: stored.get(vid, 0.0) for vid in proposal.candidates},
             proposal.diagnostics,
         )
+        facts["guard"]["status"] = post_apply
+        if not kw_minutes:
+            facts["guard"]["checks"] = ["dispatch", "budgets", "requested"]
+        for vid, row in facts["vehicles"].items():
+            if vid not in kw_minutes:
+                for key in (
+                    "actual_output_kw",
+                    "battery_kwh",
+                    "grid_input_kw",
+                    "grid_kwh",
+                    "actual_minus_predicted_output_kw",
+                    "actual_minus_predicted_battery_kwh",
+                ):
+                    if key in row:
+                        row[key] = None
+        if post_apply != "pass" or not all(r.actual_kw.keys() >= proposal.candidates.keys() for r in results):
+            facts["guard"]["binding_constraints"] = [
+                binding for binding in facts["guard"]["binding_constraints"] if binding["stage"] != "actual"
+            ]
+        return facts
 
     def guard_inputs(self, approved: ApprovedDecision) -> dict:
         """Đúng đầu vào Physical Guard đã dùng cho quyết định (để replay / debug lại phán quyết từ trace)."""

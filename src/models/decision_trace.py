@@ -1,15 +1,18 @@
-"""Tóm tắt vận hành của một DecisionTrace backend (ADR-019 Phase 4, quyết định 6).
+"""Backend trace summary, schema version and per-step evidence."""
 
-Vì sao tồn tại: trace chi tiết (facts cùng schema `evaluation/trace.decision_record` của simulator + Guard / HITL +
-kết quả áp thật) là artifact JSON, lớn và chỉ dùng khi replay / debug / benchmark / AI-4 WHY. DB chỉ giữ bản tóm tắt
-này để tra nhanh và nối với `decision_log` qua `correlation_id` (`Command.correlation_id`).
-
-Không chứa secret, token hay dữ liệu cá nhân: chỉ mã booking nội bộ (trong artifact), số đo và mã lý do.
-"""
+from dataclasses import dataclass
 
 from pydantic import AwareDatetime, BaseModel, Field
 
-TRACE_SCHEMA = "chargepilot.backend_decision_trace/1"
+from src.models.decisions import AppliedResult
+
+TRACE_SCHEMA = "chargepilot.backend_decision_trace/2"
+
+
+@dataclass(frozen=True)
+class BackendAppliedSample:
+    result: AppliedResult
+    held_setpoints_kw: dict[str, float]
 
 
 class DecisionTraceSummary(BaseModel):

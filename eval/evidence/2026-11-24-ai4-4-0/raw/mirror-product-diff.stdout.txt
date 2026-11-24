@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /home/lehieu/Projects/P-019/../P-019-chatgpt diff --exit-code 4f1477e d520ffb -- src tests config migrations frontend 

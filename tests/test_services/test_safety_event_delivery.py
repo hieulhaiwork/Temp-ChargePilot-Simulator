@@ -353,3 +353,187 @@ async def test_charging_model_fault_is_isolated_not_curtailed():
     assert next(c.power_kw for c in sim.state().connectors if c.booking_id == "dc-a") == 0.0
     closed = rt.recorder.decision_traces
     assert any(d["kind"] == "charging_model" for t in closed for d in t["applied"]["hard_violation_details"])
+
+
+async def _trip_charging_model(rt):
+    sim = rt.simulator
+    original = sim.adapter.step
+
+    def broken(vid, cabinet, kw, minutes):
+        delivery = original(vid, cabinet, kw, minutes)
+        return dataclasses.replace(delivery, battery_kwh=delivery.battery_kwh * 3) if vid == "dc-a" and kw else delivery
+
+    sim.adapter.step = broken
+    try:
+        events = sim.step(5)
+    finally:
+        sim.adapter.step = original
+    assert any(e.type == EventType.HARD_LIMIT_VIOLATED for e in events)
+    await control_loop.on_minute(rt, events)
+    return rt
+
+
+async def test_foundation_fork_keeps_the_hold_after_a_real_trip():
+    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
+    fork = runtime.fork_runtime(rt, rt.store.active_bookings())
+    assert fork.safety_hold_booking_ids == rt.safety_hold_booking_ids == {"dc-a"}
+    assert fork.safety_hold_booking_ids is not rt.safety_hold_booking_ids
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=fork.clock()), fork)
+    assert next(c.power_kw for c in fork.simulator.state().connectors if c.booking_id == "dc-a") == 0
+    fork.safety_hold_booking_ids.clear()
+    assert rt.safety_hold_booking_ids == {"dc-a"}
+
+
+async def test_foundation_trace_distinguishes_hard_violation_and_no_samples():
+    from src.services import decision_trace
+
+    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
+    violated = rt.recorder.decision_traces[-1]
+    assert violated["applied"]["hard_violation_details"]
+    assert violated["decision"]["guard"]["status"] == "violation"
+    assert violated["validation"]["post_apply"] == "violation"
+    zero = decision_trace.close_open(rt)
+    assert zero["validation"]["post_apply"] == "no_samples"
+    assert zero["decision"]["guard"]["status"] == "no_samples"
+    assert zero["validation"]["fail_safe"]["status"] == "executed"
+    assert zero["safety"]["hard_limit_violations"]
+
+
+async def test_foundation_safety_hold_has_its_own_command_exclusion():
+    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
+    trace = rt.open_trace["trace"]
+    assert not rt.store.pending_approvals()
+    assert "dc-a" not in trace["held_for_pending_approval"]
+    (row,) = [row for row in trace["command_exclusions"] if row["booking_id"] == "dc-a"]
+    assert row["primary_reason"] == "SAFETY_HOLD"
+    assert row["command_id"] and row["correlation_id"] == trace["correlation_id"]
+
+
+async def test_threadpool_clock_cannot_step_past_pending_hard_violation(live):
+    from threading import Barrier
+
+    rt, clock = live
+    await _charging_live(rt)
+    rt.deliver = None  # hold delivery until both read consumers have completed
+    sim = rt.simulator
+    sim.available_power_kw = SILENT_LIMIT_KW
+    before = sim.minute
+    clock["now"] += timedelta(minutes=6)
+    phase = Barrier(2, timeout=5)
+
+    def first_read():
+        saw_violation = any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.sync_clock())
+        phase.wait()
+        return saw_violation
+
+    def second_read():
+        phase.wait()
+        return rt.sync_clock()
+
+    first, second = await asyncio.gather(asyncio.to_thread(first_read), asyncio.to_thread(second_read))
+    assert first
+    assert sim.minute == before + 1
+    assert not second
+    await control_loop.deliver_pending(rt)
+    assert sim.state().total_power_kw / rt.config.power_conversion_efficiency <= SILENT_LIMIT_KW + 1e-7
+
+
+async def test_threadpool_clock_cannot_move_a_trace_boundary_while_solver_waits(live, monkeypatch):
+    from threading import Barrier
+
+    from src.services import solver
+
+    rt, clock = live
+    await _charging_live(rt)
+    before = rt.simulator.minute
+    phase = Barrier(2, timeout=5)
+    original = solver.run_async
+
+    async def pause(fn, *args):
+        await asyncio.to_thread(phase.wait)
+        await asyncio.to_thread(phase.wait)
+        return await original(fn, *args)
+
+    monkeypatch.setattr(solver, "run_async", pause)
+
+    def read():
+        phase.wait()
+        clock["now"] += timedelta(minutes=2)
+        rt.sync_clock()
+        observed = rt.simulator.minute
+        phase.wait()
+        return observed
+
+    _, observed = await asyncio.gather(
+        control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt),
+        asyncio.to_thread(read),
+    )
+    assert observed == before
+    assert rt.simulator.minute == before
+    rt.sync_clock()
+    assert rt.simulator.minute == before + 2
+
+
+async def test_foundation_records_hold_precedence_and_keeps_emergency_reductions():
+    from src.models.control import Approval, ApprovalKind, Command, GuardVerdict
+
+    rt = await _sim_runtime(failsafe=True)
+    command = Command(
+        type=CommandType.SET_POWER,
+        connector_id="DC-01-1",
+        power_kw=9,
+        booking_id="dc-a",
+        source=CommandSource.AGENT,
+        issued_by="synthetic",
+        based_on_schedule_version=rt.plan.version,
+        based_on_state_at=rt.clock(),
+        created_at=rt.clock(),
+        correlation_id="synthetic-decision",
+    )
+    rt.rejected_booking_ids.add("dc-a")
+    rows = []
+    assert control_loop._filter_held(rt, [command], rows) == []
+    assert rows[0]["reasons"] == ["REJECTED_CONSENT"]
+    rt.safety_hold_booking_ids.add("dc-a")
+    rt.sinks.save_approval(
+        Approval(
+            kind=ApprovalKind.OPERATOR_REVIEW,
+            command=command,
+            verdict=GuardVerdict(command_id=command.command_id, passed=True, checked_at=rt.clock()),
+            requested_from="operator",
+            impact_summary="synthetic",
+            created_at=rt.clock(),
+        )
+    )
+    rows = []
+    assert control_loop._filter_held(rt, [command], rows) == []
+    assert rows[0]["primary_reason"] == "PENDING_APPROVAL"
+    assert rows[0]["reasons"] == ["PENDING_APPROVAL", "SAFETY_HOLD", "REJECTED_CONSENT"]
+    await _trip_charging_model(rt)
+    assert any(
+        entry["executed"] and entry["power_kw"] == 0 and entry["booking_id"] == "dc-a"
+        for entry in rt.open_trace["trace"]["emergency_commands"]
+    )
+
+
+async def test_foundation_failed_safety_delivery_retries_before_clock_advances(live, monkeypatch):
+    rt, clock = live
+    await _charging_live(rt)
+    rt.deliver = None
+    sim = rt.simulator
+    sim.available_power_kw = SILENT_LIMIT_KW
+    clock["now"] += timedelta(minutes=4)
+    rt.sync_clock()
+    minute = sim.minute
+
+    async def interrupted(*_):
+        raise RuntimeError("synthetic interruption")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(control_loop, "_failsafe", interrupted)
+        assert await control_loop.deliver_pending(rt) is None
+    assert any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
+    assert rt.sync_clock() == [] and sim.minute == minute
+    assert await control_loop.deliver_pending(rt) is not None
+    assert sim.minute > minute
+    assert sim.state().total_power_kw / rt.config.power_conversion_efficiency <= SILENT_LIMIT_KW + 1e-7

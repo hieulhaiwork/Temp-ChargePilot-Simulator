@@ -1,0 +1,185 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/before
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 TZ=UTC python -m pytest tests/test_services/test_safety_event_delivery.py tests/test_services/test_decision_trace.py -q -k "foundation or threadpool_clock_cannot"
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+____________ test_foundation_fork_keeps_the_hold_after_a_real_trip _____________
+
+    async def test_foundation_fork_keeps_the_hold_after_a_real_trip():
+        rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
+        fork = runtime.fork_runtime(rt, rt.store.active_bookings())
+>       assert fork.safety_hold_booking_ids == rt.safety_hold_booking_ids == {"dc-a"}
+E       AssertionError: assert set() == {'dc-a'}
+E         
+E         Extra items in the right set:
+E         'dc-a'
+E         Use -v to get more diff
+
+tests/test_services/test_safety_event_delivery.py:379: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=782d64c6e15e4e8a89d2d669f9f2db18)
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=782d64c6e15e4e8a89d2d669f9f2db18)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR    src.services.control_loop:control_loop.py:414 fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=782d64c6e15e4e8a89d2d669f9f2db18)
+WARNING  src.services.control_loop:control_loop.py:426 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=782d64c6e15e4e8a89d2d669f9f2db18)
+______ test_foundation_trace_distinguishes_hard_violation_and_no_samples _______
+
+    async def test_foundation_trace_distinguishes_hard_violation_and_no_samples():
+        from src.services import decision_trace
+    
+        rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
+        violated = rt.recorder.decision_traces[-1]
+        assert violated["applied"]["hard_violation_details"]
+>       assert violated["decision"]["guard"]["status"] == "violation"
+E       AssertionError: assert 'pass' == 'violation'
+E         
+E         - violation
+E         + pass
+
+tests/test_services/test_safety_event_delivery.py:393: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=00ec6a377aef497fb091458aa9aaf3bc)
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=00ec6a377aef497fb091458aa9aaf3bc)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR    src.services.control_loop:control_loop.py:414 fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=00ec6a377aef497fb091458aa9aaf3bc)
+WARNING  src.services.control_loop:control_loop.py:426 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=00ec6a377aef497fb091458aa9aaf3bc)
+__________ test_foundation_safety_hold_has_its_own_command_exclusion ___________
+
+    async def test_foundation_safety_hold_has_its_own_command_exclusion():
+        rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
+        trace = rt.open_trace["trace"]
+        assert not rt.store.pending_approvals()
+>       assert "dc-a" not in trace["held_for_pending_approval"]
+E       AssertionError: assert 'dc-a' not in ['dc-a']
+
+tests/test_services/test_safety_event_delivery.py:406: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=e879acd4fe944a099f9b1452ade8e1a8)
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=e879acd4fe944a099f9b1452ade8e1a8)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR    src.services.control_loop:control_loop.py:414 fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=e879acd4fe944a099f9b1452ade8e1a8)
+WARNING  src.services.control_loop:control_loop.py:426 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=e879acd4fe944a099f9b1452ade8e1a8)
+________ test_threadpool_clock_cannot_step_past_pending_hard_violation _________
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 6, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+
+    async def test_threadpool_clock_cannot_step_past_pending_hard_violation(live):
+        from threading import Barrier
+    
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None  # hold delivery until both read consumers have completed
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        before = sim.minute
+        clock["now"] += timedelta(minutes=6)
+        phase = Barrier(2, timeout=5)
+    
+        def first_read():
+            saw_violation = any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.sync_clock())
+            phase.wait()
+            return saw_violation
+    
+        def second_read():
+            phase.wait()
+            return rt.sync_clock()
+    
+        first, second = await asyncio.gather(asyncio.to_thread(first_read), asyncio.to_thread(second_read))
+        assert first
+>       assert sim.minute == before + 1
+E       assert 6 == (0 + 1)
+E        +  where 6 = <src.simulator.hybrid_station.HybridStation object at 0x759d15c41220>.minute
+
+tests/test_services/test_safety_event_delivery.py:435: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=4 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=5 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=4 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=5 physical constraint violated after apply: Allocation exceeds site grid input limit
+____ test_threadpool_clock_cannot_move_a_trace_boundary_while_solver_waits _____
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 2, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x759d1592ea80>
+
+    async def test_threadpool_clock_cannot_move_a_trace_boundary_while_solver_waits(live, monkeypatch):
+        from threading import Barrier
+    
+        from src.services import solver
+    
+        rt, clock = live
+        await _charging_live(rt)
+        before = rt.simulator.minute
+        phase = Barrier(2, timeout=5)
+        original = solver.run_async
+    
+        async def pause(fn, *args):
+            await asyncio.to_thread(phase.wait)
+            await asyncio.to_thread(phase.wait)
+            return await original(fn, *args)
+    
+        monkeypatch.setattr(solver, "run_async", pause)
+    
+        def read():
+            phase.wait()
+            clock["now"] += timedelta(minutes=2)
+            rt.sync_clock()
+            observed = rt.simulator.minute
+            phase.wait()
+            return observed
+    
+        _, observed = await asyncio.gather(
+            control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt),
+            asyncio.to_thread(read),
+        )
+>       assert observed == before
+E       assert 2 == 0
+
+tests/test_services/test_safety_event_delivery.py:471: AssertionError
+________ test_foundation_full_trace_is_retrievable_with_default_config _________
+
+clean_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x759d1405b020>
+run = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=False closed=True debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+
+    def test_foundation_full_trace_is_retrievable_with_default_config(clean_db, monkeypatch, run):
+        from src.config import get_settings
+        from src.services import repository
+    
+        monkeypatch.setattr(get_settings(), "decision_trace_dir", "")
+        trace = json.loads(json.dumps(run.recorder.decision_traces[-1]))
+        cid = trace["correlation_id"]
+        decision_trace.persist(trace, True)
+        repository.dispose()
+>       stored = repository.get_full_decision_trace(cid)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'src.services.repository' has no attribute 'get_full_decision_trace'. Did you mean: 'get_decision_trace'?
+
+tests/test_services/test_decision_trace.py:153: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_services/test_safety_event_delivery.py::test_foundation_fork_keeps_the_hold_after_a_real_trip
+FAILED tests/test_services/test_safety_event_delivery.py::test_foundation_trace_distinguishes_hard_violation_and_no_samples
+FAILED tests/test_services/test_safety_event_delivery.py::test_foundation_safety_hold_has_its_own_command_exclusion
+FAILED tests/test_services/test_safety_event_delivery.py::test_threadpool_clock_cannot_step_past_pending_hard_violation
+FAILED tests/test_services/test_safety_event_delivery.py::test_threadpool_clock_cannot_move_a_trace_boundary_while_solver_waits
+FAILED tests/test_services/test_decision_trace.py::test_foundation_full_trace_is_retrievable_with_default_config
+6 failed, 22 deselected in 1.44s

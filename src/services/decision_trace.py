@@ -1,17 +1,7 @@
-"""DecisionTrace backend (ADR-019 Phase 4, quyết định 6) — facts cùng schema với simulator, có correlation ID.
+"""Versioned backend DecisionTrace for deterministic evidence and replay.
 
-Một lần tính lại (`control_loop.on_event`) = một trace:
-
-    mở   (sau dispatch)   trigger + policy / version + state_version + TimeConfig + interval
-                          proposed / approved setpoint, consent, đầu vào Physical Guard, budget Coordinator
-                          lệnh + phán quyết Guard (7 luật) / HITL / giảm tải ưu tiên, lệnh giữ vì chờ duyệt
-    đóng (lần tính lại kế) `decision` = `evaluation/trace.decision_record` của simulator (ĐÚNG schema / facts / binding
-                          constraints) dựng từ số đo thật của các bước vật lý đã chạy; `applied` = năng lượng,
-                          sạc xong, budget deviation, command deadband, setpoint cũ còn giữ, vi phạm cứng
-
-Không có LLM, không suy diễn: mọi trường là dữ kiện do code tính (AI-4 WHY / WHAT-IF chỉ được đọc). Không ghi
-secret, token, resident_id hay dữ liệu cá nhân; chỉ mã booking nội bộ. Live: tóm tắt vào DB (repository, ADR-005),
-trace chi tiết là JSONL trong DECISION_TRACE_DIR (nếu đặt). Benchmark / admission: giữ trong bộ nhớ.
+The decision opens after dispatch and closes when the next decision starts. Postgres/SQLite hold the full
+backend payload. Optional JSONL is a debug export. Simulation uses its in-memory recorder.
 """
 
 import json
@@ -30,6 +20,7 @@ from src.models.physical_constraints import ConstraintViolationError
 from src.models.physical_limits import EffectiveLimits
 from src.models.scheduling.observations import Candidate
 from src.models.simulation_core import Cabinet
+from src.services.experiment import try_resolve_experiment
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +33,7 @@ def _command_row(entry: DecisionLogEntry) -> dict:
     cmd, verdict = entry.command, entry.verdict
     return {
         "command_id": cmd.command_id,
+        "recorded_at": entry.timestamp.isoformat(),
         "type": cmd.type.value,
         "source": cmd.source.value,
         "connector_id": cmd.connector_id,
@@ -66,7 +58,8 @@ def open_trace(
     plan,
     entries: Iterable[DecisionLogEntry],
     emergency: Iterable[DecisionLogEntry] = (),
-    held_for_approval: Iterable[str] = (),
+    command_exclusions: Iterable[dict] = (),
+    failsafe: Iterable[DecisionLogEntry] = (),
 ) -> dict:
     """Ghi trace của quyết định vừa ra (chưa có số đo thực thi). Quyết định trước phải được `close_open` trước đó."""
     station = rt.simulator
@@ -74,6 +67,30 @@ def open_trace(
     approved = getattr(scheduler, "last_approved", None)
     diagnostics = getattr(scheduler, "last_diagnostics", {}) or {}
     entries, emergency, batch = list(entries), list(emergency), tuple(batch)
+    exclusions = list(command_exclusions)
+    experiment = try_resolve_experiment(rt)
+    safety_events = [e for e in (*batch, event) if e.type == EventType.HARD_LIMIT_VIOLATED]
+    failsafe = list(failsafe)
+    executed = sum(entry.executed for entry in failsafe)
+    if not safety_events:
+        response = "not_triggered"
+    elif not failsafe:
+        response = "no_commands"
+    elif executed == len(failsafe):
+        response = "executed"
+    elif executed:
+        response = "partially_executed"
+    else:
+        response = "blocked"
+    if approved is not None:
+        pre_apply = "pass"
+    elif ReasonCode.REJECTED_BEFORE_APPLY in diagnostics.get("reason_codes", ()):
+        pre_apply = "rejected"
+    else:
+        pre_apply = "not_evaluated"
+    guard_inputs = station.guard_inputs(approved) if approved is not None else None
+    if guard_inputs is not None:
+        _mark_unbounded_grid(guard_inputs["limits"])
     proposal = approved.proposal if approved is not None else None
     time = getattr(station, "time", None)
     codes = list(approved.reason_codes) if approved is not None else list(diagnostics.get("reason_codes", []))
@@ -83,18 +100,20 @@ def open_trace(
         "trace_schema": TRACE_SCHEMA,
         "correlation_id": correlation_id,
         "station_id": rt.config.station_id,
-        "decided_at": rt.clock().isoformat(),
+        "decided_at": (getattr(station, "now", None) or rt.clock()).isoformat(),
         "minute": getattr(station, "minute", None),
         "trigger": {
             "type": event.type.value,
             "event_id": event.event_id,
+            "booking_id": event.booking_id,
             "batched": [{"type": e.type.value, "event_id": e.event_id} for e in batch],
         },
         "policy": {
-            "id": proposal.policy_id if proposal else getattr(getattr(scheduler, "name", None), "value", None),
-            "version": proposal.policy_version if proposal else None,
+            "id": proposal.policy_id if proposal else getattr(scheduler, "policy_id", None),
+            "version": proposal.policy_version if proposal else getattr(scheduler, "policy_version", None),
         },
         "state_version": proposal.state_version if proposal else None,
+        "experiment": experiment.model_dump(mode="json") if experiment is not None else None,
         "schedule_version": plan.version,
         "time_config": time.as_dict() if time is not None else None,
         "interval": None
@@ -111,10 +130,22 @@ def open_trace(
         "consent": None
         if approved is None
         else {"adjustments_kw": _plain(approved.adjustments_kw), "rechecked_by_physical_guard": approved.rechecked},
-        "guard_inputs": station.guard_inputs(approved) if approved is not None else None,
+        "guard_inputs": guard_inputs,
         "commands": [_command_row(e) for e in entries],
         "emergency_commands": [_command_row(e) for e in emergency],
-        "held_for_pending_approval": sorted(set(held_for_approval)),
+        "held_for_pending_approval": sorted(
+            {row["booking_id"] for row in exclusions if "PENDING_APPROVAL" in row["reasons"] and row["booking_id"]}
+        ),
+        "command_exclusions": exclusions,
+        "validation": {
+            "pre_apply_physical": pre_apply,
+            "business_guard": {
+                "status": "evaluated" if entries or emergency else "not_evaluated",
+                "source": "commands, emergency_commands",
+            },
+            "post_apply": "not_evaluated",
+            "fail_safe": {"status": response, "command_ids": [e.command.command_id for e in failsafe]},
+        },
         # Final Acceptance §1.4: vi phạm cứng sau khi áp đã kích hoạt fail-safe trong lần tính lại này (loại + xe), và
         # booking đang bị giữ an toàn (ngắt công suất vì lỗi charging model / acceptance, chờ vận hành)
         "safety": {
@@ -125,8 +156,7 @@ def open_trace(
                     "booking_ids": list(e.violation_booking_ids),
                     "detail": e.detail,
                 }
-                for e in (*batch, event)
-                if e.type == EventType.HARD_LIMIT_VIOLATED
+                for e in safety_events
             ],
             "held_booking_ids": sorted(getattr(rt, "safety_hold_booking_ids", ()) or ()),
         },
@@ -134,18 +164,96 @@ def open_trace(
         "applied": None,
         "closed": False,
     }
-    rt.open_trace = {"trace": trace, "approved": approved}
+    trace["power"] = {
+        "proposed": {"unit": "kW", "source": "kernel.proposal", "by_booking_kw": trace["proposed_setpoints_kw"]},
+        "approved": {"unit": "kW", "source": "kernel.approval", "by_booking_kw": trace["approved_setpoints_kw"]},
+        "dispatched": {
+            "unit": "kW",
+            "source": "dispatcher",
+            "command_ids": [e.command.command_id for e in (*emergency, *entries) if e.executed],
+        },
+        "effective_setpoint": None,
+        "actual_output": None,
+    }
+    subjects = set(proposal.observation.vehicles) if proposal else set()
+    subjects.update(row["booking_id"] for row in trace["commands"] + trace["emergency_commands"] + exclusions)
+    subjects.update(e.booking_id for e in (*batch, event))
+    subjects.update(vid for e in safety_events for vid in e.violation_booking_ids)
+    trace["booking_ids"] = sorted(vid for vid in subjects if vid)
+    _set_evidence_refs(trace)
+    rt.open_trace = {"trace": trace, "approved": approved, "labels": station.decision_labels() if approved else None}
     rt.store.save_trace(trace, False)
     return trace
 
 
-def _applied(results) -> dict:
-    deviation, deadband, stale, energy = {}, {}, {}, {}
+def _mark_unbounded_grid(limits: dict) -> None:
+    if limits["grid_input_kw"] == inf:
+        limits["grid_input_kw"] = None
+        limits["grid_input_unbounded"] = True
+
+
+def _set_evidence_refs(trace: dict) -> None:
+    paths = [
+        "/policy",
+        "/experiment",
+        "/state_version",
+        "/schedule_version",
+        "/interval",
+        "/validation",
+        "/safety",
+        "/applied",
+        "/decision",
+    ]
+    paths.extend(f"/power/{stage}" for stage in trace["power"])
+    for stage in ("proposed", "approved"):
+        for vid in trace["power"][stage]["by_booking_kw"]:
+            segment = vid.replace("~", "~0").replace("/", "~1")
+            paths.append(f"/power/{stage}/by_booking_kw/{segment}")
+    for key in ("commands", "emergency_commands", "command_exclusions"):
+        paths.extend(f"/{key}/{i}" for i in range(len(trace[key])))
+    actual = trace["power"]["actual_output"]
+    if actual is not None:
+        for vid in actual["average_by_booking_kw"]:
+            segment = vid.replace("~", "~0").replace("/", "~1")
+            paths.append(f"/power/actual_output/average_by_booking_kw/{segment}")
+    trace["evidence_refs"] = {path: f"{trace['correlation_id']}:{trace['trace_schema']}#{path}" for path in paths}
+
+
+def _record_power_samples(trace, samples, applied):
+    if not samples:
+        return
+    held, measured = [], []
+    minutes_by_booking: dict[str, int] = {}
+    for sample in samples:
+        result = sample.result
+        interval = {"start_minute": result.minute, "end_minute": result.end}
+        held.append({**interval, "by_booking_kw": dict(sample.held_setpoints_kw)})
+        measured.append({**interval, "by_booking_kw": dict(result.actual_kw)})
+        for vid in result.actual_kw:
+            minutes_by_booking[vid] = minutes_by_booking.get(vid, 0) + result.end - result.minute
+    trace["power"]["effective_setpoint"] = {"unit": "kW", "source": "kernel.held_setpoints", "samples": held}
+    if not minutes_by_booking:
+        return
+    trace["power"]["actual_output"] = {
+        "unit": "kW",
+        "source": "physics.applied_result.actual_kw",
+        "samples": measured,
+        "sample_minutes_by_booking": minutes_by_booking,
+        "average_by_booking_kw": {
+            vid: kwh * 60 / minutes_by_booking[vid] for vid, kwh in applied["output_kwh"].items()
+        },
+    }
+
+
+def _applied(results, conversion: float) -> dict:
+    deviation, deadband, stale, energy, battery = {}, {}, {}, {}, {}
     completed, violations, details = [], [], []
     for result in results:
         minutes = result.end - result.minute
         for vid, kw in result.actual_kw.items():
             energy[vid] = energy.get(vid, 0.0) + kw * minutes / 60
+        for vid, kwh in result.stored_kwh.items():
+            battery[vid] = battery.get(vid, 0.0) + kwh
         for target, source in ((deviation, result.budget_deviation_kw), (deadband, result.command_deadband_kw)):
             for zone, kw in source.items():
                 target[zone] = max(target.get(zone, 0.0), kw)
@@ -162,6 +270,8 @@ def _applied(results) -> dict:
         "to_minute": results[-1].end if results else None,
         "minutes": sum(r.end - r.minute for r in results),
         "output_kwh": energy,
+        "battery_stored_kwh": battery,
+        "grid_input_kwh": {vid: kwh / conversion for vid, kwh in energy.items()},
         "completed": completed,
         "hard_violations": violations,
         # Final Acceptance §1.4: loại (aggregate_power / charging_model / acceptance) + xe của từng vi phạm cứng
@@ -177,16 +287,25 @@ def _applied(results) -> dict:
 def close_open(rt) -> dict | None:
     """Đóng trace đang mở bằng số đo thật của các bước vật lý đã chạy dưới quyết định đó."""
     station = rt.simulator
-    drain = getattr(station, "drain_applied", None)
-    results = drain() if drain is not None else []
+    drain = getattr(station, "drain_decision_samples", None)
+    samples = drain() if drain is not None else []
+    results = [sample.result for sample in samples]
     holder, rt.open_trace = rt.open_trace, None
     if holder is None:
         return None
     trace, approved = holder["trace"], holder["approved"]
-    applied = _applied(results)
+    conversion = approved.proposal.effective_limits.conversion if approved else rt.config.power_conversion_efficiency
+    applied = _applied(results, conversion)
     trace["applied"] = applied
+    _record_power_samples(trace, samples, applied)
+    status = "violation" if applied["hard_violations"] else "pass" if trace["power"]["actual_output"] else "no_samples"
+    trace["validation"]["post_apply"] = status
+    additional_subjects = set(applied["output_kwh"]) | set(applied["completed"])
+    additional_subjects.update(vid for detail in applied["hard_violation_details"] for vid in detail["vehicle_ids"])
+    trace["booking_ids"] = sorted(set(trace["booking_ids"]) | additional_subjects)
     if approved is not None:
-        trace["decision"] = station.decision_facts(approved, results)
+        trace["decision"] = station.decision_facts(approved, results, labels=holder["labels"], post_apply=status)
+        _mark_unbounded_grid(trace["decision"]["physical_limits"])
     codes = trace["reason_codes"]
     for flag, code in (
         (applied["hard_violations"], ReasonCode.VIOLATION_AFTER_APPLY),
@@ -197,6 +316,7 @@ def close_open(rt) -> dict | None:
         if flag and code not in codes:
             codes.append(code)
     trace["closed"] = True
+    _set_evidence_refs(trace)
     rt.store.save_trace(trace, True)
     return trace
 
@@ -230,25 +350,37 @@ def summary(trace: dict) -> DecisionTraceSummary:
 
 
 def persist(trace: dict, closed: bool) -> None:
-    """Live: tóm tắt vào DB (mở rồi ghi đè khi đóng); trace đầy đủ thêm vào JSONL ngày khi đã đóng và có thư mục.
-
-    Lỗi ghi trace không được làm hỏng vòng điều khiển: log và bỏ qua.
-    """
+    """Write evidence and its summary. Storage failure is observable and cannot stop the control loop."""
     from src.config import get_settings
     from src.services import repository
 
     try:
+        if trace["closed"] is not closed:
+            raise ValueError("DecisionTrace persistence stage mismatch")
+        payload = json.loads(json.dumps(trace, ensure_ascii=False, allow_nan=False))
         directory = get_settings().decision_trace_dir
         if closed and directory:
-            name = f"decision-trace-{trace['decided_at'][:10]}.jsonl"
-            trace["artifact"] = name
-            path = Path(directory)
-            path.mkdir(parents=True, exist_ok=True)
-            with (path / name).open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(trace, ensure_ascii=False, allow_nan=False) + "\n")
-        repository.save_decision_trace(summary(trace))
-    except Exception:
-        logger.exception("decision_trace: không ghi được trace %s", trace.get("correlation_id"))
+            _export_debug(payload, Path(directory))
+        repository.save_decision_trace(summary(payload), payload)
+        if "artifact" in payload:
+            trace["artifact"] = payload["artifact"]
+    except Exception as exc:
+        logger.error(
+            "decision_trace_write_failed correlation_id=%s error_type=%s",
+            trace.get("correlation_id"),
+            type(exc).__name__,
+        )
+
+
+def _export_debug(payload: dict, directory: Path) -> None:
+    try:
+        name = f"decision-trace-{payload['decided_at'][:10]}.jsonl"
+        directory.mkdir(parents=True, exist_ok=True)
+        with (directory / name).open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({**payload, "artifact": name}, ensure_ascii=False, allow_nan=False) + "\n")
+        payload["artifact"] = name
+    except OSError:
+        logger.warning("decision_trace_export_failed correlation_id=%s", payload["correlation_id"], exc_info=True)
 
 
 # ---- replay / debug từ trace (không cần trạm, không cần DB) -------------------------------

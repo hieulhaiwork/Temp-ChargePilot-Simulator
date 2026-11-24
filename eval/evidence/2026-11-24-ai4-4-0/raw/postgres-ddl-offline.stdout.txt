@@ -1,0 +1,22 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/gate/code
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 DATABASE_URL=postgresql://postgres@localhost/chargepilot_g1_offline python -m alembic upgrade 0003:head --sql
+BEGIN;
+
+-- Running upgrade 0003 -> 0004
+
+ALTER TABLE decision_traces ADD COLUMN full_payload JSONB;
+
+CREATE TABLE decision_trace_bookings (
+    booking_id VARCHAR(32) NOT NULL, 
+    correlation_id VARCHAR(32) NOT NULL, 
+    decided_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    CONSTRAINT pk_decision_trace_bookings PRIMARY KEY (booking_id, correlation_id), 
+    CONSTRAINT fk_decision_trace_bookings_correlation_id_decision_traces FOREIGN KEY(correlation_id) REFERENCES decision_traces (correlation_id) ON DELETE CASCADE
+);
+
+CREATE INDEX ix_decision_trace_bookings_window ON decision_trace_bookings (booking_id, decided_at);
+
+UPDATE alembic_version SET version_num='0004' WHERE alembic_version.version_num = '0003';
+
+COMMIT;
+

@@ -70,71 +70,79 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
     tính lại thay vì replan trùng (ADR-019 Phase 3). Việc nặng (solver) chạy trên thread solver duy nhất
     (services/solver.py) để không chặn WebSocket.
     """
-    async with rt.lock:
-        started = time.perf_counter()
-        _remember_loop(rt)
-        correlation_id = uuid4().hex  # DecisionTrace của lần tính lại này; gắn vào mọi Command nó sinh ra
-        emergency_entries: list[DecisionLogEntry] = []
-        # Final Acceptance §1.3: vi phạm cứng đã báo (sự kiện / lô truyền vào, hoặc còn trong outbox) được xử lý an toàn
-        # TRƯỚC khi tiến đồng hồ — không tích phân thêm phút nào với setpoint đang vi phạm.
-        incoming = _merge_pending(rt, (*batch, event))
-        violated = [e for e in incoming if e.type == EventType.HARD_LIMIT_VIOLATED]
-        if violated:
-            emergency_entries += await _failsafe(rt, violated, correlation_id)
-        rt.advance_clock()
-        # Final Acceptance §1.2: mọi sự kiện chưa giao (của lần tiến đồng hồ này hoặc của consumer khác) vào lô này.
-        fresh = _merge_pending(rt, ())
-        side_events = (*[e for e in incoming if e is not event], *fresh)
-        # Quyết định trước kết thúc tại đây: đóng trace của nó bằng số đo vật lý thật tới thời điểm này.
-        decision_trace.close_open(rt)
-        for e in (*side_events, event):
-            rt.store.record_event(e)
-            await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
-        if event.type == EventType.POWER_LIMIT_CHANGED and event.new_power_limit_kw is not None:
-            emergency_entries += await _emergency(rt, event.new_power_limit_kw, correlation_id)
-        violated_now = [e for e in fresh if e.type == EventType.HARD_LIMIT_VIOLATED]
-        if violated_now:
-            emergency_entries += await _failsafe(rt, violated_now, correlation_id)
-        _sync_booking_status(rt, (*side_events, event))
+    async with rt.decision_lock():
+        return await _on_event_locked(event, rt, batch)
 
-        ctx = build_planning_context(rt)
-        plan = await solver.run_async(rt.scheduler.plan, ctx)
-        version = max(rt.plan.version if rt.plan else 0, ctx.state.schedule_version) + 1
-        plan = plan.model_copy(update={"version": version})
-        wanted = [
-            c.model_copy(update={"correlation_id": correlation_id}) for c in diff_commands(rt.plan, plan, ctx.state)
-        ]
-        commands = _filter_held(rt, wanted)
-        entries = []
-        if commands:
-            entries = await dispatcher.submit(
-                commands,
-                build_guard_context(rt, None),
-                rt.simulator,
-                rt.sinks,
-                approval_ttl_minutes=rt.config.guard.approval_ttl_minutes,
-            )
-        decision_trace.open_trace(
-            rt,
-            correlation_id=correlation_id,
-            event=event,
-            batch=side_events,
-            plan=plan,
-            entries=entries,
-            emergency=emergency_entries,
-            held_for_approval={c.booking_id for c in wanted if c not in commands and c.booking_id},
+
+async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple[StationEvent, ...]) -> SchedulePlan:
+    started = time.perf_counter()
+    _remember_loop(rt)
+    correlation_id = uuid4().hex  # DecisionTrace của lần tính lại này; gắn vào mọi Command nó sinh ra
+    emergency_entries: list[DecisionLogEntry] = []
+    failsafe_entries: list[DecisionLogEntry] = []
+    # Final Acceptance §1.3: vi phạm cứng đã báo (sự kiện / lô truyền vào, hoặc còn trong outbox) được xử lý an toàn
+    # TRƯỚC khi tiến đồng hồ — không tích phân thêm phút nào với setpoint đang vi phạm.
+    incoming = _merge_pending(rt, (*batch, event))
+    violated = [e for e in incoming if e.type == EventType.HARD_LIMIT_VIOLATED]
+    if violated:
+        failsafe_entries = await _deliver_safety(rt, violated, correlation_id)
+        emergency_entries.extend(failsafe_entries)
+    rt.advance_clock()
+    # Final Acceptance §1.2: mọi sự kiện chưa giao (của lần tiến đồng hồ này hoặc của consumer khác) vào lô này.
+    fresh = _merge_pending(rt, ())
+    side_events = (*[e for e in incoming if e is not event], *fresh)
+    # Quyết định trước kết thúc tại đây: đóng trace của nó bằng số đo vật lý thật tới thời điểm này.
+    decision_trace.close_open(rt)
+    for e in (*side_events, event):
+        rt.store.record_event(e)
+        await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
+    if event.type == EventType.POWER_LIMIT_CHANGED and event.new_power_limit_kw is not None:
+        emergency_entries += await _emergency(rt, event.new_power_limit_kw, correlation_id)
+    violated_now = [e for e in fresh if e.type == EventType.HARD_LIMIT_VIOLATED]
+    if violated_now:
+        fresh_entries = await _deliver_safety(rt, violated_now, correlation_id)
+        emergency_entries.extend(fresh_entries)
+        failsafe_entries.extend(fresh_entries)
+    _sync_booking_status(rt, (*side_events, event))
+
+    ctx = build_planning_context(rt)
+    plan = await solver.run_async(rt.scheduler.plan, ctx)
+    version = max(rt.plan.version if rt.plan else 0, ctx.state.schedule_version) + 1
+    plan = plan.model_copy(update={"version": version})
+    wanted = [c.model_copy(update={"correlation_id": correlation_id}) for c in diff_commands(rt.plan, plan, ctx.state)]
+    exclusions: list[dict] = []
+    commands = _filter_held(rt, wanted, exclusions)
+    entries = []
+    if commands:
+        entries = await dispatcher.submit(
+            commands,
+            build_guard_context(rt, None),
+            rt.simulator,
+            rt.sinks,
+            approval_ttl_minutes=rt.config.guard.approval_ttl_minutes,
         )
-        rt.plan = plan
-        rt.store.save_plan(plan)
-        _sync_booking_status(rt, ())
-        _record_load(rt)
-        rt.recorder.replan_durations_s.append(time.perf_counter() - started)
-        await rt.sinks.notify(_ws(WsMessageType.SCHEDULE_CHANGED, plan, rt), None)
-        if rt.live:
-            from src.services import station_service  # tránh vòng import lúc nạp module
+    decision_trace.open_trace(
+        rt,
+        correlation_id=correlation_id,
+        event=event,
+        batch=side_events,
+        plan=plan,
+        entries=entries,
+        emergency=emergency_entries,
+        command_exclusions=exclusions,
+        failsafe=failsafe_entries,
+    )
+    rt.plan = plan
+    rt.store.save_plan(plan)
+    _sync_booking_status(rt, ())
+    _record_load(rt)
+    rt.recorder.replan_durations_s.append(time.perf_counter() - started)
+    await rt.sinks.notify(_ws(WsMessageType.SCHEDULE_CHANGED, plan, rt), None)
+    if rt.live:
+        from src.services import station_service  # tránh vòng import lúc nạp module
 
-            await rt.sinks.notify(_ws(WsMessageType.STATION_SNAPSHOT, station_service.build_overview(rt), rt), None)
-        return plan
+        await rt.sinks.notify(_ws(WsMessageType.STATION_SNAPSHOT, station_service.build_overview(rt), rt), None)
+    return plan
 
 
 def decision_due(simulator, now) -> bool:
@@ -174,16 +182,12 @@ async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
             async with rt.lock:
                 _remember_loop(rt)
                 rt.advance_clock()
-                events = rt.take_events()  # gồm sự kiện consumer khác để lại (Final Acceptance §1.2)
-            if events:
-                # Mọi sự kiện trạm của lượt này (xe đến / rời, sạc xong, vượt budget…) → MỘT lần tính lại, không
-                # replan trùng cùng thời điểm (ADR-019 Phase 4, quyết định 2). Sự cố nguồn vẫn chạy trước (AC5).
-                await on_minute(rt, events)
+            plan = await deliver_pending(rt)
             now = rt.clock()
-            if not events and (now - last_tick >= tick_every or decision_due(rt.simulator, now)):
-                await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))
+            if plan is not None:
                 last_tick = now
-            elif events:
+            elif now - last_tick >= tick_every or decision_due(rt.simulator, now):
+                await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))
                 last_tick = now
             expire_overdue_approvals(rt)
         except Exception:
@@ -358,14 +362,18 @@ async def deliver_pending(rt: StationRuntime) -> SchedulePlan | None:
     """Final Acceptance §1.2: giao sự kiện còn trong `rt.outbox` (do consumer bất kỳ gọi `sync_clock`) cho control_loop —
     MỘT lần tính lại như `on_minute` (fail-safe chạy trước khi tiến đồng hồ). Outbox rỗng (đã có người nhận) ⇒ không làm gì.
     """
-    events = rt.take_events()
-    if not events:
-        return None
-    try:
-        return await on_minute(rt, events)
-    except Exception:
-        logger.exception("control_loop.deliver_pending: lỗi khi giao %d sự kiện trạm", len(events))
-        return None
+    async with rt.decision_lock():
+        events = rt.take_events()
+        if not events:
+            return None
+        try:
+            for event in (e for e in events if e.type == EventType.POWER_LIMIT_CHANGED):
+                await _on_event_locked(event, rt, ())
+            rest = tuple(e for e in events if e.type != EventType.POWER_LIMIT_CHANGED)
+            return await _on_event_locked(rest[-1], rt, rest[:-1]) if rest else rt.plan
+        except Exception:
+            logger.exception("control_loop.deliver_pending: lỗi khi giao %d sự kiện trạm", len(events))
+            return None
 
 
 def _remember_loop(rt: StationRuntime) -> None:
@@ -378,6 +386,18 @@ def _merge_pending(rt: StationRuntime, given: tuple[StationEvent, ...]) -> tuple
     """Sự kiện chưa giao trong outbox (bỏ trùng với sự kiện được truyền vào, theo event_id) rồi tới `given`."""
     ids = {e.event_id for e in given}
     return (*[e for e in rt.take_events() if e.event_id not in ids], *given)
+
+
+async def _deliver_safety(
+    rt: StationRuntime, events: list[StationEvent], correlation_id: str
+) -> list[DecisionLogEntry]:
+    try:
+        entries = await _failsafe(rt, events, correlation_id)
+    except (Exception, asyncio.CancelledError):
+        rt.finish_safety_delivery(events, retry=True)
+        raise
+    rt.finish_safety_delivery(events)
+    return entries
 
 
 async def _failsafe(
@@ -455,23 +475,38 @@ async def _notify_curtailed(
         await rt.sinks.notify(_ws(WsMessageType.NOTIFICATION, note, rt), booking.resident_id)
 
 
-def _filter_held(rt: StationRuntime, commands: list[Command]) -> list[Command]:
-    """Bỏ lệnh của booking đang chờ phê duyệt (không hỏi lại liên tục) và lệnh cần duyệt của booking đã từ chối."""
+def _filter_held(rt: StationRuntime, commands: list[Command], exclusions: list[dict] | None = None) -> list[Command]:
+    """Keep existing dispatch behavior and record every applicable reason in precedence order."""
     if not commands:
         return commands
     held = {a.command.booking_id for a in rt.store.pending_approvals() if a.command.booking_id}
     bookings = {b.booking_id: b for b in rt.store.active_bookings()}
     kept = []
     for cmd in commands:
+        reasons = []
         if cmd.booking_id in held:
-            continue
+            reasons.append("PENDING_APPROVAL")
         if cmd.booking_id in rt.safety_hold_booking_ids and not _stops_power(cmd):
-            continue  # Final Acceptance §1.4: xe lỗi charging model / acceptance — chỉ cho lệnh ngắt, chờ vận hành
+            reasons.append("SAFETY_HOLD")
         if cmd.booking_id in rt.rejected_booking_ids and approval_rules.requires_approval(
             cmd, bookings.get(cmd.booking_id)
         ):
-            continue
-        kept.append(cmd)
+            reasons.append("REJECTED_CONSENT")
+        if not reasons:
+            kept.append(cmd)
+        elif exclusions is not None:
+            exclusions.append(
+                {
+                    "command_id": cmd.command_id,
+                    "correlation_id": cmd.correlation_id,
+                    "booking_id": cmd.booking_id,
+                    "connector_id": cmd.connector_id,
+                    "type": cmd.type.value,
+                    "requested_output_kw": cmd.power_kw,
+                    "primary_reason": reasons[0],
+                    "reasons": reasons,
+                }
+            )
     return kept
 
 

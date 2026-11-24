@@ -11,6 +11,10 @@ GitHub connector xác nhận SHA tại repository được chỉ định. Clone 
 
 Đã đối chiếu Master Plan, `CLAUDE.md`, `README.md`, `AGENTS.md` theo phạm vi, ADR-013/014/015/019 và các ADR về Guard, auth, API và runtime, Final Acceptance/Final Map, simulator PROJECT_STATE, HANDOFF và `tests/test_architecture.py`. `collaboration_chat.md` rỗng. Không tìm thấy PDF Research SC-16 trong workspace. Phạm vi research được tham chiếu qua Master Plan và ADR, chưa đối chiếu trực tiếp theo trang PDF. Mô tả `LiveStation` trong chỉ dẫn simulator và đoạn lịch sử HANDOFF đã được ADR-018/019 và code hiện hành thay thế.
 
+## G0 review và nguồn G1
+
+Tech Lead duyệt P0 trên mirror `d520ffb28b32b94099277c48af9b8f38ec656ac0` (tree `777fcb80ca1713117d42cbbfaaf88e6741848e3c`). Đây là commit evidence P0 được review. Diff từ mirror `4f1477e` trong source, config, migrations, tests và frontend rỗng. Nhánh local `feature/ai-4` bắt đầu G1 tại `d2b5d4869bff35ad9e417bee504c6dbf652258b1`. Các path product của `d2b5d48` khớp baseline local `ce23136`. Mirror `origin/main` sau đó trỏ tới `e5cbbed` với các path đã bị xóa. Mapping G1 pin theo SHA `d520ffb` đã được duyệt. [Báo cáo G1](PHASE_4_0_REPORT.md)
+
 ## Module map Unified Core
 
 | Tầng | Đường thực thi tại HEAD |

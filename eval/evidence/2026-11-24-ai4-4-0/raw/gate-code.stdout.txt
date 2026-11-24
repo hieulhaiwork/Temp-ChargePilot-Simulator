@@ -1,0 +1,17 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-g1.WKqMZW/gate/code status --short --branch 
+## HEAD (no branch)
+ M src/db/mappers.py
+ M src/db/tables.py
+ M src/models/decision_trace.py
+ M src/services/charging_service.py
+ M src/services/control_loop.py
+ M src/services/decision_trace.py
+ M src/services/repository.py
+ M src/services/runtime.py
+ M src/simulator/hybrid_station.py
+ M tests/test_db/test_migrations.py
+ M tests/test_services/test_decision_trace.py
+ M tests/test_services/test_fork_isolation.py
+ M tests/test_services/test_safety_event_delivery.py
+?? migrations/versions/0004_full_decision_traces.py

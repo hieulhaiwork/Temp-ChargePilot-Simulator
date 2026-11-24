@@ -1,0 +1,5 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/candidate
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 TZ=UTC python -m pytest tests/test_services/test_safety_event_delivery.py tests/test_services/test_decision_trace.py tests/test_services/test_fork_isolation.py tests/test_db/test_migrations.py tests/test_architecture.py -q
+........................................................................ [ 80%]
+..................                                                       [100%]
+90 passed in 8.92s

@@ -19,6 +19,8 @@ Owner: TV3. Task: T1.6.
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select, text
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 
 from src.config import get_settings
@@ -28,6 +30,7 @@ from src.db.tables import (
     ApprovalRow,
     BookingRow,
     DecisionLogRow,
+    DecisionTraceBookingRow,
     DecisionTraceRow,
     IdempotencyKeyRow,
     LoadPointRow,
@@ -309,11 +312,37 @@ def list_decisions(
 # ---- DecisionTrace backend (ADR-019 Phase 4, quyết định 6) ------------------------------
 
 
-def save_decision_trace(summary: DecisionTraceSummary) -> None:
-    """Ghi tóm tắt (mở) rồi ghi đè cùng correlation_id khi quyết định được đóng bằng số đo thật."""
+def save_decision_trace(summary: DecisionTraceSummary, full_payload: dict | None = None) -> None:
+    """Upsert evidence and its subject index together; a closed trace stays closed on retries."""
     _ensure()
+    values = mappers.trace_columns(summary)
+    condition = DecisionTraceRow.closed.is_(False)
+    if full_payload is None:
+        condition &= DecisionTraceRow.full_payload.is_(None)
+    else:
+        values["full_payload"] = full_payload
     with db_session.session_scope() as s:
-        s.merge(mappers.trace_to_row(summary))
+        insert = postgres_insert if s.get_bind().dialect.name == "postgresql" else sqlite_insert
+        stmt = insert(DecisionTraceRow.__table__).values(**values)
+        written = s.execute(
+            stmt.on_conflict_do_update(
+                index_elements=[DecisionTraceRow.correlation_id],
+                set_={key: stmt.excluded[key] for key in values if key != "correlation_id"},
+                where=condition,
+            ).returning(DecisionTraceRow.correlation_id)
+        ).scalar_one_or_none()
+        booking_ids = full_payload.get("booking_ids", []) if full_payload else []
+        if written and booking_ids:
+            s.execute(
+                insert(DecisionTraceBookingRow.__table__)
+                .values(
+                    [
+                        {"booking_id": booking_id, "correlation_id": written, "decided_at": summary.decided_at}
+                        for booking_id in booking_ids
+                    ]
+                )
+                .on_conflict_do_nothing()
+            )
 
 
 def get_decision_trace(correlation_id: str) -> DecisionTraceSummary | None:
@@ -321,6 +350,35 @@ def get_decision_trace(correlation_id: str) -> DecisionTraceSummary | None:
     with db_session.session_scope() as s:
         row = s.get(DecisionTraceRow, correlation_id)
         return mappers.row_to_trace(row) if row else None
+
+
+def get_full_decision_trace(correlation_id: str) -> dict | None:
+    """Return versioned evidence, or None for missing and historical summary-only records."""
+    _ensure()
+    with db_session.session_scope() as s:
+        return s.scalar(select(DecisionTraceRow.full_payload).where(DecisionTraceRow.correlation_id == correlation_id))
+
+
+def list_full_decision_traces(
+    start: datetime, end: datetime, *, booking_id: str | None = None, closed: bool | None = None, limit: int = 50
+) -> list[dict]:
+    """Internal lookup over a bounded, half-open interval. Caller handles authorization."""
+    if start.utcoffset() is None or end.utcoffset() is None or not timedelta(0) < end - start <= timedelta(days=31):
+        raise ValueError("Trace window must be timezone-aware, positive and at most 31 days")
+    if not 1 <= limit <= 100:
+        raise ValueError("Trace limit must be between 1 and 100")
+    _ensure()
+    time_column = DecisionTraceRow.decided_at
+    q = select(DecisionTraceRow.full_payload).where(DecisionTraceRow.full_payload.is_not(None))
+    if booking_id is not None:
+        time_column = DecisionTraceBookingRow.decided_at
+        q = q.join(DecisionTraceBookingRow, DecisionTraceBookingRow.correlation_id == DecisionTraceRow.correlation_id)
+        q = q.where(DecisionTraceBookingRow.booking_id == booking_id)
+    if closed is not None:
+        q = q.where(DecisionTraceRow.closed.is_(closed))
+    q = q.where(time_column >= start, time_column < end)
+    with db_session.session_scope() as s:
+        return list(s.scalars(q.order_by(time_column.desc(), DecisionTraceRow.correlation_id.desc()).limit(limit)))
 
 
 def list_decision_traces(limit: int = 100) -> list[DecisionTraceSummary]:

@@ -19,8 +19,11 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from threading import RLock
 from zoneinfo import ZoneInfo
 
 from src.config import get_settings
@@ -29,7 +32,7 @@ from src.guard.dispatcher import DispatchSinks
 from src.models.api import ErrorCode, Notification, NotificationKind
 from src.models.charging import Booking, BookingStatus, SchedulePlan, StrategyName
 from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEntry, Role
-from src.models.events import StationEvent, WsMessage, WsMessageType
+from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
 from src.models.planning import Scheduler
 from src.models.simulation import Scenario
 from src.models.station import ConnectorStatus, LoadPoint, StationConfig, Tariff
@@ -104,6 +107,9 @@ class StationRuntime:
     # Final Acceptance §1.2 — sự kiện trạm phát sinh khi tiến đồng hồ (bất kỳ consumer nào gọi sync_clock) nằm ở đây tới
     # khi control_loop nhận (on_event / run_forever / deliver_pending) — không consumer nào được bỏ sự kiện.
     outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
+    _clock_lock: RLock = field(default_factory=RLock, repr=False)
+    _read_clock_paused: bool = False
+    _pending_safety_ids: set[str] = field(default_factory=set, repr=False)
     # Vòng sự kiện sở hữu `lock` (ghi lại ở on_event / get_runtime): đường đọc đồng bộ (threadpool) đẩy giao sự kiện về đây.
     loop: asyncio.AbstractEventLoop | None = None
     # coroutine factory giao outbox cho control_loop (live: control_loop.deliver_pending); None = chờ on_event kế tiếp
@@ -137,16 +143,45 @@ class StationRuntime:
 
     def advance_clock(self) -> list[StationEvent]:
         """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
-        minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
-        events = self.simulator.step(minutes) if minutes > 0 else []
-        self.outbox.extend(events)
-        return events
+        with self._clock_lock:
+            if self._pending_safety_ids:
+                return []
+            minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
+            events = self.simulator.step(minutes) if minutes > 0 else []
+            self.queue_events(events)
+            return events
+
+    def queue_events(self, events: list[StationEvent]) -> None:
+        with self._clock_lock:
+            self.outbox.extend(events)
+            self._pending_safety_ids.update(e.event_id for e in events if e.type == EventType.HARD_LIMIT_VIOLATED)
 
     def take_events(self) -> list[StationEvent]:
         """Lấy (và xoá) mọi sự kiện chưa giao — control_loop gọi dưới `lock` trước khi tính lại."""
-        events = list(self.outbox)
-        self.outbox.clear()
-        return events
+        with self._clock_lock:
+            events = list(self.outbox)
+            self.outbox.clear()
+            return events
+
+    def finish_safety_delivery(self, events: list[StationEvent], *, retry: bool = False) -> None:
+        with self._clock_lock:
+            if retry:
+                self._pending_safety_ids.update(e.event_id for e in events)
+                self.outbox.extendleft(reversed(events))
+            else:
+                self._pending_safety_ids.difference_update(e.event_id for e in events)
+
+    @asynccontextmanager
+    async def decision_lock(self):
+        """Serialize replanning and defer read-driven physics until its trace boundary is established."""
+        async with self.lock:
+            with self._clock_lock:
+                self._read_clock_paused = True
+            try:
+                yield
+            finally:
+                with self._clock_lock:
+                    self._read_clock_paused = False
 
     def sync_clock(self) -> list[StationEvent]:
         """Đường dùng chung cho MỌI consumer (quote, book, change, session_view, queue_status, overview…): tiến simulator
@@ -156,8 +191,12 @@ class StationRuntime:
         ngay trên vòng sự kiện của runtime nếu biết (`deliver_pending`), không thì lần on_event / run_forever kế tiếp
         lấy. Giá trị trả về giữ cho tương thích (đã nằm trong outbox — người gọi KHÔNG cần tự phát lại).
         """
-        events = self.advance_clock()
-        if self.outbox:
+        with self._clock_lock:
+            if self._read_clock_paused:
+                return []
+            events = self.advance_clock()
+            pending = bool(self.outbox)
+        if pending:
             self.request_delivery()
         return events
 
@@ -451,16 +490,23 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
         rt.scheduler.name,
         lambda: fork,
         algorithms,
-        parameters=getattr(rt.scheduler, "parameters", None) or None,
+        parameters=deepcopy(getattr(rt.scheduler, "parameters", None)) or None,
     )
     # Provenance (Final Acceptance §3.2): bản fork chạy CÙNG thành phần đã resolve của live ⇒ cùng metadata.
-    scheduler.metadata = dict(getattr(rt.scheduler, "metadata", None) or {})
+    scheduler.metadata = deepcopy(getattr(rt.scheduler, "metadata", None) or {})
+    config = fork.config if getattr(rt.simulator, "config", None) is rt.config else rt.config.model_copy(deep=True)
     frt = _memory_runtime(
-        fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
+        fork,
+        scheduler,
+        config,
+        rt.tariff.model_copy(deep=True),
+        bookings=[b.model_copy(deep=True) for b in bookings],
+        approvals=[a.model_copy(deep=True) for a in rt.store.pending_approvals()],
     )
-    frt.plan = rt.plan
-    frt.recent_commands.extend(rt.recent_commands)
+    frt.plan = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+    frt.recent_commands.extend(c.model_copy(deep=True) for c in rt.recent_commands)
     frt.rejected_booking_ids.update(rt.rejected_booking_ids)
+    frt.safety_hold_booking_ids.update(rt.safety_hold_booking_ids)
     return frt
 
 

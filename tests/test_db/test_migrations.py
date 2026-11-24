@@ -178,3 +178,35 @@ def test_revision_0003_drops_plans_of_removed_lp_strategies(tmp_path):
         assert kept == ["B0", "M3a"]
     finally:
         engine.dispose()
+
+
+def test_revision_0004_preserves_legacy_trace_summary_on_upgrade_and_downgrade(tmp_path):
+    from sqlalchemy import text
+
+    url = f"sqlite:///{(tmp_path / 'legacy-trace.db').as_posix()}"
+    cfg = _alembic_config(url)
+    command.upgrade(cfg, "0003")
+    engine = make_engine(url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO decision_traces (correlation_id, decided_at, policy_id, schedule_version, "
+                    "budget_deviation_kw_max, hard_violations, closed, payload) "
+                    "VALUES ('legacy', '2026-11-24 10:00:00', 'M3a', 1, 0, 0, true, :summary)"
+                ),
+                {"summary": '{"correlation_id":"legacy","closed":true}'},
+            )
+        command.upgrade(cfg, "head")
+        with engine.connect() as connection:
+            summary, full = connection.execute(
+                text("SELECT payload, full_payload FROM decision_traces WHERE correlation_id='legacy'")
+            ).one()
+            assert summary == '{"correlation_id":"legacy","closed":true}' and full is None
+            assert connection.execute(text("SELECT COUNT(*) FROM decision_trace_bookings")).scalar_one() == 0
+        command.downgrade(cfg, "0003")
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT payload FROM decision_traces")).scalar_one() == summary
+            assert "full_payload" not in {col["name"] for col in inspect(connection).get_columns("decision_traces")}
+    finally:
+        engine.dispose()

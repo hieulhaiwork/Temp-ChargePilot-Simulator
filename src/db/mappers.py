@@ -197,17 +197,17 @@ def row_to_load_point(row: LoadPointRow) -> LoadPoint:
     return LoadPoint(timestamp=row.ts, total_power_kw=row.total_power_kw, power_limit_kw=row.power_limit_kw)
 
 
-def trace_to_row(summary: DecisionTraceSummary) -> DecisionTraceRow:
-    return DecisionTraceRow(
-        correlation_id=summary.correlation_id,
-        decided_at=summary.decided_at,
-        policy_id=summary.policy_id,
-        schedule_version=summary.schedule_version,
-        budget_deviation_kw_max=summary.budget_deviation_kw_max,
-        hard_violations=summary.hard_violations,
-        closed=summary.closed,
-        payload=summary.model_dump(mode="json"),
-    )
+def trace_columns(summary: DecisionTraceSummary) -> dict:
+    return {
+        "correlation_id": summary.correlation_id,
+        "decided_at": summary.decided_at,
+        "policy_id": summary.policy_id,
+        "schedule_version": summary.schedule_version,
+        "budget_deviation_kw_max": summary.budget_deviation_kw_max,
+        "hard_violations": summary.hard_violations,
+        "closed": summary.closed,
+        "payload": summary.model_dump(mode="json"),
+    }
 
 
 def row_to_trace(row: DecisionTraceRow) -> DecisionTraceSummary:

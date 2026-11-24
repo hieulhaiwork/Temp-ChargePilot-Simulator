@@ -1,0 +1,3 @@
+cwd=/home/lehieu/Projects/P-019
+$ python (same link verification as updated-local-links.stdout.txt)
+Local links verified.

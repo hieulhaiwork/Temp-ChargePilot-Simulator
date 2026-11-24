@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/gate/code
+$ isolated ruff format --check src tests scripts/refactor eval migrations/versions/0004_full_decision_traces.py 
+259 files already formatted

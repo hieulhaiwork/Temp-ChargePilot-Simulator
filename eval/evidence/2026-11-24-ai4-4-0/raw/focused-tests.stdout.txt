@@ -1,0 +1,5 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/gate/code
+$ isolated timeout 90s python -m pytest tests/test_services/test_safety_event_delivery.py tests/test_services/test_decision_trace.py tests/test_services/test_fork_isolation.py tests/test_db/test_migrations.py tests/test_architecture.py -q 
+........................................................................ [ 76%]
+......................                                                   [100%]
+94 passed in 10.63s

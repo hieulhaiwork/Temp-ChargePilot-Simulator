@@ -294,7 +294,7 @@ async def book(
             repository.save_booking(booking, idempotency_key=idempotency_key, request_hash=request_hash)
             rt.booking_version += 1
             async with rt.lock:
-                rt.outbox.extend(rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)))
+                rt.queue_events(rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)))
         break
     if booking is None:
         raise DomainError(
@@ -322,7 +322,7 @@ async def cancel(booking_id: str, resident_id: str) -> Booking:
         rt.booking_version += 1
         async with rt.lock:
             rt.sync_clock()
-            rt.outbox.extend(rt.simulator.remove_vehicle(booking_id))  # sự kiện trạm không bị bỏ (§1.2)
+            rt.queue_events(rt.simulator.remove_vehicle(booking_id))  # sự kiện trạm không bị bỏ (§1.2)
     await event_bus.publish(
         StationEvent(type=EventType.BOOKING_CANCELLED, occurred_at=rt.clock(), booking_id=booking_id)
     )
@@ -380,7 +380,7 @@ async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str)
             repository.save_booking(updated)
             rt.booking_version += 1
             async with rt.lock:
-                rt.outbox.extend(rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)))
+                rt.queue_events(rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)))
         break
     if updated is None:
         raise DomainError(

@@ -214,9 +214,9 @@ Index: `(status, expires_at)` cho `expire_overdue`; `(requested_from, status)`.
 
 Index: `(guard_passed, seq)` cho tab "Bị Guard chặn"; `(booking_id, seq)` cho `charging_service.explain`.
 
-**`decision_traces`** — ADR-019 Phase 4 (quyết định 6), migration `0002`. Tóm tắt vận hành của một lần tính lại; trace
-chi tiết (facts cùng schema DecisionTrace của simulator) là artifact JSONL trong `DECISION_TRACE_DIR`
-(`src/services/decision_trace.py`). Nối với `decision_log` qua `payload.command.correlation_id`.
+**`decision_traces`** — migration `0002` lưu summary vận hành. Migration `0004` thêm payload backend có version.
+`DECISION_TRACE_DIR` tùy chọn cho JSONL debug export. Nối tới `decision_log` qua `payload.command.correlation_id`.
+[Foundation trace contract](../ai4/FOUNDATION_CONTRACT.md)
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
@@ -228,9 +228,12 @@ chi tiết (facts cùng schema DecisionTrace của simulator) là artifact JSONL
 | `hard_violations` | int | Physical Guard sau thực thi |
 | `closed` | bool | `false` = quyết định còn hiệu lực (chưa có số đo) |
 | `payload` | json | `DecisionTraceSummary` |
+| `full_payload` | JSONB (Postgres), JSON (SQLite), nullable | null cho historical summary-only |
 
-Index: `(decided_at)`.
-`repository` không có hàm sửa hay xoá bảng này; test kiểm điều đó.
+Index `(decided_at)`. Repository thực hiện active → closed theo correlation ID, trong cùng transaction với subject index.
+
+**`decision_trace_bookings`** — index tra trace trong time window theo booking, có PK `(booking_id, correlation_id)`
+và index `(booking_id, decided_at)`. FK tới `decision_traces` xóa cascade theo trace.
 
 **`notifications`** — FR15
 

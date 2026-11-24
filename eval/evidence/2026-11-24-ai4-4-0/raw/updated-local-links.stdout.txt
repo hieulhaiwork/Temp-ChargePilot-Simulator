@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ python -c $'\nfrom pathlib import Path\nimport re\nfiles = [*Path("docs/ai4").glob("*.md"), Path("eval/evidence/2026-11-24-ai4-4-0/README.md")]\nmissing = []\nfor file in files:\n    if file.name == "AI-4_MASTER_IMPLEMENTATION_PLAN.md":\n        continue\n    for target in re.findall(r"\\]\\(([^)]+)\\)", file.read_text()):\n        if "://" not in target and not (file.parent / target.split("#")[0]).exists():\n            missing.append((str(file), target))\nassert not missing, missing\nprint("Local links verified.")\n' 

@@ -1,0 +1,3 @@
+cwd=/home/lehieu/Projects/P-019
+$ bash -c $'\n    set -e\n    temp=$(mktemp)\n    git diff --binary HEAD -- src migrations tests > "$temp"\n    git diff --binary --no-index /dev/null migrations/versions/0004_full_decision_traces.py >> "$temp" || test "$?" -eq 1\n    cmp "$temp" "$1"\n    sha256sum "$temp"\n' _ eval/evidence/2026-11-24-ai4-4-0/raw/candidate.patch 
+986fd42e0d00e57e8bbad2a085bba1df9508e2b2b34786e967d7105062644873  /tmp/tmp.lCERlNVm4L

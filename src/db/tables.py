@@ -184,11 +184,7 @@ class LoadPointRow(Base):
 
 
 class DecisionTraceRow(Base):
-    """ADR-019 Phase 4 (quyết định 6) — tóm tắt DecisionTrace backend. payload = DecisionTraceSummary.
-
-    Ghi khi mở (sau dispatch) và ghi đè khi đóng (lần tính lại kế tiếp, có số đo thật). Trace chi tiết là artifact
-    JSONL (DECISION_TRACE_DIR), nối với decision_log qua `correlation_id` của Command.
-    """
+    """Backend trace summary and optional versioned evidence; legacy summary rows have no full payload."""
 
     __tablename__ = "decision_traces"
     __table_args__ = (Index("ix_decision_traces_decided", "decided_at"),)
@@ -201,3 +197,17 @@ class DecisionTraceRow(Base):
     hard_violations: Mapped[int] = mapped_column(Integer)
     closed: Mapped[bool] = mapped_column(Boolean)
     payload: Mapped[dict] = mapped_column(JsonDoc)
+    full_payload: Mapped[dict | None] = mapped_column(JsonDoc, nullable=True)
+
+
+class DecisionTraceBookingRow(Base):
+    """Lookup by booking ID and time without indexing the full JSON document."""
+
+    __tablename__ = "decision_trace_bookings"
+    __table_args__ = (Index("ix_decision_trace_bookings_window", "booking_id", "decided_at"),)
+
+    booking_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    correlation_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("decision_traces.correlation_id", ondelete="CASCADE"), primary_key=True
+    )
+    decided_at: Mapped[datetime] = mapped_column(UtcDateTime)

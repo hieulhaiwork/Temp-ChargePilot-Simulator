@@ -1,12 +1,12 @@
 # PHASE P0 — Baseline Verification (G0)
 
-**Phase P0 | Status READY_FOR_REVIEW**  
+**Phase P0 | Status APPROVED — GATE 0 PASS**  
 **Branch** `feature/ai-4` · **Code thực chạy / local base** `ce23136d50ad08abb7c9fdc98eff791875d24516`  
 **Mirror base** `4f1477e84ac818549a69a74eb00e4b827fae230e` · **Workspace HEAD cuối** `d2b5d4869bff35ad9e417bee504c6dbf652258b1`  
-**Evidence commit** Chưa commit gói evidence P0 hoàn chỉnh.  
+**Evidence commit được Tech Lead review** Mirror `d520ffb28b32b94099277c48af9b8f38ec656ac0`. P-019 local tại thời điểm chạy vẫn pin code `ce23136`.  
 **Working tree** Báo cáo và evidence P0 hiện diện trong workspace.
 
-Baseline thực thi tương đương mirror đã review. Full backend và simulator đều chạy. Golden chính thức tái lập đủ 38/38 với byte representation CRLF của fixture lịch sử. Benchmark backend 100/100 khớp toàn bộ KPI ngoài timing và khớp các bộ đếm vi phạm. R01–R05 đã tái hiện trên baseline. G0 đang chờ Tech Lead xác nhận ledger, branch và phạm vi.
+Baseline thực thi tương đương mirror đã review. Full backend và simulator đều chạy. Golden chính thức tái lập đủ 38/38 với byte representation CRLF của fixture lịch sử. Benchmark backend 100/100 khớp toàn bộ KPI ngoài timing và khớp các bộ đếm vi phạm. R01–R05 đã tái hiện trên baseline. Tech Lead đã duyệt ledger, nhánh `feature/ai-4`, scope và cho phép bắt đầu AI-4.0.
 
 ## Baseline, phạm vi và diff
 
@@ -49,7 +49,7 @@ Phạm vi thực hiện là P0. Diff do lượt này tạo nằm trong tài li�
 
 - **R01–R05 confirmed** gồm fork mất safety hold, default thiếu detailed trace, v2 báo guard pass khi có vi phạm/zero samples, safety hold mang nhãn pending approval và power stage v2 mơ hồ. Probe dùng fixture tổng hợp và đi qua control loop. Dispatcher-only, isolation stateful và delivery regressions được kiểm qua suite hiện có. [Ledger](ISSUES.md) · [Probe](../../eval/evidence/2026-11-24-ai4-p0/raw/issue-probe-final.stdout.txt)
 - **R07 hypothesis** về atomic capture/read/outbox. **R06** là paired WHAT-IF chưa triển khai. **R08** còn xác minh Postgres/provider/deploy thật ở G7. **R09** thuộc MVP-3.5. Chưa chạy frontend lint/typecheck/test/build trong P0 vì scope không đổi API/schema/UI. PDF Research SC-16 không có trong workspace. Các mục này không cản các gate P0 đã liệt kê. [Ledger](ISSUES.md)
-- Tech Lead cần duyệt baseline/branch mapping, mức ưu tiên ledger, Postgres JSON payload và indexed lookup, schema backend có version, snapshot locking/outbox readiness, cách ghi SOC/energy/cost và quyền Operator, canonical API, giới hạn job và phạm vi HOW-TO hữu hạn/AI-1 deferred. [ADR Proposed](ADR_AI4_SCOPE.md)
+- Tech Lead đã duyệt baseline/branch mapping, ledger, storage và trace contract, canonical API, quyền Operator và scope HOW-TO. Phần snapshot locking, energy/cost và outcome semantics tiếp tục được theo dõi qua G1–G3. [ADR đã duyệt](ADR_AI4_SCOPE.md)
 
 ## Acceptance checklist
 
@@ -59,10 +59,10 @@ Phạm vi thực hiện là P0. Diff do lượt này tạo nằm trong tài li�
 | Module map, API, kiến trúc và full regression có raw log | **PASS** |
 | Golden full và benchmark đầy đủ, nguyên baseline/threshold | **PASS** với golden CRLF phù hợp provenance. Lượt LF ghi **FAIL** ở metadata. |
 | R01–R09 phân loại, lỗi baseline và giới hạn có evidence | **PASS** |
-| Scope ADR Proposed, ownership và API design | **PASS**, tài liệu sẵn để duyệt |
+| Scope ADR Proposed, ownership và API design | **PASS**, scope được Tech Lead duyệt |
 | Postgres/LLM/deploy thật và frontend full build | **NOT RUN**, xem giới hạn trên |
-| Tech Lead xác nhận ledger, scope/branch và cho phép phase tiếp theo | **PENDING** |
+| Tech Lead xác nhận ledger, scope/branch và cho phép AI-4.0 | **PASS**, approval G0 trên mirror `d520ffb` |
 
 **Rollback** Có thể hoàn tác riêng các file báo cáo, evidence và diff runner P0. Hai file đầu vào, commit hiện có và frozen artifact lịch sử được giữ theo trạng thái workspace. Không cần rollback app hoặc DB. Các DB thử nghiệm chỉ nằm trong thư mục tạm.
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW**
+**P0 CLOSED — APPROVED (GATE 0)**

@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git diff --exit-code d2b5d48 -- src/optimizer src/guard src/simulator/core src/simulator/evaluation config frontend eval/evidence/2026-11-24-unified-core-frozen-baseline eval/evidence/2026-11-22 eval/thresholds.yaml 

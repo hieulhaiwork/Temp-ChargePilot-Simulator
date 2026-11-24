@@ -1,0 +1,118 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/gate/code
+$ isolated python scripts/refactor/compare_ast_manifest.py docs/refactor/raw/phase4-final/preserved_baseline_manifest.txt -- src 
+SAME         src/guard/physical/validator.py::validate_dispatch
+SAME         src/guard/physical/validator.py::validate_budgets
+SAME         src/guard/physical/validator.py::_validate_supply
+SAME         src/guard/physical/validator.py::guard
+SAME         src/guard/physical/validator.py::validate_response
+SAME         src/models/charging_physics.py::VehicleBatteryState
+SAME         src/models/charging_physics.py::DCChargingModel
+SAME         src/models/charging_physics.py::energy_to_target
+SAME         src/models/physical_constraints.py::TOL
+SAME         src/models/physical_constraints.py::ConstraintViolationError
+SAME         src/models/physical_constraints.py::valid_kw
+SAME         src/models/physical_limits.py::EffectiveLimits
+SAME         src/models/physical_limits.py::effective_limits
+SAME         src/models/physical_limits.py::environment_boundary
+SAME         src/models/scheduling/__init__.py::__all__
+SAME         src/models/scheduling/coordination.py::ZoneBudgets
+SAME         src/models/scheduling/coordination.py::GlobalCoordinator
+SAME         src/models/scheduling/dispatch.py::DispatchObservation
+SAME         src/models/scheduling/dispatch.py::DispatchPolicy
+SAME         src/models/scheduling/observations.py::Candidate
+SAME         src/models/scheduling/observations.py::VehicleObservation
+SAME         src/models/scheduling/observations.py::SchedulingObservation
+SAME         src/models/scheduling/optimization.py::SchedulingPolicy
+SAME         src/models/scheduling/optimization.py::PowerProposal
+SAME         src/models/scheduling/optimization.py::ZonePowerOptimizer
+SAME         src/models/simulation_core.py::minute
+SAME         src/models/simulation_core.py::clock
+SAME         src/models/simulation_core.py::number
+SAME         src/models/simulation_core.py::integer
+SAME         src/models/simulation_core.py::identifier
+SAME         src/models/simulation_core.py::Cabinet
+SAME         src/models/simulation_core.py::Vehicle
+SAME         src/models/simulation_core.py::LimitEvent
+SAME         src/models/simulation_core.py::Tariff
+SAME         src/models/simulation_core.py::Scenario
+SAME         src/models/simulation_core.py::_zone_values
+SAME         src/models/simulation_core.py::_optional_zone_values
+SAME         src/models/simulation_core.py::_limit_events
+SAME         src/models/simulation_core.py::_tariff
+SAME         src/optimizer/coordination/dynamic_slack.py::DynamicSlackCoordinator
+SAME         src/optimizer/coordination/fixed_budget.py::FixedBudgetCoordinator
+SAME         src/optimizer/coordination/fixed_budget.py::FixedShareCoordinator
+SAME         src/optimizer/dispatch/arrival_order.py::arrival_order
+SAME         src/optimizer/dispatch/edf.py::earliest_deadline
+SAME         src/optimizer/dispatch/least_laxity.py::optimistic_laxity
+SAME         src/optimizer/dispatch/least_laxity.py::least_laxity
+SAME         src/optimizer/registry.py::Registration
+SAME         src/optimizer/registry.py::_fixed_budget
+SAME         src/optimizer/registry.py::_fixed_share
+SAME         src/optimizer/registry.py::_dynamic_slack
+SAME         src/optimizer/registry.py::_rolling_lp
+SAME         src/optimizer/registry.py::_llf
+SAME         src/optimizer/registry.py::_ac_rolling_lp
+SAME         src/optimizer/registry.py::DISPATCH
+SAME         src/optimizer/registry.py::OPTIMIZERS
+SAME         src/optimizer/registry.py::COORDINATORS
+SAME         src/optimizer/registry.py::POLICIES
+SAME         src/optimizer/zones/ac_lp.py::AC_TRANSITION_SOC
+SAME         src/optimizer/zones/ac_lp.py::FORECAST
+SAME         src/optimizer/zones/ac_lp.py::ACConfig
+SAME         src/optimizer/zones/ac_lp.py::_boundaries
+SAME         src/optimizer/zones/ac_lp.py::_solve
+SAME         src/optimizer/zones/ac_lp.py::ACRollingLP
+SAME         src/optimizer/zones/deadline_first.py::deadline_first
+SAME         src/optimizer/zones/equal_share.py::equal_share_policy
+SAME         src/optimizer/zones/equal_share.py::equal_share
+SAME         src/optimizer/zones/equal_share.py::zone_equal_share
+SAME         src/optimizer/zones/equal_share.py::_equal_share_zone
+SAME         src/optimizer/zones/rolling_lp.py::SAMPLE_COUNT
+SAME         src/optimizer/zones/rolling_lp.py::FORECAST
+SAME         src/optimizer/zones/rolling_lp.py::LPConfig
+SAME         src/optimizer/zones/rolling_lp.py::_acceptance_line
+SAME         src/optimizer/zones/rolling_lp.py::_blocks
+SAME         src/optimizer/zones/rolling_lp.py::_valid_primal
+SAME         src/optimizer/zones/rolling_lp.py::RollingHorizonLP
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_VF3_CURVE
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_VF8_OLD_SHAPE_PROXY
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_finite_nonnegative
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_fraction
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_ratio
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_linear_curve
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::_generic_heterogeneous
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::CurveKind
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::DCProfile
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::resolve_dc_profile
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::DCStepResult
+MOVED-SAME -> src/simulator/core/charging_models/dc_charging_models.py src/simulator/src/charging_models/dc_charging_models.py::charge_dc_step
+MOVED-SAME -> src/simulator/core/charging_models/synthetic_dc.py src/simulator/src/charging_models/synthetic_dc.py::SyntheticTaperV1
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::PROFILE_VERSION
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::INTEGRATION_SECONDS
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::GENERIC_CURVE
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::VF8_SHAPE
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::OEM_SOURCES
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::CURVE_SOURCES
+MOVED-SAME -> src/simulator/core/charging_models/vehicle_profiles.py src/simulator/src/charging_models/vehicle_profiles.py::VehicleProfilesDCModel
+MOVED-SAME -> src/simulator/core/ev2gym_adapter.py src/simulator/src/engine/ev2gym_adapter.py::PrecisionEV
+MOVED-SAME -> src/simulator/core/ev2gym_adapter.py src/simulator/src/engine/ev2gym_adapter.py::DCEV
+MOVED-SAME -> src/simulator/core/ev2gym_adapter.py src/simulator/src/engine/ev2gym_adapter.py::Delivered
+MOVED-SAME -> src/simulator/core/ev2gym_adapter.py src/simulator/src/engine/ev2gym_adapter.py::EV2GymAdapter
+MOVED-SAME -> src/simulator/core/queue.py src/simulator/src/engine/queue.py::Session
+MOVED-SAME -> src/simulator/core/queue.py src/simulator/src/engine/queue.py::QueueController
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::ENERGY_TOL_KWH
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::percentile
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::latency_summary
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::_within_limit
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::audit
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::RunSample
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::sample_run
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::_session_metrics
+MOVED-SAME -> src/simulator/evaluation/extended.py src/simulator/src/evaluation/extended.py::benchmark_metrics
+MOVED-SAME -> src/simulator/evaluation/metrics.py src/simulator/src/evaluation/metrics.py::summarize
+MOVED-SAME -> src/simulator/evaluation/trace.py src/simulator/src/evaluation/trace.py::SCHEMA_VERSION
+MOVED-SAME -> src/simulator/evaluation/trace.py src/simulator/src/evaluation/trace.py::_binding_constraints
+MOVED-SAME -> src/simulator/evaluation/trace.py src/simulator/src/evaluation/trace.py::decision_record
+
+# definitions compared: 114; not identical (undeclared): 0; declared changes: 0

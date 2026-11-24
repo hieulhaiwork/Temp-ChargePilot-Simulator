@@ -139,3 +139,149 @@ async def test_live_persist_writes_db_summary_and_jsonl_artifact(clean_db, tmp_p
     assert json.loads(line)["correlation_id"] == trace["correlation_id"]
     assert repository.list_decision_traces()[0].correlation_id == trace["correlation_id"]
     assert stored.decided_at - datetime.fromisoformat(trace["decided_at"]) == timedelta(0)
+
+
+def test_foundation_full_trace_is_retrievable_with_default_config(clean_db, monkeypatch, run):
+    from src.config import get_settings
+    from src.services import repository
+
+    monkeypatch.setattr(get_settings(), "decision_trace_dir", "")
+    trace = json.loads(json.dumps(run.recorder.decision_traces[-1]))
+    cid = trace["correlation_id"]
+    decision_trace.persist(trace, True)
+    repository.dispose()
+    stored = repository.get_full_decision_trace(cid)
+    assert stored == trace
+    assert repository.get_decision_trace(cid).artifact is None
+
+
+def test_foundation_trace_lifecycle_index_and_old_summary(clean_db, run):
+    from src.models.decision_trace import TRACE_SCHEMA
+    from src.services import repository
+
+    trace = next(t for t in run.recorder.decision_traces if t["booking_ids"] and t["closed"])
+    cid, booking_id = trace["correlation_id"], trace["booking_ids"][0]
+    decided_at = datetime.fromisoformat(trace["decided_at"])
+    end = decided_at + timedelta(minutes=1)
+    active = {**trace, "closed": False, "decision": None, "applied": None}
+    decision_trace.persist(active, False)
+    assert repository.get_full_decision_trace(cid)["trace_schema"] == TRACE_SCHEMA
+    assert repository.list_full_decision_traces(decided_at, end, booking_id=booking_id, closed=False) == [active]
+    decision_trace.persist(trace, True)
+    decision_trace.persist(active, False)
+    decision_trace.persist(trace, True)
+    repository.dispose()
+    assert repository.get_full_decision_trace(cid) == trace
+    assert repository.list_full_decision_traces(decided_at, end, booking_id=booking_id, closed=True) == [trace]
+    assert repository.list_full_decision_traces(decided_at - timedelta(minutes=1), decided_at) == []
+    assert repository.list_full_decision_traces(decided_at, end, booking_id="unknown") == []
+    with pytest.raises(ValueError, match="limit"):
+        repository.list_full_decision_traces(decided_at, end, limit=101)
+
+    legacy = decision_trace.summary(trace).model_copy(update={"correlation_id": "legacy"})
+    repository.save_decision_trace(legacy)
+    assert repository.get_decision_trace("legacy") == legacy
+    assert repository.get_full_decision_trace("legacy") is None
+    assert repository.get_full_decision_trace("missing") is None
+    assert repository.list_full_decision_traces(decided_at, end) == [trace]
+
+
+def test_foundation_trace_write_and_export_errors_are_isolated(clean_db, monkeypatch, tmp_path, caplog, run):
+    from src.config import get_settings
+    from src.services import repository
+
+    trace = run.recorder.decision_traces[-1]
+    invalid = {**trace, "correlation_id": "invalid", "applied": {**trace["applied"], "extra": float("nan")}}
+    decision_trace.persist(invalid, True)
+    assert repository.get_full_decision_trace("invalid") is None
+    assert "decision_trace_write_failed correlation_id=invalid" in caplog.text
+
+    not_a_dir = tmp_path / "regular-file"
+    not_a_dir.touch()
+    monkeypatch.setattr(get_settings(), "decision_trace_dir", str(not_a_dir))
+    decision_trace.persist(trace, True)
+    assert "decision_trace_export_failed" in caplog.text
+    assert repository.get_full_decision_trace(trace["correlation_id"]) == trace
+
+    def fail(*_):
+        raise RuntimeError("synthetic write failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(repository, "save_decision_trace", fail)
+        decision_trace.persist({**trace, "correlation_id": "db-failure"}, True)
+    assert "decision_trace_write_failed correlation_id=db-failure" in caplog.text
+    assert repository.get_full_decision_trace("db-failure") is None
+
+
+def test_foundation_power_stages_and_energy_use_measured_intervals(run):
+    traces = [t for t in run.recorder.decision_traces if t["power"]["actual_output"]]
+    assert traces
+    for trace in traces:
+        power = trace["power"]
+        assert power["proposed"]["by_booking_kw"] == trace["proposed_setpoints_kw"]
+        assert power["approved"]["by_booking_kw"] == trace["approved_setpoints_kw"]
+        assert power["dispatched"]["command_ids"] == [
+            c["command_id"] for c in trace["emergency_commands"] + trace["commands"] if c["executed"]
+        ]
+        assert power["effective_setpoint"]["source"] == "kernel.held_setpoints"
+        measured = power["actual_output"]
+        assert measured["source"] == "physics.applied_result.actual_kw"
+        combined = {}
+        for sample in measured["samples"]:
+            duration = sample["end_minute"] - sample["start_minute"]
+            for vid, kw in sample["by_booking_kw"].items():
+                combined[vid] = combined.get(vid, 0.0) + kw * duration / 60
+        assert combined == pytest.approx(trace["applied"]["output_kwh"])
+        assert set(measured["average_by_booking_kw"]) == combined.keys()
+        for vid, output in combined.items():
+            assert measured["average_by_booking_kw"][vid] == pytest.approx(
+                output * 60 / measured["sample_minutes_by_booking"][vid]
+            )
+            assert trace["applied"]["grid_input_kwh"][vid] == pytest.approx(
+                output / run.config.power_conversion_efficiency
+            )
+        assert trace["experiment"]["fingerprint"]
+        assert trace["evidence_refs"]["/power/actual_output"].endswith("#/power/actual_output")
+
+
+async def test_foundation_trace_keeps_decision_time_policy_after_reconfiguration():
+    from src.models.events import EventType, StationEvent
+    from src.services.experiment import resolve_experiment
+    from src.services.runtime import make_scheduler
+
+    config, tariff = catalog.load_station_config(), catalog.load_tariff()
+    scenario = catalog.load_scenario("hybrid_evening")
+    start = datetime.combine(NOW.date(), scenario.start_time, tzinfo=NOW.tzinfo)
+    rt = build_sim_runtime(scenario, StrategyName.SIM_M3A, config, tariff, start)
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=start), rt)
+    held = rt.open_trace
+    assert held["trace"]["validation"]["post_apply"] == "not_evaluated"
+    assert held["trace"]["power"]["actual_output"] is None
+    assert held["trace"]["experiment"]["fingerprint"] == resolve_experiment(rt).fingerprint
+    rt.scheduler = make_scheduler(StrategyName.SIM_B0, lambda: rt.simulator)
+    closed = decision_trace.close_open(rt)
+    assert closed["policy"] == {"id": "M3a", "version": "1"}
+    assert closed["decision"]["algorithms"] == held["labels"]
+    assert closed["experiment"]["fingerprint"] != resolve_experiment(rt).fingerprint
+    assert closed["validation"]["post_apply"] == "no_samples"
+    assert closed["power"]["actual_output"] is None
+
+
+async def test_foundation_trace_with_independent_supply_and_no_readings_is_json_safe():
+    from src.models.events import EventType, StationEvent
+
+    config = catalog.load_station_config().model_dump()
+    config["supply_mode"] = "independent"
+    config["independent_grid_input_limit_kw"] = {"AC": 25, "DC": 90}
+    config = type(catalog.load_station_config()).model_validate(config)
+    scenario = catalog.load_scenario("hybrid_evening")
+    start = datetime.combine(NOW.date(), scenario.start_time, tzinfo=NOW.tzinfo)
+    rt = build_sim_runtime(scenario, StrategyName.SIM_M3A, config, catalog.load_tariff(), start)
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=start), rt)
+    rt.simulator.step(1)
+    closed = decision_trace.close_open(rt)
+    assert closed["applied"]["minutes"] == 1
+    assert closed["decision"]["physical_limits"]["supply_mode"] == "independent"
+    assert closed["validation"]["post_apply"] == "no_samples"
+    assert closed["power"]["actual_output"] is None
+    json.dumps(closed, allow_nan=False)

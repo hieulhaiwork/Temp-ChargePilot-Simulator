@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git diff --exit-code ce23136d d2b5d4869bff35ad9e417bee504c6dbf652258b1 -- src tests config migrations frontend 

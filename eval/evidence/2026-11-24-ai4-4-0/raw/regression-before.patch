@@ -1,0 +1,149 @@
+diff --git a/tests/test_services/test_decision_trace.py b/tests/test_services/test_decision_trace.py
+index ca2c71e..1794de3 100644
+--- a/tests/test_services/test_decision_trace.py
++++ b/tests/test_services/test_decision_trace.py
+@@ -139,3 +139,17 @@ async def test_live_persist_writes_db_summary_and_jsonl_artifact(clean_db, tmp_p
+     assert json.loads(line)["correlation_id"] == trace["correlation_id"]
+     assert repository.list_decision_traces()[0].correlation_id == trace["correlation_id"]
+     assert stored.decided_at - datetime.fromisoformat(trace["decided_at"]) == timedelta(0)
++
++
++def test_foundation_full_trace_is_retrievable_with_default_config(clean_db, monkeypatch, run):
++    from src.config import get_settings
++    from src.services import repository
++
++    monkeypatch.setattr(get_settings(), "decision_trace_dir", "")
++    trace = json.loads(json.dumps(run.recorder.decision_traces[-1]))
++    cid = trace["correlation_id"]
++    decision_trace.persist(trace, True)
++    repository.dispose()
++    stored = repository.get_full_decision_trace(cid)
++    assert stored == trace
++    assert repository.get_decision_trace(cid).artifact is None
+diff --git a/tests/test_services/test_safety_event_delivery.py b/tests/test_services/test_safety_event_delivery.py
+index 3381455..af967ea 100644
+--- a/tests/test_services/test_safety_event_delivery.py
++++ b/tests/test_services/test_safety_event_delivery.py
+@@ -353,3 +353,122 @@ async def test_charging_model_fault_is_isolated_not_curtailed():
+     assert next(c.power_kw for c in sim.state().connectors if c.booking_id == "dc-a") == 0.0
+     closed = rt.recorder.decision_traces
+     assert any(d["kind"] == "charging_model" for t in closed for d in t["applied"]["hard_violation_details"])
++
++
++async def _trip_charging_model(rt):
++    sim = rt.simulator
++    original = sim.adapter.step
++
++    def broken(vid, cabinet, kw, minutes):
++        delivery = original(vid, cabinet, kw, minutes)
++        return dataclasses.replace(delivery, battery_kwh=delivery.battery_kwh * 3) if vid == "dc-a" and kw else delivery
++
++    sim.adapter.step = broken
++    try:
++        events = sim.step(5)
++    finally:
++        sim.adapter.step = original
++    assert any(e.type == EventType.HARD_LIMIT_VIOLATED for e in events)
++    await control_loop.on_minute(rt, events)
++    return rt
++
++
++async def test_foundation_fork_keeps_the_hold_after_a_real_trip():
++    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
++    fork = runtime.fork_runtime(rt, rt.store.active_bookings())
++    assert fork.safety_hold_booking_ids == rt.safety_hold_booking_ids == {"dc-a"}
++    assert fork.safety_hold_booking_ids is not rt.safety_hold_booking_ids
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=fork.clock()), fork)
++    assert next(c.power_kw for c in fork.simulator.state().connectors if c.booking_id == "dc-a") == 0
++    fork.safety_hold_booking_ids.clear()
++    assert rt.safety_hold_booking_ids == {"dc-a"}
++
++
++async def test_foundation_trace_distinguishes_hard_violation_and_no_samples():
++    from src.services import decision_trace
++
++    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
++    violated = rt.recorder.decision_traces[-1]
++    assert violated["applied"]["hard_violation_details"]
++    assert violated["decision"]["guard"]["status"] == "violation"
++    assert violated["validation"]["post_apply"] == "violation"
++    zero = decision_trace.close_open(rt)
++    assert zero["validation"]["post_apply"] == "no_samples"
++    assert zero["decision"]["guard"]["status"] == "no_samples"
++    assert zero["validation"]["fail_safe"]["status"] == "executed"
++    assert zero["safety"]["hard_limit_violations"]
++
++
++async def test_foundation_safety_hold_has_its_own_command_exclusion():
++    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
++    trace = rt.open_trace["trace"]
++    assert not rt.store.pending_approvals()
++    assert "dc-a" not in trace["held_for_pending_approval"]
++    (row,) = [row for row in trace["command_exclusions"] if row["booking_id"] == "dc-a"]
++    assert row["primary_reason"] == "SAFETY_HOLD"
++    assert row["command_id"] and row["correlation_id"] == trace["correlation_id"]
++
++
++async def test_threadpool_clock_cannot_step_past_pending_hard_violation(live):
++    from threading import Barrier
++
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None  # hold delivery until both read consumers have completed
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    before = sim.minute
++    clock["now"] += timedelta(minutes=6)
++    phase = Barrier(2, timeout=5)
++
++    def first_read():
++        saw_violation = any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.sync_clock())
++        phase.wait()
++        return saw_violation
++
++    def second_read():
++        phase.wait()
++        return rt.sync_clock()
++
++    first, second = await asyncio.gather(asyncio.to_thread(first_read), asyncio.to_thread(second_read))
++    assert first
++    assert sim.minute == before + 1
++    assert not second
++    await control_loop.deliver_pending(rt)
++    assert sim.state().total_power_kw / rt.config.power_conversion_efficiency <= SILENT_LIMIT_KW + 1e-7
++
++
++async def test_threadpool_clock_cannot_move_a_trace_boundary_while_solver_waits(live, monkeypatch):
++    from threading import Barrier
++
++    from src.services import solver
++
++    rt, clock = live
++    await _charging_live(rt)
++    before = rt.simulator.minute
++    phase = Barrier(2, timeout=5)
++    original = solver.run_async
++
++    async def pause(fn, *args):
++        await asyncio.to_thread(phase.wait)
++        await asyncio.to_thread(phase.wait)
++        return await original(fn, *args)
++
++    monkeypatch.setattr(solver, "run_async", pause)
++
++    def read():
++        phase.wait()
++        clock["now"] += timedelta(minutes=2)
++        rt.sync_clock()
++        observed = rt.simulator.minute
++        phase.wait()
++        return observed
++
++    _, observed = await asyncio.gather(
++        control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt),
++        asyncio.to_thread(read),
++    )
++    assert observed == before
++    assert rt.simulator.minute == before
++    rt.sync_clock()
++    assert rt.simulator.minute == before + 2

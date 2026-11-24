@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-g1.WKqMZW/gate/code
+$ git -C /tmp/chargepilot-g1.WKqMZW/gate/crlf -c core.autocrlf=true apply /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-0/raw/candidate.patch 
