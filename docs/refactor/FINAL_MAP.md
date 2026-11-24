@@ -63,8 +63,14 @@ model) → `StationKernel.propose` → consent → `approve` (Physical Guard) �
 
 Thêm optimizer: viết class đúng Protocol trong `src/models/scheduling`, đăng ký ở `registry.OPTIMIZERS` /
 `COORDINATORS` / `DISPATCH`, thêm policy mới vào `POLICIES` (B0–M3b đóng băng). Có test chứng minh:
-`tests/test_refactor/test_registry_extension.py`. Policy mới dùng được qua API cần thêm giá trị vào `StrategyName`
-(hợp đồng OpenAPI).
+`tests/test_refactor/test_registry_extension.py`.
+
+Cập nhật Final Review 4.1 / 4.2 (`FINAL_REVIEW_FIX_REPORT.md`): policy mới đăng ký bằng
+`registry.register_policy(PolicySpec(...))` (B0–M3b đóng băng, version `"1"`) là chạy được trên backend mà không sửa
+orchestration — chọn qua `policy_id` (API / CLI / khoá tuỳ chọn `planning.policy_id` trong `config/station.yaml`);
+`StrategyName` giữ nguyên làm đường tương thích. `GET /api/v1/simulation/policies` trả danh sách hợp lệ từ registry.
+Test: `tests/test_refactor/test_policy_registry.py`. DC model của backend chọn theo tên `DC_MODELS`
+(`station_dc_model`, `src/simulator/core/charging_models/live_profiles.py` cho xe đến động).
 
 ## 4. Gotchas
 

@@ -116,6 +116,9 @@ Test đối chứng: khi bỏ cấu hình thử nghiệm, M2b trở lại `Rolli
 - Sự cố nguồn "công bố trước" (`announced_at` / `effective_at`) chưa có ở backend (quyết định 4).
 - Quote không mô hình xác suất đồng ý HITL; lệnh chờ duyệt coi như chưa thực thi (quyết định 5).
 - Chưa có nhiễu SOC, sai số deadline, telemetry trễ, mô hình V / I / BMS, hiệu chuẩn DC taper.
+- Final Review 2026-11-24 §4 đã xử lý ở `FINAL_REVIEW_FIX_REPORT.md` (điểm cắm / cơ chế, mặc định giữ hành vi cũ):
+  registry policy, DC profile backend, lớp ground truth / observation, fork isolation, fail-safe sau apply, booking
+  concurrency, benchmark `--strict-incidents`. Mô hình nhiễu thật và robust optimizer vẫn là việc MVP-3.5.
 - PRD §8 / `docs/business-overview.md` còn mô tả benchmark A–D. **Chủ dự án quyết định** có sửa mục tiêu nghiệp vụ
   không.
 - Chưa chạy: E2E với Postgres thật (Neon), LLM thật (OpenAI / Gemini), deploy Render.

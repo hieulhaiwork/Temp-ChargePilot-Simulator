@@ -40,7 +40,7 @@ công suất nhận theo đường sạc DC (cần nối HybridSimulator).
 `src/simulator/hybrid_station.py` (trạm dựng từ QueueController + EV2GymAdapter, phát lại `mvp1` khớp HybridSimulator),
 `src/services/hybrid_planner.py` (B0 / M2b / M3a / M3b từ `benchmark_mvp3.POLICIES`), `STATION_ENGINE` / `LIVE_STRATEGY`,
 ev2gym `--no-deps` trong Dockerfile / CI / `make install`. Bằng chứng `eval/evidence/2026-11-23/`. Còn: đo RAM image trong
-Docker, profile DC VinFast cho xe đến dần (`with_vinfast_profiles` TODO), consent cư dân trong thuật toán simulator, nhóm chọn
+Docker, profile DC VinFast cho xe đến dần (đã làm ở Final Review 4.2), consent cư dân trong thuật toán simulator, nhóm chọn
 `LIVE_STRATEGY` (M3a rẻ hơn nhưng đúng hạn thấp hơn A_edf trên kịch bản backend).
 
 **Việc tiếp theo:**
