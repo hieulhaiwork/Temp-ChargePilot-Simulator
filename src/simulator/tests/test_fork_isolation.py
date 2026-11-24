@@ -203,3 +203,55 @@ def test_undeclared_component_is_copied_not_shared():
     assert copy is not item and isolation.fork_component(item, memo) is copy
     assert not isolation.is_shared(item)
     assert isolation.is_shared(zone_equal_share) and isolation.is_shared(PerfectObservation())
+
+
+# ---- Final Acceptance §4.2 — HybridSimulator.fork() có bản ghi riêng ----------------------------------------------------
+
+
+def _recordings(sim) -> dict:
+    import copy as copy_module
+
+    # AppliedResult bất biến (frozen, mapping chỉ đọc) ⇒ chụp list là đủ; bản ghi dict thì chụp sâu.
+    return {
+        name: list(getattr(sim, name)) if name == "applied_results" else copy_module.deepcopy(getattr(sim, name))
+        for name in sim._RECORDINGS
+    }
+
+
+def test_hybrid_simulator_fork_does_not_share_recordings(scenario):
+    from src.simulator.hybrid import HybridSimulator
+
+    live = HybridSimulator(scenario, record_decisions=True, time=TimeConfig(1, 15))
+    for _ in range(4):
+        live.step()
+    assert live.events and live.frames and live.trace and live.decision_trace and live.applied_results
+    before = _recordings(live)
+    twin = live.fork()
+    for name in live._RECORDINGS:
+        assert getattr(twin, name) is not getattr(live, name), name
+        assert getattr(twin, name) == before[name], name  # bản fork bắt đầu từ đúng lịch sử của live
+    # mutation sâu trên bản fork không chạm live (frame / trace là dict lồng nhau)
+    twin.frames[0]["vehicles"].clear()
+    twin.trace[0]["ac_queue"] = -1
+    twin.events[0]["event"] = "mutated"
+    while not twin.finished:
+        twin.step()
+    assert len(twin.frames) > len(before["frames"]) and len(twin.events) > len(before["events"])
+    assert _recordings(live) == before
+    # và ngược lại: live chạy tiếp không đổi bản ghi của một bản fork khác
+    probe = live.fork()
+    snapshot = _recordings(probe)
+    live.step()
+    assert _recordings(probe) == snapshot
+    assert len(live.trace) == len(before["trace"]) + 1
+
+
+def test_hybrid_simulator_fork_runs_like_the_original(scenario):
+    """Cô lập bản ghi không đổi kết quả: chạy bản fork tới cuối = chạy bản gốc tới cuối."""
+    from src.simulator.hybrid import HybridSimulator
+
+    live = HybridSimulator(scenario, time=TimeConfig(1, 15))
+    for _ in range(3):
+        live.step()
+    result = live.fork().run()
+    assert result == live.run()

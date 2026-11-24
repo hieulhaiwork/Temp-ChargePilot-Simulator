@@ -4,6 +4,7 @@
 The backend station (`hybrid_station.py`) drives the same kernel.
 """
 
+import copy
 from dataclasses import replace
 from time import perf_counter
 
@@ -63,6 +64,22 @@ class HybridSimulator(StationKernel):
         self.decision_latency_ms = []
         self.applied_results: list[AppliedResult] = []
         self._decision_labels = algorithm_labels(self.algorithms, policy) if record_decisions else None
+
+    # Recording buffers: the fork gets its own copies (Final Acceptance §4.2) — a what-if run on the fork must never
+    # append to / mutate the original's events, frames, trace, decision trace, latency log or applied results.
+    _RECORDINGS = ("events", "frames", "trace", "decision_trace", "decision_latency_ms", "applied_results")
+
+    def fork(self, emit=None) -> "HybridSimulator":
+        """Kernel fork (`StationKernel.fork`, isolation rules) plus private copies of every recording buffer.
+
+        Plain dict / list records are deep-copied; `AppliedResult` items are frozen (read-only mappings) so only the
+        list is copied.
+        """
+        twin = super().fork(emit=emit)
+        for name in self._RECORDINGS:
+            value = getattr(self, name)
+            setattr(twin, name, list(value) if name == "applied_results" else copy.deepcopy(value))
+        return twin
 
     @property
     def finished(self) -> bool:
