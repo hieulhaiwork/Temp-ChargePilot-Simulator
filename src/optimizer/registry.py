@@ -113,3 +113,88 @@ POLICIES = {
     "M3a": ("llf", "ac_rolling_lp", "rolling_lp", "fixed_share"),
     "M3b": ("llf", "ac_rolling_lp", "rolling_lp", "dynamic_slack"),
 }
+
+# ---- Danh mục policy có version (Final Review 4.1) -------------------------------------------------------------
+# `POLICIES` ở trên vẫn là bảng thành phần duy nhất; phần dưới chỉ THÊM id + version + đăng ký policy mới, để backend
+# (hybrid_planner / runtime / simulation_service / API) tra policy từ đây thay vì danh sách cứng.
+FROZEN_POLICY_IDS = ("B0", "M2b", "M3a", "M3b")  # đóng băng MVP-2/3: không ghi đè, không gỡ, version "1"
+POLICY_VERSIONS: dict[str, str] = dict.fromkeys(FROZEN_POLICY_IDS, "1")
+POLICY_DESCRIPTIONS: dict[str, str] = {
+    "B0": "FCFS + Equal Share AC/DC + Fixed Share",
+    "M2b": "LLF + DC rolling LP + Fixed Share",
+    "M3a": "LLF + AC/DC LP + Fixed Share",
+    "M3b": "LLF + AC/DC LP + Dynamic Slack",
+}
+
+
+@dataclass(frozen=True)
+class PolicySpec:
+    """Một policy đã đăng ký: id, version, và bốn thành phần (khoá của DISPATCH / OPTIMIZERS / COORDINATORS)."""
+
+    id: str
+    version: str
+    dispatch_dc: str
+    optimizer_ac: str
+    optimizer_dc: str
+    coordinator: str
+    description: str = ""
+
+    @property
+    def components(self) -> tuple[str, str, str, str]:
+        return (self.dispatch_dc, self.optimizer_ac, self.optimizer_dc, self.coordinator)
+
+    @property
+    def frozen(self) -> bool:
+        return self.id in FROZEN_POLICY_IDS
+
+
+class UnknownPolicyError(KeyError):
+    """Id policy không có trong registry."""
+
+
+def policy_spec(policy_id: str) -> PolicySpec:
+    """Tra policy theo id (đọc thẳng `POLICIES` ⇒ cấu hình nạp lúc khởi động / test monkeypatch đều thấy)."""
+    if policy_id not in POLICIES:
+        raise UnknownPolicyError(policy_id)
+    return PolicySpec(
+        policy_id,
+        POLICY_VERSIONS.get(policy_id, "1"),
+        *POLICIES[policy_id],
+        description=POLICY_DESCRIPTIONS.get(policy_id, ""),
+    )
+
+
+def policy_specs() -> list[PolicySpec]:
+    """Mọi policy hợp lệ theo thứ tự đăng ký (B0 / M2b / M3a / M3b trước)."""
+    return [policy_spec(policy_id) for policy_id in POLICIES]
+
+
+def register_policy(spec: PolicySpec) -> PolicySpec:
+    """Đăng ký một policy MỚI ghép từ thành phần đã có. Không ghi đè id đã có (kể cả B0–M3b)."""
+    if not spec.id or not isinstance(spec.id, str):
+        raise ValueError("policy id phải là chuỗi khác rỗng")
+    if spec.id in POLICIES:
+        raise ValueError(f"policy {spec.id!r} đã đăng ký — đặt id mới thay vì ghi đè (baseline giữ nguyên nghĩa)")
+    if not spec.version:
+        raise ValueError("policy version phải khác rỗng")
+    for name, table, field in (
+        (spec.dispatch_dc, DISPATCH, "dispatch_dc"),
+        (spec.optimizer_ac, OPTIMIZERS, "optimizer_ac"),
+        (spec.optimizer_dc, OPTIMIZERS, "optimizer_dc"),
+        (spec.coordinator, COORDINATORS, "coordinator"),
+    ):
+        if name not in table:
+            raise ValueError(f"{field}={name!r} chưa đăng ký. Có: {', '.join(table)}")
+    POLICIES[spec.id] = spec.components
+    POLICY_VERSIONS[spec.id] = spec.version
+    POLICY_DESCRIPTIONS[spec.id] = spec.description
+    return policy_spec(spec.id)
+
+
+def unregister_policy(policy_id: str) -> None:
+    """Gỡ policy đã đăng ký thêm (dọn sau test / thí nghiệm). Policy đóng băng không gỡ được."""
+    if policy_id in FROZEN_POLICY_IDS:
+        raise ValueError(f"policy {policy_id!r} là bản đóng băng — không gỡ")
+    POLICIES.pop(policy_id, None)
+    POLICY_VERSIONS.pop(policy_id, None)
+    POLICY_DESCRIPTIONS.pop(policy_id, None)

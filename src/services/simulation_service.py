@@ -37,7 +37,10 @@ from src.models.simulation import (
     BenchmarkSource,
     BenchmarkSourceKind,
     Incident,
+    IncidentCounts,
+    IncidentType,
     KpiReport,
+    PolicyInfo,
     Scenario,
     SessionOutcome,
     SimulationRunResult,
@@ -48,6 +51,7 @@ from src.services.admission import run_sync
 from src.services.charging_service import vehicle_power_cap
 from src.services.energy import estimate_energy
 from src.services.errors import DomainError
+from src.services.hybrid_planner import as_policy_ref, policy_key
 from src.services.runtime import StationRuntime, build_sim_runtime, get_runtime, make_station, visit_of
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -157,7 +161,16 @@ def _is_feasible(outcome: SessionOutcome, booking: Booking) -> bool:
     return booking.max_charge_power_kw * hours >= outcome.requested_kwh - ON_TIME_TOL_KWH
 
 
-async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResult:
+class InvalidIncidentError(DomainError):
+    """Chế độ nghiên cứu (`strict_incidents`): sự cố của kịch bản không áp được vào topology hiện hành (Final Review 4.7)."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(ErrorCode.NOT_FOUND, detail)
+
+
+async def _run(
+    scenario: Scenario, strategy: StrategyName | str, *, strict_incidents: bool = False
+) -> SimulationRunResult:
     started_at = datetime.now(UTC)
     config = catalog.load_station_config()
     tariff = catalog.load_tariff()
@@ -172,6 +185,20 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
         incidents[inc.at_minute].append(inc)
     minute_load: list[tuple[datetime, float, float]] = []
     skipped: list[str] = []  # sự cố trỏ tới cổng không có trong topology hiện hành (kịch bản legacy_ac_only)
+    applied = 0
+    if strict_incidents:
+        # Fail-fast TRƯỚC khi chạy: kịch bản nghiên cứu mà sự cố không diễn ra thì kết quả sai nghĩa.
+        known = {c.connector_id for c in config.connectors}
+        invalid = [
+            _incident_label(inc)
+            for inc in scenario.incidents
+            if inc.type != IncidentType.POWER_LIMIT_CHANGE and inc.connector_id not in known
+        ]
+        if invalid:
+            raise InvalidIncidentError(
+                f"Kịch bản {scenario.scenario_id}: sự cố trỏ đầu nối không có trong topology hiện hành: "
+                f"{', '.join(invalid)} (strict_incidents)"
+            )
     carried: list[StationEvent] = []  # sự kiện trạm phát ra ở cuối phút trước (xe đến / rời, sạc xong)
     for minute in range(scenario.duration_hours * 60):
         now = sim.now
@@ -184,8 +211,14 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
         for inc in incidents.get(minute, []):
             try:
                 events += sim.inject_incident(Incident.model_validate(inc.model_dump(exclude={"at_minute"})))
-            except ValueError:
-                skipped.append(f"{inc.type.value}@{inc.at_minute}' ({inc.connector_id})")
+            except ValueError as exc:
+                if strict_incidents:
+                    raise InvalidIncidentError(
+                        f"Kịch bản {scenario.scenario_id}: sự cố {_incident_label(inc)} không áp được: {exc}"
+                    ) from exc
+                skipped.append(_incident_label(inc))
+            else:
+                applied += 1
         await control_loop.on_minute(rt, events)
         state = sim.state()
         minute_load.append((now, state.total_power_kw, state.available_power_kw))
@@ -207,36 +240,83 @@ async def _run(scenario: Scenario, strategy: StrategyName) -> SimulationRunResul
     )
     if skipped:
         notes += f" Bỏ qua sự cố không khớp topology: {', '.join(skipped)}."
+    policy_id = getattr(rt.scheduler, "policy_id", None) or policy_key(strategy)
     return SimulationRunResult(
         run_id=uuid4().hex[:12],
         scenario_id=scenario.scenario_id,
-        strategy=strategy,
+        policy_id=policy_id,  # strategy (enum cũ) tự điền khi id là B0 / M2b / M3a / M3b
+        policy_version=getattr(rt.scheduler, "policy_version", None),
         kpis=kpis,
         started_at=started_at,
         finished_at=datetime.now(UTC),
         notes=notes,
+        incidents=IncidentCounts(
+            planned=len(scenario.incidents),
+            applied=applied,
+            skipped=len(skipped),
+            skipped_details=skipped,
+            strict=strict_incidents,
+        ),
     )
 
 
-def run_scenario(scenario: Scenario, strategy: StrategyName) -> SimulationRunResult:
-    """Chạy trọn một kịch bản với một chiến lược, trả KPI (compute_kpis)."""
-    return run_sync(_run(scenario, strategy))
+def _incident_label(inc) -> str:
+    return f"{inc.type.value}@{inc.at_minute}' ({inc.connector_id})"
+
+
+def run_scenario(
+    scenario: Scenario, strategy: StrategyName | str, *, strict_incidents: bool = False
+) -> SimulationRunResult:
+    """Chạy trọn một kịch bản với một policy (StrategyName hoặc id registry), trả KPI (compute_kpis).
+
+    `strict_incidents=True` (benchmark nghiên cứu): sự cố không áp được ⇒ `InvalidIncidentError` ngay; mặc định giữ
+    hành vi cũ (bỏ qua + ghi note). Mọi chế độ ghi số sự cố dự kiến / thực thi / bỏ qua ở `incidents`.
+    """
+    return run_sync(_run(scenario, strategy, strict_incidents=strict_incidents))
+
+
+def list_policies() -> list[PolicyInfo]:
+    """Policy hợp lệ cho backend — đọc từ registry (`src/optimizer/registry.py`), cùng nguồn với runtime."""
+    from src.optimizer import registry
+
+    infos = []
+    for spec in registry.policy_specs():
+        legacy = as_policy_ref(spec.id)
+        infos.append(
+            PolicyInfo(
+                policy_id=spec.id,
+                version=spec.version,
+                dispatch_dc=spec.dispatch_dc,
+                optimizer_ac=spec.optimizer_ac,
+                optimizer_dc=spec.optimizer_dc,
+                coordinator=spec.coordinator,
+                description=spec.description,
+                frozen=spec.frozen,
+                legacy_strategy=legacy if isinstance(legacy, StrategyName) else None,
+            )
+        )
+    return infos
 
 
 def run_benchmark(
-    scenarios: list[Scenario], strategies: list[StrategyName], seeds: list[int] | None = None
+    scenarios: list[Scenario],
+    strategies: list[StrategyName | str],
+    seeds: list[int] | None = None,
+    *,
+    strict_incidents: bool = False,
 ) -> BenchmarkReport:
     """Mọi chiến lược chạy trên CÙNG tập kịch bản (cùng seed → cùng tập phiên, cùng biểu giá).
 
     seeds=None → dùng seed ghi trong từng kịch bản. Có seeds → mỗi (kịch bản, chiến lược) chạy một lần cho
     mỗi seed (PRD §8 "chạy nhiều ngày mô phỏng"); báo cáo ghi trung bình ± độ lệch chuẩn ở `notes`.
+    `strict_incidents`: như `run_scenario` — benchmark nghiên cứu dừng ngay ở kịch bản có sự cố không hợp lệ.
     """
     runs: list[SimulationRunResult] = []
     for scenario in scenarios:
         for seed in seeds or [scenario.seed]:
             seeded = scenario.model_copy(update={"seed": seed})
             for strategy in strategies:
-                runs.append(run_scenario(seeded, strategy))
+                runs.append(run_scenario(seeded, strategy, strict_incidents=strict_incidents))
     notes = [
         f"Trạm: {_engine_label(None)} — kịch bản và KPI của backend; so với số MVP-2/3 R&D phải cùng fixture (ADR-018).",
         "Phiên sạc tổng hợp; tham số phân bố là [GIẢ ĐỊNH] (src/services/simulation_service.py).",
@@ -244,12 +324,13 @@ def run_benchmark(
     if seeds:
         for scenario in scenarios:
             for strategy in strategies:
-                sample = [r.kpis for r in runs if r.scenario_id == scenario.scenario_id and r.strategy == strategy]
+                key = policy_key(strategy)
+                sample = [r.kpis for r in runs if r.scenario_id == scenario.scenario_id and r.policy_id == key]
                 if len(sample) > 1:
                     on_time = [k.on_time_rate for k in sample]
                     cost = [k.energy_cost_vnd for k in sample]
                     notes.append(
-                        f"{scenario.scenario_id} / {strategy.value}: đúng hạn {statistics.fmean(on_time):.1%} ± "
+                        f"{scenario.scenario_id} / {key}: đúng hạn {statistics.fmean(on_time):.1%} ± "
                         f"{statistics.stdev(on_time):.1%}, chi phí {statistics.fmean(cost):,.0f} ± "
                         f"{statistics.stdev(cost):,.0f} VND ({len(sample)} seed)"
                     )
@@ -308,7 +389,9 @@ def latest_benchmark() -> BenchmarkReport:
     return report.model_copy(update={"source": source, "notes": [head, *report.notes]})
 
 
-def benchmark_source(scenarios: list[Scenario], strategies: list[StrategyName], seeds: list[int]) -> BenchmarkSource:
+def benchmark_source(
+    scenarios: list[Scenario], strategies: list[StrategyName | str], seeds: list[int]
+) -> BenchmarkSource:
     """`source` cho bảng VỪA SINH (eval/run_benchmark.py): điều kiện đo để sau này chép thành baseline có version."""
     config = catalog.load_station_config()
     station = make_station(config, datetime.combine(SIM_DATE, time(0), tzinfo=ZoneInfo(config.timezone)))
@@ -321,7 +404,7 @@ def benchmark_source(scenarios: list[Scenario], strategies: list[StrategyName], 
     return BenchmarkSource(
         kind=BenchmarkSourceKind.GENERATED,
         scenarios=[s.scenario_id for s in scenarios],
-        policies=[s.value for s in strategies],
+        policies=[policy_key(s) for s in strategies],
         seeds=seeds,
         time_config=station.time.as_dict(),
         libraries=libraries,

@@ -1376,6 +1376,50 @@
         "title": "Incident",
         "type": "object"
       },
+      "IncidentCounts": {
+        "description": "Số sự cố của một lần chạy (Final Review 4.7): dự kiến = trong kịch bản, đã thực thi, bị bỏ qua.",
+        "properties": {
+          "applied": {
+            "description": "Số sự cố đã bơm vào trạm",
+            "minimum": 0.0,
+            "title": "Applied",
+            "type": "integer"
+          },
+          "planned": {
+            "description": "Số sự cố khai trong kịch bản",
+            "minimum": 0.0,
+            "title": "Planned",
+            "type": "integer"
+          },
+          "skipped": {
+            "description": "Số sự cố bị bỏ qua (không khớp topology) — strict thì phải 0",
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "skipped_details": {
+            "description": "`loại@phút' (đầu nối)` của sự cố bị bỏ qua",
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped Details",
+            "type": "array"
+          },
+          "strict": {
+            "default": false,
+            "description": "True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi",
+            "title": "Strict",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "planned",
+          "applied",
+          "skipped"
+        ],
+        "title": "IncidentCounts",
+        "type": "object"
+      },
       "IncidentType": {
         "enum": [
           "connector_fault",
@@ -1643,6 +1687,118 @@
           "smoothing_factor"
         ],
         "title": "OptimizerSettings",
+        "type": "object"
+      },
+      "PlanningPolicyConfig": {
+        "description": "Khối `planning:` TUỲ CHỌN của station.yaml (Final Review 4.1 / 4.2). Thiếu khối / khoá = hành vi cũ.\n\n- `policy_id`: policy của runtime live (id registry `src/optimizer/registry.py`); None ⇒ env `LIVE_STRATEGY`.\n- `version`: phải khớp version đã đăng ký (None ⇒ không kiểm).\n- `dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒\n  `synthetic_taper_v1` như cũ. Áp cho mọi trạm dựng từ config (live, benchmark, fork admission).\n- `parameters`: tham số theo thành phần (`dispatch_dc` / `optimizer_ac` / `optimizer_dc` / `coordinator`), cùng\n  khoá `parameters` của registry. Chỉ áp cho policy live.",
+        "properties": {
+          "dc_charging_model": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dc Charging Model"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "PlanningPolicyConfig",
+        "type": "object"
+      },
+      "PolicyInfo": {
+        "description": "Một policy hợp lệ của Planning Core — đọc từ registry (`src/optimizer/registry.py`), không chép tay.",
+        "properties": {
+          "coordinator": {
+            "title": "Coordinator",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "dispatch_dc": {
+            "title": "Dispatch Dc",
+            "type": "string"
+          },
+          "frozen": {
+            "description": "B0 / M2b / M3a / M3b đóng băng để tái lập số MVP-2/3",
+            "title": "Frozen",
+            "type": "boolean"
+          },
+          "legacy_strategy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Giá trị enum StrategyName tương ứng (nếu có) — client cũ gửi giá trị này"
+          },
+          "optimizer_ac": {
+            "title": "Optimizer Ac",
+            "type": "string"
+          },
+          "optimizer_dc": {
+            "title": "Optimizer Dc",
+            "type": "string"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy_id",
+          "version",
+          "dispatch_dc",
+          "optimizer_ac",
+          "optimizer_dc",
+          "coordinator",
+          "frozen"
+        ],
+        "title": "PolicyInfo",
         "type": "object"
       },
       "PowerSlot": {
@@ -2024,6 +2180,30 @@
             "title": "Horizon Start",
             "type": "string"
           },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id policy trong registry (src/optimizer/registry.py); luôn có sau khi validate",
+            "title": "Policy Id"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version policy trong registry",
+            "title": "Policy Version"
+          },
           "queue": {
             "description": "booking_id chờ đầu nối, đầu hàng trước",
             "items": {
@@ -2058,7 +2238,15 @@
             "type": "integer"
           },
           "strategy": {
-            "$ref": "#/components/schemas/StrategyName"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Policy B0 / M2b / M3a / M3b (enum cũ). None khi policy đăng ký mới không có trong enum — xem policy_id"
           },
           "version": {
             "minimum": 0.0,
@@ -2068,7 +2256,6 @@
         },
         "required": [
           "version",
-          "strategy",
           "created_at",
           "horizon_start",
           "step_minutes"
@@ -2357,6 +2544,20 @@
             ],
             "title": "N Vehicles"
           },
+          "policy_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id policy trong registry (GET /simulation/policies) — chọn được policy mới không có trong enum",
+            "title": "Policy Id"
+          },
           "power_limit_kw": {
             "anyOf": [
               {
@@ -2386,12 +2587,31 @@
             "title": "Seed"
           },
           "strategy": {
-            "$ref": "#/components/schemas/StrategyName"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Policy enum cũ (B0 / M2b / M3a / M3b). Client cũ chỉ gửi trường này"
+          },
+          "strict_incidents": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chế độ nghiên cứu: sự cố trỏ đầu nối không tồn tại ⇒ lỗi thay vì bỏ qua. None / false = như cũ",
+            "title": "Strict Incidents"
           }
         },
         "required": [
-          "scenario_id",
-          "strategy"
+          "scenario_id"
         ],
         "title": "SimulationRunRequest",
         "type": "object"
@@ -2403,6 +2623,17 @@
             "title": "Finished At",
             "type": "string"
           },
+          "incidents": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Số sự cố dự kiến / thực thi / bỏ qua"
+          },
           "kpis": {
             "$ref": "#/components/schemas/KpiReport"
           },
@@ -2410,6 +2641,30 @@
             "default": "",
             "title": "Notes",
             "type": "string"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id policy trong registry; luôn có sau khi validate",
+            "title": "Policy Id"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version policy trong registry",
+            "title": "Policy Version"
           },
           "run_id": {
             "title": "Run Id",
@@ -2425,13 +2680,20 @@
             "type": "string"
           },
           "strategy": {
-            "$ref": "#/components/schemas/StrategyName"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id"
           }
         },
         "required": [
           "run_id",
           "scenario_id",
-          "strategy",
           "kpis",
           "started_at",
           "finished_at"
@@ -2537,6 +2799,17 @@
             ],
             "description": "Trần THIẾT BỊ theo vùng, phía đầu ra tủ — Guard chặn theo số này. None ⇒ ngân sách vùng là trần (như scenario cũ của simulator)",
             "title": "Physical Zone Cap Kw"
+          },
+          "planning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanningPolicyConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chọn policy / DC model / tham số (tuỳ chọn; None = LIVE_STRATEGY + synthetic DC)"
           },
           "power_conversion_efficiency": {
             "default": 1.0,
@@ -6791,6 +7064,97 @@
           }
         ],
         "summary": "Inject Incident",
+        "tags": [
+          "simulation"
+        ]
+      }
+    },
+    "/api/v1/simulation/policies": {
+      "get": {
+        "description": "Policy hợp lệ của Planning Core — đọc từ registry (cùng nguồn với runtime / benchmark), không chép tay.",
+        "operationId": "policies_api_v1_simulation_policies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyInfo"
+                  },
+                  "title": "Response Policies Api V1 Simulation Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Policies",
         "tags": [
           "simulation"
         ]

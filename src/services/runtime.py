@@ -104,19 +104,51 @@ def make_station(config: StationConfig, start: datetime, engine: str | None = No
         raise ValueError(f"STATION_ENGINE={engine!r} không còn được hỗ trợ — chỉ 'hybrid' (ADR-019 Phase 3)")
     from src.simulator.hybrid_station import HybridStation  # cần ev2gym — import trễ
 
-    return HybridStation(config, start=start)
+    dc_name = config.planning.dc_charging_model if config.planning is not None else None
+    if dc_name is None:
+        return HybridStation(config, start=start)  # mặc định: SyntheticTaperV1 như cũ
+    return HybridStation(config, start=start, dc_charging_model=dc_name)
 
 
-def make_scheduler(strategy: StrategyName, station: Callable[[], object], algorithms=None) -> Scheduler:
-    """Policy đã đăng ký (`src/optimizer/registry.py POLICIES`) chạy trên Planning Core của kernel (`SimulatorScheduler`)."""
-    from src.services.hybrid_planner import SIMULATOR_STRATEGIES, SimulatorScheduler
+def make_scheduler(
+    strategy: StrategyName | str,
+    station: Callable[[], object],
+    algorithms=None,
+    *,
+    parameters: dict | None = None,
+) -> Scheduler:
+    """Policy đã đăng ký (`src/optimizer/registry.py POLICIES`) chạy trên Planning Core của kernel (`SimulatorScheduler`).
 
-    if strategy not in SIMULATOR_STRATEGIES:
+    `strategy`: StrategyName hoặc id chuỗi — tra thẳng registry, nên policy mới đăng ký chạy được không sửa ở đây.
+    """
+    from src.services.hybrid_planner import SimulatorScheduler, is_registered, policy_key
+
+    if not is_registered(strategy):
+        from src.optimizer.registry import POLICIES
+
         raise DomainError(
             ErrorCode.NOT_FOUND,
-            f"Chiến lược {strategy.value} không có trong registry policy — dùng B0 / M2b / M3a / M3b",
+            f"Policy {policy_key(strategy)!r} không có trong registry — có: {', '.join(POLICIES)}",
         )
-    return SimulatorScheduler(strategy, station, algorithms=algorithms)
+    return SimulatorScheduler(strategy, station, algorithms=algorithms, parameters=parameters)
+
+
+def live_policy(config: StationConfig) -> tuple[str, dict]:
+    """Policy của runtime live: `planning.policy_id` của station.yaml nếu có, không thì env LIVE_STRATEGY (như cũ).
+
+    `planning.version` (nếu có) phải khớp version đăng ký trong registry — config không âm thầm chạy bản khác.
+    """
+    from src.optimizer import registry
+
+    planning = config.planning
+    policy_id = planning.policy_id if planning is not None and planning.policy_id else get_settings().live_strategy
+    if planning is not None and planning.version is not None and policy_id in registry.POLICIES:
+        registered = registry.policy_spec(policy_id).version
+        if planning.version != registered:
+            raise ValueError(
+                f"planning.version={planning.version!r} không khớp version đăng ký của {policy_id}: {registered!r}"
+            )
+    return policy_id, dict(planning.parameters) if planning is not None else {}
 
 
 def visit_of(booking: Booking, now: datetime) -> VehicleVisit:
@@ -225,11 +257,12 @@ def get_runtime() -> StationRuntime:
         add_notification=repository.add_notification,
         save_trace=decision_trace.persist,
     )
+    policy_id, parameters = live_policy(config)
     rt = StationRuntime(
         config=config,
         tariff=catalog.load_tariff(),
         simulator=station,
-        scheduler=make_scheduler(StrategyName(get_settings().live_strategy), lambda: station),
+        scheduler=make_scheduler(policy_id, lambda: station, parameters=parameters or None),
         forecaster=None,
         clock=clock,
         sinks=DispatchSinks(log_decision=log_decision, save_approval=repository.save_approval, notify=notify),
@@ -265,7 +298,7 @@ def reset_runtime() -> None:
 
 def build_sim_runtime(
     scenario: Scenario,
-    strategy: StrategyName,
+    strategy: StrategyName | str,
     config: StationConfig,
     tariff: Tariff,
     start: datetime,
@@ -289,7 +322,12 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
     """
     fork = rt.simulator.fork()
     algorithms = getattr(rt.scheduler, "algorithms", None)
-    scheduler = make_scheduler(rt.scheduler.name, lambda: fork, algorithms() if callable(algorithms) else None)
+    scheduler = make_scheduler(
+        rt.scheduler.name,
+        lambda: fork,
+        algorithms() if callable(algorithms) else None,
+        parameters=getattr(rt.scheduler, "parameters", None) or None,
+    )
     frt = _memory_runtime(
         fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
     )

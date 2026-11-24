@@ -227,17 +227,49 @@ class SessionPlan(BaseModel):
     slots: list[PowerSlot] = Field(default_factory=list)
 
 
+def resolve_policy_fields(
+    strategy: StrategyName | None, policy_id: str | None
+) -> tuple[StrategyName | None, str | None]:
+    """Đường tương thích `strategy` (enum cũ) ↔ `policy_id` (id registry, Final Review 4.1).
+
+    Có `strategy` mà thiếu `policy_id` ⇒ policy_id = strategy.value (client / payload cũ). Có `policy_id` trùng một
+    giá trị enum mà thiếu `strategy` ⇒ điền enum. Policy mới (không có trong enum) ⇒ strategy = None. Hai trường mâu
+    thuẫn nhau ⇒ lỗi.
+    """
+    if strategy is not None and policy_id is not None and policy_id != strategy.value:
+        raise ValueError(f"strategy={strategy.value!r} mâu thuẫn policy_id={policy_id!r}")
+    if policy_id is None:
+        return strategy, None if strategy is None else strategy.value
+    if strategy is None and policy_id in {s.value for s in StrategyName}:
+        strategy = StrategyName(policy_id)
+    return strategy, policy_id
+
+
 class SchedulePlan(BaseModel):
     """Đầu ra của bộ tối ưu — dữ liệu của Gantt S6."""
 
     version: int = Field(ge=0)
-    strategy: StrategyName
+    strategy: StrategyName | None = Field(
+        default=None,
+        description="Policy B0 / M2b / M3a / M3b (enum cũ). None khi policy đăng ký mới không có trong enum — xem policy_id",
+    )
+    policy_id: str | None = Field(
+        default=None, description="Id policy trong registry (src/optimizer/registry.py); luôn có sau khi validate"
+    )
+    policy_version: str | None = Field(default=None, description="Version policy trong registry")
     created_at: AwareDatetime
     horizon_start: AwareDatetime
     step_minutes: int = Field(gt=0)
     sessions: list[SessionPlan] = Field(default_factory=list)
     queue: list[str] = Field(default_factory=list, description="booking_id chờ đầu nối, đầu hàng trước")
     solve_time_s: float | None = Field(default=None, ge=0, description="Thời gian giải — đo MT5")
+
+    @model_validator(mode="after")
+    def _policy_identity(self) -> "SchedulePlan":
+        self.strategy, self.policy_id = resolve_policy_fields(self.strategy, self.policy_id)
+        if self.policy_id is None:
+            raise ValueError("SchedulePlan cần strategy hoặc policy_id")
+        return self
 
 
 class ChargingSession(BaseModel):
