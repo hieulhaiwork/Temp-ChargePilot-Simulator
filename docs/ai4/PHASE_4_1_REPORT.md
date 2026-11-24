@@ -1,14 +1,15 @@
 # PHASE AI-4.1 — Deterministic WHY Engine (Gate 2 & Remediation)
 
-**Phase AI-4.1 | Status READY_FOR_REVIEW — GATE 2 RE-REVIEW**  
+**Phase AI-4.1 | Status READY_FOR_FINAL_ACCEPTANCE — GATE 2**  
 **Branch** `feature/ai-4` · **Local base / workspace HEAD** `490f43300afb05ef7e809099a77e0c7174e272fb`  
 **Reviewed G1 mirror (APPROVED)** `fed2c5e395c3a6ac3e1798ce52d0e4b4e4abd009`  
-**Reviewed G2 mirror (CHANGES REQUIRED)** `6ba13b8021998e03e15b0ec26cec93d484b70a05`  
-**Initial G2 candidate patch SHA-256** `fe89fc04bef12180a10333050770dd64764484fdc56d5accee720427a230c36c` ([initial patch](../../eval/evidence/2026-11-24-ai4-4-1/raw/candidate.patch))  
-**Remediation full candidate patch SHA-256** `fb424d5c87028cc01952757062067c3c302eaa5cef2c0b1332a758e941437832` ([remediation candidate patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch))  
-**Delta patch (reviewed G2 → remediation) SHA-256** `e3abc16b445eb5982e95e994f33ec867f4f1cea1ff93ba8449fc1b24a3889083` ([delta patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/reviewed-to-remediation.patch))  
+**Reviewed G2 initial mirror (CHANGES REQUIRED)** `6ba13b8021998e03e15b0ec26cec93d484b70a05`  
+**Reviewed G2 remediation mirror (CONDITIONAL PASS)** `2d15ca167f9ee48fa24f777206aabb0450266bc8`  
+**Final full candidate patch SHA-256** `97ffb4758af2c0721b5a35bb19b30da0b4c18f0aebc4c03f24554f79748fc528` ([candidate patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch))  
+**Delta patch (`2d15ca1` → final fix) SHA-256** `c970bfb00a96cd8d56d11d9c2420b28f0ef49392b1797ded6c44923c37d834ef` ([final-fix delta patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/remediation-to-final-fix.patch))  
+**Fail-before test patch (`G2-F05a`/`G2-F05b`) SHA-256** `b6bd79699e9888a3aaf9ada36c3bb72d958fa4ba93bc9aead3169a5c04a6434f` ([final-fix-before patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-before.patch))  
 **Lưu ý provenance:** Commit message local `"Approved phase 4.1"` trên `490f433` là tên commit lịch sử ở local và **không có nghĩa** AI-4.1 đã được nghiệm thu. Toàn bộ mã nguồn, tests, docs và raw evidence hiện ở working tree (chưa commit/merge/push).  
-[Reproducibility & Evidence](../../eval/evidence/2026-11-24-ai4-4-1-remediation/README.md) · [Exit codes](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/exit-codes.tsv) · [Checksums](../../eval/evidence/2026-11-24-ai4-4-1-remediation/CHECKSUMS.sha256)
+[Reproducibility & Evidence](../../eval/evidence/2026-11-24-ai4-4-1-remediation/README.md) · [Final fix exit codes](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-exit-codes.tsv) · [Checksums](../../eval/evidence/2026-11-24-ai4-4-1-remediation/CHECKSUMS.sha256)
 
 ---
 
@@ -102,22 +103,52 @@ Chạy qua [run_gate.sh](../../eval/evidence/2026-11-24-ai4-4-1-remediation/run_
 
 ---
 
-## 6. Acceptance Checklist (Gate 2 Re-Review)
+## 6. Gate 2 Final Targeted Fix (`2d15ca1` → Final Acceptance: G2-F05a & G2-F05b)
+
+Tech Lead trả **CONDITIONAL PASS** tại mirror `2d15ca167f9ee48fa24f777206aabb0450266bc8` và yêu cầu xử lý đúng hai residual issues thuộc G2-F05.
+
+### 6.1 Chứng minh phạm vi diff (Zero Unified Core / Frozen Changes)
+Delta [remediation-to-final-fix.patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/remediation-to-final-fix.patch) chỉ sửa đúng **4 file** thuộc tầng WHY explainer, authorization helper, test và evaluation ([final-fix-diff-scope.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-diff-scope.stdout.txt)):
+- `src/services/copilot/why.py`
+- `src/services/copilot/evidence.py`
+- `tests/test_services/test_why_g2_final_fix.py`
+- `eval/evidence/2026-11-24-ai4-4-1-remediation/run_why_eval.py`
+
+Không có bất kỳ thay đổi nào trên `src/simulator/*`, `src/services/decision_trace.py`, `src/services/repository.py`, `src/optimizer/*`, `src/guard/*`, `src/models/*`, `config/*`, `migrations/*`, hay frozen artifacts. Do đó các kết quả **Standalone Simulator 180/180**, **Golden CRLF 38/38**, **Frozen Benchmark 100/100 (0 problems, 0 hard violations)** và **F1 offline eval (55 cases)** đã được nghiệm thu tại `2d15ca1` giữ nguyên hiệu lực kế thừa, đồng thời đã xác minh lại **AST parity 114/114 (0 changes)**.
+
+### 6.2 Issue Ledger & Fail-Before → Pass-After
+Bộ kiểm thử [test_why_g2_final_fix.py](../../tests/test_services/test_why_g2_final_fix.py) chạy trước sửa đạt **7/7 FAILED (exit 1)** ([final-fix-before.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-before.stdout.txt)) và sau sửa đạt **7/7 PASSED**:
+
+| ID | Phân loại | Bằng chứng & Cách sửa |
+|---|---|---|
+| **G2-F05a** | **Confirmed bug → Fixed** (Post-apply violation temporal leakage & completion scope) | `_analyze_post_apply_violations()` đối chiếu `minute` trong `applied.hard_violation_details` theo `query_at` (`v_start <= at`, cấm rò rỉ tương lai) và `query_window` (`[v_start, v_end) ∩ [w_start, w_end)`) trên cả booking & station (`POWER`/`INCIDENT`/`OVERVIEW`). Với T0 decision, T+12 violation, T+15 close: truy vấn `at=T+5` và `[T0, T+10)` không còn báo violation (phát `NO_INCIDENT_IN_QUERY_SCOPE` trong `INCIDENT` kèm assumption tách retrospective validation). Khi violation bị eviction (`dropped_hard_violations > 0`) hoặc thiếu timestamp: giữ bằng chứng violation toàn trace nhưng gắn `post_apply_violation_temporal_attribution_missing` (`PARTIAL`) và không tự tạo timestamp. Post-decision completion (`applied.completed_by_booking`) đổi `time_scope` sang `TemporalBasis.MEASURED_COVERAGE` tại `[comp_dt, comp_dt]` (không còn `decision_snapshot`). |
+| **G2-F05b** | **Confirmed bug → Fixed** (Vehicle-specific violation attribution) | Loại bỏ `safety.by_booking` (Safety Hold cũ) khỏi điều kiện quy kết post-apply violation. Xe A có Safety Hold cũ khi Xe B gặp violation mới chỉ nhận `BOOKING_UNDER_SAFETY_HOLD` (`subject="b-a"`) và `STATION_POST_APPLY_HARD_VIOLATION` (`subject="station"`). Quy kết `POST_APPLY_HARD_VIOLATION` cấp xe bắt buộc có bằng chứng trực tiếp từ `applied.hard_violation_details/{idx}/{kind,minute,vehicle_ids/v_idx}` của đúng sự kiện khớp khoảng thời gian. `evidence.py` chỉ mở leaf detail cho Resident khi `vehicle_ids == [own_booking_id]`; sự kiện liên quan nhiều xe tự động fallback an toàn sang `STATION_POST_APPLY_HARD_VIOLATION` không rò rỉ ID xe khác. |
+
+### 6.3 Kết quả xác minh cuối (Clean Isolated Clone)
+
+| Gate | Exit | Kết quả xác minh | Raw evidence |
+|---|---:|---|---|
+| Fail-before G2-F05a/F05b (`pytest test_why_g2_final_fix.py`) | 1 | **7 failed** (tái hiện 100% G2-F05a & G2-F05b) | [final-fix-before.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-before.stdout.txt) |
+| Focused WHY + Remediation + Final Fix + Foundation + Architecture | **0** | **158 passed** (18.50s, +7 tests mới) | [focused-why-tests.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/focused-why-tests.stdout.txt) |
+| Full backend tests (`pytest tests/ -q -rs`) | **0** | **684 passed, 8 forecast skipped** (71.28s) | [backend-tests.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/backend-tests.stdout.txt) |
+| Independent WHY Eval (31 cases, 9 metrics, 8 mutations) | **0** | **31/31 PASS** (260/260 ref exist & auth, 223/223 direct, 25/25 derived, 248/248 temporal & subject, 19/19 causal, 17/17 coverage, 13/13 abstention, **0** auth/privacy violations, **8/8** mutations) | [why-eval.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/why-eval.stdout.txt) · [why-eval-summary.json](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/why-eval/why-eval-summary.json) |
+| Ruff lint, format, `check_docs.py`, `export_openapi.py --check`, AST parity | **0** | All PASS (**114/114** AST definitions, 0 changes) | [final-fix-exit-codes.tsv](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-exit-codes.tsv) |
+| Standalone simulator (180), Golden CRLF (38/38), Frozen benchmark (100/100), F1 offline (55) | **0** | **Inherited from `2d15ca1`** (diff chứng minh 0 thay đổi trên Unified Core / frozen paths) | [final-fix-diff-scope.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-diff-scope.stdout.txt) |
+| PostgreSQL runtime, production grounding validator, extended semantic oracle | **DEFERRED / PENDING** | Chuyển backlog G6/G7 theo quyết định Tech Lead | [ISSUES.md](ISSUES.md) |
+
+---
+
+## 7. Acceptance Checklist (Gate 2 Final Acceptance)
 
 | Tiêu chí | Trạng thái |
 |---|---|
-| G2-F01 Numerical integration (exact overlap, piecewise-constant, no as-of energy, no double-count) | **CONFIRMED & FIXED (14/14 fail-before → pass-after)** |
-| G2-F02 Direct vs derived fact grounding & finite `DerivationOp` + full input refs | **CONFIRMED & FIXED** |
-| G2-F03 Temporal fact metadata (6 mốc tách bạch cho cả booking & station) | **CONFIRMED & FIXED** |
-| G2-F04 Temporal resolution (default restart path, station supersede, live clock, cursor pagination) | **CONFIRMED & FIXED** |
-| G2-F05 Causal & subject attribution (8 điểm kiểm soát, abstention nghiêm ngặt) | **CONFIRMED & FIXED** |
-| G2-F06 Energy conversion provenance (loại bỏ silent 0.95 / 0.98 fallbacks) | **CONFIRMED & FIXED** |
-| G2-F07 EvidenceRef authorization & adversarial checks (`AuthorizedSubject` + safe leaf allowlist) | **CONFIRMED & FIXED** |
-| G2-F08 Independent evaluation (9 chỉ số tách biệt, denominators rõ, 7/7 mutations) | **VERIFIED (26/26, 7/7)** |
-| G2-F09 Documentation & `PHASE_4_1_REPORT.md` handoff | **VERIFIED** |
-| Full regression gates (677 backend / 151 focused / 180 sim / 114 AST / 38/38 golden / 100/100 benchmark) | **VERIFIED (exit 0)** |
-| PostgreSQL runtime verification | **PENDING** |
-| WHAT-IF, atomic snapshot, HOW-TO, LLM, AI-1, Frontend Copilot | **DEFERRED (G3+)** |
-| Tech Lead Gate 2 Re-Review & Approval | **PENDING** |
+| G2-F01–G2-F04, G2-F06–G2-F09 (accepted at `2d15ca1`) | **VERIFIED** |
+| G2-F05a Post-apply violation temporal scoping & completion `time_scope` | **CONFIRMED & FIXED (fail-before → pass-after)** |
+| G2-F05b Vehicle-specific violation attribution & safe Resident fallback | **CONFIRMED & FIXED (fail-before → pass-after)** |
+| Expanded Independent WHY Eval (31/31 cases, 9/9 metrics 100%, 8/8 mutations, 0 privacy leaks) | **VERIFIED** |
+| Focused (158), Full backend (684+8 skips), Architecture, Lint, Format, Docs, OpenAPI, AST (114/114) | **VERIFIED (exit 0)** |
+| Golden CRLF (38/38), Frozen benchmark (100/100), Standalone (180) | **INHERITED FROM `2d15ca1` (0 core diff)** |
+| Production grounding validator, extended semantic oracle, PostgreSQL runtime | **PENDING / BACKLOG (G6/G7)** |
+| Tech Lead Final Gate 2 Acceptance | **PENDING** |
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 2 RE-REVIEW)**
+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 2)**

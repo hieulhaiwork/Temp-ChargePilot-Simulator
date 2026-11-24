@@ -315,6 +315,20 @@ def is_pointer_authorized_for_resident(pointer: str, trace: dict, own_booking_id
             return item.get("id") == own_booking_id
         return not _contains_any_id(item, _other_booking_ids(trace, own_booking_id))
 
+    # Post-apply hard_violation_details leaf: ONLY allowed for Resident when event exclusively involves own_booking_id
+    if len(tokens) in (4, 5) and tokens[:2] == ["applied", "hard_violation_details"] and tokens[2].isdigit():
+        row_found, row = resolve_json_pointer(trace, f"/applied/hard_violation_details/{tokens[2]}")
+        if not row_found or not isinstance(row, dict):
+            return False
+        vids = row.get("vehicle_ids") or []
+        if vids != [own_booking_id]:
+            return False
+        if len(tokens) == 4 and tokens[3] in ("kind", "minute"):
+            return True
+        if len(tokens) == 5 and tokens[3] == "vehicle_ids" and tokens[4] == "0":
+            return True
+        return False
+
     # Command / emergency_command / command_exclusion leaf: ONLY if row.booking_id == own_booking_id
     if (
         len(tokens) >= 3
@@ -384,6 +398,16 @@ def _implied_booking_from_pointer(pointer: str, trace: dict) -> str | None:
         ok, row = resolve_json_pointer(trace, f"/{tokens[0]}/{tokens[1]}")
         if ok and isinstance(row, dict) and row.get("booking_id"):
             return str(row["booking_id"])
+    if (
+        len(tokens) == 5
+        and tokens[:2] == ["applied", "hard_violation_details"]
+        and tokens[2].isdigit()
+        and tokens[3] == "vehicle_ids"
+        and tokens[4].isdigit()
+    ):
+        ok, vid = resolve_json_pointer(trace, pointer)
+        if ok and vid:
+            return str(vid)
     if len(tokens) >= 3 and tokens[:2] == ["planned", "binding_constraints"] and tokens[2].isdigit():
         ok, row = resolve_json_pointer(trace, f"/planned/binding_constraints/{tokens[2]}")
         if ok and isinstance(row, dict) and row.get("limit") == "individual_allowed_output" and row.get("id"):

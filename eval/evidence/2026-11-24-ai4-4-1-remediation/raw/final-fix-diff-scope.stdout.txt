@@ -1,0 +1,5 @@
+ .../2026-11-24-ai4-4-1-remediation/run_why_eval.py | 161 +++++++
+ src/services/copilot/evidence.py                   |  24 +
+ src/services/copilot/why.py                        | 518 +++++++++++++++++----
+ tests/test_services/test_why_g2_final_fix.py       | 274 +++++++++++
+ 4 files changed, 886 insertions(+), 91 deletions(-)

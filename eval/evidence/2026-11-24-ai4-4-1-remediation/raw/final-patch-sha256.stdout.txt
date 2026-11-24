@@ -1,0 +1,5 @@
+cwd=/home/lehieu/Projects/P-019
+$ sha256sum /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/remediation-to-final-fix.patch /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-before.patch 
+97ffb4758af2c0721b5a35bb19b30da0b4c18f0aebc4c03f24554f79748fc528  /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch
+c970bfb00a96cd8d56d11d9c2420b28f0ef49392b1797ded6c44923c37d834ef  /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/remediation-to-final-fix.patch
+b6bd79699e9888a3aaf9ada36c3bb72d958fa4ba93bc9aead3169a5c04a6434f  /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-before.patch

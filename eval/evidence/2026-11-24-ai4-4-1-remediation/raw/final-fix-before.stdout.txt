@@ -1,0 +1,214 @@
+cwd=/home/lehieu/Projects/P-019
+$ .simulator/bin/python -m pytest tests/test_services/test_why_g2_final_fix.py -q
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_ test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window[power] _
+
+topic = <WhyTopic.POWER: 'power'>
+
+    @pytest.mark.parametrize("topic", [WhyTopic.POWER, WhyTopic.INCIDENT, WhyTopic.OVERVIEW])
+    def test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window(topic):
+        tr = _trace_with_t12_violation(vehicle_ids=["b-a"])
+        bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
+    
+        # 1. Booking-scoped as-of T+5: MUST NOT report POST_APPLY_HARD_VIOLATION or STATION_POST_APPLY_HARD_VIOLATION
+        ans_b_t5 = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=topic, at=T0 + timedelta(minutes=5)),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[tr],
+            bookings_override=bookings,
+        )
+>       assert not any("VIOLATION" in r.code for r in ans_b_t5.reasons), f"{topic} booking T+5 leaked: {ans_b_t5.reasons}"
+E       AssertionError: power booking T+5 leaked: [WhyReason(code='COORDINATOR_FIXED_SHARE', category=<EvidenceCategory.POLICY_REASON: 'policy_reason'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f010:t-viol-t:coordinator.assigned_zone_budget_kw', 'f011:t-viol-t:coordinator.reason_code'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC', 't-viol-t12:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0'], template_key='coordinator.fixed_share', params={'zone': 'DC', 'coordinator_policy': 'fixed_share', 'budget_kw': 78.0}, summary='Bộ điều phối fixed_share phân bổ theo ngân sách vùng cố định DC.'), WhyReason(code='POST_APPLY_HARD_VIOLATION', category=<EvidenceCategory.OBSERVED: 'observed'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f013:t-viol-t:validation.post_apply_status'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/validation/post_apply'], template_key='validation.post_apply_violation', params={'post_apply': 'violation', 'coverage': 'complete', 'scope': 'booking'}, summary='Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này.')]
+E       assert not True
+E        +  where True = any(<generator object test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window.<locals>.<genexpr> at 0x7331e4c8f510>)
+
+tests/test_services/test_why_g2_final_fix.py:86: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+_ test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window[incident] _
+
+topic = <WhyTopic.INCIDENT: 'incident'>
+
+    @pytest.mark.parametrize("topic", [WhyTopic.POWER, WhyTopic.INCIDENT, WhyTopic.OVERVIEW])
+    def test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window(topic):
+        tr = _trace_with_t12_violation(vehicle_ids=["b-a"])
+        bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
+    
+        # 1. Booking-scoped as-of T+5: MUST NOT report POST_APPLY_HARD_VIOLATION or STATION_POST_APPLY_HARD_VIOLATION
+        ans_b_t5 = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=topic, at=T0 + timedelta(minutes=5)),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[tr],
+            bookings_override=bookings,
+        )
+>       assert not any("VIOLATION" in r.code for r in ans_b_t5.reasons), f"{topic} booking T+5 leaked: {ans_b_t5.reasons}"
+E       AssertionError: incident booking T+5 leaked: [WhyReason(code='POST_APPLY_HARD_VIOLATION', category=<EvidenceCategory.OBSERVED: 'observed'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f001:t-viol-t:validation.post_apply_status'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/validation/post_apply'], template_key='validation.post_apply_violation', params={'post_apply': 'violation', 'coverage': 'complete', 'scope': 'booking'}, summary='Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này.')]
+E       assert not True
+E        +  where True = any(<generator object test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window.<locals>.<genexpr> at 0x7331e4be8ba0>)
+
+tests/test_services/test_why_g2_final_fix.py:86: AssertionError
+_ test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window[overview] _
+
+topic = <WhyTopic.OVERVIEW: 'overview'>
+
+    @pytest.mark.parametrize("topic", [WhyTopic.POWER, WhyTopic.INCIDENT, WhyTopic.OVERVIEW])
+    def test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window(topic):
+        tr = _trace_with_t12_violation(vehicle_ids=["b-a"])
+        bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
+    
+        # 1. Booking-scoped as-of T+5: MUST NOT report POST_APPLY_HARD_VIOLATION or STATION_POST_APPLY_HARD_VIOLATION
+        ans_b_t5 = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=topic, at=T0 + timedelta(minutes=5)),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[tr],
+            bookings_override=bookings,
+        )
+>       assert not any("VIOLATION" in r.code for r in ans_b_t5.reasons), f"{topic} booking T+5 leaked: {ans_b_t5.reasons}"
+E       AssertionError: overview booking T+5 leaked: [WhyReason(code='VEHICLE_ALREADY_CONNECTED', category=<EvidenceCategory.OBSERVED: 'observed'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f001:t-viol-t:vehicle.observed_state', 'f002:t-viol-t:vehicle.observed_connector'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/b-a/state', 't-viol-t12:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/b-a/connector_id'], template_key='queue.already_connected', params={'connector_id': 'DC-01-1', 'state': 'CHARGING'}, summary='Xe đang kết nối tại đầu nối DC-01-1 (trạng thái quan sát: CHARGING).'), WhyReason(code='COORDINATOR_FIXED_SHARE', category=<EvidenceCategory.POLICY_REASON: 'policy_reason'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f017:t-viol-t:coordinator.assigned_zone_budget_kw', 'f018:t-viol-t:coordinator.reason_code'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC', 't-viol-t12:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0'], template_key='coordinator.fixed_share', params={'zone': 'DC', 'coordinator_policy': 'fixed_share', 'budget_kw': 78.0}, summary='Bộ điều phối fixed_share phân bổ theo ngân sách vùng cố định DC.'), WhyReason(code='POST_APPLY_HARD_VIOLATION', category=<EvidenceCategory.OBSERVED: 'observed'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f020:t-viol-t:validation.post_apply_status'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/validation/post_apply'], template_key='validation.post_apply_violation', params={'post_apply': 'violation', 'coverage': 'complete', 'scope': 'booking'}, summary='Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này.'), WhyReason(code='NO_PROJECTED_SHORTFALL', category=<EvidenceCategory.INFERENCE_BOUND: 'inference_bound'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f024:t-viol-t:deadline.projected_shortfall_kwh'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/projected_shortfall_kwh/b-a'], template_key='deadline.no_projected_shortfall', params={'projected_shortfall_kwh': 0.0, 'optimizer_policy': 'rolling_lp'}, summary='Bộ tối ưu rolling_lp không dự báo thiếu năng lượng trong chân trời lập kế hoạch hiện tại (không bảo đảm tuyệt đối trước sự cố/xe mới).'), WhyReason(code='POST_APPLY_HARD_VIOLATION', category=<EvidenceCategory.OBSERVED: 'observed'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f025:t-viol-t:validation.post_apply_status'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/validation/post_apply'], template_key='validation.post_apply_violation', params={'post_apply': 'violation', 'coverage': 'complete', 'scope': 'booking'}, summary='Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này.')]
+E       assert not True
+E        +  where True = any(<generator object test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window.<locals>.<genexpr> at 0x7331e4bea4d0>)
+
+tests/test_services/test_why_g2_final_fix.py:86: AssertionError
+_ test_g2_f05a_evicted_violation_preserves_retrospective_evidence_and_flags_missing_temporal_attribution _
+
+    def test_g2_f05a_evicted_violation_preserves_retrospective_evidence_and_flags_missing_temporal_attribution():
+        tr = _synthetic_trace(
+            "t-evict-viol",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=15,
+            booking_kw_samples=[(14, {"b-a": 20.0})],
+            coverage_status="incomplete",
+            post_apply="violation",
+            hard_violations=["grid limit exceeded"],
+        )
+        tr["applied"]["coverage"]["dropped_hard_violations"] = 1
+        tr["applied"]["hard_violation_details"] = []  # evicted!
+    
+        ans = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.STATION,
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=5),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[tr],
+            bookings_override={"b-a": _bk("b-a", "res-a")},
+        )
+        assert ans.status == WhyStatus.PARTIAL
+>       assert "post_apply_violation_temporal_attribution_missing" in ans.missing_evidence
+E       AssertionError: assert 'post_apply_violation_temporal_attribution_missing' in ['incomplete_measured_coverage', 'no_retained_samples_in_subwindow']
+E        +  where ['incomplete_measured_coverage', 'no_retained_samples_in_subwindow'] = WhyAnswer(status=<WhyStatus.PARTIAL: 'partial'>, topic='incident', subject_scope=<WhySubjectScope.STATION: 'station'>,...ssing_evidence=['incomplete_measured_coverage', 'no_retained_samples_in_subwindow'], truncated=False, next_cursor=None).missing_evidence
+
+tests/test_services/test_why_g2_final_fix.py:165: AssertionError
+_ test_g2_f05a_post_decision_completion_fact_is_not_labeled_decision_snapshot __
+
+    def test_g2_f05a_post_decision_completion_fact_is_not_labeled_decision_snapshot():
+        tr = _synthetic_trace(
+            "t-comp-scope",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=15,
+            booking_kw_samples=[(m, {"b-a": 30.0}) for m in range(12)],
+        )
+        tr["applied"]["completed"] = ["b-a"]
+        tr["applied"]["completed_by_booking"] = {
+            "b-a": {"minute": 12, "completed_at": (T0 + timedelta(minutes=12)).isoformat()}
+        }
+        ans = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.DEADLINE_RISK,
+                at=T0 + timedelta(minutes=12),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[tr],
+            bookings_override={"b-a": _bk("b-a", "res-a")},
+        )
+        done_fact = next(f for f in ans.facts if f.name == "deadline.observed_completed_at_minute")
+>       assert done_fact.time_scope != TemporalBasis.DECISION_SNAPSHOT
+E       AssertionError: assert <TemporalBasis.DECISION_SNAPSHOT: 'decision_snapshot'> != <TemporalBasis.DECISION_SNAPSHOT: 'decision_snapshot'>
+E        +  where <TemporalBasis.DECISION_SNAPSHOT: 'decision_snapshot'> = WhyFact(fact_id='f004:t-comp-s:deadline.observed_completed_at_minute', name='deadline.observed_completed_at_minute', s...s=['t-comp-scope:chargepilot.backend_decision_trace/2#/applied/completed_by_booking/b-a/minute'], derivation_params={}).time_scope
+E        +  and   <TemporalBasis.DECISION_SNAPSHOT: 'decision_snapshot'> = TemporalBasis.DECISION_SNAPSHOT
+
+tests/test_services/test_why_g2_final_fix.py:198: AssertionError
+_ test_g2_f05b_prior_safety_hold_on_vehicle_a_never_attributes_vehicle_b_violation_to_a _
+
+    def test_g2_f05b_prior_safety_hold_on_vehicle_a_never_attributes_vehicle_b_violation_to_a():
+        # Vehicle A has a pre-existing Safety Hold from an earlier decision; Vehicle B triggers a NEW violation at T+12.
+        tr = _trace_with_t12_violation(vehicle_ids=["b-b"], held_booking_ids=["b-a"])
+        bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
+    
+        for topic in (WhyTopic.POWER, WhyTopic.INCIDENT, WhyTopic.OVERVIEW):
+            ans_a = explain_why(
+                WhyQuery(
+                    subject_scope=WhySubjectScope.BOOKING,
+                    booking_id="b-a",
+                    topic=topic,
+                    at=T0 + timedelta(minutes=12),
+                ),
+                _operator(),
+                station_id=STATION_ID,
+                raw_traces=[tr],
+                bookings_override=bookings,
+            )
+            # Vehicle A MUST NOT receive a vehicle-specific POST_APPLY_HARD_VIOLATION!
+>           assert not any(
+                r.code == "POST_APPLY_HARD_VIOLATION" and r.subject == "b-a" for r in ans_a.reasons
+            ), f"Vehicle A misattributed violation in {topic}: {ans_a.reasons}"
+E           AssertionError: Vehicle A misattributed violation in power: [WhyReason(code='COORDINATOR_FIXED_SHARE', category=<EvidenceCategory.POLICY_REASON: 'policy_reason'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f010:t-viol-t:coordinator.assigned_zone_budget_kw', 'f011:t-viol-t:coordinator.reason_code'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC', 't-viol-t12:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0'], template_key='coordinator.fixed_share', params={'zone': 'DC', 'coordinator_policy': 'fixed_share', 'budget_kw': 78.0}, summary='Bộ điều phối fixed_share phân bổ theo ngân sách vùng cố định DC.'), WhyReason(code='POST_APPLY_HARD_VIOLATION', category=<EvidenceCategory.OBSERVED: 'observed'>, subject='b-a', correlation_id='t-viol-t12', policy_id='M3a', policy_version='1', decided_at=datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))), fact_refs=['f013:t-viol-t:validation.post_apply_status'], evidence_refs=['t-viol-t12:chargepilot.backend_decision_trace/2#/validation/post_apply'], template_key='validation.post_apply_violation', params={'post_apply': 'violation', 'coverage': 'complete', 'scope': 'booking'}, summary='Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này.')]
+E           assert not True
+E            +  where True = any(<generator object test_g2_f05b_prior_safety_hold_on_vehicle_a_never_attributes_vehicle_b_violation_to_a.<locals>.<genexpr> at 0x7331e4bea740>)
+
+tests/test_services/test_why_g2_final_fix.py:225: AssertionError
+_ test_g2_f05b_resident_multi_vehicle_violation_falls_back_to_station_level_without_leaking _
+
+    def test_g2_f05b_resident_multi_vehicle_violation_falls_back_to_station_level_without_leaking():
+        # Violation involves BOTH b-a and b-b -> Resident A cannot inspect shared detail carrying b-b,
+        # so Resident A must receive safe station-level violation without leaking b-b!
+        tr = _trace_with_t12_violation(vehicle_ids=["b-a", "b-b"])
+        bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
+    
+        ans_res = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.OWN_BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=12),
+            ),
+            _resident("res-a"),
+            station_id=STATION_ID,
+            raw_traces=[tr],
+            bookings_override=bookings,
+        )
+>       assert any(r.code == "STATION_POST_APPLY_HARD_VIOLATION" and r.subject == "station" for r in ans_res.reasons)
+E       assert False
+E        +  where False = any(<generator object test_g2_f05b_resident_multi_vehicle_violation_falls_back_to_station_level_without_leaking.<locals>.<genexpr> at 0x7331e491f510>)
+
+tests/test_services/test_why_g2_final_fix.py:253: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window[power]
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window[incident]
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window[overview]
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05a_evicted_violation_preserves_retrospective_evidence_and_flags_missing_temporal_attribution
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05a_post_decision_completion_fact_is_not_labeled_decision_snapshot
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05b_prior_safety_hold_on_vehicle_a_never_attributes_vehicle_b_violation_to_a
+FAILED tests/test_services/test_why_g2_final_fix.py::test_g2_f05b_resident_multi_vehicle_violation_falls_back_to_station_level_without_leaking
+7 failed in 0.76s
+EXIT_CODE=1

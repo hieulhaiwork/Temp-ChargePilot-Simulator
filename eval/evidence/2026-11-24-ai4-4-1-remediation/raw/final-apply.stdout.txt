@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/ai4-g2-final-fix/code apply /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch 

@@ -1776,10 +1776,10 @@ index 0000000..7e8de91
 +    )
 diff --git a/src/services/copilot/evidence.py b/src/services/copilot/evidence.py
 new file mode 100644
-index 0000000..4204789
+index 0000000..35b67aa
 --- /dev/null
 +++ b/src/services/copilot/evidence.py
-@@ -0,0 +1,816 @@
+@@ -0,0 +1,840 @@
 +"""Authorization, privacy projection, JSON Pointer resolution, and EvidenceCollector (WP2.4 / G2-F02 / G2-F07).
 +
 +Invariants enforced here:
@@ -2097,6 +2097,20 @@ index 0000000..4204789
 +            return item.get("id") == own_booking_id
 +        return not _contains_any_id(item, _other_booking_ids(trace, own_booking_id))
 +
++    # Post-apply hard_violation_details leaf: ONLY allowed for Resident when event exclusively involves own_booking_id
++    if len(tokens) in (4, 5) and tokens[:2] == ["applied", "hard_violation_details"] and tokens[2].isdigit():
++        row_found, row = resolve_json_pointer(trace, f"/applied/hard_violation_details/{tokens[2]}")
++        if not row_found or not isinstance(row, dict):
++            return False
++        vids = row.get("vehicle_ids") or []
++        if vids != [own_booking_id]:
++            return False
++        if len(tokens) == 4 and tokens[3] in ("kind", "minute"):
++            return True
++        if len(tokens) == 5 and tokens[3] == "vehicle_ids" and tokens[4] == "0":
++            return True
++        return False
++
 +    # Command / emergency_command / command_exclusion leaf: ONLY if row.booking_id == own_booking_id
 +    if (
 +        len(tokens) >= 3
@@ -2166,6 +2180,16 @@ index 0000000..4204789
 +        ok, row = resolve_json_pointer(trace, f"/{tokens[0]}/{tokens[1]}")
 +        if ok and isinstance(row, dict) and row.get("booking_id"):
 +            return str(row["booking_id"])
++    if (
++        len(tokens) == 5
++        and tokens[:2] == ["applied", "hard_violation_details"]
++        and tokens[2].isdigit()
++        and tokens[3] == "vehicle_ids"
++        and tokens[4].isdigit()
++    ):
++        ok, vid = resolve_json_pointer(trace, pointer)
++        if ok and vid:
++            return str(vid)
 +    if len(tokens) >= 3 and tokens[:2] == ["planned", "binding_constraints"] and tokens[2].isdigit():
 +        ok, row = resolve_json_pointer(trace, f"/planned/binding_constraints/{tokens[2]}")
 +        if ok and isinstance(row, dict) and row.get("limit") == "individual_allowed_output" and row.get("id"):
@@ -2598,10 +2622,10 @@ index 0000000..4204789
 +        return reason
 diff --git a/src/services/copilot/why.py b/src/services/copilot/why.py
 new file mode 100644
-index 0000000..4bc784a
+index 0000000..f646a65
 --- /dev/null
 +++ b/src/services/copilot/why.py
-@@ -0,0 +1,2880 @@
+@@ -0,0 +1,3216 @@
 +"""Deterministic WHY Engine (Phase AI-4.1 — Gate 2 + Remediation G2-F01..G2-F07).
 +
 +Produces evidence-grounded, authorization-enforced, privacy-projected `WhyAnswer` outputs
@@ -2884,6 +2908,8 @@ index 0000000..4bc784a
 +                sample_slice,
 +                resolved_station_id,
 +                collector,
++                query_at=query.at,
++                query_window=query.window,
 +                has_temporal_gap=resolution.has_temporal_gap,
 +            )
 +        else:
@@ -2995,6 +3021,7 @@ index 0000000..4bc784a
 +        "missing_charging_efficiency_evidence",
 +        "completion_timestamp_unknown_for_as_of_query",
 +        "insufficient_evidence_to_confirm_no_incident",
++        "post_apply_violation_temporal_attribution_missing",
 +    }
 +    if (
 +        resolution.truncated
@@ -3127,23 +3154,42 @@ index 0000000..4bc784a
 +    if topic == WhyTopic.QUEUE:
 +        _explain_booking_queue(resolved, booking_id, booking, collector)
 +    elif topic == WhyTopic.POWER:
-+        _explain_booking_power(resolved, sample_slice, booking_id, collector)
++        _explain_booking_power(
++            resolved, sample_slice, booking_id, collector, query_at=query_at, query_window=query_window
++        )
 +    elif topic == WhyTopic.DEADLINE_RISK:
 +        _explain_booking_deadline_risk(
 +            resolved, booking_id, booking, collector, query_at=query_at, query_window=query_window
 +        )
 +    elif topic == WhyTopic.INCIDENT:
-+        _explain_booking_incident(resolved, booking_id, role, collector, has_temporal_gap=has_temporal_gap)
++        _explain_booking_incident(
++            resolved,
++            booking_id,
++            role,
++            collector,
++            query_at=query_at,
++            query_window=query_window,
++            has_temporal_gap=has_temporal_gap,
++        )
 +    elif topic == WhyTopic.POLICY:
 +        _explain_policy(resolved, booking_id, booking, collector, is_station=False)
 +    elif topic == WhyTopic.OVERVIEW:
 +        _explain_booking_queue(resolved, booking_id, booking, collector)
-+        _explain_booking_power(resolved, sample_slice, booking_id, collector)
++        _explain_booking_power(
++            resolved, sample_slice, booking_id, collector, query_at=query_at, query_window=query_window
++        )
 +        _explain_booking_deadline_risk(
 +            resolved, booking_id, booking, collector, query_at=query_at, query_window=query_window
 +        )
 +        _explain_booking_incident(
-+            resolved, booking_id, role, collector, emit_no_incident=False, has_temporal_gap=has_temporal_gap
++            resolved,
++            booking_id,
++            role,
++            collector,
++            emit_no_incident=False,
++            query_at=query_at,
++            query_window=query_window,
++            has_temporal_gap=has_temporal_gap,
 +        )
 +
 +
@@ -3469,6 +3515,9 @@ index 0000000..4bc784a
 +    sample_slice: SampleSlice | None,
 +    booking_id: str,
 +    collector: EvidenceCollector,
++    *,
++    query_at: datetime | None,
++    query_window: TimeWindow | None,
 +) -> None:
 +    trace = resolved.payload
 +    planned = trace.get("planned") if isinstance(trace.get("planned"), dict) else None
@@ -3662,8 +3711,8 @@ index 0000000..4bc784a
 +    if planned is not None:
 +        _add_limits_and_policy_power_evidence(resolved, planned, booking_id, zone, vrow, vpath, collector)
 +
-+    # 5. Post-apply violation / incomplete coverage (G2-F05 #3: subject-verified)
-+    _add_booking_post_apply_evidence(resolved, booking_id, collector)
++    # 5. Post-apply violation / incomplete coverage (G2-F05a/F05b: time-scoped & subject-verified)
++    _add_booking_post_apply_evidence(resolved, booking_id, collector, query_at=query_at, query_window=query_window)
 +
 +
 +def _add_booking_measured_power_facts(
@@ -4167,23 +4216,201 @@ index 0000000..4bc784a
 +            )
 +
 +
-+def _has_vehicle_specific_violation(trace: dict, booking_id: str) -> bool:
-+    safety = trace.get("safety") or {}
-+    if booking_id in (safety.get("by_booking") or {}):
-+        return True
-+    for hv in safety.get("hard_limit_violations") or []:
-+        if booking_id in (hv.get("booking_ids") or ()):
-+            return True
++def _analyze_post_apply_violations(
++    resolved: ResolvedTrace,
++    *,
++    query_at: datetime | None,
++    query_window: TimeWindow | None,
++) -> tuple[list[tuple[int, dict, datetime, datetime]], bool]:
++    """Return `(matching_details, temporal_attribution_missing)` for a closed trace with post-apply violations.
++
++    G2-F05a: Never leak future violations (e.g., T+12) into earlier `at` queries (e.g., T+5) or
++    disjoint windows (e.g., [T0, T+10)). If violations were evicted (`dropped_hard_violations > 0`)
++    or lack timestamps, report `temporal_attribution_missing=True` without fabricating timestamps.
++    """
++    trace = resolved.payload
 +    applied = trace.get("applied") or {}
-+    for detail in applied.get("hard_violation_details") or []:
-+        if booking_id in (detail.get("vehicle_ids") or ()):
-+            return True
-+    return False
++    details = applied.get("hard_violation_details") or []
++    coverage = applied.get("coverage") or {}
++    dropped = int(coverage.get("dropped_hard_violations") or 0)
++    base_minute = trace.get("minute")
++    step_minutes = int((trace.get("time_config") or {}).get("physics_step_minutes") or 1)
++    if step_minutes <= 0:
++        step_minutes = 1
++
++    temporal_missing = dropped > 0 or not details or base_minute is None
++    matching: list[tuple[int, dict, datetime, datetime]] = []
++
++    if base_minute is not None:
++        base_min_int = int(base_minute)
++        for idx, detail in enumerate(details):
++            if not isinstance(detail, dict) or detail.get("minute") is None:
++                temporal_missing = True
++                continue
++            v_start = resolved.decided_at + timedelta(minutes=int(detail["minute"]) - base_min_int)
++            v_end = v_start + timedelta(minutes=step_minutes)
++            if query_at is not None:
++                # Violation is in scope iff it occurred at or before `query_at` (NEVER in the future)
++                if _utc(v_start) <= _utc(query_at):
++                    matching.append((idx, detail, v_start, v_end))
++            elif query_window is not None:
++                # Half-open overlap [v_start, v_end) ∩ [window.start, window.end)
++                if _utc(v_start) < _utc(query_window.end) and _utc(v_end) > _utc(query_window.start):
++                    matching.append((idx, detail, v_start, v_end))
++            else:
++                matching.append((idx, detail, v_start, v_end))
++
++    return matching, temporal_missing
 +
 +
-+def _add_booking_post_apply_evidence(resolved: ResolvedTrace, booking_id: str, collector: EvidenceCollector) -> None:
-+    """G2-F05 #3: Never attribute a station-level violation to a vehicle without subject-specific evidence."""
++def _add_booking_post_apply_evidence(
++    resolved: ResolvedTrace,
++    booking_id: str,
++    collector: EvidenceCollector,
++    *,
++    query_at: datetime | None,
++    query_window: TimeWindow | None,
++) -> bool:
++    """G2-F05a & G2-F05b: Time-scoped & subject-verified post-apply violation evidence for a booking.
++
++    Returns True iff a post-apply violation applies to the queried time/window (or has missing/evicted
++    temporal attribution requiring retrospective reporting).
++    - NEVER uses pre-existing Safety Hold as proof that this booking caused a new post-apply violation.
++    - NEVER attributes a future violation (e.g. T+12) to an earlier query (e.g. T+5).
++    - Requires direct event/booking/interval evidence refs for vehicle-specific attribution; if Resident
++      is unauthorized for a shared multi-vehicle violation detail, safely falls back to station-level.
++    """
 +    prov = resolved.provenance
++    cov = prov.coverage_status
++    m_start = resolved.measured_start if prov.closed and resolved.measured_start and resolved.measured_end else None
++    m_end = resolved.measured_end if prov.closed and resolved.measured_start and resolved.measured_end else None
++
++    if prov.post_apply_status == "violation":
++        matching, temporal_missing = _analyze_post_apply_violations(
++            resolved, query_at=query_at, query_window=query_window
++        )
++        # All violations in this closed trace are timestamped strictly outside/after the query time/window
++        if not matching and not temporal_missing:
++            collector.add_assumption(
++                "Trace đóng ghi nhận vi phạm hậu kiểm ở thời điểm ngoài/sau mốc truy vấn; "
++                "không quy kết vi phạm cho mốc hoặc khoảng truy vấn hiện tại."
++            )
++            return False
++
++        f_post = collector.add_fact(
++            resolved,
++            name="validation.post_apply_status",
++            subject="station",
++            stage=FactStage.MEASURED if prov.closed else FactStage.PLANNED,
++            value=prov.post_apply_status,
++            unit=None,
++            source_path="/validation/post_apply",
++            time_scope=TemporalBasis.MEASURED_COVERAGE if prov.closed else TemporalBasis.DECISION_SNAPSHOT,
++            interval_start=m_start,
++            interval_end=m_end,
++        )
++        if f_post is None:
++            return False
++
++        if temporal_missing:
++            collector.add_missing("post_apply_violation_temporal_attribution_missing")
++
++        # G2-F05b: Check ONLY matching-interval violation details' explicit `vehicle_ids` (NEVER Safety Hold!)
++        vehicle_ev_facts = []
++        matched_minutes: list[int] = []
++        for idx, detail, v_start, v_end in matching:
++            vids = detail.get("vehicle_ids") or []
++            if booking_id not in vids:
++                continue
++            v_idx = vids.index(booking_id)
++            f_kind = collector.add_fact(
++                resolved,
++                name="incident.hard_violation_kind",
++                subject=booking_id,
++                stage=FactStage.MEASURED,
++                value=str(detail.get("kind") or "unknown"),
++                unit=None,
++                source_path=f"/applied/hard_violation_details/{idx}/kind",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=v_start,
++                interval_end=v_end,
++            )
++            f_min = collector.add_fact(
++                resolved,
++                name="incident.hard_violation_minute",
++                subject=booking_id,
++                stage=FactStage.MEASURED,
++                value=int(detail["minute"]),
++                unit="minute",
++                source_path=f"/applied/hard_violation_details/{idx}/minute",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=v_start,
++                interval_end=v_end,
++            )
++            f_vid = collector.add_fact(
++                resolved,
++                name="incident.hard_violation_booking_id",
++                subject=booking_id,
++                stage=FactStage.MEASURED,
++                value=booking_id,
++                unit=None,
++                source_path=f"/applied/hard_violation_details/{idx}/vehicle_ids/{v_idx}",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=v_start,
++                interval_end=v_end,
++            )
++            # Require ALL three (event kind, minute, booking_id) to be authorized & registered
++            if f_kind is not None and f_min is not None and f_vid is not None:
++                vehicle_ev_facts.extend([f_kind, f_min, f_vid])
++                matched_minutes.append(int(detail["minute"]))
++
++        if vehicle_ev_facts:
++            all_f = [f_post, *vehicle_ev_facts]
++            collector.add_reason(
++                resolved,
++                code="POST_APPLY_HARD_VIOLATION",
++                category=EvidenceCategory.OBSERVED,
++                subject=booking_id,
++                fact_refs=[f.fact_id for f in all_f],
++                evidence_refs=[f.evidence_ref for f in all_f],
++                template_key="validation.post_apply_violation",
++                params={
++                    "post_apply": prov.post_apply_status,
++                    "coverage": cov,
++                    "scope": "booking",
++                    "violation_minutes": ", ".join(str(m) for m in matched_minutes),
++                },
++                summary=(
++                    f"Ghi nhận vi phạm trần cứng liên quan trực tiếp tới phiên sạc tại phút {', '.join(str(m) for m in matched_minutes)}."
++                ),
++            )
++        else:
++            params: dict[str, float | int | str | bool | None] = {
++                "post_apply": prov.post_apply_status,
++                "coverage": cov,
++                "scope": "station",
++            }
++            if temporal_missing and not matching:
++                params["temporal_attribution"] = "missing_or_evicted"
++                summary = (
++                    "Trace đóng ghi nhận vi phạm trần cứng toàn khoảng nhưng thiếu thời điểm chi tiết (do eviction hoặc thiếu chi tiết); "
++                    "không quy kết riêng cho xe hay mốc cụ thể."
++                )
++            else:
++                summary = "Trạm ghi nhận vi phạm trần cứng cấp trạm sau khi áp (không có bằng chứng quy kết riêng hoặc không đủ quyền xem chi tiết sự kiện cho xe này)."
++            collector.add_reason(
++                resolved,
++                code="STATION_POST_APPLY_HARD_VIOLATION",
++                category=EvidenceCategory.OBSERVED,
++                subject="station",
++                fact_refs=[f_post.fact_id],
++                evidence_refs=[f_post.evidence_ref],
++                template_key="validation.station_post_apply_violation",
++                params=params,
++                summary=summary,
++            )
++        return True
++
 +    f_post = collector.add_fact(
 +        resolved,
 +        name="validation.post_apply_status",
@@ -4193,51 +4420,10 @@ index 0000000..4bc784a
 +        unit=None,
 +        source_path="/validation/post_apply",
 +        time_scope=TemporalBasis.MEASURED_COVERAGE if prov.closed else TemporalBasis.DECISION_SNAPSHOT,
-+        interval_start=resolved.measured_start
-+        if prov.closed and resolved.measured_start and resolved.measured_end
-+        else None,
-+        interval_end=resolved.measured_end
-+        if prov.closed and resolved.measured_start and resolved.measured_end
-+        else None,
++        interval_start=m_start,
++        interval_end=m_end,
 +    )
-+    if f_post is None:
-+        return
-+    if prov.post_apply_status == "violation":
-+        cov = prov.coverage_status
-+        vehicle_linked = _has_vehicle_specific_violation(resolved.payload, booking_id)
-+        if vehicle_linked:
-+            collector.add_reason(
-+                resolved,
-+                code="POST_APPLY_HARD_VIOLATION",
-+                category=EvidenceCategory.OBSERVED,
-+                subject=booking_id,
-+                fact_refs=[f_post.fact_id],
-+                evidence_refs=[f_post.evidence_ref],
-+                template_key="validation.post_apply_violation",
-+                params={"post_apply": prov.post_apply_status, "coverage": cov, "scope": "booking"},
-+                summary=(
-+                    "Ghi nhận vi phạm trần cứng liên quan tới phiên sạc sau khi áp (dữ liệu mẫu đo không đầy đủ)."
-+                    if cov == "incomplete"
-+                    else "Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này."
-+                ),
-+            )
-+        else:
-+            collector.add_reason(
-+                resolved,
-+                code="STATION_POST_APPLY_HARD_VIOLATION",
-+                category=EvidenceCategory.OBSERVED,
-+                subject="station",
-+                fact_refs=[f_post.fact_id],
-+                evidence_refs=[f_post.evidence_ref],
-+                template_key="validation.station_post_apply_violation",
-+                params={"post_apply": prov.post_apply_status, "coverage": cov, "scope": "station"},
-+                summary=(
-+                    "Trạm ghi nhận vi phạm trần cứng cấp trạm sau khi áp (chưa có bằng chứng quy kết riêng cho xe này; dữ liệu mẫu đo không đầy đủ)."
-+                    if cov == "incomplete"
-+                    else "Trạm ghi nhận vi phạm trần cứng cấp trạm sau khi áp (không có bằng chứng quy kết riêng cho xe này)."
-+                ),
-+            )
-+    elif prov.post_apply_status == "incomplete":
++    if f_post is not None and prov.post_apply_status == "incomplete":
 +        collector.add_reason(
 +            resolved,
 +            code="INCOMPLETE_MEASURED_COVERAGE",
@@ -4249,10 +4435,114 @@ index 0000000..4bc784a
 +            params={"post_apply": prov.post_apply_status, "coverage": prov.coverage_status},
 +            summary="Dữ liệu mẫu đo của quyết định không đầy đủ nên không kết luận đạt pass toàn khoảng.",
 +        )
++    return False
 +
 +
-+def _add_station_post_apply_evidence(resolved: ResolvedTrace, station_id: str, collector: EvidenceCollector) -> None:
++def _add_station_post_apply_evidence(
++    resolved: ResolvedTrace,
++    station_id: str,
++    collector: EvidenceCollector,
++    *,
++    query_at: datetime | None,
++    query_window: TimeWindow | None,
++) -> bool:
++    """G2-F05a: Time-scoped post-apply violation evidence for station scope."""
 +    prov = resolved.provenance
++    cov = prov.coverage_status
++    m_start = resolved.measured_start if prov.closed and resolved.measured_start and resolved.measured_end else None
++    m_end = resolved.measured_end if prov.closed and resolved.measured_start and resolved.measured_end else None
++
++    if prov.post_apply_status == "violation":
++        matching, temporal_missing = _analyze_post_apply_violations(
++            resolved, query_at=query_at, query_window=query_window
++        )
++        if not matching and not temporal_missing:
++            collector.add_assumption(
++                "Trace đóng ghi nhận vi phạm hậu kiểm ở thời điểm ngoài/sau mốc truy vấn; "
++                "không quy kết vi phạm cho mốc hoặc khoảng truy vấn hiện tại."
++            )
++            return False
++
++        f_post = collector.add_fact(
++            resolved,
++            name="validation.post_apply_status",
++            subject="station",
++            stage=FactStage.MEASURED if prov.closed else FactStage.PLANNED,
++            value=prov.post_apply_status,
++            unit=None,
++            source_path="/validation/post_apply",
++            time_scope=TemporalBasis.MEASURED_COVERAGE if prov.closed else TemporalBasis.DECISION_SNAPSHOT,
++            interval_start=m_start,
++            interval_end=m_end,
++        )
++        if f_post is None:
++            return False
++
++        if temporal_missing:
++            collector.add_missing("post_apply_violation_temporal_attribution_missing")
++
++        detail_facts = []
++        matched_minutes: list[int] = []
++        for idx, detail, v_start, v_end in matching:
++            f_kind = collector.add_fact(
++                resolved,
++                name="incident.hard_violation_kind",
++                subject=station_id,
++                stage=FactStage.MEASURED,
++                value=str(detail.get("kind") or "unknown"),
++                unit=None,
++                source_path=f"/applied/hard_violation_details/{idx}/kind",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=v_start,
++                interval_end=v_end,
++            )
++            f_min = collector.add_fact(
++                resolved,
++                name="incident.hard_violation_minute",
++                subject=station_id,
++                stage=FactStage.MEASURED,
++                value=int(detail["minute"]),
++                unit="minute",
++                source_path=f"/applied/hard_violation_details/{idx}/minute",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=v_start,
++                interval_end=v_end,
++            )
++            for item in (f_kind, f_min):
++                if item is not None:
++                    detail_facts.append(item)
++            matched_minutes.append(int(detail["minute"]))
++
++        all_f = [f_post, *detail_facts]
++        params: dict[str, float | int | str | bool | None] = {
++            "post_apply": prov.post_apply_status,
++            "coverage": cov,
++        }
++        if matched_minutes:
++            params["violation_minutes"] = ", ".join(str(m) for m in matched_minutes)
++        if temporal_missing and not matching:
++            params["temporal_attribution"] = "missing_or_evicted"
++            summary = (
++                "Ghi nhận vi phạm trần cứng toàn trace nhưng không xác định được thời điểm chi tiết "
++                "(vi phạm đã bị eviction hoặc thiếu timestamp chi tiết — không tự tạo mốc thời gian)."
++            )
++        elif cov == "incomplete":
++            summary = "Ghi nhận vi phạm trần cứng sau khi áp (và dữ liệu mẫu đo không đầy đủ — cần xem cả coverage)."
++        else:
++            summary = f"Ghi nhận vi phạm trần cứng sau khi áp tại phút {', '.join(str(m) for m in matched_minutes)}."
++        collector.add_reason(
++            resolved,
++            code="POST_APPLY_HARD_VIOLATION",
++            category=EvidenceCategory.OBSERVED,
++            subject=station_id,
++            fact_refs=[f.fact_id for f in all_f],
++            evidence_refs=[f.evidence_ref for f in all_f],
++            template_key="validation.post_apply_violation",
++            params=params,
++            summary=summary,
++        )
++        return True
++
 +    f_post = collector.add_fact(
 +        resolved,
 +        name="validation.post_apply_status",
@@ -4262,34 +4552,10 @@ index 0000000..4bc784a
 +        unit=None,
 +        source_path="/validation/post_apply",
 +        time_scope=TemporalBasis.MEASURED_COVERAGE if prov.closed else TemporalBasis.DECISION_SNAPSHOT,
-+        interval_start=resolved.measured_start
-+        if prov.closed and resolved.measured_start and resolved.measured_end
-+        else None,
-+        interval_end=resolved.measured_end
-+        if prov.closed and resolved.measured_start and resolved.measured_end
-+        else None,
++        interval_start=m_start,
++        interval_end=m_end,
 +    )
-+    if f_post is None:
-+        return
-+    if prov.post_apply_status == "violation":
-+        cov = prov.coverage_status
-+        summary = (
-+            "Ghi nhận vi phạm trần cứng sau khi áp (và dữ liệu mẫu đo không đầy đủ — cần xem cả coverage)."
-+            if cov == "incomplete"
-+            else "Ghi nhận vi phạm trần cứng sau khi áp ở khoảng quyết định này."
-+        )
-+        collector.add_reason(
-+            resolved,
-+            code="POST_APPLY_HARD_VIOLATION",
-+            category=EvidenceCategory.OBSERVED,
-+            subject=station_id,
-+            fact_refs=[f_post.fact_id],
-+            evidence_refs=[f_post.evidence_ref],
-+            template_key="validation.post_apply_violation",
-+            params={"post_apply": prov.post_apply_status, "coverage": cov},
-+            summary=summary,
-+        )
-+    elif prov.post_apply_status == "incomplete":
++    if f_post is not None and prov.post_apply_status == "incomplete":
 +        collector.add_reason(
 +            resolved,
 +            code="INCOMPLETE_MEASURED_COVERAGE",
@@ -4301,6 +4567,7 @@ index 0000000..4bc784a
 +            params={"post_apply": prov.post_apply_status, "coverage": prov.coverage_status},
 +            summary="Dữ liệu mẫu đo của quyết định không đầy đủ nên không kết luận đạt pass toàn khoảng.",
 +        )
++    return False
 +
 +
 +def _explain_booking_deadline_risk(
@@ -4423,7 +4690,9 @@ index 0000000..4bc784a
 +                value=comp_min,
 +                unit="minute",
 +                source_path=f"/applied/completed_by_booking/{_seg(booking_id)}/minute",
-+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=comp_dt,
++                interval_end=comp_dt,
 +            )
 +            if f_done is not None:
 +                collector.add_reason(
@@ -4709,6 +4978,8 @@ index 0000000..4bc784a
 +    collector: EvidenceCollector,
 +    *,
 +    emit_no_incident: bool = True,
++    query_at: datetime | None = None,
++    query_window: TimeWindow | None = None,
 +    has_temporal_gap: bool = False,
 +) -> None:
 +    trace = resolved.payload
@@ -4805,8 +5076,10 @@ index 0000000..4bc784a
 +            )
 +
 +    if resolved.provenance.post_apply_status == "violation":
-+        found_incident = True
-+        _add_booking_post_apply_evidence(resolved, booking_id, collector)
++        if _add_booking_post_apply_evidence(
++            resolved, booking_id, collector, query_at=query_at, query_window=query_window
++        ):
++            found_incident = True
 +
 +    if not found_incident and emit_no_incident:
 +        if _can_confirm_no_incident(resolved, has_temporal_gap=has_temporal_gap):
@@ -4834,6 +5107,37 @@ index 0000000..4bc784a
 +                    params={},
 +                    summary="Không ghi nhận sự cố, vi phạm trần cứng hay Safety Hold tác động lên phiên sạc trong khoảng truy vấn.",
 +                )
++        elif (
++            resolved.provenance.closed
++            and resolved.provenance.post_apply_status == "violation"
++            and resolved.provenance.coverage_status == "complete"
++            and not has_temporal_gap
++        ):
++            # All post-apply violations in this trace occurred outside/after the queried time/window
++            f_cov = collector.add_fact(
++                resolved,
++                name="applied.coverage_status",
++                subject="station",
++                stage=FactStage.MEASURED,
++                value=resolved.provenance.coverage_status,
++                unit=None,
++                source_path="/applied/coverage/status",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=resolved.measured_start,
++                interval_end=resolved.measured_end,
++            )
++            if f_cov is not None:
++                collector.add_reason(
++                    resolved,
++                    code="NO_INCIDENT_IN_QUERY_SCOPE",
++                    category=EvidenceCategory.OBSERVED,
++                    subject=booking_id,
++                    fact_refs=[f_cov.fact_id],
++                    evidence_refs=[f_cov.evidence_ref],
++                    template_key="incident.none_in_query_scope",
++                    params={},
++                    summary="Không ghi nhận sự cố hay vi phạm trần cứng tại mốc/khoảng truy vấn (các vi phạm hậu kiểm của trace xảy ra ở thời điểm khác).",
++                )
 +        else:
 +            collector.add_fact(
 +                resolved,
@@ -4858,24 +5162,43 @@ index 0000000..4bc784a
 +    station_id: str,
 +    collector: EvidenceCollector,
 +    *,
++    query_at: datetime | None = None,
++    query_window: TimeWindow | None = None,
 +    has_temporal_gap: bool,
 +) -> None:
 +    if topic == WhyTopic.QUEUE:
 +        _explain_station_queue(resolved, station_id, collector)
 +    elif topic == WhyTopic.POWER:
-+        _explain_station_power(resolved, sample_slice, station_id, collector)
++        _explain_station_power(
++            resolved, sample_slice, station_id, collector, query_at=query_at, query_window=query_window
++        )
 +    elif topic == WhyTopic.DEADLINE_RISK:
 +        _explain_station_deadline_risk(resolved, station_id, collector)
 +    elif topic == WhyTopic.INCIDENT:
-+        _explain_station_incident(resolved, station_id, collector, has_temporal_gap=has_temporal_gap)
++        _explain_station_incident(
++            resolved,
++            station_id,
++            collector,
++            query_at=query_at,
++            query_window=query_window,
++            has_temporal_gap=has_temporal_gap,
++        )
 +    elif topic == WhyTopic.POLICY:
 +        _explain_policy(resolved, station_id, None, collector, is_station=True)
 +    elif topic == WhyTopic.OVERVIEW:
 +        _explain_station_queue(resolved, station_id, collector)
-+        _explain_station_power(resolved, sample_slice, station_id, collector)
++        _explain_station_power(
++            resolved, sample_slice, station_id, collector, query_at=query_at, query_window=query_window
++        )
 +        _explain_station_deadline_risk(resolved, station_id, collector)
 +        _explain_station_incident(
-+            resolved, station_id, collector, emit_no_incident=False, has_temporal_gap=has_temporal_gap
++            resolved,
++            station_id,
++            collector,
++            emit_no_incident=False,
++            query_at=query_at,
++            query_window=query_window,
++            has_temporal_gap=has_temporal_gap,
 +        )
 +
 +
@@ -4952,6 +5275,9 @@ index 0000000..4bc784a
 +    sample_slice: SampleSlice | None,
 +    station_id: str,
 +    collector: EvidenceCollector,
++    *,
++    query_at: datetime | None = None,
++    query_window: TimeWindow | None = None,
 +) -> None:
 +    trace = resolved.payload
 +    planned = trace.get("planned") if isinstance(trace.get("planned"), dict) else None
@@ -5143,7 +5469,7 @@ index 0000000..4bc784a
 +                    summary=f"Ràng buộc {binding.get('limit')} ({binding.get('id')}) chạm trần {binding.get('kw'):g} kW.",
 +                )
 +
-+    _add_station_post_apply_evidence(resolved, station_id, collector)
++    _add_station_post_apply_evidence(resolved, station_id, collector, query_at=query_at, query_window=query_window)
 +
 +
 +def _explain_station_deadline_risk(resolved: ResolvedTrace, station_id: str, collector: EvidenceCollector) -> None:
@@ -5242,6 +5568,8 @@ index 0000000..4bc784a
 +    collector: EvidenceCollector,
 +    *,
 +    emit_no_incident: bool = True,
++    query_at: datetime | None = None,
++    query_window: TimeWindow | None = None,
 +    has_temporal_gap: bool = False,
 +) -> None:
 +    trace = resolved.payload
@@ -5375,8 +5703,10 @@ index 0000000..4bc784a
 +            )
 +
 +    if resolved.provenance.post_apply_status == "violation":
-+        found = True
-+        _add_station_post_apply_evidence(resolved, station_id, collector)
++        if _add_station_post_apply_evidence(
++            resolved, station_id, collector, query_at=query_at, query_window=query_window
++        ):
++            found = True
 +
 +    if not found and emit_no_incident:
 +        if _can_confirm_no_incident(resolved, has_temporal_gap=has_temporal_gap):
@@ -5403,6 +5733,36 @@ index 0000000..4bc784a
 +                    template_key="station.no_incident",
 +                    params={},
 +                    summary="Không có sự cố, vi phạm trần cứng hay đầu nối lỗi được ghi nhận trong khoảng truy vấn.",
++                )
++        elif (
++            resolved.provenance.closed
++            and resolved.provenance.post_apply_status == "violation"
++            and resolved.provenance.coverage_status == "complete"
++            and not has_temporal_gap
++        ):
++            f_cov = collector.add_fact(
++                resolved,
++                name="applied.coverage_status",
++                subject=station_id,
++                stage=FactStage.MEASURED,
++                value=resolved.provenance.coverage_status,
++                unit=None,
++                source_path="/applied/coverage/status",
++                time_scope=TemporalBasis.MEASURED_COVERAGE,
++                interval_start=resolved.measured_start,
++                interval_end=resolved.measured_end,
++            )
++            if f_cov is not None:
++                collector.add_reason(
++                    resolved,
++                    code="NO_INCIDENT_IN_QUERY_SCOPE",
++                    category=EvidenceCategory.OBSERVED,
++                    subject=station_id,
++                    fact_refs=[f_cov.fact_id],
++                    evidence_refs=[f_cov.evidence_ref],
++                    template_key="station.no_incident_in_query_scope",
++                    params={},
++                    summary="Không ghi nhận sự cố hay vi phạm trần cứng tại mốc/khoảng truy vấn (các vi phạm hậu kiểm của trace xảy ra ở thời điểm khác).",
 +                )
 +        else:
 +            collector.add_fact(
@@ -7726,12 +8086,292 @@ index 0000000..619e877
 +    from tests.factories import booking
 +
 +    return booking(bid, zone="DC", kwh=35.0, hours=2.0, now=T0).model_copy(update={"resident_id": resident_id})
+diff --git a/tests/test_services/test_why_g2_final_fix.py b/tests/test_services/test_why_g2_final_fix.py
+new file mode 100644
+index 0000000..a70c70d
+--- /dev/null
++++ b/tests/test_services/test_why_g2_final_fix.py
+@@ -0,0 +1,274 @@
++"""Gate 2 Final Targeted Fix regression tests (G2-F05a & G2-F05b).
++
++Executed fail-before on mirror 2d15ca1 and pass-after targeted fix in `why.py`/`evidence.py`.
++Covers:
++- G2-F05a: Post-apply violation temporal leakage (T0 decision, T+12 violation, T+15 close,
++  query at T+5 and interval [T0, T+10) vs T+12 and [T+10, T+15)) across booking & station
++  POWER / INCIDENT / OVERVIEW.
++- G2-F05a: Evicted / untimestamped violation retains whole-trace evidence with PARTIAL +
++  missing temporal attribution (never fabricates a timestamp).
++- G2-F05a: Post-decision completion fact does NOT use `decision_snapshot` time_scope.
++- G2-F05b: Pre-existing Safety Hold on Vehicle A does NOT cause Vehicle B's new post-apply
++  violation to be attributed to Vehicle A.
++- G2-F05b: True vehicle-specific violation carries event/booking/interval evidence refs;
++  Resident accessing a multi-vehicle violation falls back to station-level violation safely.
++"""
++
++from datetime import timedelta
++
++import pytest
++
++pytest.importorskip("ev2gym")
++
++from src.models.copilot import (  # noqa: E402
++    TemporalBasis,
++    TimeWindow,
++    WhyQuery,
++    WhyStatus,
++    WhySubjectScope,
++    WhyTopic,
++)
++from src.services.copilot import explain_why  # noqa: E402
++from tests.factories import booking  # noqa: E402
++from tests.test_services.test_why_temporal_and_auth import (  # noqa: E402
++    STATION_ID,
++    T0,
++    _operator,
++    _resident,
++    _synthetic_trace,
++)
++
++
++def _bk(bid: str, rid: str):
++    return booking(bid, zone="DC", kwh=35.0, hours=2.0, now=T0).model_copy(update={"resident_id": rid})
++
++
++def _trace_with_t12_violation(*, vehicle_ids: list[str], held_booking_ids: list[str] | None = None) -> dict:
++    tr = _synthetic_trace(
++        "t-viol-t12",
++        T0,
++        minute=0,
++        planned_minutes=15,
++        closed=True,
++        closed_after_minutes=15,
++        booking_kw_samples=[(m, {"b-a": 20.0, "b-b": 40.0}) for m in range(15)],
++        post_apply="violation",
++        hard_violations=["charging_model exceeded at minute 12"],
++        held_booking_ids=held_booking_ids or [],
++    )
++    tr["applied"]["hard_violation_details"] = [
++        {
++            "minute": 12,
++            "kind": "charging_model",
++            "vehicle_ids": list(vehicle_ids),
++            "message": "charging_model exceeded at minute 12",
++        }
++    ]
++    return tr
++
++
++# ---- G2-F05a: Post-apply violation temporal leakage ---------------------------------------
++
++
++@pytest.mark.parametrize("topic", [WhyTopic.POWER, WhyTopic.INCIDENT, WhyTopic.OVERVIEW])
++def test_g2_f05a_future_t12_violation_does_not_leak_into_t5_as_of_or_early_window(topic):
++    tr = _trace_with_t12_violation(vehicle_ids=["b-a"])
++    bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
++
++    # 1. Booking-scoped as-of T+5: MUST NOT report POST_APPLY_HARD_VIOLATION or STATION_POST_APPLY_HARD_VIOLATION
++    ans_b_t5 = explain_why(
++        WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=topic, at=T0 + timedelta(minutes=5)),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override=bookings,
++    )
++    assert not any("VIOLATION" in r.code for r in ans_b_t5.reasons), f"{topic} booking T+5 leaked: {ans_b_t5.reasons}"
++
++    # 2. Station-scoped as-of T+5: MUST NOT report POST_APPLY_HARD_VIOLATION
++    ans_s_t5 = explain_why(
++        WhyQuery(subject_scope=WhySubjectScope.STATION, topic=topic, at=T0 + timedelta(minutes=5)),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override=bookings,
++    )
++    assert not any("VIOLATION" in r.code for r in ans_s_t5.reasons), f"{topic} station T+5 leaked: {ans_s_t5.reasons}"
++
++    # 3. Window [T0, T+10) (strictly before T+12): MUST NOT report violation
++    early_win = TimeWindow(start=T0, end=T0 + timedelta(minutes=10))
++    ans_s_early = explain_why(
++        WhyQuery(subject_scope=WhySubjectScope.STATION, topic=topic, window=early_win),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override=bookings,
++    )
++    assert not any("VIOLATION" in r.code for r in ans_s_early.reasons)
++
++    # 4. At T+12 and window [T+10, T+15): MUST report violation WITH event/interval evidence!
++    ans_b_t12 = explain_why(
++        WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=topic, at=T0 + timedelta(minutes=12)),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override=bookings,
++    )
++    viol_b = next(r for r in ans_b_t12.reasons if r.code == "POST_APPLY_HARD_VIOLATION")
++    assert viol_b.subject == "b-a"
++    paths_b = [ref.split("#", 1)[1] for ref in viol_b.evidence_refs]
++    assert "/applied/hard_violation_details/0/kind" in paths_b
++    assert "/applied/hard_violation_details/0/minute" in paths_b
++    assert "/applied/hard_violation_details/0/vehicle_ids/0" in paths_b
++
++    late_win = TimeWindow(start=T0 + timedelta(minutes=10), end=T0 + timedelta(minutes=15))
++    ans_s_late = explain_why(
++        WhyQuery(subject_scope=WhySubjectScope.STATION, topic=topic, window=late_win),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override=bookings,
++    )
++    viol_s = next(r for r in ans_s_late.reasons if r.code == "POST_APPLY_HARD_VIOLATION")
++    paths_s = [ref.split("#", 1)[1] for ref in viol_s.evidence_refs]
++    assert "/applied/hard_violation_details/0/minute" in paths_s
++
++
++def test_g2_f05a_evicted_violation_preserves_retrospective_evidence_and_flags_missing_temporal_attribution():
++    tr = _synthetic_trace(
++        "t-evict-viol",
++        T0,
++        minute=0,
++        planned_minutes=15,
++        closed=True,
++        closed_after_minutes=15,
++        booking_kw_samples=[(14, {"b-a": 20.0})],
++        coverage_status="incomplete",
++        post_apply="violation",
++        hard_violations=["grid limit exceeded"],
++    )
++    tr["applied"]["coverage"]["dropped_hard_violations"] = 1
++    tr["applied"]["hard_violation_details"] = []  # evicted!
++
++    ans = explain_why(
++        WhyQuery(
++            subject_scope=WhySubjectScope.STATION,
++            topic=WhyTopic.INCIDENT,
++            at=T0 + timedelta(minutes=5),
++        ),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override={"b-a": _bk("b-a", "res-a")},
++    )
++    assert ans.status == WhyStatus.PARTIAL
++    assert "post_apply_violation_temporal_attribution_missing" in ans.missing_evidence
++    assert "POST_APPLY_HARD_VIOLATION" in {r.code for r in ans.reasons}
++    # Must NOT fabricate a violation minute fact
++    assert not any(f.name == "incident.hard_violation_minute" for f in ans.facts)
++
++
++def test_g2_f05a_post_decision_completion_fact_is_not_labeled_decision_snapshot():
++    tr = _synthetic_trace(
++        "t-comp-scope",
++        T0,
++        minute=0,
++        planned_minutes=15,
++        closed=True,
++        closed_after_minutes=15,
++        booking_kw_samples=[(m, {"b-a": 30.0}) for m in range(12)],
++    )
++    tr["applied"]["completed"] = ["b-a"]
++    tr["applied"]["completed_by_booking"] = {
++        "b-a": {"minute": 12, "completed_at": (T0 + timedelta(minutes=12)).isoformat()}
++    }
++    ans = explain_why(
++        WhyQuery(
++            subject_scope=WhySubjectScope.BOOKING,
++            booking_id="b-a",
++            topic=WhyTopic.DEADLINE_RISK,
++            at=T0 + timedelta(minutes=12),
++        ),
++        _operator(),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override={"b-a": _bk("b-a", "res-a")},
++    )
++    done_fact = next(f for f in ans.facts if f.name == "deadline.observed_completed_at_minute")
++    assert done_fact.time_scope != TemporalBasis.DECISION_SNAPSHOT
++    assert done_fact.interval_start == T0 + timedelta(minutes=12)
++    assert done_fact.interval_end == T0 + timedelta(minutes=12)
++
++
++# ---- G2-F05b: Vehicle-specific violation attribution --------------------------------------
++
++
++def test_g2_f05b_prior_safety_hold_on_vehicle_a_never_attributes_vehicle_b_violation_to_a():
++    # Vehicle A has a pre-existing Safety Hold from an earlier decision; Vehicle B triggers a NEW violation at T+12.
++    tr = _trace_with_t12_violation(vehicle_ids=["b-b"], held_booking_ids=["b-a"])
++    bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
++
++    for topic in (WhyTopic.POWER, WhyTopic.INCIDENT, WhyTopic.OVERVIEW):
++        ans_a = explain_why(
++            WhyQuery(
++                subject_scope=WhySubjectScope.BOOKING,
++                booking_id="b-a",
++                topic=topic,
++                at=T0 + timedelta(minutes=12),
++            ),
++            _operator(),
++            station_id=STATION_ID,
++            raw_traces=[tr],
++            bookings_override=bookings,
++        )
++        # Vehicle A MUST NOT receive a vehicle-specific POST_APPLY_HARD_VIOLATION!
++        assert not any(r.code == "POST_APPLY_HARD_VIOLATION" and r.subject == "b-a" for r in ans_a.reasons), (
++            f"Vehicle A misattributed violation in {topic}: {ans_a.reasons}"
++        )
++        # Station-level violation IS allowed (subject="station")
++        assert any(r.code == "STATION_POST_APPLY_HARD_VIOLATION" and r.subject == "station" for r in ans_a.reasons)
++        # In INCIDENT/OVERVIEW, Vehicle A's own Safety Hold is reported separately as BOOKING_UNDER_SAFETY_HOLD
++        if topic in (WhyTopic.INCIDENT, WhyTopic.OVERVIEW):
++            assert any(r.code == "BOOKING_UNDER_SAFETY_HOLD" and r.subject == "b-a" for r in ans_a.reasons)
++
++
++def test_g2_f05b_resident_multi_vehicle_violation_falls_back_to_station_level_without_leaking():
++    # Violation involves BOTH b-a and b-b -> Resident A cannot inspect shared detail carrying b-b,
++    # so Resident A must receive safe station-level violation without leaking b-b!
++    tr = _trace_with_t12_violation(vehicle_ids=["b-a", "b-b"])
++    bookings = {"b-a": _bk("b-a", "res-a"), "b-b": _bk("b-b", "res-b")}
++
++    ans_res = explain_why(
++        WhyQuery(
++            subject_scope=WhySubjectScope.OWN_BOOKING,
++            booking_id="b-a",
++            topic=WhyTopic.INCIDENT,
++            at=T0 + timedelta(minutes=12),
++        ),
++        _resident("res-a"),
++        station_id=STATION_ID,
++        raw_traces=[tr],
++        bookings_override=bookings,
++    )
++    assert any(r.code == "STATION_POST_APPLY_HARD_VIOLATION" and r.subject == "station" for r in ans_res.reasons)
++    assert "b-b" not in ans_res.model_dump_json()
++
++    # Single-vehicle violation solely involving b-a -> Resident A MAY receive vehicle-specific violation with full own refs!
++    tr_own = _trace_with_t12_violation(vehicle_ids=["b-a"])
++    ans_own = explain_why(
++        WhyQuery(
++            subject_scope=WhySubjectScope.OWN_BOOKING,
++            booking_id="b-a",
++            topic=WhyTopic.INCIDENT,
++            at=T0 + timedelta(minutes=12),
++        ),
++        _resident("res-a"),
++        station_id=STATION_ID,
++        raw_traces=[tr_own],
++        bookings_override=bookings,
++    )
++    viol_own = next(r for r in ans_own.reasons if r.code == "POST_APPLY_HARD_VIOLATION")
++    assert viol_own.subject == "b-a"
++    paths = [ref.split("#", 1)[1] for ref in viol_own.evidence_refs]
++    assert "/applied/hard_violation_details/0/vehicle_ids/0" in paths
++    assert "b-b" not in ans_own.model_dump_json()
 diff --git a/eval/evidence/2026-11-24-ai4-4-1-remediation/run_why_eval.py b/eval/evidence/2026-11-24-ai4-4-1-remediation/run_why_eval.py
 new file mode 100644
-index 0000000..b63e2b6
+index 0000000..a4ee0f3
 --- /dev/null
 +++ b/eval/evidence/2026-11-24-ai4-4-1-remediation/run_why_eval.py
-@@ -0,0 +1,1305 @@
+@@ -0,0 +1,1466 @@
 +"""Independent Deterministic WHY Engine Evaluation & Mutation Suite (Phase AI-4.1 — Gate 2 Remediation, G2-F08).
 +
 +Zero LLM judge. Zero reliance on production `resolve_evidence_ref` or `extract_measured_slice`
@@ -8142,6 +8782,20 @@ index 0000000..b63e2b6
 +            comp = comp_map.get(reason.subject)
 +            if comp and comp.get("completed_at") and _oracle_utc(query.at) < _oracle_utc(comp["completed_at"]):
 +                issues.append(f"future_completion_leakage:{reason.subject}")
++        # Future post-apply violation leakage invariant (G2-F05a)
++        if reason.code in ("POST_APPLY_HARD_VIOLATION", "STATION_POST_APPLY_HARD_VIOLATION") and query.at is not None:
++            applied = tr.get("applied") or {}
++            details = applied.get("hard_violation_details") or []
++            dropped = int((applied.get("coverage") or {}).get("dropped_hard_violations") or 0)
++            base_min = tr.get("minute")
++            if details and dropped == 0 and base_min is not None:
++                v_starts = [
++                    _oracle_utc(tr["decided_at"]) + timedelta(minutes=int(d["minute"]) - int(base_min))
++                    for d in details
++                    if isinstance(d, dict) and d.get("minute") is not None
++                ]
++                if v_starts and all(_oracle_utc(query.at) < vs for vs in v_starts):
++                    issues.append(f"future_violation_leakage:{reason.code}")
 +
 +    return {
 +        "ref_exist": (ref_exist_pass, ref_exist_total),
@@ -8433,6 +9087,29 @@ index 0000000..b63e2b6
 +    tr_no_eff["guard_inputs"] = None
 +    if isinstance(tr_no_eff.get("decision"), dict) and isinstance(tr_no_eff["decision"].get("physical_limits"), dict):
 +        tr_no_eff["decision"]["physical_limits"]["conversion_efficiency"] = None
++
++    # G2-F05a & G2-F05b fixtures (real 15-minute closed trace: T0 decision, T+12 violation, T+15 close)
++    rt_t12 = await _sim(StrategyName.SIM_M3A, [b_dc1, b_ac1])
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=T0), rt_t12)
++    rt_t12.simulator.step(15)
++    tr_t12_dc = decision_trace.close_open(rt_t12)
++    tr_t12_dc["validation"]["post_apply"] = "violation"
++    tr_t12_dc["applied"]["hard_violations"] = ["charging_model violation at minute 12"]
++    tr_t12_dc["applied"]["hard_violation_details"] = [
++        {"minute": 12, "kind": "charging_model", "vehicle_ids": ["dc-1"], "message": "t12 dc-1"}
++    ]
++
++    tr_hold_a_viol_b = copy.deepcopy(tr_t12_dc)
++    tr_hold_a_viol_b["safety"]["held_booking_ids"] = ["dc-1"]
++    tr_hold_a_viol_b["safety"]["by_booking"] = {"dc-1": {"safety_hold": True}}
++    tr_hold_a_viol_b["applied"]["hard_violation_details"] = [
++        {"minute": 12, "kind": "charging_model", "vehicle_ids": ["ac-1"], "message": "t12 ac-1"}
++    ]
++
++    tr_shared_viol = copy.deepcopy(tr_t12_dc)
++    tr_shared_viol["applied"]["hard_violation_details"] = [
++        {"minute": 12, "kind": "aggregate_power", "vehicle_ids": ["dc-1", "ac-1"], "message": "t12 shared"}
++    ]
 +
 +    specs = [
 +        # --- Original 19 cases + non-enumeration (20 total) preserved intact ---
@@ -8836,6 +9513,89 @@ index 0000000..b63e2b6
 +            "required_missing": ["missing_conversion_efficiency_evidence"],
 +            "forbidden_fact_prefixes": ["energy.measured_grid_input_kwh"],
 +        },
++        # --- Gate 2 Final Targeted Fix cases (G2-F05a & G2-F05b) ---
++        {
++            "id": "g2_f05a_t12_violation_no_leak_at_t5_booking",
++            "query": WhyQuery(
++                subject_scope=WhySubjectScope.BOOKING,
++                booking_id="dc-1",
++                topic=WhyTopic.INCIDENT,
++                at=T0 + timedelta(minutes=5),
++            ),
++            "actor": _op(),
++            "traces": [tr_t12_dc],
++            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
++            "expected_status": WhyStatus.OK,
++            "is_abstention": False,
++            "required_reasons": [("NO_INCIDENT_IN_QUERY_SCOPE", EvidenceCategory.OBSERVED)],
++            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION", "STATION_POST_APPLY_HARD_VIOLATION"],
++        },
++        {
++            "id": "g2_f05a_t12_violation_no_leak_at_t5_station_power",
++            "query": WhyQuery(
++                subject_scope=WhySubjectScope.STATION,
++                topic=WhyTopic.POWER,
++                at=T0 + timedelta(minutes=5),
++            ),
++            "actor": _op(),
++            "traces": [tr_t12_dc],
++            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
++            "expected_status": WhyStatus.OK,
++            "is_abstention": False,
++            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION", "STATION_POST_APPLY_HARD_VIOLATION"],
++        },
++        {
++            "id": "g2_f05a_t12_violation_detected_at_t12_booking",
++            "query": WhyQuery(
++                subject_scope=WhySubjectScope.BOOKING,
++                booking_id="dc-1",
++                topic=WhyTopic.INCIDENT,
++                at=T0 + timedelta(minutes=12),
++            ),
++            "actor": _op(),
++            "traces": [tr_t12_dc],
++            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
++            "expected_status": WhyStatus.OK,
++            "is_abstention": False,
++            "required_reasons": [("POST_APPLY_HARD_VIOLATION", EvidenceCategory.OBSERVED)],
++            "forbidden_reasons": ["NO_INCIDENT_OBSERVED", "NO_INCIDENT_IN_QUERY_SCOPE"],
++        },
++        {
++            "id": "g2_f05b_prior_safety_hold_not_attributed_other_violation",
++            "query": WhyQuery(
++                subject_scope=WhySubjectScope.BOOKING,
++                booking_id="dc-1",
++                topic=WhyTopic.INCIDENT,
++                at=T0 + timedelta(minutes=12),
++            ),
++            "actor": _op(),
++            "traces": [tr_hold_a_viol_b],
++            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
++            "expected_status": WhyStatus.OK,
++            "is_abstention": False,
++            "required_reasons": [
++                ("BOOKING_UNDER_SAFETY_HOLD", EvidenceCategory.OBSERVED),
++                ("STATION_POST_APPLY_HARD_VIOLATION", EvidenceCategory.OBSERVED),
++            ],
++            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION"],
++        },
++        {
++            "id": "g2_f05b_resident_shared_violation_safe_station_fallback",
++            "query": WhyQuery(
++                subject_scope=WhySubjectScope.OWN_BOOKING,
++                booking_id="dc-1",
++                topic=WhyTopic.INCIDENT,
++                at=T0 + timedelta(minutes=12),
++            ),
++            "actor": _res("res-dc-1"),
++            "traces": [tr_shared_viol],
++            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
++            "expected_status": WhyStatus.OK,
++            "is_abstention": False,
++            "required_reasons": [("STATION_POST_APPLY_HARD_VIOLATION", EvidenceCategory.OBSERVED)],
++            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION"],
++            "forbidden_leaks": ["ac-1", "res-ac-1"],
++        },
 +    ]
 +
 +    # 9 separated metric counters + privacy/auth counter
@@ -8967,6 +9727,47 @@ index 0000000..b63e2b6
 +
 +    assert base_mut_answer is not None and base_mut_query is not None
 +    mutations = _run_mutation_suite(base_mut_answer, tr_frac, base_mut_query, tr_future_comp, b_dc1)
++    # 8. Future post-apply violation leakage mutation (G2-F05a)
++    q_t5 = WhyQuery(
++        subject_scope=WhySubjectScope.BOOKING,
++        booking_id="dc-1",
++        topic=WhyTopic.INCIDENT,
++        at=T0 + timedelta(minutes=5),
++    )
++    ans_t5 = explain_why(
++        q_t5, _op(), station_id=STATION_ID, raw_traces=[tr_t12_dc], bookings_override={"dc-1": b_dc1, "ac-1": b_ac1}
++    )
++    from src.models.copilot import WhyReason as _WhyReason
++
++    leaked_viol = ans_t5.model_copy(
++        update={
++            "reasons": [
++                *ans_t5.reasons,
++                _WhyReason(
++                    code="POST_APPLY_HARD_VIOLATION",
++                    category=EvidenceCategory.OBSERVED,
++                    subject="dc-1",
++                    correlation_id=tr_t12_dc["correlation_id"],
++                    policy_id="M3a",
++                    policy_version="1",
++                    decided_at=T0,
++                    fact_refs=[],
++                    evidence_refs=[],
++                    template_key="validation.post_apply_violation",
++                    params={},
++                    summary="Leaked future T+12 violation into T+5",
++                ),
++            ]
++        }
++    )
++    audit_v = audit_answer_with_independent_oracle(leaked_viol, [tr_t12_dc], _op(), q_t5)
++    mutations.append(
++        {
++            "mutation": "8_future_post_apply_violation_leakage",
++            "detected": bool(audit_v["issues"]),
++            "issues": audit_v["issues"][:3],
++        }
++    )
 +    mutations_detected = sum(1 for m in mutations if m["detected"])
 +
 +    def _ratio(p: int, t: int) -> dict[str, Any]:

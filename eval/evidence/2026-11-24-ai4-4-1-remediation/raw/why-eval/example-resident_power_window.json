@@ -14,7 +14,7 @@
   "state_version": 4,
   "traces": [
     {
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "decided_at": "2026-11-24T12:00:00+07:00",
       "policy_id": "M3a",
@@ -35,13 +35,13 @@
   ],
   "facts": [
     {
-      "fact_id": "f001:d510c2fe:power.proposed_output_kw",
+      "fact_id": "f001:712a6bef:power.proposed_output_kw",
       "name": "power.proposed_output_kw",
       "subject": "dc-1",
       "stage": "planned",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -49,22 +49,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:15:00+07:00",
       "source_path": "/power/proposed/by_booking_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f002:d510c2fe:power.approved_output_kw",
+      "fact_id": "f002:712a6bef:power.approved_output_kw",
       "name": "power.approved_output_kw",
       "subject": "dc-1",
       "stage": "approved",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -72,22 +72,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:15:00+07:00",
       "source_path": "/power/approved/by_booking_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f003:d510c2fe:power.consent_forced_min_kw",
+      "fact_id": "f003:712a6bef:power.consent_forced_min_kw",
       "name": "power.consent_forced_min_kw",
       "subject": "dc-1",
       "stage": "approved",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -95,22 +95,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:15:00+07:00",
       "source_path": "/consent/adjustments_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f004:d510c2fe:power.dispatched_command_kw",
+      "fact_id": "f004:712a6bef:power.dispatched_command_kw",
       "name": "power.dispatched_command_kw",
       "subject": "dc-1",
       "stage": "dispatched",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -118,22 +118,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/commands/3/power_kw",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/commands/3/power_kw",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/commands/3/power_kw",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/commands/3/power_kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/commands/3/power_kw"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f005:d510c2fe:power.command_executed",
+      "fact_id": "f005:712a6bef:power.command_executed",
       "name": "power.command_executed",
       "subject": "dc-1",
       "stage": "dispatched",
       "value": true,
       "unit": null,
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -141,22 +141,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/commands/3/executed",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/commands/3/executed",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/commands/3/executed",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/commands/3/executed"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/commands/3/executed"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f006:d510c2fe:power.effective_held_setpoint_avg_kw",
+      "fact_id": "f006:712a6bef:power.effective_held_setpoint_avg_kw",
       "name": "power.effective_held_setpoint_avg_kw",
       "subject": "dc-1",
       "stage": "effective_setpoint",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -164,25 +164,25 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:02:00+07:00",
       "source_path": "/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
       "derivation_kind": "derived",
       "derivation_op": "average",
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/1/by_booking_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/1/by_booking_kw/dc-1"
       ],
       "derivation_params": {
         "sample_count": 2
       }
     },
     {
-      "fact_id": "f007:d510c2fe:power.measured_actual_output_avg_kw",
+      "fact_id": "f007:712a6bef:power.measured_actual_output_avg_kw",
       "name": "power.measured_actual_output_avg_kw",
       "subject": "dc-1",
       "stage": "measured",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -190,12 +190,12 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:02:00+07:00",
       "source_path": "/power/actual_output/samples/0/by_booking_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
       "derivation_kind": "derived",
       "derivation_op": "average",
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1"
       ],
       "derivation_params": {
         "overlap_minutes": 2.0,
@@ -203,13 +203,13 @@
       }
     },
     {
-      "fact_id": "f008:d510c2fe:energy.measured_output_kwh",
+      "fact_id": "f008:712a6bef:energy.measured_output_kwh",
       "name": "energy.measured_output_kwh",
       "subject": "dc-1",
       "stage": "measured",
       "value": 2.0,
       "unit": "kWh",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -217,12 +217,12 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:02:00+07:00",
       "source_path": "/power/actual_output/samples/0/by_booking_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
       "derivation_kind": "derived",
       "derivation_op": "time_integration",
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1"
       ],
       "derivation_params": {
         "overlap_minutes": 2.0,
@@ -230,13 +230,13 @@
       }
     },
     {
-      "fact_id": "f009:d510c2fe:energy.measured_grid_input_kwh",
+      "fact_id": "f009:712a6bef:energy.measured_grid_input_kwh",
       "name": "energy.measured_grid_input_kwh",
       "subject": "dc-1",
       "stage": "measured",
       "value": 2.105263,
       "unit": "kWh",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -244,13 +244,13 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:02:00+07:00",
       "source_path": "/power/actual_output/samples/0/by_booking_kw/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
       "derivation_kind": "derived",
       "derivation_op": "efficiency_conversion",
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/conversion_efficiency"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/conversion_efficiency"
       ],
       "derivation_params": {
         "conversion_efficiency": 0.95,
@@ -258,13 +258,13 @@
       }
     },
     {
-      "fact_id": "f010:d510c2fe:energy.measured_battery_stored_kwh",
+      "fact_id": "f010:712a6bef:energy.measured_battery_stored_kwh",
       "name": "energy.measured_battery_stored_kwh",
       "subject": "dc-1",
       "stage": "measured",
       "value": 1.96,
       "unit": "kWh",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -272,22 +272,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:02:00+07:00",
       "source_path": "/applied/battery_stored_kwh/dc-1",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/applied/battery_stored_kwh/dc-1",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/applied/battery_stored_kwh/dc-1",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/applied/battery_stored_kwh/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/applied/battery_stored_kwh/dc-1"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f011:d510c2fe:limits.supply_mode",
+      "fact_id": "f011:712a6bef:limits.supply_mode",
       "name": "limits.supply_mode",
       "subject": "station",
       "stage": "config",
       "value": "shared",
       "unit": null,
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -295,22 +295,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/planned/physical_limits/supply_mode",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/supply_mode",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/supply_mode",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/supply_mode"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/supply_mode"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f012:d510c2fe:limits.site_grid_input_kw",
+      "fact_id": "f012:712a6bef:limits.site_grid_input_kw",
       "name": "limits.site_grid_input_kw",
       "subject": "station",
       "stage": "config",
       "value": 106.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -318,22 +318,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/planned/physical_limits/grid_input_kw",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/grid_input_kw",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/grid_input_kw",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/grid_input_kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/grid_input_kw"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f013:d510c2fe:vehicle.allowed_output_kw",
+      "fact_id": "f013:712a6bef:vehicle.allowed_output_kw",
       "name": "vehicle.allowed_output_kw",
       "subject": "dc-1",
       "stage": "observed",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -341,22 +341,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/planned/observed/vehicles/dc-1/allowed_output_kw",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/dc-1/allowed_output_kw",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/dc-1/allowed_output_kw",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/dc-1/allowed_output_kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/dc-1/allowed_output_kw"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f014:d510c2fe:binding.individual_allowed_output",
+      "fact_id": "f014:712a6bef:binding.individual_allowed_output",
       "name": "binding.individual_allowed_output",
       "subject": "dc-1",
       "stage": "approved",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -364,22 +364,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:15:00+07:00",
       "source_path": "/planned/binding_constraints/7/kw",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f015:d510c2fe:binding.port_output",
+      "fact_id": "f015:712a6bef:binding.port_output",
       "name": "binding.port_output",
       "subject": "DC-01-1",
       "stage": "approved",
       "value": 60.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -387,22 +387,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:15:00+07:00",
       "source_path": "/planned/binding_constraints/8/kw",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f016:d510c2fe:coordinator.assigned_zone_budget_kw",
+      "fact_id": "f016:712a6bef:coordinator.assigned_zone_budget_kw",
       "name": "coordinator.assigned_zone_budget_kw",
       "subject": "DC",
       "stage": "planned",
       "value": 78.0,
       "unit": "kW",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -410,22 +410,22 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:15:00+07:00",
       "source_path": "/planned/coordinator/assigned_output_kw/DC",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f017:d510c2fe:coordinator.reason_code",
+      "fact_id": "f017:712a6bef:coordinator.reason_code",
       "name": "coordinator.reason_code",
       "subject": "DC",
       "stage": "planned",
       "value": "fixed_share",
       "unit": null,
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -433,22 +433,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/planned/coordinator/reason_codes/DC/0",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f018:d510c2fe:optimizer.policy",
+      "fact_id": "f018:712a6bef:optimizer.policy",
       "name": "optimizer.policy",
       "subject": "DC",
       "stage": "config",
       "value": "rolling_lp",
       "unit": null,
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -456,22 +456,22 @@
       "interval_start": null,
       "interval_end": null,
       "source_path": "/planned/optimizers/DC/policy",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/policy",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/policy",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/policy"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/policy"
       ],
       "derivation_params": {}
     },
     {
-      "fact_id": "f019:d510c2fe:validation.post_apply_status",
+      "fact_id": "f019:712a6bef:validation.post_apply_status",
       "name": "validation.post_apply_status",
       "subject": "station",
       "stage": "measured",
       "value": "pass",
       "unit": null,
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
@@ -479,11 +479,11 @@
       "interval_start": "2026-11-24T12:00:00+07:00",
       "interval_end": "2026-11-24T12:02:00+07:00",
       "source_path": "/validation/post_apply",
-      "evidence_ref": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/validation/post_apply",
+      "evidence_ref": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/validation/post_apply",
       "derivation_kind": "direct",
       "derivation_op": null,
       "input_evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/validation/post_apply"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/validation/post_apply"
       ],
       "derivation_params": {}
     }
@@ -493,19 +493,19 @@
       "code": "CONSENT_MINIMUM_START_ADJUSTMENT",
       "category": "policy_reason",
       "subject": "dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
       "fact_refs": [
-        "f001:d510c2fe:power.proposed_output_kw",
-        "f002:d510c2fe:power.approved_output_kw",
-        "f003:d510c2fe:power.consent_forced_min_kw"
+        "f001:712a6bef:power.proposed_output_kw",
+        "f002:712a6bef:power.approved_output_kw",
+        "f003:712a6bef:power.consent_forced_min_kw"
       ],
       "evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1"
       ],
       "template_key": "power.consent_adjusted",
       "params": {
@@ -517,15 +517,15 @@
       "code": "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
       "category": "binding_constraint",
       "subject": "dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
       "fact_refs": [
-        "f014:d510c2fe:binding.individual_allowed_output"
+        "f014:712a6bef:binding.individual_allowed_output"
       ],
       "evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw"
       ],
       "template_key": "power.binding_constraint",
       "params": {
@@ -539,15 +539,15 @@
       "code": "BINDING_PORT_OUTPUT",
       "category": "binding_constraint",
       "subject": "dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
       "fact_refs": [
-        "f015:d510c2fe:binding.port_output"
+        "f015:712a6bef:binding.port_output"
       ],
       "evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw"
       ],
       "template_key": "power.binding_constraint",
       "params": {
@@ -561,17 +561,17 @@
       "code": "COORDINATOR_FIXED_SHARE",
       "category": "policy_reason",
       "subject": "dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "policy_id": "M3a",
       "policy_version": "1",
       "decided_at": "2026-11-24T12:00:00+07:00",
       "fact_refs": [
-        "f016:d510c2fe:coordinator.assigned_zone_budget_kw",
-        "f017:d510c2fe:coordinator.reason_code"
+        "f016:712a6bef:coordinator.assigned_zone_budget_kw",
+        "f017:712a6bef:coordinator.reason_code"
       ],
       "evidence_refs": [
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC",
-        "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0"
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC",
+        "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0"
       ],
       "template_key": "coordinator.fixed_share",
       "params": {
@@ -584,8 +584,8 @@
   ],
   "evidence_refs": [
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/proposed/by_booking_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/power/proposed/by_booking_kw/dc-1",
       "subject": "dc-1",
@@ -597,8 +597,8 @@
       "interval_end": "2026-11-24T12:15:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/power/approved/by_booking_kw/dc-1",
       "subject": "dc-1",
@@ -610,8 +610,8 @@
       "interval_end": "2026-11-24T12:15:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/consent/adjustments_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/consent/adjustments_kw/dc-1",
       "subject": "dc-1",
@@ -623,8 +623,8 @@
       "interval_end": "2026-11-24T12:15:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/commands/3/power_kw",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/commands/3/power_kw",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/commands/3/power_kw",
       "subject": "dc-1",
@@ -636,8 +636,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/commands/3/executed",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/commands/3/executed",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/commands/3/executed",
       "subject": "dc-1",
@@ -649,8 +649,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/power/effective_setpoint/samples/0/by_booking_kw/dc-1",
       "subject": "dc-1",
@@ -662,8 +662,8 @@
       "interval_end": "2026-11-24T12:01:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/1/by_booking_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/effective_setpoint/samples/1/by_booking_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/power/effective_setpoint/samples/1/by_booking_kw/dc-1",
       "subject": "dc-1",
@@ -675,8 +675,8 @@
       "interval_end": "2026-11-24T12:02:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/0/by_booking_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/power/actual_output/samples/0/by_booking_kw/dc-1",
       "subject": "dc-1",
@@ -688,8 +688,8 @@
       "interval_end": "2026-11-24T12:01:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/power/actual_output/samples/1/by_booking_kw/dc-1",
       "subject": "dc-1",
@@ -701,8 +701,8 @@
       "interval_end": "2026-11-24T12:02:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/conversion_efficiency",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/conversion_efficiency",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/physical_limits/conversion_efficiency",
       "subject": "station",
@@ -714,8 +714,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/applied/battery_stored_kwh/dc-1",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/applied/battery_stored_kwh/dc-1",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/applied/battery_stored_kwh/dc-1",
       "subject": "dc-1",
@@ -727,8 +727,8 @@
       "interval_end": "2026-11-24T12:02:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/supply_mode",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/supply_mode",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/physical_limits/supply_mode",
       "subject": "station",
@@ -740,8 +740,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/physical_limits/grid_input_kw",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/physical_limits/grid_input_kw",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/physical_limits/grid_input_kw",
       "subject": "station",
@@ -753,8 +753,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/dc-1/allowed_output_kw",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/dc-1/allowed_output_kw",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/observed/vehicles/dc-1/allowed_output_kw",
       "subject": "dc-1",
@@ -766,8 +766,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/7/kw",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/binding_constraints/7/kw",
       "subject": "dc-1",
@@ -779,8 +779,8 @@
       "interval_end": "2026-11-24T12:15:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/binding_constraints/8/kw",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/binding_constraints/8/kw",
       "subject": "DC-01-1",
@@ -792,8 +792,8 @@
       "interval_end": "2026-11-24T12:15:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/assigned_output_kw/DC",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/coordinator/assigned_output_kw/DC",
       "subject": "DC",
@@ -805,8 +805,8 @@
       "interval_end": "2026-11-24T12:15:00+07:00"
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/coordinator/reason_codes/DC/0",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/coordinator/reason_codes/DC/0",
       "subject": "DC",
@@ -818,8 +818,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/policy",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/planned/optimizers/DC/policy",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/planned/optimizers/DC/policy",
       "subject": "DC",
@@ -831,8 +831,8 @@
       "interval_end": null
     },
     {
-      "ref_id": "d510c2fec77343478db6d5a1d884b5bf:chargepilot.backend_decision_trace/2#/validation/post_apply",
-      "correlation_id": "d510c2fec77343478db6d5a1d884b5bf",
+      "ref_id": "712a6bef04164d7fb99d11c62608c817:chargepilot.backend_decision_trace/2#/validation/post_apply",
+      "correlation_id": "712a6bef04164d7fb99d11c62608c817",
       "trace_schema": "chargepilot.backend_decision_trace/2",
       "source_path": "/validation/post_apply",
       "subject": "station",

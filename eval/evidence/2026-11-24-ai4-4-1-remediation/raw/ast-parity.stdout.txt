@@ -1,4 +1,4 @@
-cwd=/tmp/ai4-g2-rem-gate/code
+cwd=/tmp/ai4-g2-final-fix/code
 $ isolated python scripts/refactor/compare_ast_manifest.py docs/refactor/raw/phase4-final/preserved_baseline_manifest.txt -- src 
 SAME         src/guard/physical/validator.py::validate_dispatch
 SAME         src/guard/physical/validator.py::validate_budgets

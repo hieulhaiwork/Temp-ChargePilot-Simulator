@@ -3,47 +3,47 @@
   "llm_judge_used": false,
   "independent_oracle": true,
   "note": "Evaluates finite deterministic fixture suite with explicit denominators; does not extrapolate general accuracy beyond covered fixtures.",
-  "cases_total": 26,
-  "cases_passed": 26,
+  "cases_total": 31,
+  "cases_passed": 31,
   "metrics": {
     "1_reference_existence": {
-      "passed": 232,
-      "total": 232,
+      "passed": 260,
+      "total": 260,
       "rate": 1.0
     },
     "2_reference_authorization": {
-      "passed": 232,
-      "total": 232,
+      "passed": 260,
+      "total": 260,
       "rate": 1.0
     },
     "3_direct_fact_correctness": {
-      "passed": 201,
-      "total": 201,
+      "passed": 223,
+      "total": 223,
       "rate": 1.0
     },
     "4_derived_fact_correctness": {
-      "passed": 22,
-      "total": 22,
+      "passed": 25,
+      "total": 25,
       "rate": 1.0
     },
     "5_temporal_grounding": {
-      "passed": 223,
-      "total": 223,
+      "passed": 248,
+      "total": 248,
       "rate": 1.0
     },
     "6_subject_attribution": {
-      "passed": 223,
-      "total": 223,
+      "passed": 248,
+      "total": 248,
       "rate": 1.0
     },
     "7_causal_correctness": {
-      "passed": 14,
-      "total": 14,
+      "passed": 19,
+      "total": 19,
       "rate": 1.0
     },
     "8_answer_usefulness_coverage": {
-      "passed": 12,
-      "total": 12,
+      "passed": 17,
+      "total": 17,
       "rate": 1.0
     },
     "9_abstention_appropriateness": {
@@ -53,8 +53,8 @@
     },
     "authorization_and_privacy_violations": 0,
     "mutation_detection": {
-      "passed": 7,
-      "total": 7,
+      "passed": 8,
+      "total": 8,
       "rate": 1.0
     }
   },
@@ -104,6 +104,13 @@
       "detected": true,
       "issues": [
         "future_completion_leakage:dc-1"
+      ]
+    },
+    {
+      "mutation": "8_future_post_apply_violation_leakage",
+      "detected": true,
+      "issues": [
+        "future_violation_leakage:POST_APPLY_HARD_VIOLATION"
       ]
     }
   ],
@@ -271,7 +278,8 @@
       ],
       "evidence_refs_audited": 1,
       "missing_evidence": [
-        "incomplete_measured_coverage"
+        "incomplete_measured_coverage",
+        "post_apply_violation_temporal_attribution_missing"
       ],
       "passed": true,
       "issues": []
@@ -439,7 +447,8 @@
       ],
       "evidence_refs_audited": 1,
       "missing_evidence": [
-        "incomplete_measured_coverage"
+        "incomplete_measured_coverage",
+        "post_apply_violation_temporal_attribution_missing"
       ],
       "passed": true,
       "issues": []
@@ -471,6 +480,74 @@
       "missing_evidence": [
         "missing_conversion_efficiency_evidence"
       ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "g2_f05a_t12_violation_no_leak_at_t5_booking",
+      "status": "ok",
+      "facts_audited": 1,
+      "reasons": [
+        "NO_INCIDENT_IN_QUERY_SCOPE"
+      ],
+      "evidence_refs_audited": 1,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "g2_f05a_t12_violation_no_leak_at_t5_station_power",
+      "status": "ok",
+      "facts_audited": 17,
+      "reasons": [
+        "COORDINATOR_FIXED_SHARE",
+        "AC_LP_TOU_OPTIMIZED",
+        "COORDINATOR_FIXED_SHARE",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "BINDING_CABINET_OUTPUT"
+      ],
+      "evidence_refs_audited": 20,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "g2_f05a_t12_violation_detected_at_t12_booking",
+      "status": "ok",
+      "facts_audited": 4,
+      "reasons": [
+        "POST_APPLY_HARD_VIOLATION"
+      ],
+      "evidence_refs_audited": 4,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "g2_f05b_prior_safety_hold_not_attributed_other_violation",
+      "status": "ok",
+      "facts_audited": 2,
+      "reasons": [
+        "BOOKING_UNDER_SAFETY_HOLD",
+        "STATION_POST_APPLY_HARD_VIOLATION"
+      ],
+      "evidence_refs_audited": 2,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "g2_f05b_resident_shared_violation_safe_station_fallback",
+      "status": "ok",
+      "facts_audited": 1,
+      "reasons": [
+        "STATION_POST_APPLY_HARD_VIOLATION"
+      ],
+      "evidence_refs_audited": 1,
+      "missing_evidence": [],
       "passed": true,
       "issues": []
     },

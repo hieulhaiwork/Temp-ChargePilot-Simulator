@@ -1,3 +1,3 @@
-cwd=/tmp/ai4-g2-rem-gate/code
+cwd=/tmp/ai4-g2-final-fix/code
 $ isolated python scripts/export_openapi.py --check 
 OK — frontend/openapi.json khớp với code.

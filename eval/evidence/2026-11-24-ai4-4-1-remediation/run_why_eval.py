@@ -408,6 +408,20 @@ def audit_answer_with_independent_oracle(
             comp = comp_map.get(reason.subject)
             if comp and comp.get("completed_at") and _oracle_utc(query.at) < _oracle_utc(comp["completed_at"]):
                 issues.append(f"future_completion_leakage:{reason.subject}")
+        # Future post-apply violation leakage invariant (G2-F05a)
+        if reason.code in ("POST_APPLY_HARD_VIOLATION", "STATION_POST_APPLY_HARD_VIOLATION") and query.at is not None:
+            applied = tr.get("applied") or {}
+            details = applied.get("hard_violation_details") or []
+            dropped = int((applied.get("coverage") or {}).get("dropped_hard_violations") or 0)
+            base_min = tr.get("minute")
+            if details and dropped == 0 and base_min is not None:
+                v_starts = [
+                    _oracle_utc(tr["decided_at"]) + timedelta(minutes=int(d["minute"]) - int(base_min))
+                    for d in details
+                    if isinstance(d, dict) and d.get("minute") is not None
+                ]
+                if v_starts and all(_oracle_utc(query.at) < vs for vs in v_starts):
+                    issues.append(f"future_violation_leakage:{reason.code}")
 
     return {
         "ref_exist": (ref_exist_pass, ref_exist_total),
@@ -699,6 +713,29 @@ async def run_evaluation(out_dir: Path) -> dict[str, Any]:
     tr_no_eff["guard_inputs"] = None
     if isinstance(tr_no_eff.get("decision"), dict) and isinstance(tr_no_eff["decision"].get("physical_limits"), dict):
         tr_no_eff["decision"]["physical_limits"]["conversion_efficiency"] = None
+
+    # G2-F05a & G2-F05b fixtures (real 15-minute closed trace: T0 decision, T+12 violation, T+15 close)
+    rt_t12 = await _sim(StrategyName.SIM_M3A, [b_dc1, b_ac1])
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=T0), rt_t12)
+    rt_t12.simulator.step(15)
+    tr_t12_dc = decision_trace.close_open(rt_t12)
+    tr_t12_dc["validation"]["post_apply"] = "violation"
+    tr_t12_dc["applied"]["hard_violations"] = ["charging_model violation at minute 12"]
+    tr_t12_dc["applied"]["hard_violation_details"] = [
+        {"minute": 12, "kind": "charging_model", "vehicle_ids": ["dc-1"], "message": "t12 dc-1"}
+    ]
+
+    tr_hold_a_viol_b = copy.deepcopy(tr_t12_dc)
+    tr_hold_a_viol_b["safety"]["held_booking_ids"] = ["dc-1"]
+    tr_hold_a_viol_b["safety"]["by_booking"] = {"dc-1": {"safety_hold": True}}
+    tr_hold_a_viol_b["applied"]["hard_violation_details"] = [
+        {"minute": 12, "kind": "charging_model", "vehicle_ids": ["ac-1"], "message": "t12 ac-1"}
+    ]
+
+    tr_shared_viol = copy.deepcopy(tr_t12_dc)
+    tr_shared_viol["applied"]["hard_violation_details"] = [
+        {"minute": 12, "kind": "aggregate_power", "vehicle_ids": ["dc-1", "ac-1"], "message": "t12 shared"}
+    ]
 
     specs = [
         # --- Original 19 cases + non-enumeration (20 total) preserved intact ---
@@ -1102,6 +1139,89 @@ async def run_evaluation(out_dir: Path) -> dict[str, Any]:
             "required_missing": ["missing_conversion_efficiency_evidence"],
             "forbidden_fact_prefixes": ["energy.measured_grid_input_kwh"],
         },
+        # --- Gate 2 Final Targeted Fix cases (G2-F05a & G2-F05b) ---
+        {
+            "id": "g2_f05a_t12_violation_no_leak_at_t5_booking",
+            "query": WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="dc-1",
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=5),
+            ),
+            "actor": _op(),
+            "traces": [tr_t12_dc],
+            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
+            "expected_status": WhyStatus.OK,
+            "is_abstention": False,
+            "required_reasons": [("NO_INCIDENT_IN_QUERY_SCOPE", EvidenceCategory.OBSERVED)],
+            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION", "STATION_POST_APPLY_HARD_VIOLATION"],
+        },
+        {
+            "id": "g2_f05a_t12_violation_no_leak_at_t5_station_power",
+            "query": WhyQuery(
+                subject_scope=WhySubjectScope.STATION,
+                topic=WhyTopic.POWER,
+                at=T0 + timedelta(minutes=5),
+            ),
+            "actor": _op(),
+            "traces": [tr_t12_dc],
+            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
+            "expected_status": WhyStatus.OK,
+            "is_abstention": False,
+            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION", "STATION_POST_APPLY_HARD_VIOLATION"],
+        },
+        {
+            "id": "g2_f05a_t12_violation_detected_at_t12_booking",
+            "query": WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="dc-1",
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=12),
+            ),
+            "actor": _op(),
+            "traces": [tr_t12_dc],
+            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
+            "expected_status": WhyStatus.OK,
+            "is_abstention": False,
+            "required_reasons": [("POST_APPLY_HARD_VIOLATION", EvidenceCategory.OBSERVED)],
+            "forbidden_reasons": ["NO_INCIDENT_OBSERVED", "NO_INCIDENT_IN_QUERY_SCOPE"],
+        },
+        {
+            "id": "g2_f05b_prior_safety_hold_not_attributed_other_violation",
+            "query": WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="dc-1",
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=12),
+            ),
+            "actor": _op(),
+            "traces": [tr_hold_a_viol_b],
+            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
+            "expected_status": WhyStatus.OK,
+            "is_abstention": False,
+            "required_reasons": [
+                ("BOOKING_UNDER_SAFETY_HOLD", EvidenceCategory.OBSERVED),
+                ("STATION_POST_APPLY_HARD_VIOLATION", EvidenceCategory.OBSERVED),
+            ],
+            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION"],
+        },
+        {
+            "id": "g2_f05b_resident_shared_violation_safe_station_fallback",
+            "query": WhyQuery(
+                subject_scope=WhySubjectScope.OWN_BOOKING,
+                booking_id="dc-1",
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=12),
+            ),
+            "actor": _res("res-dc-1"),
+            "traces": [tr_shared_viol],
+            "bookings": {"dc-1": b_dc1, "ac-1": b_ac1},
+            "expected_status": WhyStatus.OK,
+            "is_abstention": False,
+            "required_reasons": [("STATION_POST_APPLY_HARD_VIOLATION", EvidenceCategory.OBSERVED)],
+            "forbidden_reasons": ["POST_APPLY_HARD_VIOLATION"],
+            "forbidden_leaks": ["ac-1", "res-ac-1"],
+        },
     ]
 
     # 9 separated metric counters + privacy/auth counter
@@ -1233,6 +1353,47 @@ async def run_evaluation(out_dir: Path) -> dict[str, Any]:
 
     assert base_mut_answer is not None and base_mut_query is not None
     mutations = _run_mutation_suite(base_mut_answer, tr_frac, base_mut_query, tr_future_comp, b_dc1)
+    # 8. Future post-apply violation leakage mutation (G2-F05a)
+    q_t5 = WhyQuery(
+        subject_scope=WhySubjectScope.BOOKING,
+        booking_id="dc-1",
+        topic=WhyTopic.INCIDENT,
+        at=T0 + timedelta(minutes=5),
+    )
+    ans_t5 = explain_why(
+        q_t5, _op(), station_id=STATION_ID, raw_traces=[tr_t12_dc], bookings_override={"dc-1": b_dc1, "ac-1": b_ac1}
+    )
+    from src.models.copilot import WhyReason as _WhyReason
+
+    leaked_viol = ans_t5.model_copy(
+        update={
+            "reasons": [
+                *ans_t5.reasons,
+                _WhyReason(
+                    code="POST_APPLY_HARD_VIOLATION",
+                    category=EvidenceCategory.OBSERVED,
+                    subject="dc-1",
+                    correlation_id=tr_t12_dc["correlation_id"],
+                    policy_id="M3a",
+                    policy_version="1",
+                    decided_at=T0,
+                    fact_refs=[],
+                    evidence_refs=[],
+                    template_key="validation.post_apply_violation",
+                    params={},
+                    summary="Leaked future T+12 violation into T+5",
+                ),
+            ]
+        }
+    )
+    audit_v = audit_answer_with_independent_oracle(leaked_viol, [tr_t12_dc], _op(), q_t5)
+    mutations.append(
+        {
+            "mutation": "8_future_post_apply_violation_leakage",
+            "detected": bool(audit_v["issues"]),
+            "issues": audit_v["issues"][:3],
+        }
+    )
     mutations_detected = sum(1 for m in mutations if m["detected"])
 
     def _ratio(p: int, t: int) -> dict[str, Any]:
