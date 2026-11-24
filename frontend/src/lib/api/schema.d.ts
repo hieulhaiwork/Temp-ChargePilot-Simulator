@@ -2189,6 +2189,10 @@ export interface components {
              */
             occurred_at: string;
             type: components["schemas"]["EventType"];
+            /** Violation Booking Ids */
+            violation_booking_ids?: string[];
+            /** Violation Kinds */
+            violation_kinds?: components["schemas"]["ViolationKind"][];
         };
         /**
          * StationOverview
@@ -2417,6 +2421,15 @@ export interface components {
             detail: string;
             rule: components["schemas"]["GuardRule"];
         };
+        /**
+         * ViolationKind
+         * @description Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — cùng giá trị với `src.models.decisions.HardViolationKind`.
+         *
+         *     aggregate_power: tổng công suất vượt trần tủ / vùng / lưới → giảm tải. charging_model / acceptance: lỗi phản hồi
+         *     pin / SOC / acceptance của một xe → giảm tải tổng không sửa được: ngắt công suất cổng đó + báo vận hành.
+         * @enum {string}
+         */
+        ViolationKind: "aggregate_power" | "charging_model" | "acceptance";
     };
     responses: never;
     parameters: never;

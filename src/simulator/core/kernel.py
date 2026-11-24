@@ -30,8 +30,16 @@ from logging import getLogger
 from types import MappingProxyType
 
 from src.guard.physical.validator import guard, validate_budgets, validate_dispatch, validate_response
-from src.models.decisions import AppliedResult, ApprovedDecision, ProposedDecision, ReasonCode, TimeConfig
-from src.models.physical_constraints import TOL, ConstraintViolationError
+from src.models.decisions import (
+    AppliedResult,
+    ApprovedDecision,
+    HardViolation,
+    HardViolationKind,
+    ProposedDecision,
+    ReasonCode,
+    TimeConfig,
+)
+from src.models.physical_constraints import TOL, ConstraintViolationError, valid_kw
 from src.models.physical_limits import EffectiveLimits, effective_limits, environment_boundary
 from src.models.scheduling.dispatch import DispatchObservation
 from src.models.scheduling.observations import (
@@ -529,6 +537,35 @@ class StationKernel:
             raise exc
         LOGGER.error("minute=%s physical constraint violated after apply: %s", self.now, exc)
 
+    @staticmethod
+    def _classify_guard_violation(
+        exc: ConstraintViolationError, candidates: Mapping[str, Candidate], actual: Mapping[str, float]
+    ) -> HardViolation:
+        """Physical Guard sau thực thi: công suất một cổng ngoài [0, allowed] ⇒ lỗi charging model / acceptance của xe
+        đó (setpoint đã bị kẹp ≤ allowed trước khi áp); còn lại (tủ / vùng / lưới) ⇒ vi phạm tổng, giảm tải sửa được."""
+        bad = tuple(
+            vid
+            for vid, kw in actual.items()
+            if vid not in candidates
+            or not valid_kw(kw, min(candidates[vid].allowed_kw, candidates[vid].cabinet.port_kw))
+        )
+        if bad:
+            return HardViolation(HardViolationKind.CHARGING_MODEL, str(exc), bad)
+        return HardViolation(HardViolationKind.AGGREGATE_POWER, str(exc))
+
+    def _acceptance_failures(self, minutes: int) -> tuple[str, ...]:
+        """Chỉ ở đường lỗi (non-strict): xe nào làm `candidates()` lỗi — để fail-safe ngắt đúng cổng đó."""
+        failing = []
+        for vid in self.queue.occupied.values():
+            session = self.queue.sessions.get(vid)
+            if session is None or session.state != "CHARGING":
+                continue
+            try:
+                self.adapter.acceptance_kw(session.vehicle, minutes)
+            except ConstraintViolationError:
+                failing.append(vid)
+        return tuple(sorted(failing))
+
     def advance(
         self,
         until: int,
@@ -554,6 +591,7 @@ class StationKernel:
         stored: dict[str, float] = {}
         completed: list[str] = []
         violations: list[str] = []
+        hard: list[HardViolation] = []  # cùng thứ tự với `violations`, có loại + xe (Final Acceptance §1.4)
         deviation: dict[str, float] = {}
         deadband: dict[str, float] = {}
         stale: dict[str, float] = {}
@@ -566,6 +604,8 @@ class StationKernel:
                 step_candidates = candidates if single and candidates is not None else self.candidates(minutes)
             except ConstraintViolationError as exc:
                 violations.append(str(exc))
+                failing = () if self.strict else self._acceptance_failures(minutes)
+                hard.append(HardViolation(HardViolationKind.ACCEPTANCE, str(exc), failing))
                 self._after_apply_violation(exc)
                 step_candidates = {}
             step_limits = limits if single and limits is not None else self.effective_limits()
@@ -582,6 +622,7 @@ class StationKernel:
                     validate_response(cfg, s.vehicle, minutes, setpoint, before, soc, kw, energy)
                 except ConstraintViolationError as exc:
                     violations.append(str(exc))
+                    hard.append(HardViolation(HardViolationKind.CHARGING_MODEL, str(exc), (vid,)))
                     self._after_apply_violation(exc)
                     continue
                 # EV2Gym floating-point arithmetic can produce a tiny negative at zero headroom.
@@ -607,6 +648,7 @@ class StationKernel:
                 guard(cfg, step_candidates, actual, hard_kw, limits=step_limits)
             except ConstraintViolationError as exc:
                 violations.append(str(exc))
+                hard.append(self._classify_guard_violation(exc, step_candidates, actual))
                 self._after_apply_violation(exc)
             budget = assigned_kw if assigned_kw is not None else self.active_budget_kw
             if not self.strict and budget:
@@ -659,6 +701,7 @@ class StationKernel:
             stored_kwh=stored,
             completed=tuple(completed),
             violations=tuple(violations),
+            hard_violations=tuple(hard),
             budget_deviation_kw=deviation,
             state_version=self.state_version,
             command_deadband_kw=deadband,

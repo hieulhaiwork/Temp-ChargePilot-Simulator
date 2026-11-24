@@ -115,6 +115,35 @@ class ApprovedDecision:
         object.__setattr__(self, "reason_codes", tuple(self.reason_codes))
 
 
+class HardViolationKind:
+    """Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — quyết định cách xử lý an toàn.
+
+    - AGGREGATE_POWER: tổng công suất vượt trần tủ / vùng / lưới (nguồn chung hoặc độc lập) — giảm tải sửa được.
+    - CHARGING_MODEL: phản hồi pin / SOC / công suất của một xe sai hợp đồng (`validate_response`, công suất cổng
+      ngoài [0, allowed]) — giảm tải tổng KHÔNG sửa được: ngắt công suất cổng đó, giữ an toàn, báo vận hành.
+    - ACCEPTANCE: tính acceptance (EVSE / BMS) của xe lỗi — như CHARGING_MODEL.
+    """
+
+    AGGREGATE_POWER = "aggregate_power"
+    CHARGING_MODEL = "charging_model"
+    ACCEPTANCE = "acceptance"
+    ALL = (AGGREGATE_POWER, CHARGING_MODEL, ACCEPTANCE)
+
+
+@dataclass(frozen=True)
+class HardViolation:
+    """Một vi phạm cứng sau khi áp có cấu trúc: loại + xe liên quan (rỗng = cả trạm) + thông điệp của Physical Guard."""
+
+    kind: str
+    message: str
+    vehicle_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.kind not in HardViolationKind.ALL:
+            raise ValueError(f"Loại vi phạm không hợp lệ: {self.kind!r}")
+        object.__setattr__(self, "vehicle_ids", tuple(self.vehicle_ids))
+
+
 @dataclass(frozen=True)
 class AppliedResult:
     """Ba loại "vượt" tách riêng (ADR-019 Phase 4, quyết định 3):
@@ -125,6 +154,7 @@ class AppliedResult:
     - command_deadband_kw: vượt budget nhưng ≤ deadband 0,01 kW × số cổng của vùng (lệnh không được gửi lại khi chênh
       < 0,01 kW) — độ phân giải lệnh, không che sai lệch lớn hơn.
     `stale_setpoint_kw`: xe có setpoint đang giữ lớn hơn setpoint đã duyệt (giải thích budget deviation).
+    `hard_violations`: cùng các vi phạm của `violations` (cùng thứ tự) nhưng có loại + xe (Final Acceptance §1.4).
     """
 
     minute: int
@@ -140,8 +170,10 @@ class AppliedResult:
     state_version: int = 0
     command_deadband_kw: Mapping[str, float] = field(default_factory=dict)
     stale_setpoint_kw: Mapping[str, float] = field(default_factory=dict)
+    hard_violations: tuple[HardViolation, ...] = ()
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "hard_violations", tuple(self.hard_violations))
         _freeze(
             self,
             "requested_kw",

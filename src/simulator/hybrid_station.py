@@ -18,8 +18,9 @@ quyết định đã duyệt qua `apply_approved`.
   - `SessionProgress.delivered_grid_kwh` = năng lượng ĐẦU RA cổng (kernel.output_kwh); `Session.delivered_grid_kwh`
     của simulator giữ nghĩa phía lưới (÷ conversion).
   - Xe đạt SOC target trước deadline ⇒ `delivered_kwh_by_deadline = max(thực tế, requested)` (FR3 ↔ η EV2Gym).
-  - Setpoint giữ tới lệnh sau; công suất thực = min(setpoint, cổng, acceptance 1'). Vi phạm sau khi áp chỉ đếm + log
-    (trạm live không được chết); HybridSimulator thì raise.
+  - Setpoint giữ tới lệnh sau; công suất thực = min(setpoint, cổng, acceptance 1'). Vi phạm sau khi áp đếm + log
+    (trạm live không được chết); bật `guard.after_apply_failsafe` ⇒ phát HARD_LIMIT_VIOLATED (có loại vi phạm) và dừng
+    catch-up ở phút vi phạm để runtime xử lý an toàn qua dispatcher (Final Acceptance §1); HybridSimulator thì raise.
   - Lỗi cổng: xe đang cắm bị rút, về ĐẦU hàng chờ, `charge_started` xoá. Không đổi cổng cho xe đang cắm.
   - Xe đã rời mà upsert lại ⇒ bỏ qua (log).
 
@@ -44,6 +45,7 @@ from src.models.charging_physics import DCChargingModel
 from src.models.control import Command, CommandType
 from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
+from src.models.physical_constraints import ConstraintViolationError
 from src.models.physical_limits import EffectiveLimits
 from src.models.scheduling.observations import ObservationModel, SchedulingObservation
 from src.models.simulation import Incident, IncidentType, SessionOutcome
@@ -83,6 +85,13 @@ def _locked(method):
 
 def _ceil_minutes(delta: timedelta) -> int:
     return math.ceil(delta.total_seconds() / 60 - 1e-9)
+
+
+def _violation_signature(result: AppliedResult) -> tuple:
+    """Nhận diện "cùng một vi phạm" giữa hai phút liền nhau: loại + xe + thông điệp Physical Guard."""
+    if result.hard_violations:
+        return tuple((v.kind, v.vehicle_ids, v.message) for v in result.hard_violations)
+    return tuple(result.violations)
 
 
 class HybridStation:
@@ -202,6 +211,7 @@ class HybridStation:
         self.available_power_kw = available_kw
         self._visits: dict[str, VehicleVisit] = {}
         self._events: list[StationEvent] = []
+        self._halted_on: tuple | None = None  # vi phạm mà step() đã dừng catch-up ở phút gần nhất (§1.3)
         # Kết quả từng bước vật lý từ lần drain trước — DecisionTrace backend đóng quyết định bằng số đo thật.
         self._applied: deque[AppliedResult] = deque(maxlen=APPLIED_BUFFER_STEPS)
 
@@ -305,7 +315,13 @@ class HybridStation:
 
     @_locked
     def step(self, minutes: int) -> list[StationEvent]:
-        """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC."""
+        """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC.
+
+        Bật `guard.after_apply_failsafe` (Final Acceptance §1.3): catch-up nhiều phút DỪNG ở phút có vi phạm cứng mới
+        (trả sự kiện, các phút còn lại chưa tích phân) để fail-safe xử lý trước; lần gọi sau chạy tiếp từ đó. Vi phạm y
+        hệt vi phạm đã dừng ở lần trước, liền mạch (fail-safe đã có một lượt mà không sửa được, vd. lỗi charging model)
+        thì không dừng lại nữa — vẫn phát sự kiện mỗi lần step — để đồng hồ trạm không bị treo.
+        """
         self._events = []
         kernel = self.kernel
         failsafe = self.config.guard.after_apply_failsafe
@@ -313,17 +329,18 @@ class HybridStation:
         for _ in range(max(minutes, 0)):
             result = kernel.advance(kernel.now + 1)
             self._applied.append(result)
-            if failsafe and result.violations and not signalled:
-                # Final Review §4.5b: kernel non-strict chỉ đếm + log vi phạm trần cứng sau khi áp. Tín hiệu cho runtime
-                # sinh lệnh giảm tải qua guard/dispatcher.py (trạm không tự hạ setpoint). Một sự kiện / lần step.
-                signalled = True
-                self._events.append(
-                    StationEvent(
-                        type=EventType.HARD_LIMIT_VIOLATED,
-                        occurred_at=self._at(result.end),
-                        detail=f"Vi phạm trần cứng sau khi áp: {result.violations[0]}"[:500],
-                    )
-                )
+            halt = False
+            if failsafe and result.violations:
+                if not signalled:
+                    # Final Review §4.5b: kernel non-strict chỉ đếm + log vi phạm trần cứng sau khi áp. Tín hiệu cho
+                    # runtime sinh lệnh an toàn qua guard/dispatcher.py (trạm không tự hạ setpoint). Một sự kiện / step.
+                    signalled = True
+                    self._events.append(self._violation_event(result))
+                signature = _violation_signature(result)
+                halt = signature != self._halted_on
+                self._halted_on = signature
+            elif failsafe:
+                self._halted_on = None
             if result.budget_deviation_kw and not kernel._deviation_reported:
                 # Assigned budget (Coordinator) ≠ hard cap: vượt budget không phải vi phạm vật lý — ghi + tính lại một lần.
                 kernel._deviation_reported = True
@@ -336,7 +353,22 @@ class HybridStation:
                     )
                 )
             kernel.observe()
+            if halt:
+                break
         return self._drain()
+
+    def _violation_event(self, result: AppliedResult) -> StationEvent:
+        """HARD_LIMIT_VIOLATED có loại vi phạm + xe liên quan (Final Acceptance §1.4) để fail-safe chọn cách xử lý."""
+        kinds = list(dict.fromkeys(v.kind for v in result.hard_violations))
+        vehicles = sorted({vid for v in result.hard_violations for vid in v.vehicle_ids})
+        label = ", ".join(kinds) or "?"
+        return StationEvent(
+            type=EventType.HARD_LIMIT_VIOLATED,
+            occurred_at=self._at(result.end),
+            detail=f"Vi phạm trần cứng sau khi áp ({label}): {result.violations[0]}"[:500],
+            violation_kinds=kinds,
+            violation_booking_ids=vehicles,
+        )
 
     @_locked
     def inject_incident(self, incident: Incident) -> list[StationEvent]:
@@ -716,10 +748,18 @@ class HybridStation:
         elif session.state == "FINISHED":
             status = ConnectorStatus.FINISHED
         else:
-            allowed = min(cab.port_kw, self.adapter.acceptance_kw(session.vehicle, 1))
-            power = min(self.kernel.setpoints.get(vid, 0.0), allowed)
-            cap = min(cab.port_kw, session.vehicle.max_kw)
-            status = ConnectorStatus.CHARGING if power >= cap - EPS else ConnectorStatus.THROTTLED
+            try:
+                allowed = min(cab.port_kw, self.adapter.acceptance_kw(session.vehicle, 1))
+            except ConstraintViolationError:
+                # Final Acceptance §1.4: acceptance của xe lỗi ⇒ cổng hiển thị FAULT, 0 kW (Guard không cấp điện cho
+                # cổng FAULT) thay vì làm hỏng cả state() của trạm. Đường bình thường không đổi.
+                allowed = None
+            if allowed is None:
+                status = ConnectorStatus.FAULT
+            else:
+                power = min(self.kernel.setpoints.get(vid, 0.0), allowed)
+                cap = min(cab.port_kw, session.vehicle.max_kw)
+                status = ConnectorStatus.CHARGING if power >= cap - EPS else ConnectorStatus.THROTTLED
         return ConnectorState(
             connector_id=connector_id,
             status=status,

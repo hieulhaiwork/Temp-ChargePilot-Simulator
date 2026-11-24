@@ -48,6 +48,35 @@ def curtail_to_limit(state: StationState, new_limit_kw: float, now: datetime, ef
     ]
 
 
+def stop_faulty_vehicles(
+    state: StationState, booking_ids, now: datetime, kinds=(), detail: str = "", *, force=()
+) -> list[Command]:
+    """Fail-safe cho vi phạm mà giảm tải tổng KHÔNG sửa được (Final Acceptance §1.4): lỗi charging model / acceptance /
+    SOC của một xe. Ngắt công suất (SET_POWER 0, nguồn EMERGENCY) đúng các cổng đang cấp điện cho xe đó; runtime giữ
+    an toàn (không cấp lại) và báo vận hành. Cổng đã ở 0 ⇒ không lệnh (không bật-tắt thừa), trừ booking trong `force`
+    (lần đầu bị giữ: xoá cả setpoint đang giữ, vd. cổng hiển thị FAULT vì acceptance lỗi)."""
+    wanted = set(booking_ids)
+    force = set(force)
+    label = ", ".join(str(k) for k in kinds) or "lỗi xe"
+    reason = f"Vi phạm sau khi áp ({label}) — ngắt công suất cổng, chờ vận hành kiểm tra (fail-safe)"
+    return [
+        Command(
+            type=CommandType.SET_POWER,
+            connector_id=c.connector_id,
+            power_kw=0.0,
+            booking_id=c.booking_id,
+            source=CommandSource.EMERGENCY,
+            issued_by="emergency",
+            based_on_schedule_version=state.schedule_version,
+            based_on_state_at=state.timestamp,
+            created_at=now,
+            reason=f"{reason}: {detail}"[:500] if detail else reason,
+        )
+        for c in state.connectors
+        if c.booking_id in wanted and (c.power_kw > 0 or c.booking_id in force)
+    ]
+
+
 def curtail_to_hard_limits(
     state: StationState, config: StationConfig, now: datetime, detail: str = ""
 ) -> list[Command]:
