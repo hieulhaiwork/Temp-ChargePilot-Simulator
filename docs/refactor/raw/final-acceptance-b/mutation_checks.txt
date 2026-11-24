@@ -1,0 +1,23 @@
+# Kiểm đột biến cho test §2 (tests/test_services/test_admission_consistency.py) — chạy tạm, KHÔNG commit đột biến.
+# Mỗi đột biến sửa tạm một chỗ, chạy file test, rồi chép lại bản gốc (git diff sau đó chỉ còn thay đổi thật).
+
+1) charging_service.change: bỏ kiểm `rt.admission_fingerprint() != seen` dưới booking_lock (`if False:`)
+FAILED test_change_racing_a_booking_reruns_admission_on_the_new_state
+FAILED test_change_gives_up_with_proposal_expired_after_bounded_retries
+FAILED test_change_reruns_admission_when_power_limit_changes
+3 failed, 7 passed
+
+2) runtime.admission_fingerprint: bỏ giới hạn nguồn + đầu nối lỗi khỏi dấu vân tay
+FAILED test_booking_reruns_admission_when_supply_or_connector_changes_during_admission[power_limit]
+FAILED test_booking_reruns_admission_when_supply_or_connector_changes_during_admission[connector_fault]
+FAILED test_booking_fails_when_a_power_drop_during_admission_makes_it_infeasible
+FAILED test_change_reruns_admission_when_power_limit_changes
+4 failed, 6 passed
+
+3) charging_service.cancel: không đọc lại trạng thái dưới booking_lock (`repository.get_booking` thay `_own_active`)
+FAILED test_two_concurrent_cancels_change_state_once_and_emit_one_event
+1 failed, 9 passed
+
+# §1 (tests/test_services/test_safety_event_delivery.py): test thứ tự fail-safe → advance_clock ghi lại thứ tự gọi
+# thực tế; test catch-up kiểm số phút đã tích phân và số vi phạm (trước sửa: 10 phút / 10 vi phạm như test "giữ hành vi
+# cũ" khi tắt cờ); test đường đọc kiểm outbox + lệnh EMERGENCY executed + chỉ 1 phút vi phạm.
