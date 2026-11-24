@@ -65,12 +65,19 @@ class DynamicVehicleProfilesDCModel:
         self._profiles.clear()
         self.unresolved.clear()
 
-    def fork(self) -> "DynamicVehicleProfilesDCModel":
-        """Bản độc lập (profile là dataclass frozen nên dùng chung được; bảng theo xe thì tách)."""
-        twin = DynamicVehicleProfilesDCModel(strict=self.strict, fallback=self.fallback)
+    def fork(self, memo: dict | None = None) -> "DynamicVehicleProfilesDCModel":
+        """Bản độc lập (profile là dataclass frozen nên dùng chung được; bảng theo xe thì tách).
+
+        `fallback` theo đúng quy tắc fork (Final Acceptance §4.3, `isolation.fork_component`): khai báo stateless
+        (mặc định `SyntheticTaperV1`) ⇒ dùng chung như trước; có trạng thái ⇒ bản fork có bản riêng.
+        """
+        from ..isolation import fork_component  # import trễ: isolation → algorithms → module này
+
+        fallback = fork_component(self.fallback, {} if memo is None else memo)
+        twin = DynamicVehicleProfilesDCModel(strict=self.strict, fallback=fallback)
         twin._profiles.update(self._profiles)
         twin.unresolved.update(self.unresolved)
         return twin
 
     def __deepcopy__(self, memo) -> "DynamicVehicleProfilesDCModel":
-        return self.fork()  # MappingProxyType không deepcopy được; bản sao sâu = fork
+        return self.fork(memo)  # MappingProxyType không deepcopy được; bản sao sâu = fork

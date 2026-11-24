@@ -255,3 +255,88 @@ def test_hybrid_simulator_fork_runs_like_the_original(scenario):
         live.step()
     result = live.fork().run()
     assert result == live.run()
+
+
+# ---- Final Acceptance §4.3 — fallback DC model có trạng thái; từ chối closure có trạng thái -----------------------------
+
+
+class StatefulFallback(CountingDCModel):
+    """Fallback DC model có trạng thái (không có fork()) ⇒ phải được copy, không dùng chung."""
+
+
+def test_stateful_fallback_of_the_profile_model_is_isolated(scenario):
+    from src.simulator.core.charging_models.vehicle_profiles import VehicleProfilesDCModel
+
+    default = VehicleProfilesDCModel({})
+    assert isolation.is_shared(default)  # fallback SyntheticTaperV1 ⇒ như cũ
+    fallback = StatefulFallback()
+    model = VehicleProfilesDCModel({}, fallback=fallback)
+    assert not isolation.is_shared(model)
+    live = _kernel(scenario, replace(default_algorithms(), dc_charging_model=model), dc_model=model)
+    twin = live.fork()
+    assert twin.adapter.dc_model is twin.algorithms.dc_charging_model  # một bản cho adapter + algorithms
+    assert twin.adapter.dc_model is not model and twin.adapter.dc_model.fallback is not fallback
+    queries = fallback.queries
+    _plan_and_run(twin, 30)
+    assert twin.adapter.dc_model.fallback.queries > 0
+    assert fallback.queries == queries
+
+
+def test_stateful_fallback_of_the_live_provider_is_isolated():
+    from src.simulator.core.charging_models.live_profiles import DynamicVehicleProfilesDCModel
+
+    shared = DynamicVehicleProfilesDCModel()
+    assert shared.fork().fallback is shared.fallback  # SyntheticTaperV1 khai báo stateless ⇒ dùng chung như cũ
+    fallback = StatefulFallback()
+    provider = DynamicVehicleProfilesDCModel(fallback=fallback)
+    memo: dict = {}
+    twin = isolation.fork_component(provider, memo)
+    assert twin is not provider and twin.fallback is not fallback
+    assert isinstance(twin.fallback, StatefulFallback)
+    import copy as copy_module
+
+    deep = copy_module.deepcopy(provider)
+    assert deep.fallback is not fallback
+
+
+def test_stateful_closure_is_refused_with_a_clear_error(scenario):
+    history: list[int] = []
+
+    def remembering(observation, zone, budget_kw):  # closure có trạng thái (history)
+        history.append(observation.minute)
+        return zone_equal_share(observation, zone, budget_kw)
+
+    with pytest.raises(isolation.StatefulComponentError, match="closure over history"):
+        isolation.fork_component(remembering, {})
+    live = _kernel(scenario, replace(default_algorithms(), optimizers={"AC": remembering, "DC": zone_equal_share}))
+    with pytest.raises(isolation.StatefulComponentError, match="remembering"):
+        live.fork()
+
+    def mutable_default(observation, zone, budget_kw, seen=[]):  # noqa: B006 — chính là thứ cần từ chối
+        return zone_equal_share(observation, zone, budget_kw)
+
+    with pytest.raises(isolation.StatefulComponentError, match="mutable default"):
+        isolation.fork_component(mutable_default, {})
+
+    def tagged(observation, zone, budget_kw):
+        return zone_equal_share(observation, zone, budget_kw)
+
+    tagged.calls = 0
+    with pytest.raises(isolation.StatefulComponentError, match="attributes"):
+        isolation.fork_component(tagged, {})
+
+
+def test_declared_or_plain_functions_are_still_shared():
+    def plain(observation, zone, budget_kw):
+        return zone_equal_share(observation, zone, budget_kw)
+
+    assert isolation.fork_component(plain, {}) is plain  # không có trạng thái thấy được ⇒ như cũ
+
+    counter = {"n": 0}
+
+    def declared(observation, zone, budget_kw):
+        counter["n"] += 1
+        return zone_equal_share(observation, zone, budget_kw)
+
+    declared.__stateless__ = True  # người viết tự khai báo (chịu trách nhiệm)
+    assert isolation.is_shared(declared) and isolation.fork_component(declared, {}) is declared
