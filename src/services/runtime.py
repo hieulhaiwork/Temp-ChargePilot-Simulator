@@ -41,6 +41,14 @@ logger = logging.getLogger(__name__)
 ACTIVE = (BookingStatus.CONFIRMED, BookingStatus.QUEUED, BookingStatus.CHARGING)
 RECENT_COMMANDS = 200  # đủ cho cửa sổ anti_flapping (10 phút × 4 cổng)
 OUTBOX_MAX = 10_000  # sự kiện chưa giao tối đa (chặn tràn bộ nhớ nếu không vòng nào nhận)
+_APP_LOOP: asyncio.AbstractEventLoop | None = None  # vòng sự kiện của app (lifespan) — giao outbox khi rt.loop chưa có
+
+
+def register_app_loop(loop: asyncio.AbstractEventLoop | None) -> None:
+    """Lifespan ghi vòng sự kiện của app: runtime dựng trong threadpool (router `def`) vẫn giao được sự kiện của
+    `sync_clock` cho control_loop ngay, kể cả khi vòng nền tắt (Final Acceptance §1.2, ESCALATION 4 của nhánh B)."""
+    global _APP_LOOP
+    _APP_LOOP = loop
 
 
 @dataclass
@@ -161,10 +169,11 @@ class StationRuntime:
             running = asyncio.get_running_loop()
         except RuntimeError:
             running = None
-        if running is not None and (self.loop is None or running is self.loop):
+        loop = self.loop or _APP_LOOP
+        if running is not None and (loop is None or running is loop):
             future = running.create_task(self.deliver(self))
-        elif self.loop is not None and self.loop.is_running() and not self.loop.is_closed():
-            future = asyncio.run_coroutine_threadsafe(self.deliver(self), self.loop)
+        elif loop is not None and loop.is_running() and not loop.is_closed():
+            future = asyncio.run_coroutine_threadsafe(self.deliver(self), loop)
         else:
             return  # chưa có vòng sự kiện: outbox chờ on_event / run_forever kế tiếp
         self.deliveries.add(future)

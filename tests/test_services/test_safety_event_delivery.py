@@ -138,6 +138,21 @@ async def test_event_from_a_threadpool_read_path_reaches_the_failsafe(live):
     assert rt.simulator.applied_constraint_violation_count == 1
 
 
+async def test_runtime_built_in_threadpool_delivers_via_the_registered_app_loop(live, monkeypatch):
+    """Runtime dựng trong threadpool (rt.loop = None), vòng nền tắt: lifespan đã ghi vòng của app ⇒ sự kiện của đường
+    đọc vẫn tới fail-safe ngay, không nằm chờ outbox tới on_event kế tiếp."""
+    rt, clock = live
+    await _charging_live(rt)
+    rt.loop = None
+    monkeypatch.setattr(runtime, "_APP_LOOP", asyncio.get_running_loop())
+    rt.simulator.available_power_kw = SILENT_LIMIT_KW
+    clock["now"] = T0 + timedelta(minutes=3)
+    await asyncio.to_thread(charging_service.queue_status, "res-nobody")
+    assert rt.deliveries, "phải lên lịch giao trên vòng của app"
+    await _wait_deliveries(rt)
+    assert not rt.outbox and _emergency_decisions()
+
+
 async def test_charge_completed_from_a_read_path_is_not_dropped(live):
     rt, clock = live
     short = _nearly_full(rt.clock())
