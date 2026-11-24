@@ -1,0 +1,1 @@
+OK — frontend\openapi.json khớp với code.
