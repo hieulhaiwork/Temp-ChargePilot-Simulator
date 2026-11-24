@@ -9,7 +9,7 @@ from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
-from src.models.charging import StrategyName
+from src.models.charging import StrategyName, resolve_policy_fields
 from src.models.station import LoadPoint
 
 
@@ -112,14 +112,52 @@ class KpiReport(BaseModel):
     blocked_commands: int = Field(ge=0, description="MT6 — số lệnh bị Guard chặn")
 
 
+class IncidentCounts(BaseModel):
+    """Số sự cố của một lần chạy (Final Review 4.7): dự kiến = trong kịch bản, đã thực thi, bị bỏ qua."""
+
+    planned: int = Field(ge=0, description="Số sự cố khai trong kịch bản")
+    applied: int = Field(ge=0, description="Số sự cố đã bơm vào trạm")
+    skipped: int = Field(ge=0, description="Số sự cố bị bỏ qua (không khớp topology) — strict thì phải 0")
+    skipped_details: list[str] = Field(default_factory=list, description="`loại@phút' (đầu nối)` của sự cố bị bỏ qua")
+    strict: bool = Field(default=False, description="True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi")
+
+
 class SimulationRunResult(BaseModel):
     run_id: str
     scenario_id: str
-    strategy: StrategyName
+    strategy: StrategyName | None = Field(
+        default=None, description="Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id"
+    )
+    policy_id: str | None = Field(default=None, description="Id policy trong registry; luôn có sau khi validate")
+    policy_version: str | None = Field(default=None, description="Version policy trong registry")
     kpis: KpiReport
     started_at: AwareDatetime
     finished_at: AwareDatetime
     notes: str = ""
+    incidents: IncidentCounts | None = Field(default=None, description="Số sự cố dự kiến / thực thi / bỏ qua")
+
+    @model_validator(mode="after")
+    def _policy_identity(self) -> "SimulationRunResult":
+        self.strategy, self.policy_id = resolve_policy_fields(self.strategy, self.policy_id)
+        if self.policy_id is None:
+            raise ValueError("SimulationRunResult cần strategy hoặc policy_id")
+        return self
+
+
+class PolicyInfo(BaseModel):
+    """Một policy hợp lệ của Planning Core — đọc từ registry (`src/optimizer/registry.py`), không chép tay."""
+
+    policy_id: str
+    version: str
+    dispatch_dc: str
+    optimizer_ac: str
+    optimizer_dc: str
+    coordinator: str
+    description: str = ""
+    frozen: bool = Field(description="B0 / M2b / M3a / M3b đóng băng để tái lập số MVP-2/3")
+    legacy_strategy: StrategyName | None = Field(
+        default=None, description="Giá trị enum StrategyName tương ứng (nếu có) — client cũ gửi giá trị này"
+    )
 
 
 class BenchmarkSourceKind(StrEnum):

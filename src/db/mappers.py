@@ -86,10 +86,17 @@ def row_to_booking(row: BookingRow) -> Booking:
     return Booking.model_validate(row.payload)
 
 
+STRATEGY_COLUMN_CHARS = 8  # schedule_plans.strategy String(8) — cột tóm tắt; id đầy đủ nằm trong payload
+
+
 def plan_to_row(plan: SchedulePlan) -> SchedulePlanRow:
+    # B0 / M2b / M3a / M3b ghi như cũ. Policy đăng ký mới có id dài hơn cột ⇒ ghi "custom" (payload giữ policy_id đầy
+    # đủ, row_to_plan đọc payload) — không đổi schema DB cho một cột chỉ để lọc nhanh (Final Review 4.1).
+    label = plan.policy_id or ""
+    strategy = label if len(label) <= STRATEGY_COLUMN_CHARS else "custom"
     return SchedulePlanRow(
         version=plan.version,
-        strategy=plan.strategy.value,
+        strategy=strategy,
         created_at=plan.created_at,
         horizon_start=plan.horizon_start,
         step_minutes=plan.step_minutes,

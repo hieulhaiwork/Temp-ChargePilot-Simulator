@@ -32,11 +32,13 @@ const STRATEGIES: [Strategy, string][] = [
   ["M3a", "M3a · LLF + LP AC/DC (mặc định)"],
   ["M3b", "M3b · LLF + LP AC/DC + slack động"],
 ];
-const label = (s: Strategy) => STRATEGIES.find(([k]) => k === s)?.[1] ?? s;
+const label = (s: string) => STRATEGIES.find(([k]) => k === s)?.[1] ?? s;
+/** Id policy của run: `policy_id` (registry, có cả policy mới) — `strategy` chỉ là enum cũ B0 / M2b / M3a / M3b. */
+const policyOf = (r: Run) => r.policy_id ?? r.strategy ?? "?";
 /** Tiêu đề cột: policy + seed (baseline có 5 seed / policy, đọc từ ghi chú của run). */
 const column = (r: Run) => {
   const seed = /seed (\d+)/.exec(r.notes ?? "")?.[1];
-  return seed ? `${label(r.strategy)} · seed ${seed}` : label(r.strategy);
+  return seed ? `${label(policyOf(r))} · seed ${seed}` : label(policyOf(r));
 };
 
 /** Hàng của bảng đối chứng: [tên, mục tiêu, giá trị, kiểm đạt (null = chỉ theo dõi)]. */

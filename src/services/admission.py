@@ -105,7 +105,7 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
     session = sim.queue.sessions.get(cid)
     completed = session is not None and session.completed_at is not None
     return Admission(
-        policy=frt.scheduler.name.value,
+        policy=getattr(frt.scheduler, "policy_id", None) or str(frt.scheduler.name),
         connector_id=connector,
         plugged_at=plugged,
         charge_start=start,

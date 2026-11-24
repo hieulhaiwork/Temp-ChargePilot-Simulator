@@ -64,6 +64,33 @@ class GuardSettings(BaseModel):
     )
 
 
+POLICY_COMPONENTS = ("dispatch_dc", "optimizer_ac", "optimizer_dc", "coordinator")
+
+
+class PlanningPolicyConfig(BaseModel):
+    """Khối `planning:` TUỲ CHỌN của station.yaml (Final Review 4.1 / 4.2). Thiếu khối / khoá = hành vi cũ.
+
+    - `policy_id`: policy của runtime live (id registry `src/optimizer/registry.py`); None ⇒ env `LIVE_STRATEGY`.
+    - `version`: phải khớp version đã đăng ký (None ⇒ không kiểm).
+    - `dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒
+      `synthetic_taper_v1` như cũ. Áp cho mọi trạm dựng từ config (live, benchmark, fork admission).
+    - `parameters`: tham số theo thành phần (`dispatch_dc` / `optimizer_ac` / `optimizer_dc` / `coordinator`), cùng
+      khoá `parameters` của registry. Chỉ áp cho policy live.
+    """
+
+    policy_id: str | None = Field(default=None, min_length=1)
+    version: str | None = Field(default=None, min_length=1)
+    dc_charging_model: str | None = Field(default=None, min_length=1)
+    parameters: dict[str, dict] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _known_components(self) -> "PlanningPolicyConfig":
+        unknown = set(self.parameters) - set(POLICY_COMPONENTS)
+        if unknown:
+            raise ValueError(f"planning.parameters chỉ nhận {', '.join(POLICY_COMPONENTS)}: {sorted(unknown)}")
+        return self
+
+
 class OptimizerSettings(BaseModel):
     """Hệ số hàm mục tiêu của bài LP (FR6) — nạp từ khối `optimizer:` của station.yaml.
 
@@ -134,6 +161,9 @@ class StationConfig(BaseModel):
     guard: GuardSettings
     optimizer: OptimizerSettings
     connectors: list[ConnectorSpec] = Field(min_length=1)
+    planning: PlanningPolicyConfig | None = Field(
+        default=None, description="Chọn policy / DC model / tham số (tuỳ chọn; None = LIVE_STRATEGY + synthetic DC)"
+    )
 
     @model_validator(mode="after")
     def _unique_connector_ids(self) -> "StationConfig":

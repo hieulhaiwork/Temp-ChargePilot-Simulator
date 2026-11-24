@@ -1,0 +1,9 @@
+backend benchmark: OK - 100 baseline runs, 100 candidate runs, 0 problems
+exit=0
+incidents (scenario, planned, applied, skipped, strict): so run
+  ('connector_failure', 2, 0, 2, False) 20
+  ('hybrid_evening', 0, 0, 0, False) 20
+  ('hybrid_power_drop', 4, 4, 0, False) 20
+  ('peak_evening', 0, 0, 0, False) 20
+  ('power_drop', 2, 2, 0, False) 20
+policy_id/version: [('B0', '1', 'B0'), ('M2b', '1', 'M2b'), ('M3a', '1', 'M3a'), ('M3b', '1', 'M3b')]

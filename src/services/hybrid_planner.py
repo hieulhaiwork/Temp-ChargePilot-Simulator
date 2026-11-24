@@ -30,6 +30,7 @@ from src.models.planning import PlanningContext
 from src.models.scheduling.observations import Candidate
 from src.models.simulation_core import Tariff as SimTariff
 from src.models.station import Tariff
+from src.optimizer import registry
 from src.optimizer.registry import POLICIES as REGISTRY_POLICIES
 from src.simulator.core.algorithms import Algorithms, resolve_algorithms
 
@@ -44,20 +45,73 @@ POLICIES: Mapping[StrategyName, tuple[str, str, str, str]] = {
 SIMULATOR_STRATEGIES = frozenset(POLICIES)
 POLICY_VERSION = "1"  # B0 / M2b / M3a / M3b đóng băng (registry.POLICIES)
 TARIFF_HORIZON_HOURS = 48
+# Thành phần policy (khoá `planning.parameters` của station.yaml) → trường selection của resolve_algorithms.
+_COMPONENT_FIELDS = ("dispatch_dc", "optimizer_ac", "optimizer_dc", "coordinator")
+
+# Id policy: StrategyName cho B0 / M2b / M3a / M3b (tương thích client / payload cũ), chuỗi cho policy đăng ký mới.
+PolicyRef = StrategyName | str
 
 
-def selection(strategy: StrategyName) -> dict:
-    dispatch, ac, dc, coordinator = POLICIES[strategy]
-    return {"dispatch": {"DC": dispatch}, "optimizers": {"AC": ac, "DC": dc}, "coordinator": coordinator}
+def policy_key(name: PolicyRef) -> str:
+    """Id registry của một policy (StrategyName là StrEnum: giá trị = id)."""
+    return name.value if isinstance(name, StrategyName) else str(name)
+
+
+def as_policy_ref(policy_id: PolicyRef) -> PolicyRef:
+    """Id registry → StrategyName nếu có trong enum cũ, không thì giữ nguyên chuỗi (policy mới)."""
+    if isinstance(policy_id, StrategyName):
+        return policy_id
+    try:
+        return StrategyName(policy_id)
+    except ValueError:
+        return policy_id
+
+
+def is_registered(name: PolicyRef) -> bool:
+    """Policy có trong registry không — tra thẳng `registry.POLICIES`, không có danh sách cứng (Final Review 4.1)."""
+    return policy_key(name) in registry.POLICIES
+
+
+def selection(
+    strategy: PolicyRef, parameters: Mapping[str, Mapping] | None = None, dc_charging_model: str | None = None
+) -> dict:
+    """Selection cho `resolve_algorithms` từ policy đã đăng ký. Thiếu `parameters` / DC model = như cũ."""
+    chosen = dict(zip(_COMPONENT_FIELDS, registry.POLICIES[policy_key(strategy)], strict=True))
+    for component, params in (parameters or {}).items():
+        if component not in _COMPONENT_FIELDS:
+            raise ValueError(f"Thành phần policy không hợp lệ: {component!r}")
+        chosen[component] = {"name": chosen[component], "parameters": dict(params)}
+    result = {
+        "dispatch": {"DC": chosen["dispatch_dc"]},
+        "optimizers": {"AC": chosen["optimizer_ac"], "DC": chosen["optimizer_dc"]},
+        "coordinator": chosen["coordinator"],
+    }
+    if dc_charging_model is not None:
+        result["dc_charging_model"] = dc_charging_model
+    return result
 
 
 class SimulatorScheduler:
-    """Scheduler (`src/models/planning.py`) cho B0 / M2b / M3a / M3b. `station` trả HybridStation đang chạy."""
+    """Scheduler (`src/models/planning.py`) cho mọi policy của registry. `station` trả HybridStation đang chạy.
 
-    def __init__(self, name: StrategyName, station: Callable[[], object], algorithms: Algorithms | None = None) -> None:
-        if name not in POLICIES:
-            raise ValueError(f"Không phải chiến lược simulator: {name!r}")
-        self.name = name
+    `name`: StrategyName (B0 / M2b / M3a / M3b) hoặc id chuỗi của policy đăng ký mới (`registry.register_policy`).
+    `parameters`: tham số theo thành phần (khối `planning.parameters` của station.yaml); None = như registry.
+    """
+
+    def __init__(
+        self,
+        name: PolicyRef,
+        station: Callable[[], object],
+        algorithms: Algorithms | None = None,
+        *,
+        parameters: Mapping[str, Mapping] | None = None,
+    ) -> None:
+        if not is_registered(name):
+            raise ValueError(f"Không phải policy đã đăng ký trong registry: {name!r}")
+        self.name = as_policy_ref(name)
+        self.policy_id = policy_key(self.name)
+        self.policy_version = registry.policy_spec(self.policy_id).version
+        self.parameters = dict(parameters or {})
         self._station = station
         self._algorithms: Algorithms | None = algorithms
         self.metadata: dict = {}
@@ -67,15 +121,19 @@ class SimulatorScheduler:
 
     def algorithms(self, station=None) -> Algorithms:
         if self._algorithms is None:
-            scenario = (station or self._station()).scenario
+            station = station or self._station()
+            dc_name = getattr(station, "dc_model_name", None)
             self._algorithms, self.metadata = resolve_algorithms(
-                selection(self.name), scenario, f"backend:{self.name.value}"
+                selection(self.name, self.parameters, dc_name), station.scenario, f"backend:{self.policy_id}"
             )
+            if dc_name is not None:
+                # DC model của trạm (provider xe đến động) là bản chạy vật lý; algorithms trỏ CÙNG đối tượng đó.
+                self._algorithms = replace(self._algorithms, dc_charging_model=station.adapter.dc_model)
         return self._algorithms
 
     def configure(self, station) -> None:
         """Gắn policy vào kernel của trạm (giữ qua reset). Fork của admission mang theo cấu hình này."""
-        station.configure(self.algorithms(station), self.name.value, POLICY_VERSION)
+        station.configure(self.algorithms(station), self.policy_id, self.policy_version)
 
     def decide(self, station, ctx: PlanningContext) -> ApprovedDecision:
         """propose (Planning Core) → consent (nghiệp vụ) → approve (Physical Guard lại nếu bị chỉnh). Gọi dưới khoá trạm."""
@@ -116,12 +174,12 @@ class SimulatorScheduler:
                 interval = approved.proposal.interval_minutes
             except ConstraintViolationError:
                 # REJECTED_BEFORE_APPLY: không cấp điện mới, giữ gán cổng hiện tại (lịch an toàn 0 kW).
-                logger.exception("%s: Physical Guard từ chối đề xuất — lịch an toàn (0 kW)", self.name.value)
+                logger.exception("%s: Physical Guard từ chối đề xuất — lịch an toàn (0 kW)", self.policy_id)
                 self.last_diagnostics = {"reason_codes": [ReasonCode.REJECTED_BEFORE_APPLY]}
                 assignments, setpoints, interval = {}, {}, fallback
                 station.kernel.next_decision_minute = station.kernel.now + fallback
             queue = [b for b in ctx.state.queue if b not in assignments.values()]
-            return _to_plan(self.name, ctx, station, assignments, setpoints, queue, interval, started)
+            return _to_plan(self, ctx, station, assignments, setpoints, queue, interval, started)
 
 
 def _start_minimums(ctx: PlanningContext, observation, interval: int) -> dict[str, float]:
@@ -197,7 +255,7 @@ def _fit_with_minimums(
     return result
 
 
-def _to_plan(name, ctx, station, assignments, setpoints, queue, interval, started) -> SchedulePlan:
+def _to_plan(scheduler, ctx, station, assignments, setpoints, queue, interval, started) -> SchedulePlan:
     """Bước đầu của lịch = setpoint của khoảng quyết định này (receding horizon, như MPC của backend)."""
     connector_of = {vid: station.connector_of(port) for port, vid in assignments.items()}
     etas = _queue_etas(station, ctx, assignments, setpoints)
@@ -214,7 +272,9 @@ def _to_plan(name, ctx, station, assignments, setpoints, queue, interval, starte
         sessions.append(SessionPlan(booking_id=bid, connector_id=connector, slots=slots))
     return SchedulePlan(
         version=ctx.state.schedule_version + 1,
-        strategy=name,
+        strategy=scheduler.name if isinstance(scheduler.name, StrategyName) else None,
+        policy_id=scheduler.policy_id,
+        policy_version=scheduler.policy_version,
         created_at=datetime.now(UTC),
         horizon_start=ctx.now,
         step_minutes=interval,
@@ -280,4 +340,14 @@ def _sim_tariff(tariff: Tariff | None, now: datetime, now_minute: int) -> SimTar
     return SimTariff(tariff.currency, tuple(starts), tuple(prices))
 
 
-__all__ = ["POLICIES", "SIMULATOR_STRATEGIES", "TOL", "SimulatorScheduler", "selection"]
+__all__ = [
+    "POLICIES",
+    "SIMULATOR_STRATEGIES",
+    "TOL",
+    "PolicyRef",
+    "SimulatorScheduler",
+    "as_policy_ref",
+    "is_registered",
+    "policy_key",
+    "selection",
+]

@@ -23,7 +23,9 @@ quyết định đã duyệt qua `apply_approved`.
   - Lỗi cổng: xe đang cắm bị rút, về ĐẦU hàng chờ, `charge_started` xoá. Không đổi cổng cho xe đang cắm.
   - Xe đã rời mà upsert lại ⇒ bỏ qua (log).
 
-Chưa làm: profile DC VinFast (`VehicleProfilesDCModel` cần biết xe từ trước).
+DC charging model: `dc_charging_model=<tên DC_MODELS>` (cùng registry với simulator offline) hoặc `dc_model` tự dựng;
+mặc định `SyntheticTaperV1()`. `vinfast_profiles_v0_1` dùng provider resolve profile khi xe được upsert
+(`core/charging_models/live_profiles.py`, Final Review 4.2).
 """
 
 import copy
@@ -49,7 +51,7 @@ from src.models.simulation import Scenario as BackendScenario
 from src.models.simulation_core import Cabinet, Scenario, Vehicle
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationConfig, StationState
 from src.models.station_protocols import VehicleVisit
-from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms
+from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms, station_dc_model
 from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
 from src.simulator.core.ev2gym_adapter import EV2GymAdapter
 from src.simulator.core.kernel import SOC_TOL, StationKernel
@@ -96,9 +98,14 @@ class HybridStation:
         policy_id: str = "custom",
         policy_version: str = "1",
         observation_model: ObservationModel | None = None,
+        dc_charging_model: str | None = None,
     ) -> None:
+        """`dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒ `dc_model`
+        hoặc `SyntheticTaperV1()` như cũ. Không truyền cả hai."""
         if start.tzinfo is None:
             raise ValueError("start phải có múi giờ")
+        if dc_model is not None and dc_charging_model is not None:
+            raise ValueError("Chọn dc_model HOẶC dc_charging_model, không cả hai")
         self.config = config
         # Final Review §4.3: lớp quan sát giữa ground truth và optimizer (mặc định PerfectObservation = như cũ)
         self._observation_model = observation_model
@@ -106,18 +113,22 @@ class HybridStation:
         self.is_fork = False
         self._tz = ZoneInfo(config.timezone)
         self._dc_model = dc_model
+        self.dc_model_name = dc_charging_model
         self._algorithms = algorithms
         self._policy = (policy_id, policy_version)
         self._connector_to_port: dict[str, str] = {}
         self._port_to_connector: dict[str, str] = {}
         self._cabinets = self._build_cabinets(config)
+        if dc_charging_model is not None:
+            # Cùng registry DC_MODELS với offline; model cần biết xe ⇒ provider resolve khi xe được upsert.
+            self._dc_model = station_dc_model(dc_charging_model, self._build_scenario())
         self.time = TimeConfig(physics_step_minutes=1, decision_interval_minutes=config.optimizer.planning_step_minutes)
         self._init(start.astimezone(self._tz), config.grid_input_limit_kw or config.power_limit_kw)
 
     @classmethod
     def with_vinfast_profiles(cls, *args, **kwargs) -> "HybridStation":
-        # TODO: VehicleProfilesDCModel.from_scenario cần danh sách xe từ trước; trạm live nhận xe dần.
-        raise NotImplementedError("Profile DC VinFast chưa nối vào HybridStation — truyền dc_model tự dựng")
+        """Trạm dùng profile DC VinFast (`vinfast_profiles_v0_1`), resolve theo xe lúc upsert (xe đến động)."""
+        return cls(*args, dc_charging_model="vinfast_profiles_v0_1", **kwargs)
 
     # ---- dựng Scenario simulator từ StationConfig ----------------------------------------
 
@@ -171,6 +182,8 @@ class HybridStation:
         self._start = start
         self.schedule_version = 0
         scenario = self._build_scenario()
+        if self.dc_model_name is not None and hasattr(self._dc_model, "clear"):
+            self._dc_model.clear()  # reset: trạm mới không còn xe nào ⇒ bảng profile theo xe cũng rỗng
         adapter = EV2GymAdapter(scenario, self._dc_model or SyntheticTaperV1())
         algorithms = self._algorithms or replace(default_algorithms(), dc_charging_model=adapter.dc_model)
         self.kernel = StationKernel(
@@ -383,6 +396,7 @@ class HybridStation:
             vehicle = self._vehicle(visit, arrival, departure)
             self.queue.sessions[vid] = Session(vehicle)
             self.adapter.models[vid] = EV2GymAdapter._vehicle(vehicle, self.scenario)
+            self._register_profile(vehicle)
             self._visits[vid] = visit
         self.kernel.state_version += 1
         self.kernel.observe()
@@ -446,6 +460,9 @@ class HybridStation:
             twin._algorithms = twin.kernel.algorithms
         if self._observation_model is not None:
             twin._observation_model = twin.kernel.observation_model
+        # DC model có trạng thái (provider profile theo xe, có fork()) đã được kernel.fork tách bằng memo chung cho
+        # adapter + algorithms; bản fork đăng ký xe what-if không đụng bản live.
+        twin._dc_model = twin.kernel.adapter.dc_model
         return twin
 
     def apply_approved(self, approved: ApprovedDecision) -> None:
@@ -617,6 +634,7 @@ class HybridStation:
             max_kw=visit.max_power_kw,
         )
         session.vehicle = vehicle
+        self._register_profile(vehicle)
         ev = self.adapter.models[visit.booking_id]
         ev.desired_capacity = vehicle.target * vehicle.battery_kwh
         ev.time_of_departure = vehicle.departure - self.scenario.start
@@ -632,6 +650,15 @@ class HybridStation:
         self.queue.sessions.pop(vid, None)
         self.adapter.models.pop(vid, None)
         self._visits.pop(vid, None)
+        forget = getattr(self.adapter.dc_model, "forget_vehicle", None)
+        if forget is not None:
+            forget(vid)
+
+    def _register_profile(self, vehicle: Vehicle) -> None:
+        """Model DC cần biết xe (provider profile, Final Review 4.2): resolve lúc xe được upsert. Model khác: bỏ qua."""
+        register = getattr(self.adapter.dc_model, "register_vehicle", None)
+        if register is not None:
+            register(vehicle, self.scenario)
 
     def _assign(self, port: str, vid: str) -> None:
         session = self.queue.sessions.get(vid)

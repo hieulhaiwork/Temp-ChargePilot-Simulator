@@ -627,6 +627,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/simulation/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Policies
+         * @description Policy hợp lệ của Planning Core — đọc từ registry (cùng nguồn với runtime / benchmark), không chép tay.
+         */
+        get: operations["policies_api_v1_simulation_policies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/simulation/runs": {
         parameters: {
             query?: never;
@@ -1449,6 +1469,38 @@ export interface components {
             type: components["schemas"]["IncidentType"];
         };
         /**
+         * IncidentCounts
+         * @description Số sự cố của một lần chạy (Final Review 4.7): dự kiến = trong kịch bản, đã thực thi, bị bỏ qua.
+         */
+        IncidentCounts: {
+            /**
+             * Applied
+             * @description Số sự cố đã bơm vào trạm
+             */
+            applied: number;
+            /**
+             * Planned
+             * @description Số sự cố khai trong kịch bản
+             */
+            planned: number;
+            /**
+             * Skipped
+             * @description Số sự cố bị bỏ qua (không khớp topology) — strict thì phải 0
+             */
+            skipped: number;
+            /**
+             * Skipped Details
+             * @description `loại@phút' (đầu nối)` của sự cố bị bỏ qua
+             */
+            skipped_details?: string[];
+            /**
+             * Strict
+             * @description True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi
+             * @default false
+             */
+            strict: boolean;
+        };
+        /**
          * IncidentType
          * @enum {string}
          */
@@ -1600,6 +1652,61 @@ export interface components {
              * @description λ_u = hệ số × giá cao nhất — điện thiếu trội tuyệt đối
              */
             unmet_penalty_factor: number;
+        };
+        /**
+         * PlanningPolicyConfig
+         * @description Khối `planning:` TUỲ CHỌN của station.yaml (Final Review 4.1 / 4.2). Thiếu khối / khoá = hành vi cũ.
+         *
+         *     - `policy_id`: policy của runtime live (id registry `src/optimizer/registry.py`); None ⇒ env `LIVE_STRATEGY`.
+         *     - `version`: phải khớp version đã đăng ký (None ⇒ không kiểm).
+         *     - `dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒
+         *       `synthetic_taper_v1` như cũ. Áp cho mọi trạm dựng từ config (live, benchmark, fork admission).
+         *     - `parameters`: tham số theo thành phần (`dispatch_dc` / `optimizer_ac` / `optimizer_dc` / `coordinator`), cùng
+         *       khoá `parameters` của registry. Chỉ áp cho policy live.
+         */
+        PlanningPolicyConfig: {
+            /** Dc Charging Model */
+            dc_charging_model?: string | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Policy Id */
+            policy_id?: string | null;
+            /** Version */
+            version?: string | null;
+        };
+        /**
+         * PolicyInfo
+         * @description Một policy hợp lệ của Planning Core — đọc từ registry (`src/optimizer/registry.py`), không chép tay.
+         */
+        PolicyInfo: {
+            /** Coordinator */
+            coordinator: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Dispatch Dc */
+            dispatch_dc: string;
+            /**
+             * Frozen
+             * @description B0 / M2b / M3a / M3b đóng băng để tái lập số MVP-2/3
+             */
+            frozen: boolean;
+            /** @description Giá trị enum StrategyName tương ứng (nếu có) — client cũ gửi giá trị này */
+            legacy_strategy?: components["schemas"]["StrategyName"] | null;
+            /** Optimizer Ac */
+            optimizer_ac: string;
+            /** Optimizer Dc */
+            optimizer_dc: string;
+            /** Policy Id */
+            policy_id: string;
+            /** Version */
+            version: string;
         };
         /**
          * PowerSlot
@@ -1763,6 +1870,16 @@ export interface components {
              */
             horizon_start: string;
             /**
+             * Policy Id
+             * @description Id policy trong registry (src/optimizer/registry.py); luôn có sau khi validate
+             */
+            policy_id?: string | null;
+            /**
+             * Policy Version
+             * @description Version policy trong registry
+             */
+            policy_version?: string | null;
+            /**
              * Queue
              * @description booking_id chờ đầu nối, đầu hàng trước
              */
@@ -1776,7 +1893,8 @@ export interface components {
             solve_time_s?: number | null;
             /** Step Minutes */
             step_minutes: number;
-            strategy: components["schemas"]["StrategyName"];
+            /** @description Policy B0 / M2b / M3a / M3b (enum cũ). None khi policy đăng ký mới không có trong enum — xem policy_id */
+            strategy?: components["schemas"]["StrategyName"] | null;
             /** Version */
             version: number;
         };
@@ -1900,13 +2018,24 @@ export interface components {
         SimulationRunRequest: {
             /** N Vehicles */
             n_vehicles?: number | null;
+            /**
+             * Policy Id
+             * @description Id policy trong registry (GET /simulation/policies) — chọn được policy mới không có trong enum
+             */
+            policy_id?: string | null;
             /** Power Limit Kw */
             power_limit_kw?: number | null;
             /** Scenario Id */
             scenario_id: string;
             /** Seed */
             seed?: number | null;
-            strategy: components["schemas"]["StrategyName"];
+            /** @description Policy enum cũ (B0 / M2b / M3a / M3b). Client cũ chỉ gửi trường này */
+            strategy?: components["schemas"]["StrategyName"] | null;
+            /**
+             * Strict Incidents
+             * @description Chế độ nghiên cứu: sự cố trỏ đầu nối không tồn tại ⇒ lỗi thay vì bỏ qua. None / false = như cũ
+             */
+            strict_incidents?: boolean | null;
         };
         /** SimulationRunResult */
         SimulationRunResult: {
@@ -1915,12 +2044,24 @@ export interface components {
              * Format: date-time
              */
             finished_at: string;
+            /** @description Số sự cố dự kiến / thực thi / bỏ qua */
+            incidents?: components["schemas"]["IncidentCounts"] | null;
             kpis: components["schemas"]["KpiReport"];
             /**
              * Notes
              * @default
              */
             notes: string;
+            /**
+             * Policy Id
+             * @description Id policy trong registry; luôn có sau khi validate
+             */
+            policy_id?: string | null;
+            /**
+             * Policy Version
+             * @description Version policy trong registry
+             */
+            policy_version?: string | null;
             /** Run Id */
             run_id: string;
             /** Scenario Id */
@@ -1930,7 +2071,8 @@ export interface components {
              * Format: date-time
              */
             started_at: string;
-            strategy: components["schemas"]["StrategyName"];
+            /** @description Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id */
+            strategy?: components["schemas"]["StrategyName"] | null;
         };
         /**
          * StationConfig
@@ -1988,6 +2130,8 @@ export interface components {
             physical_zone_cap_kw?: {
                 [key: string]: number;
             } | null;
+            /** @description Chọn policy / DC model / tham số (tuỳ chọn; None = LIVE_STRATEGY + synthetic DC) */
+            planning?: components["schemas"]["PlanningPolicyConfig"] | null;
             /**
              * Power Conversion Efficiency
              * @description η chuyển đổi lưới → đầu ra tủ. E_grid = E_output / η
@@ -5156,6 +5300,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    policies_api_v1_simulation_policies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyInfo"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Not Implemented */

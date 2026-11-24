@@ -94,3 +94,13 @@ connectors:
   - { connector_id: AC-02-1, cabinet_id: AC-02, zone: AC, max_power_kw: 11.0 }
   - { connector_id: DC-01-1, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
   - { connector_id: DC-01-2, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
+
+# Chọn policy / DC model / tham số (TUỲ CHỌN, Final Review 4.1 / 4.2). VẮNG khối này = hành vi cũ:
+# policy live theo env LIVE_STRATEGY (mặc định M3a), DC model synthetic_taper_v1. Id policy hợp lệ:
+# GET /api/v1/simulation/policies (đọc từ src/optimizer/registry.py). Ví dụ:
+# planning:
+#   policy_id: M3a                          # id trong registry (B0 / M2b / M3a / M3b hoặc policy đăng ký mới)
+#   version: "1"                            # phải khớp version đã đăng ký
+#   dc_charging_model: vinfast_profiles_v0_1  # tên trong DC_MODELS; áp cho mọi trạm dựng từ config này
+#   parameters:                             # dispatch_dc / optimizer_ac / optimizer_dc / coordinator
+#     optimizer_dc: { horizon_minutes: 60 }

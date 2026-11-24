@@ -302,7 +302,7 @@ def diff_commands(previous: SchedulePlan | None, new: SchedulePlan, state: Stati
             based_on_schedule_version=state.schedule_version,
             based_on_state_at=state.timestamp,
             created_at=state.timestamp,
-            reason=f"Lịch v{new.version} ({new.strategy.value})",
+            reason=f"Lịch v{new.version} ({new.policy_id})",
         )
 
     commands: list[Command] = []

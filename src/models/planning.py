@@ -38,6 +38,6 @@ class PlanningContext:
 class Scheduler(Protocol):
     """Một chiến lược lập lịch. Hàm plan() phải thuần: cùng context → cùng kết quả."""
 
-    name: StrategyName
+    name: StrategyName | str  # StrategyName cho B0 / M2b / M3a / M3b; id chuỗi cho policy đăng ký mới (registry)
 
     def plan(self, ctx: PlanningContext) -> SchedulePlan: ...

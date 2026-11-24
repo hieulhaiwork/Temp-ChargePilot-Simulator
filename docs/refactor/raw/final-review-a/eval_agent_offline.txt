@@ -1,0 +1,11 @@
+Dataset: charging_requests.jsonl — 55 câu hợp lệ (mục tiêu PRD §8: ≥ 50)
+  extract       22
+  missing       10
+  ambiguous     5
+  invalid       4
+  infeasible    4
+  out_of_scope  3
+  injection     4
+  followup      3
+OK — dataset và ngưỡng hợp lệ.
+exit=0

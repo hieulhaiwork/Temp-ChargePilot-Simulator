@@ -12,7 +12,9 @@ Xuất: `RESULTS_DIR/benchmark.md` + `RESULTS_DIR/benchmark.json` (mặc định
 `generated`: kịch bản, policy, seed, TimeConfig, thư viện, commit). `GET /simulation/benchmark` KHÔNG đọc file này mà
 đọc baseline có version (`simulation_service.BENCHMARK_BASELINE_DIR`); muốn dùng số mới làm baseline thì chép thành thư
 mục `eval/evidence/<ngày>-...-baseline/` có `manifest.json` (xem `2026-11-23-refactor-phase3-baseline/`).
-Exit 2 khi pipeline chưa implement (in rõ task còn thiếu).
+Exit 2 khi pipeline chưa implement (in rõ task còn thiếu) hoặc policy không có trong registry.
+`--strict-incidents` (benchmark nghiên cứu, Final Review 4.7): sự cố không áp được vào topology ⇒ exit 3 ngay. Mặc
+định giữ hành vi cũ (bỏ qua + note). Mọi chế độ ghi `incidents` (dự kiến / thực thi / bỏ qua) vào từng run của JSON.
 Owner: TV1. Task: T3.4 (bảng đầu tiên), T4.1 (tập chưa thấy).
 """
 
@@ -48,7 +50,7 @@ def render_markdown(report: BenchmarkReport) -> str:
         k = run.kpis
         p95 = "—" if k.replan_p95_seconds is None else f"{k.replan_p95_seconds:.2f}"
         lines.append(
-            f"| {run.scenario_id} | {run.strategy.value} | {k.on_time_rate:.1%} | "
+            f"| {run.scenario_id} | {run.policy_id} | {k.on_time_rate:.1%} | "
             f"{k.wait_mean_minutes:.1f} / {k.wait_p90_minutes:.1f} | {k.unmet_energy_kwh:.1f} | "
             f"{k.service_rate:.1%} | {k.energy_cost_vnd:,.0f} | {k.peak_load_kw:.1f} | "
             f"{k.power_limit_violations} | {p95} |"
@@ -69,20 +71,39 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--scenarios", default="", help="scenario_id, phân cách bằng dấu phẩy (mặc định: tất cả)")
     parser.add_argument("--strategies", default=ALL_STRATEGIES, help=f"Mặc định: {ALL_STRATEGIES}")
     parser.add_argument("--seeds", default="", help="Danh sách seed, vd 1,2,3,4,5 (mặc định: seed của từng kịch bản)")
+    parser.add_argument(
+        "--strict-incidents",
+        action="store_true",
+        help="Benchmark nghiên cứu: sự cố trỏ đầu nối không tồn tại ⇒ dừng ngay (exit 3) thay vì bỏ qua + ghi note",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.optimizer import registry
+    from src.services.hybrid_planner import as_policy_ref
+
     args = _parse_args(argv)
     ids = [s for s in args.scenarios.split(",") if s]
     scenarios = [catalog.load_scenario(i) for i in ids] if ids else catalog.list_scenarios()
-    strategies = [StrategyName(s) for s in args.strategies.split(",") if s]
+    # Id policy tra thẳng registry: B0 / M2b / M3a / M3b (StrategyName) hoặc policy đăng ký mới.
+    unknown = [s for s in args.strategies.split(",") if s and s not in registry.POLICIES]
+    if unknown:
+        print(
+            f"Policy không có trong registry: {', '.join(unknown)} (có: {', '.join(registry.POLICIES)})",
+            file=sys.stderr,
+        )
+        return 2
+    strategies = [as_policy_ref(s) for s in args.strategies.split(",") if s]
     seeds = [int(s) for s in args.seeds.split(",") if s] or None
     try:
-        report = simulation_service.run_benchmark(scenarios, strategies, seeds)
+        report = simulation_service.run_benchmark(scenarios, strategies, seeds, strict_incidents=args.strict_incidents)
     except NotImplementedError as exc:
         print(f"Chưa chạy được benchmark — phần còn thiếu: {exc}", file=sys.stderr)
         return 2
+    except simulation_service.InvalidIncidentError as exc:
+        print(f"Benchmark nghiên cứu dừng (--strict-incidents): {exc.detail}", file=sys.stderr)
+        return 3
     if report.source is not None:
         report.source.code_commit = _git_commit()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
