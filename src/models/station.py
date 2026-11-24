@@ -55,6 +55,13 @@ class GuardSettings(BaseModel):
     approval_ttl_minutes: int = Field(
         default=15, gt=0, description="Hạn trả lời yêu cầu phê duyệt (AC4: hết hạn = không làm)"
     )
+    after_apply_failsafe: bool = Field(
+        default=False,
+        description=(
+            "Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm "
+            "tải khẩn cấp qua dispatcher. Mặc định tắt (chỉ đếm + log như trước)"
+        ),
+    )
 
 
 class OptimizerSettings(BaseModel):

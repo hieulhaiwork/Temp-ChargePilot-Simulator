@@ -295,9 +295,22 @@ class HybridStation:
         """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC."""
         self._events = []
         kernel = self.kernel
+        failsafe = self.config.guard.after_apply_failsafe
+        signalled = False
         for _ in range(max(minutes, 0)):
             result = kernel.advance(kernel.now + 1)
             self._applied.append(result)
+            if failsafe and result.violations and not signalled:
+                # Final Review §4.5b: kernel non-strict chỉ đếm + log vi phạm trần cứng sau khi áp. Tín hiệu cho runtime
+                # sinh lệnh giảm tải qua guard/dispatcher.py (trạm không tự hạ setpoint). Một sự kiện / lần step.
+                signalled = True
+                self._events.append(
+                    StationEvent(
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=self._at(result.end),
+                        detail=f"Vi phạm trần cứng sau khi áp: {result.violations[0]}"[:500],
+                    )
+                )
             if result.budget_deviation_kw and not kernel._deviation_reported:
                 # Assigned budget (Coordinator) ≠ hard cap: vượt budget không phải vi phạm vật lý — ghi + tính lại một lần.
                 kernel._deviation_reported = True

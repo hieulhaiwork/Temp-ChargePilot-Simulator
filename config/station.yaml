@@ -60,6 +60,10 @@ guard:
   flap_max_toggles: 3
   # AC4: yêu cầu phê duyệt quá hạn = KHÔNG thực thi.
   approval_ttl_minutes: 15
+  # Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp (Physical Guard sau thực thi) → sự kiện
+  # hard_limit_violated → lệnh giảm tải khẩn cấp qua guard/dispatcher.py. false = như trước (chỉ đếm + log).
+  # Bật là quyết định của chủ dự án (FINAL_REVIEW_FIX_B_REPORT.md, ESCALATION).
+  after_apply_failsafe: false
 
 # Hệ số hàm mục tiêu của bài LP (FR6) — công thức ở docs/plan/30-ai.md §5.2.
 # Giá trị khởi điểm, TV1 hiệu chỉnh ở T2.1 và báo cáo trong phân tích độ nhạy.

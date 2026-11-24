@@ -31,6 +31,9 @@ class EventType(StrEnum):
     CHARGE_COMPLETED = "charge_completed"
     # vận hành bấm "Lập lịch lại" (S6) / sau phê duyệt / trạm báo công suất thực vượt budget vùng (một lần / quyết định)
     REPLAN_REQUESTED = "replan_requested"
+    # Final Review §4.5b (opt-in `guard.after_apply_failsafe`): trạm phát hiện vi phạm trần cứng SAU khi áp (Physical
+    # Guard sau thực thi) → control_loop sinh lệnh giảm tải khẩn cấp qua guard/dispatcher.py rồi tính lại.
+    HARD_LIMIT_VIOLATED = "hard_limit_violated"
 
 
 class StationEvent(BaseModel):

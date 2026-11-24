@@ -1359,7 +1359,7 @@ export interface components {
          * @description FR8 — mọi sự kiện đều kích hoạt tính lại lịch.
          * @enum {string}
          */
-        EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "charge_completed" | "replan_requested";
+        EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "charge_completed" | "replan_requested" | "hard_limit_violated";
         /**
          * FieldProvenance
          * @description Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).
@@ -1387,6 +1387,12 @@ export interface components {
          * @description Ngưỡng của Safety Guard (FR12) — nạp từ khối `guard:` của station.yaml.
          */
         GuardSettings: {
+            /**
+             * After Apply Failsafe
+             * @description Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Mặc định tắt (chỉ đếm + log như trước)
+             * @default false
+             */
+            after_apply_failsafe: boolean;
             /**
              * Approval Ttl Minutes
              * @description Hạn trả lời yêu cầu phê duyệt (AC4: hết hạn = không làm)
