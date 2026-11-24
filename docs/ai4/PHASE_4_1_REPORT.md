@@ -1,10 +1,11 @@
 # PHASE AI-4.1 — Deterministic WHY Engine (Gate 2 & Remediation)
 
-**Phase AI-4.1 | Status READY_FOR_FINAL_ACCEPTANCE — GATE 2**  
-**Branch** `feature/ai-4` · **Local base / workspace HEAD** `490f43300afb05ef7e809099a77e0c7174e272fb`  
+**Phase AI-4.1 | Status APPROVED — GATE 2**  
+**Branch** `feature/ai-4` · **Local base (`G1`)** `490f43300afb05ef7e809099a77e0c7174e272fb` · **Local accepted (`G2`)** `4658b1f068350c130ed5ed1a744c19a7b8cd522c`  
 **Reviewed G1 mirror (APPROVED)** `fed2c5e395c3a6ac3e1798ce52d0e4b4e4abd009`  
 **Reviewed G2 initial mirror (CHANGES REQUIRED)** `6ba13b8021998e03e15b0ec26cec93d484b70a05`  
 **Reviewed G2 remediation mirror (CONDITIONAL PASS)** `2d15ca167f9ee48fa24f777206aabb0450266bc8`  
+**Accepted G2 final mirror (APPROVED)** `aa37ca55978f99009c6d4b25c0676d87eac7fa7b`  
 **Final full candidate patch SHA-256** `97ffb4758af2c0721b5a35bb19b30da0b4c18f0aebc4c03f24554f79748fc528` ([candidate patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch))  
 **Delta patch (`2d15ca1` → final fix) SHA-256** `c970bfb00a96cd8d56d11d9c2420b28f0ef49392b1797ded6c44923c37d834ef` ([final-fix delta patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/remediation-to-final-fix.patch))  
 **Fail-before test patch (`G2-F05a`/`G2-F05b`) SHA-256** `b6bd79699e9888a3aaf9ada36c3bb72d958fa4ba93bc9aead3169a5c04a6434f` ([final-fix-before patch](../../eval/evidence/2026-11-24-ai4-4-1-remediation/raw/final-fix-before.patch))  
@@ -149,6 +150,6 @@ Bộ kiểm thử [test_why_g2_final_fix.py](../../tests/test_services/test_why_
 | Focused (158), Full backend (684+8 skips), Architecture, Lint, Format, Docs, OpenAPI, AST (114/114) | **VERIFIED (exit 0)** |
 | Golden CRLF (38/38), Frozen benchmark (100/100), Standalone (180) | **INHERITED FROM `2d15ca1` (0 core diff)** |
 | Production grounding validator, extended semantic oracle, PostgreSQL runtime | **PENDING / BACKLOG (G6/G7)** |
-| Tech Lead Final Gate 2 Acceptance | **PENDING** |
+| Tech Lead Final Gate 2 Acceptance | **APPROVED (`aa37ca55978f99009c6d4b25c0676d87eac7fa7b`)** |
 
-**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 2)**
+**GATE 2 FINAL STATUS: APPROVED (`aa37ca55978f99009c6d4b25c0676d87eac7fa7b`)**

@@ -41,10 +41,10 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 | G1-F02 | **Confirmed** qua fault-injection. Dispatch blocked, pending, partial hoặc không sinh command khi vẫn unsafe từng mở interlock sai. Lỗi sink sau apply từng giữ interlock dù trạm đã an toàn. Dùng readback, tách delivery/dispatch/resolution, retry tối đa ba lần và log khi unresolved. | Runtime / Guard |
 | G1-F03 | **Confirmed inherited** cho tăng công suất trên local `d2b5d48`. G1 review cũng tái hiện assignment đã duyệt trước fault. Dispatcher recheck hiện tại khóa cả hai theo Safety Hold/occupant và giữ audit executed=false. | Guard / Approval |
 | G1-F04 | **Confirmed** qua sample eviction, lỗi dựng facts và non-finite serialization tại close. Coverage phát hiện dữ liệu thiếu, eviction không xóa violation counter, fallback giữ applied evidence và fail-safe chạy trước trace. | Trace / Runtime |
-| G1-F05 | **Implemented in AI-4.1 (pending Gate 2 review)**. Mở rộng additive `planned`, `safety.by_booking` và mốc ISO trên `chargepilot.backend_decision_trace/2` trong `hybrid_station.py` và `decision_trace.py`, tách bạch observed/planned/approved/dispatched/effective/measured và giữ nguyên standalone serializer. | WHY Evidence Resolver |
-| G1-F06 | **Implemented in AI-4.1 (pending Gate 2 review)**. `repository.py` + `src/services/copilot/{trace_reader,evidence,why}.py` hỗ trợ as-of, half-open `[start, end)` overlap, cắt replan sớm, giới hạn active trace sau restart, bounded pagination, phân quyền non-enumerating và privacy projection. | WHY Evidence Resolver / Persistence |
+| G1-F05 | **APPROVED at Gate 2 (`aa37ca5`)**. Mở rộng additive `planned`, `safety.by_booking` và mốc ISO trên `chargepilot.backend_decision_trace/2` trong `hybrid_station.py` và `decision_trace.py`, tách bạch observed/planned/approved/dispatched/effective/measured và giữ nguyên standalone serializer. | WHY Evidence Resolver |
+| G1-F06 | **APPROVED at Gate 2 (`aa37ca5`)**. `repository.py` + `src/services/copilot/{trace_reader,evidence,why}.py` hỗ trợ as-of, half-open `[start, end)` overlap, cắt replan sớm, giới hạn active trace sau restart, bounded pagination, phân quyền non-enumerating và privacy projection. | WHY Evidence Resolver / Persistence |
 
-## Gate 2 remediation ledger (mirror `6ba13b8`)
+## Gate 2 remediation ledger (mirror `6ba13b8` → `2d15ca1` → APPROVED `aa37ca5`)
 
 | ID | Phân loại và kết quả | Owner |
 |---|---|---|
@@ -60,8 +60,17 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 | G2-F08 | **Confirmed gap → Fixed**. Mở rộng independent oracle kiểm toán mọi emitted fact/ref, tách 9 chỉ số kèm denominator rõ ràng và 7/7 mutation detection. | WHY Evaluation |
 | G2-F09 | **Confirmed handoff gap → Fixed**. Tạo/xác minh `docs/ai4/PHASE_4_1_REPORT.md` đồng bộ với `PROJECT_STATE.md`, ledger, hashes và raw evidence. | Docs / Handoff |
 
-## Backlog theo dõi sau AI-4.1 (G3+)
+## Gate 3 (AI-4.2A) audit & remediation ledger
 
-- **Pending safety registry & admission readiness (G3)**: `fork_runtime` hiện chưa kế thừa pending safety registry của live runtime, và kiểm tra admission readiness dưới trạng thái pending safety là yêu cầu thuộc G3 (AI-4.2A WHAT-IF), không nằm trong phạm vi AI-4.1.
-- **Production grounding validator, semantic oracle mở rộng & PostgreSQL runtime (G6/G7)**: Theo quyết định Tech Lead tại `2d15ca1`, các hạn chế production grounding validator tổng quát, semantic oracle mở rộng và xác minh PostgreSQL runtime được chuyển sang backlog G6/G7.
-- **Doc drift ngoài phạm vi AI-4**: Các tài liệu lịch sử cũ ngoài `docs/ai4/` (nếu có lệch với code hiện tại) được giữ nguyên theo chỉ đạo Tech Lead trong AI-4.1 và đưa vào backlog dọn tài liệu sau.
+| ID | Phân loại và kết quả | Owner |
+|---|---|---|
+| **G3-F01** (`fork_runtime` pending safety & `admission_fingerprint`) | **Confirmed bug → Fixed** ([test_g3_runtime_readiness.py](../../tests/test_services/test_g3_runtime_readiness.py), fail-before 3/3 tại [fail-before.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-2a/raw/fail-before.stdout.txt)). Trước sửa, `fork_runtime()` bỏ rơi `_pending_safety`, `_acknowledged_safety` và `_safety_attempts`, khiến fork thoát khỏi interlock an toàn và `admission.evaluate()` hứa cấp cổng/công suất ngay khi live đang treo hard safety; đồng thời `admission_fingerprint()` không đổi khi phát sinh/giải quyết `_pending_safety`. Đã kế thừa đầy đủ trạng thái pending safety trong `fork_runtime()` và đưa `frozenset(_pending_safety)` vào `admission_fingerprint()`. | Runtime / Admission |
+| **R07 (G3 scope)** — Atomic counterfactual snapshot | **Implemented & Verified** ([snapshot.py](../../src/services/copilot/snapshot.py), [test_counterfactual_foundation.py](../../tests/test_services/test_counterfactual_foundation.py)). Chụp nguyên tử theo thứ tự khóa chuẩn `booking_lock → decision_lock → _clock_lock → simulator.lock`, kiểm chứng bằng barrier concurrency không có mixed-version state, không chứa lock/DB/loop/WS/actuator trong graph đối tượng của `CapturedSnapshot`, từ chối `not_ready` khi còn unresolved hard safety hoặc trạng thái vật lý không an toàn mà không làm rơi event outbox hay nhả Safety Hold. | Copilot Snapshot / Runtime |
+| **R06 (G3 foundation half)** — Paired sandbox runner & `known_at(T)` | **Implemented & Verified (G3 scope)** ([counterfactual.py](../../src/services/copilot/counterfactual.py)). Xây dựng `EventManifest` (`known_at(T)`) materialize một lần, cắt sạch future hidden bookings và `LimitEvent` chưa công bố trên fork, chạy paired no-op (`baseline` & `counterfactual`) tái sử dụng Unified Core + Guard + `dispatcher` + single-thread `solver.run_async` kèm `_LOOP_MINUTE_GATES` chống làm đói live replan. Phần 4 business patches (`revise_vehicle`, `site_limit`, `outage`, WHAT-IF API/job) thuộc G4 (AI-4.2B). | Copilot Counterfactual |
+| **R11** — Additive Outcome Ledger | **Implemented & Verified** ([outcome_ledger.py](../../src/services/copilot/outcome_ledger.py)). Giữ nguyên KPI đóng băng; cố định cohort (giữ cả `NOT_ARRIVED`), bảo toàn cam kết gốc, tách năng lượng trước/sau snapshot (không cộng trùng), tách `plug_in_at` vs `first_charge_at` và `target_reached_at` vs `release_or_departure_at`, phân loại 8 trạng thái và trả `None` khi mẫu số rỗng. | Copilot Evaluator |
+
+## Backlog theo dõi sau AI-4.2A (G4+)
+
+- **WHAT-IF Business Patches & Delta Engine (G4 / AI-4.2B)**: Triển khai các bản vá nghiệp vụ có kiểm soát (`add_vehicle`, `revise_vehicle`, `site_limit`, `outage`), tính delta so với baseline trên cùng `CapturedSnapshot` + `EventManifest` và kiểm chứng target SOC thấp hơn SOC hiện tại (`already attained`).
+- **HOW-TO Bounded Candidate Search (G5), LLM Presentation & Grounding Validator (G6), PostgreSQL Runtime & Release Verification (G7)**: Theo lộ trình Master Plan và quyết định Tech Lead tại `aa37ca5`, tiếp tục giữ ở các cổng G5–G7 tương ứng (không đụng R10 billing/quote semantics nếu chưa có duyệt riêng).
+- **Doc drift ngoài phạm vi AI-4**: Các tài liệu lịch sử cũ ngoài `docs/ai4/` được giữ nguyên theo chỉ đạo Tech Lead và đưa vào backlog dọn tài liệu sau.

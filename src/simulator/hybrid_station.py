@@ -31,12 +31,14 @@ mặc định `SyntheticTaperV1()`. `vinfast_profiles_v0_1` dùng provider resol
 
 import copy
 import functools
+import hashlib
+import json
 import logging
 import math
 import threading
 from collections import deque
 from collections.abc import Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from types import MappingProxyType
 from zoneinfo import ZoneInfo
@@ -58,11 +60,69 @@ from src.optimizer.dispatch.least_laxity import optimistic_laxity
 from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms, station_dc_model
 from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
 from src.simulator.core.ev2gym_adapter import EV2GymAdapter
+from src.simulator.core.isolation import is_shared
 from src.simulator.core.kernel import SOC_TOL, StationKernel
 from src.simulator.core.queue import QueueController, Session
 from src.simulator.evaluation.trace import decision_record
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PhysicsSnapshotSeed:
+    """Lock-free, actuator-free physics seed captured atomically from `HybridStation`.
+
+    Holds a detached `StationKernel` (`emit=None`) and immutable station metadata so
+    counterfactual snapshots contain zero locks, event loops, DB connections, WebSocket
+    clients, or `StationActuator` instances. Each sandbox branch forks `detached_kernel`
+    again, leaving this seed completely untouched.
+    """
+
+    start: datetime
+    available_power_kw: float
+    schedule_version: int
+    dc_model_name: str | None
+    policy: tuple[str, str]
+    time: TimeConfig
+    halted_on: tuple | None
+    visits: tuple[tuple[str, VehicleVisit], ...]
+    cabinets: tuple[Cabinet, ...]
+    connector_to_port: tuple[tuple[str, str], ...]
+    port_to_connector: tuple[tuple[str, str], ...]
+    detached_kernel: StationKernel
+
+
+def _component_state_signature(component: object) -> dict[str, object]:
+    """Deterministic JSON-serializable state descriptor for pluggable components."""
+    shared = is_shared(component)
+    cls_name = f"{type(component).__module__}.{type(component).__qualname__}"
+    if shared:
+        return {"type": cls_name, "shared": True}
+    payload: dict[str, object] = {"type": cls_name, "shared": False}
+    profiles = getattr(component, "profiles", None)
+    if isinstance(profiles, Mapping):
+        payload["registered_vehicle_ids"] = sorted(str(k) for k in profiles)
+    unresolved = getattr(component, "unresolved", None)
+    if isinstance(unresolved, Mapping):
+        payload["unresolved"] = {str(k): str(v) for k, v in sorted(unresolved.items())}
+    rng = getattr(component, "rng", None)
+    if rng is not None and callable(getattr(rng, "getstate", None)):
+        payload["rng_state_repr"] = repr(rng.getstate())
+    if hasattr(component, "__dict__"):
+        attrs = {}
+        for key, value in sorted(vars(component).items()):
+            if key in ("_profiles", "profiles", "unresolved", "rng", "inner", "delegate", "fallback"):
+                continue
+            attrs[key] = repr(value)
+        if attrs:
+            payload["attrs"] = attrs
+    for nested_name in ("inner", "delegate", "fallback"):
+        nested = getattr(component, nested_name, None)
+        if nested is not None:
+            payload[nested_name] = _component_state_signature(nested)
+    return payload
+
+
 EPS = 1e-6
 APPLIED_BUFFER_STEPS = 24 * 60  # tối đa một ngày bước 1' giữa hai lần drain (vòng nền drain ≤ 15')
 # Độ phân giải lệnh công suất: control_loop.diff_commands không gửi lệnh khi đổi < POWER_TOL_KW (khoá bằng test).
@@ -527,6 +587,201 @@ class HybridStation:
         # adapter + algorithms; bản fork đăng ký xe what-if không đụng bản live.
         twin._dc_model = twin.kernel.adapter.dc_model
         return twin
+
+    @_locked
+    def export_physics_seed(self) -> PhysicsSnapshotSeed:
+        """Export a lock-free, actuator-free physics seed for immutable counterfactual snapshots."""
+        detached = self.kernel.fork(emit=None)
+        return PhysicsSnapshotSeed(
+            start=self._start,
+            available_power_kw=float(self._available_power_kw),
+            schedule_version=int(self.schedule_version),
+            dc_model_name=self.dc_model_name,
+            policy=tuple(self._policy),
+            time=self.time,
+            halted_on=None if self._halted_on is None else tuple(self._halted_on),
+            visits=tuple(sorted(self._visits.items())),
+            cabinets=tuple(self._cabinets),
+            connector_to_port=tuple(sorted(self._connector_to_port.items())),
+            port_to_connector=tuple(sorted(self._port_to_connector.items())),
+            detached_kernel=detached,
+        )
+
+    @classmethod
+    def from_physics_seed(cls, config: StationConfig, seed: PhysicsSnapshotSeed) -> "HybridStation":
+        """Materialize a fresh isolated sandbox fork from `seed` without mutating `seed`."""
+        twin = cls.__new__(cls)
+        twin.config = config.model_copy(deep=True)
+        twin.lock = threading.RLock()
+        twin.is_fork = True
+        twin._tz = ZoneInfo(twin.config.timezone)
+        twin.dc_model_name = seed.dc_model_name
+        twin._policy = seed.policy
+        twin.time = seed.time
+        twin._start = seed.start
+        twin._available_power_kw = float(seed.available_power_kw)
+        twin.schedule_version = int(seed.schedule_version)
+        twin._halted_on = seed.halted_on
+        twin._visits = dict(seed.visits)
+        twin._cabinets = seed.cabinets
+        twin._connector_to_port = dict(seed.connector_to_port)
+        twin._port_to_connector = dict(seed.port_to_connector)
+        twin._events = []
+        twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
+        twin._dropped_applied_minutes = 0
+        twin._dropped_hard_violations = 0
+        twin.kernel = seed.detached_kernel.fork(emit=twin._emit)
+        twin._algorithms = twin.kernel.algorithms
+        twin._observation_model = twin.kernel.observation_model
+        twin._dc_model = twin.kernel.adapter.dc_model
+        return twin
+
+    @_locked
+    def snapshot_physics_state(self) -> dict:
+        """Pure, deterministic, JSON-serializable ground-truth physics & component state at `now`."""
+        sessions_payload: dict[str, dict] = {}
+        for vid in sorted(self.queue.sessions):
+            s = self.queue.sessions[vid]
+            ev = self.adapter.models[vid]
+            sessions_payload[vid] = {
+                "state": s.state,
+                "zone": s.vehicle.zone,
+                "vehicle_model": s.vehicle.vehicle_model,
+                "connector_id": self.connector_of(s.connector) if s.connector else None,
+                "last_connector_id": self.connector_of(s.last_connector) if s.last_connector else None,
+                "arrival_minute": s.vehicle.arrival,
+                "arrival_at": self.time_at(s.vehicle.arrival),
+                "departure_minute": s.vehicle.departure,
+                "departure_at": self.time_at(s.vehicle.departure),
+                "battery_capacity_kwh": round(float(s.vehicle.battery_kwh), 9),
+                "initial_soc": round(float(s.vehicle.initial_soc), 9),
+                "current_soc": round(float(self.adapter.soc(vid)), 9),
+                "current_capacity_kwh": round(float(ev.current_capacity), 9),
+                "target_soc": round(float(s.vehicle.target), 9),
+                "max_kw": round(float(s.vehicle.max_kw), 9),
+                "charge_started_minute": s.charge_started,
+                "charge_started_at": self.time_at(s.charge_started) if s.charge_started is not None else None,
+                "completed_at_minute": s.completed_at,
+                "completed_at": self.time_at(s.completed_at) if s.completed_at is not None else None,
+                "departed_at_minute": s.departed_at,
+                "departed_at": self.time_at(s.departed_at) if s.departed_at is not None else None,
+                "delivered_battery_kwh": round(float(s.delivered_battery_kwh), 9),
+                "delivered_grid_kwh": round(float(s.delivered_grid_kwh), 9),
+                "output_kwh": round(float(self.kernel.output_kwh.get(vid, 0.0)), 9),
+                "output_by_deadline_kwh": round(float(self.kernel.output_by_deadline_kwh.get(vid, 0.0)), 9),
+            }
+        known_limit_events = [
+            {
+                "announced_minute": ev.announced_minute,
+                "announced_at": self.time_at(ev.announced_minute),
+                "effective_minute": ev.effective_minute,
+                "effective_at": self.time_at(ev.effective_minute),
+                "grid_input_kw": None if ev.grid_input_kw is None else round(float(ev.grid_input_kw), 9),
+                "cabinet_output_kw": {k: round(float(v), 9) for k, v in sorted(ev.cabinet_output_kw.items())},
+            }
+            for ev in self.scenario.limit_events
+            if ev.announced_minute <= self.minute
+        ]
+        hidden_limit_count = sum(1 for ev in self.scenario.limit_events if ev.announced_minute > self.minute)
+        alg = self.kernel.algorithms
+        stateful_sig = {
+            "dispatch": {z: _component_state_signature(p) for z, p in sorted(alg.dispatch.items())},
+            "optimizers": {z: _component_state_signature(o) for z, o in sorted(alg.optimizers.items())},
+            "coordinator": _component_state_signature(alg.coordinator),
+            "dc_charging_model": _component_state_signature(self.adapter.dc_model),
+            "observation_model": _component_state_signature(self.kernel.observation_model),
+            "combined_policy": None if self.kernel.policy is None else _component_state_signature(self.kernel.policy),
+        }
+        stateful_sha256 = hashlib.sha256(
+            json.dumps(stateful_sig, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        ).hexdigest()
+        effective = self.kernel.effective_limits()
+        eff_grid = None if not math.isfinite(effective.grid_input_kw) else round(float(effective.grid_input_kw), 9)
+        return {
+            "minute": self.minute,
+            "now_iso": self.now.isoformat(),
+            "state_version": self.kernel.state_version,
+            "schedule_version": self.schedule_version,
+            "available_power_kw": round(float(self.available_power_kw), 9),
+            "effective_grid_limit_kw": eff_grid,
+            "grid_input_override_kw": (
+                None
+                if self.kernel.grid_input_override_kw is None
+                else round(float(self.kernel.grid_input_override_kw), 9)
+            ),
+            "next_decision_minute": self.kernel.next_decision_minute,
+            "halted_on": [] if self._halted_on is None else list(self._halted_on),
+            "faulted_connectors": sorted(self.connector_of(p) for p in self.kernel.faults),
+            "occupied_connectors": {self.connector_of(p): vid for p, vid in sorted(self.queue.occupied.items())},
+            "queues_by_zone": {zone: list(self.queue.waiting[zone]) for zone in sorted(self.queue.waiting)},
+            "held_setpoints_kw": {vid: round(float(kw), 9) for vid, kw in sorted(self.kernel.setpoints.items())},
+            "active_budget_kw": (
+                None
+                if self.kernel.active_budget_kw is None
+                else {z: round(float(v), 9) for z, v in sorted(self.kernel.active_budget_kw.items())}
+            ),
+            "active_setpoints_kw": (
+                None
+                if self.kernel.active_setpoints_kw is None
+                else {vid: round(float(v), 9) for vid, v in sorted(self.kernel.active_setpoints_kw.items())}
+            ),
+            "output_kwh": {vid: round(float(v), 9) for vid, v in sorted(self.kernel.output_kwh.items())},
+            "output_by_deadline_kwh": {
+                vid: round(float(v), 9) for vid, v in sorted(self.kernel.output_by_deadline_kwh.items())
+            },
+            "constraint_counters": {
+                "rejected_allocation_count": self.kernel.rejected_allocation_count,
+                "applied_constraint_violation_count": self.kernel.applied_constraint_violation_count,
+                "budget_deviation_count": self.kernel.budget_deviation_count,
+                "command_deadband_count": self.kernel.command_deadband_count,
+            },
+            "time_config": {
+                "physics_step_minutes": self.kernel.time.physics_step_minutes,
+                "decision_interval_minutes": self.kernel.time.decision_interval_minutes,
+                "planning_horizon_minutes": self.kernel.time.planning_horizon_minutes,
+            },
+            "efficiencies": {
+                "conversion": round(float(self.scenario.conversion), 9),
+                "charging": round(float(self.scenario.efficiency), 9),
+                "dc_unplug_delay_minutes": int(self.scenario.delay),
+            },
+            "sessions": sessions_payload,
+            "known_limit_events": known_limit_events,
+            "hidden_unannounced_limit_event_count": hidden_limit_count,
+            "stateful_components": stateful_sig,
+            "stateful_components_sha256": stateful_sha256,
+        }
+
+    @_locked
+    def effective_grid_limit_kw(self, minute: int | None = None) -> float:
+        """Effective grid-input cap (kW) at `minute` (or `self.minute`) including overrides and known limit events."""
+        limits = self.kernel.effective_limits(minute=minute)
+        return float(limits.grid_input_kw)
+
+    @_locked
+    def enforce_known_at_on_fork(self, as_of_minute: int, known_booking_ids: frozenset[str]) -> dict[str, int]:
+        """Strip future unannounced limit events and unregistered future arrivals on a sandbox fork ONLY."""
+        if not self.is_fork:
+            raise RuntimeError("enforce_known_at_on_fork is strictly restricted to sandbox forks")
+        pruned_vehicles = 0
+        for vid in list(self.queue.sessions):
+            session = self.queue.sessions[vid]
+            if session.state == "NOT_ARRIVED" and vid not in known_booking_ids:
+                self._forget(vid)
+                pruned_vehicles += 1
+        known_events = tuple(ev for ev in self.kernel.scenario.limit_events if ev.announced_minute <= as_of_minute)
+        pruned_events = len(self.kernel.scenario.limit_events) - len(known_events)
+        kept_vehicles = tuple(s.vehicle for s in self.queue.sessions.values())
+        if pruned_vehicles or pruned_events or len(kept_vehicles) != len(self.kernel.scenario.vehicles):
+            self.kernel.scenario = replace(
+                self.kernel.scenario,
+                vehicles=kept_vehicles,
+                limit_events=known_events,
+            )
+        return {
+            "pruned_future_vehicles": pruned_vehicles,
+            "pruned_unannounced_limit_events": pruned_events,
+        }
 
     def apply_approved(self, approved: ApprovedDecision) -> None:
         """Áp quyết định đã duyệt THẲNG vào kernel — chỉ cho bản fork; trạm thật chỉ nhận lệnh qua dispatcher."""

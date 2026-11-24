@@ -132,7 +132,9 @@ class StationRuntime:
         Giới hạn: khoá + dấu vân tay nằm trong RAM của MỘT worker (CLAUDE.md "Một worker"); chạy nhiều worker cần khoá /
         ràng buộc phân tán (chưa làm — ngoài phạm vi).
         """
-        state = self.simulator.state()
+        with self._clock_lock:
+            state = self.simulator.state()
+            pending_safety = frozenset(self._pending_safety)
         faults = tuple(sorted(c.connector_id for c in state.connectors if c.status == ConnectorStatus.FAULT))
         policy = getattr(self.scheduler, "policy_id", None) or str(getattr(self.scheduler, "name", ""))
         return (
@@ -142,6 +144,7 @@ class StationRuntime:
             policy,
             frozenset(self.rejected_booking_ids),
             frozenset(self.safety_hold_booking_ids),
+            pending_safety,
         )
 
     def advance_clock(self) -> list[StationEvent]:
@@ -180,6 +183,16 @@ class StationRuntime:
     def has_pending_safety(self) -> bool:
         with self._clock_lock:
             return bool(self._pending_safety)
+
+    def inspect_ordinary_outbox(self) -> tuple[StationEvent, ...]:
+        """Non-destructive snapshot of ordinary outbox events (never pops or clears)."""
+        with self._clock_lock:
+            return tuple(event.model_copy(deep=True) for event in self._outbox)
+
+    def inspect_pending_safety(self) -> tuple[StationEvent, ...]:
+        """Non-destructive snapshot of unresolved hard safety events sorted by event_id."""
+        with self._clock_lock:
+            return tuple(self._pending_safety[eid].model_copy(deep=True) for eid in sorted(self._pending_safety))
 
     def begin_safety_attempt(self) -> int | None:
         with self._clock_lock:
@@ -532,6 +545,10 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
     frt.recent_commands.extend(c.model_copy(deep=True) for c in rt.recent_commands)
     frt.rejected_booking_ids.update(rt.rejected_booking_ids)
     frt.safety_hold_booking_ids.update(rt.safety_hold_booking_ids)
+    with rt._clock_lock:
+        frt._pending_safety = {eid: ev.model_copy(deep=True) for eid, ev in rt._pending_safety.items()}
+        frt._acknowledged_safety = deque(rt._acknowledged_safety, maxlen=OUTBOX_MAX)
+        frt._safety_attempts = rt._safety_attempts
     return frt
 
 

@@ -1,0 +1,83 @@
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+___ test_fork_runtime_inherits_pending_safety_and_suppresses_normal_dispatch ___
+
+    async def test_fork_runtime_inherits_pending_safety_and_suppresses_normal_dispatch():
+        rt = await _build_runtime_with_queued_vehicle()
+        hard_event = StationEvent(
+            event_id="hard-pending-1",
+            type=EventType.HARD_LIMIT_VIOLATED,
+            occurred_at=rt.clock(),
+            detail="Synthetic unresolved unattributed vehicle fault",
+            violation_kinds=["charging_model"],
+            violation_booking_ids=[],
+        )
+        rt.queue_events([hard_event])
+        assert rt.has_pending_safety() is True
+    
+        frt = fork_runtime(rt, list(rt.store.active_bookings()))
+>       assert frt.has_pending_safety() is True
+E       AssertionError: assert False is True
+E        +  where False = has_pending_safety()
+E        +    where has_pending_safety = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp..._read_clock_paused=False, _safety_attempts=0, loop=None, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).has_pending_safety
+
+tests/test_services/test_g3_runtime_readiness.py:41: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+________ test_admission_fingerprint_reflects_pending_safety_transition _________
+
+    async def test_admission_fingerprint_reflects_pending_safety_transition():
+        rt = await _build_runtime_with_queued_vehicle()
+        fp_clean = rt.admission_fingerprint()
+    
+        hard_event = StationEvent(
+            event_id="hard-pending-fp",
+            type=EventType.HARD_LIMIT_VIOLATED,
+            occurred_at=rt.clock(),
+            detail="Synthetic unresolved unattributed vehicle fault",
+            violation_kinds=["charging_model"],
+            violation_booking_ids=[],
+        )
+        rt.queue_events([hard_event])
+        fp_pending = rt.admission_fingerprint()
+>       assert fp_pending != fp_clean
+E       AssertionError: assert (0, 106.0, (), 'M3a', frozenset(), frozenset()) != (0, 106.0, (), 'M3a', frozenset(), frozenset())
+
+tests/test_services/test_g3_runtime_readiness.py:63: AssertionError
+_ test_admission_evaluate_does_not_promise_allocation_while_hard_safety_pending _
+
+    async def test_admission_evaluate_does_not_promise_allocation_while_hard_safety_pending():
+        rt = await _build_runtime_with_queued_vehicle()
+        hard_event = StationEvent(
+            event_id="hard-pending-adm",
+            type=EventType.HARD_LIMIT_VIOLATED,
+            occurred_at=rt.clock(),
+            detail="Synthetic unresolved unattributed vehicle fault",
+            violation_kinds=["charging_model"],
+            violation_booking_ids=[],
+        )
+        rt.queue_events([hard_event])
+        assert rt.has_pending_safety() is True
+    
+        candidate = booking("cand-dc", zone="DC", kwh=20, hours=2.0, now=rt.clock())
+        quoted = await admission.evaluate(rt, candidate)
+>       assert quoted.plugged_at is None
+E       AssertionError: assert datetime.datetime(2026, 11, 23, 12, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/Ho_Chi_Minh')) is None
+E        +  where datetime.datetime(2026, 11, 23, 12, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/Ho_Chi_Minh')) = Admission(policy='M3a', connector_id='DC-01-1', plugged_at=datetime.datetime(2026, 11, 23, 12, 0, tzinfo=zoneinfo.Zone...86, unmet_kwh=0.0, cost_vnd=73629, queue_position=None, decisions=5, approvals_for_candidate=0, approvals_for_others=0).plugged_at
+
+tests/test_services/test_g3_runtime_readiness.py:84: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_services/test_g3_runtime_readiness.py::test_fork_runtime_inherits_pending_safety_and_suppresses_normal_dispatch
+FAILED tests/test_services/test_g3_runtime_readiness.py::test_admission_fingerprint_reflects_pending_safety_transition
+FAILED tests/test_services/test_g3_runtime_readiness.py::test_admission_evaluate_does_not_promise_allocation_while_hard_safety_pending
+3 failed in 0.69s
+EXIT_CODE=1

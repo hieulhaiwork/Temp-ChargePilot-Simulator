@@ -1,4 +1,4 @@
-"""Typed contracts for AI-4 Decision Copilot (Phase AI-4.1: Deterministic WHY Engine).
+"""Typed contracts for AI-4 Decision Copilot (Phase AI-4.1 WHY Engine & Phase AI-4.2A Counterfactual Foundation).
 
 Pure Pydantic contracts with no infrastructure or service dependencies.
 `ActorContext` is constructed only at trusted server-side boundaries (JWT / deps);
@@ -8,6 +8,7 @@ Pure Pydantic contracts with no infrastructure or service dependencies.
 from datetime import timedelta
 from enum import StrEnum
 from math import isfinite
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -343,3 +344,423 @@ class WhyAnswer(BaseModel):
     missing_evidence: list[str] = Field(default_factory=list)
     truncated: bool = False
     next_cursor: str | None = None
+
+
+# ---- Phase AI-4.2A: Counterfactual Foundation (Gate 3) -----------------------------------------
+
+SNAPSHOT_SCHEMA_VERSION = "chargepilot.copilot_snapshot/1"
+EVENT_MANIFEST_SCHEMA_VERSION = "chargepilot.event_manifest/1"
+OUTCOME_LEDGER_SCHEMA_VERSION = "chargepilot.outcome_ledger/1"
+MAX_COUNTERFACTUAL_HORIZON_MINUTES = 24 * 60
+
+
+class SnapshotStatus(StrEnum):
+    READY = "ready"
+    NOT_READY = "not_ready"
+
+
+class SnapshotNotReadyReason(StrEnum):
+    UNRESOLVED_HARD_SAFETY_EVENT = "unresolved_hard_safety_event"
+    UNSAFE_PHYSICAL_STATE = "unsafe_physical_state"
+
+
+class KnownLimitEvent(BaseModel):
+    """Exogenous supply/cabinet limit event already announced at or before capture time T."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    announced_minute: int = Field(ge=0)
+    announced_at: AwareDatetime
+    effective_minute: int = Field(ge=0)
+    effective_at: AwareDatetime
+    grid_input_kw: float | None = Field(default=None, ge=0)
+    cabinet_output_kw: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("grid_input_kw")
+    @classmethod
+    def _finite_grid(cls, value: float | None) -> float | None:
+        return _check_finite(value)  # type: ignore[return-value]
+
+    @field_validator("cabinet_output_kw")
+    @classmethod
+    def _finite_cabinets(cls, value: dict[str, float]) -> dict[str, float]:
+        for key, kw in value.items():
+            if not key:
+                raise ValueError("Cabinet ID must not be empty")
+            _check_finite(kw)
+            if kw < 0:
+                raise ValueError("Cabinet output kW must be non-negative")
+        return value
+
+    @model_validator(mode="after")
+    def _check_times(self) -> "KnownLimitEvent":
+        _require_aware(self.announced_at, "announced_at")
+        _require_aware(self.effective_at, "effective_at")
+        if self.announced_minute > self.effective_minute:
+            raise ValueError("announced_minute must not exceed effective_minute")
+        return self
+
+
+class EventManifest(BaseModel):
+    """Prospective `known_at(T)` manifest materialized once and shared identically across sandbox branches."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: str = Field(default=EVENT_MANIFEST_SCHEMA_VERSION, min_length=1)
+    station_id: str = Field(min_length=1, max_length=64)
+    as_of: AwareDatetime
+    as_of_minute: int = Field(ge=0)
+    horizon_minutes: int = Field(gt=0, le=MAX_COUNTERFACTUAL_HORIZON_MINUTES)
+    horizon_end: AwareDatetime
+    horizon_end_minute: int = Field(gt=0)
+    known_booking_ids: list[str] = Field(default_factory=list)
+    already_present_booking_ids: list[str] = Field(default_factory=list)
+    known_future_arrival_booking_ids: list[str] = Field(default_factory=list)
+    excluded_future_booking_count: int = Field(default=0, ge=0)
+    excluded_unbooked_not_arrived_count: int = Field(default=0, ge=0)
+    known_limit_events: list[KnownLimitEvent] = Field(default_factory=list)
+    excluded_unannounced_limit_event_count: int = Field(default=0, ge=0)
+    active_faulted_connectors: list[str] = Field(default_factory=list)
+    effective_grid_limit_kw_at_capture: float = Field(ge=0)
+    assumptions: list[str] = Field(default_factory=list)
+    manifest_sha256: str = Field(min_length=64, max_length=64)
+
+    @field_validator("effective_grid_limit_kw_at_capture")
+    @classmethod
+    def _finite_limit(cls, value: float) -> float:
+        return _check_finite(value)  # type: ignore[return-value]
+
+    @model_validator(mode="after")
+    def _validate_manifest(self) -> "EventManifest":
+        _require_aware(self.as_of, "as_of")
+        _require_aware(self.horizon_end, "horizon_end")
+        if self.horizon_end <= self.as_of:
+            raise ValueError("horizon_end must be strictly after as_of")
+        if self.horizon_end_minute != self.as_of_minute + self.horizon_minutes:
+            raise ValueError("horizon_end_minute must equal as_of_minute + horizon_minutes")
+        for ev in self.known_limit_events:
+            if ev.announced_minute > self.as_of_minute:
+                raise ValueError("EventManifest must not contain limit events announced after as_of_minute")
+        return self
+
+
+class SnapshotEnvelope(BaseModel):
+    """Pure serializable metadata and cryptographic digests for an atomic counterfactual snapshot at T.
+
+    `experiment_fingerprint` hashes the static resolved policy/component/config setup (`ResolvedExperiment`),
+    whereas `snapshot_digest` hashes the complete canonical dynamic + static state at T (strictly distinct from
+    both `experiment_fingerprint` and `StationRuntime.admission_fingerprint()`).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: str = Field(default=SNAPSHOT_SCHEMA_VERSION, min_length=1)
+    snapshot_id: str = Field(min_length=1, max_length=64)
+    status: SnapshotStatus = SnapshotStatus.READY
+    station_id: str = Field(min_length=1, max_length=64)
+    as_of: AwareDatetime
+    sim_minute: int = Field(ge=0)
+    horizon_minutes: int = Field(gt=0, le=MAX_COUNTERFACTUAL_HORIZON_MINUTES)
+    booking_version: int = Field(ge=0)
+    plan_version: int | None = Field(default=None, ge=0)
+    state_version: int = Field(ge=0)
+    schedule_version: int = Field(ge=0)
+    policy_id: str = Field(min_length=1)
+    policy_version: str = Field(min_length=1)
+    dc_charging_model_name: str = Field(min_length=1)
+    time_config: dict[str, int | None] = Field(default_factory=dict)
+    station_config_sha256: str = Field(min_length=64, max_length=64)
+    tariff_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    experiment_fingerprint: str = Field(min_length=64, max_length=64)
+    event_manifest_sha256: str = Field(min_length=64, max_length=64)
+    stateful_components_sha256: str = Field(min_length=64, max_length=64)
+    snapshot_digest: str = Field(min_length=64, max_length=64)
+    known_booking_count: int = Field(ge=0)
+    safety_hold_booking_ids: list[str] = Field(default_factory=list)
+    rejected_booking_ids: list[str] = Field(default_factory=list)
+    pending_approval_ids: list[str] = Field(default_factory=list)
+    recent_command_count: int = Field(ge=0)
+    undelivered_ordinary_outbox_count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _validate_envelope(self) -> "SnapshotEnvelope":
+        _require_aware(self.as_of, "as_of")
+        if self.snapshot_digest == self.experiment_fingerprint:
+            raise ValueError("snapshot_digest must be distinct from experiment_fingerprint")
+        return self
+
+
+class VehicleOutcomeStatus(StrEnum):
+    ALREADY_COMPLETED_AT_SNAPSHOT = "already_completed_at_snapshot"
+    COMPLETED_ON_TIME = "completed_on_time"
+    COMPLETED_LATE = "completed_late"
+    CENSORED_NOT_ARRIVED = "censored_not_arrived"
+    MISSED_DEADLINE_NOT_ARRIVED = "missed_deadline_not_arrived"
+    CENSORED_IN_PROGRESS = "censored_in_progress"
+    UNSERVED_DEPARTED_OR_EXPIRED = "unserved_departed_or_expired"
+    PARTIAL_MISSED_DEADLINE = "partial_missed_deadline"
+
+
+class VehicleReleaseReason(StrEnum):
+    DC_UNPLUG_DELAY = "dc_unplug_delay"
+    DECLARED_DEPARTURE = "declared_departure"
+
+
+class VehicleOutcomeRecord(BaseModel):
+    """Per-vehicle counterfactual outcome preserving original commitments and separating pre- vs post-snapshot kWh."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    booking_id: str = Field(min_length=1)
+    zone: Literal["AC", "DC"]
+    vehicle_model: str = Field(min_length=1)
+    physically_feasible_from_arrival: bool
+    original_arrival_at: AwareDatetime
+    original_deadline: AwareDatetime
+    original_soc_now_pct: float = Field(ge=0, le=100)
+    original_target_soc_pct: float = Field(gt=0, le=100)
+    original_required_battery_kwh: float = Field(ge=0)
+    original_required_output_kwh: float = Field(ge=0)
+
+    initial_session_state: str = Field(min_length=1)
+    initial_soc_pct: float = Field(ge=0, le=100)
+    already_plugged_at_snapshot: bool
+    already_completed_at_snapshot: bool
+    pre_snapshot_battery_stored_kwh: float = Field(ge=0)
+    pre_snapshot_output_kwh: float = Field(ge=0)
+    pre_snapshot_grid_input_kwh: float = Field(ge=0)
+
+    arrived_at: AwareDatetime | None = None
+    assigned_connector_id: str | None = None
+    plug_in_at: AwareDatetime | None = None
+    first_charge_at: AwareDatetime | None = None
+    target_reached_at: AwareDatetime | None = None
+    release_or_departure_at: AwareDatetime | None = None
+    release_reason: VehicleReleaseReason | None = None
+
+    plug_wait_minutes: float | None = Field(default=None, ge=0)
+    censored_plug_wait_minutes: float | None = Field(default=None, ge=0)
+    charge_start_wait_minutes: float | None = Field(default=None, ge=0)
+    fault_unplug_count: int = Field(default=0, ge=0)
+
+    horizon_battery_stored_kwh: float = Field(ge=0)
+    horizon_output_kwh: float = Field(ge=0)
+    horizon_grid_input_kwh: float = Field(ge=0)
+
+    final_session_state: str = Field(min_length=1)
+    final_soc_pct: float = Field(ge=0, le=100)
+    cumulative_battery_stored_kwh: float = Field(ge=0)
+    cumulative_output_kwh: float = Field(ge=0)
+    cumulative_grid_input_kwh: float = Field(ge=0)
+    remaining_to_original_target_battery_kwh: float = Field(ge=0)
+
+    status: VehicleOutcomeStatus
+    sla_evaluable: bool
+    censored: bool
+    unserved: bool
+    met_original_sla: bool | None = None
+
+    @model_validator(mode="after")
+    def _validate_record(self) -> "VehicleOutcomeRecord":
+        _require_aware(self.original_arrival_at, "original_arrival_at")
+        _require_aware(self.original_deadline, "original_deadline")
+        for field_name in (
+            "arrived_at",
+            "plug_in_at",
+            "first_charge_at",
+            "target_reached_at",
+            "release_or_departure_at",
+        ):
+            val = getattr(self, field_name)
+            if val is not None:
+                _require_aware(val, field_name)
+        for num_field in (
+            "original_soc_now_pct",
+            "original_target_soc_pct",
+            "original_required_battery_kwh",
+            "original_required_output_kwh",
+            "initial_soc_pct",
+            "pre_snapshot_battery_stored_kwh",
+            "pre_snapshot_output_kwh",
+            "pre_snapshot_grid_input_kwh",
+            "plug_wait_minutes",
+            "censored_plug_wait_minutes",
+            "charge_start_wait_minutes",
+            "horizon_battery_stored_kwh",
+            "horizon_output_kwh",
+            "horizon_grid_input_kwh",
+            "final_soc_pct",
+            "cumulative_battery_stored_kwh",
+            "cumulative_output_kwh",
+            "cumulative_grid_input_kwh",
+            "remaining_to_original_target_battery_kwh",
+        ):
+            _check_finite(getattr(self, num_field))
+        if self.sla_evaluable != (self.met_original_sla is not None):
+            raise ValueError("met_original_sla must be non-None iff sla_evaluable is True")
+        if self.censored and self.sla_evaluable:
+            raise ValueError("A censored vehicle outcome cannot be sla_evaluable")
+        return self
+
+
+class ZoneSlaSummary(BaseModel):
+    """Per-zone SLA and service denominators (`None` rate when denominator is 0, never 1.0)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    zone: Literal["AC", "DC"]
+    cohort_count: int = Field(ge=0)
+    arrived_count: int = Field(ge=0)
+    not_arrived_count: int = Field(ge=0)
+    plugged_count: int = Field(ge=0)
+    charged_count: int = Field(ge=0)
+    unserved_count: int = Field(ge=0)
+    censored_count: int = Field(ge=0)
+    sla_denominator: int = Field(ge=0)
+    sla_met_count: int = Field(ge=0)
+    on_time_rate: float | None = Field(default=None, ge=0, le=1)
+    feasible_sla_denominator: int = Field(ge=0)
+    feasible_sla_met_count: int = Field(ge=0)
+    feasible_on_time_rate: float | None = Field(default=None, ge=0, le=1)
+    service_coverage_rate: float | None = Field(default=None, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def _validate_denominators(self) -> "ZoneSlaSummary":
+        if (self.sla_denominator == 0) != (self.on_time_rate is None):
+            raise ValueError("on_time_rate must be None iff sla_denominator == 0")
+        if (self.feasible_sla_denominator == 0) != (self.feasible_on_time_rate is None):
+            raise ValueError("feasible_on_time_rate must be None iff feasible_sla_denominator == 0")
+        if (self.arrived_count == 0) != (self.service_coverage_rate is None):
+            raise ValueError("service_coverage_rate must be None iff arrived_count == 0")
+        return self
+
+
+class OutcomeLedger(BaseModel):
+    """Additive AI-4 Outcome Ledger over a fixed snapshot cohort `[as_of, horizon_end)`.
+
+    Frozen `HybridStation.outcomes()` and `simulation_service.compute_kpis()` remain untouched.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: str = Field(default=OUTCOME_LEDGER_SCHEMA_VERSION, min_length=1)
+    station_id: str = Field(min_length=1, max_length=64)
+    as_of: AwareDatetime
+    horizon_end: AwareDatetime
+    horizon_minutes: int = Field(gt=0)
+
+    cohort_size: int = Field(ge=0)
+    arrived_count: int = Field(ge=0)
+    not_arrived_count: int = Field(ge=0)
+    plugged_count: int = Field(ge=0)
+    charged_count: int = Field(ge=0)
+    completed_on_time_count: int = Field(ge=0)
+    completed_late_count: int = Field(ge=0)
+    already_completed_at_snapshot_count: int = Field(ge=0)
+    unserved_count: int = Field(ge=0)
+    partial_missed_deadline_count: int = Field(ge=0)
+    censored_count: int = Field(ge=0)
+    censored_not_arrived_count: int = Field(ge=0)
+    censored_in_progress_count: int = Field(ge=0)
+
+    sla_denominator: int = Field(ge=0)
+    sla_met_count: int = Field(ge=0)
+    on_time_rate: float | None = Field(default=None, ge=0, le=1)
+    feasible_sla_denominator: int = Field(ge=0)
+    feasible_sla_met_count: int = Field(ge=0)
+    feasible_on_time_rate: float | None = Field(default=None, ge=0, le=1)
+    service_coverage_denominator: int = Field(ge=0)
+    service_coverage_rate: float | None = Field(default=None, ge=0, le=1)
+    charged_coverage_rate: float | None = Field(default=None, ge=0, le=1)
+
+    plug_wait_mean_minutes: float | None = Field(default=None, ge=0)
+    plug_wait_p90_minutes: float | None = Field(default=None, ge=0)
+    charge_start_wait_mean_minutes: float | None = Field(default=None, ge=0)
+    charge_start_wait_p90_minutes: float | None = Field(default=None, ge=0)
+
+    pre_snapshot_battery_stored_kwh: float = Field(ge=0)
+    pre_snapshot_output_kwh: float = Field(ge=0)
+    pre_snapshot_grid_input_kwh: float = Field(ge=0)
+
+    horizon_battery_stored_kwh: float = Field(ge=0)
+    horizon_output_kwh: float = Field(ge=0)
+    horizon_grid_input_kwh: float = Field(ge=0)
+    horizon_energy_cost_vnd: float = Field(ge=0)
+    remaining_to_original_target_battery_kwh: float = Field(ge=0)
+
+    peak_charger_output_kw: float = Field(ge=0)
+    peak_grid_input_kw: float = Field(ge=0)
+
+    pre_snapshot_applied_constraint_violation_count: int = Field(ge=0)
+    horizon_applied_constraint_violation_count: int = Field(ge=0)
+    horizon_rejected_allocation_count: int = Field(ge=0)
+    horizon_sampled_grid_over_limit_minutes: int = Field(ge=0)
+    horizon_hard_safety_event_count: int = Field(ge=0)
+    horizon_guard_blocked_command_count: int = Field(ge=0)
+    horizon_pending_approval_command_count: int = Field(ge=0)
+
+    by_zone: dict[str, ZoneSlaSummary] = Field(default_factory=dict)
+    vehicles: list[VehicleOutcomeRecord] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_ledger(self) -> "OutcomeLedger":
+        _require_aware(self.as_of, "as_of")
+        _require_aware(self.horizon_end, "horizon_end")
+        if self.cohort_size != len(self.vehicles):
+            raise ValueError("cohort_size must equal len(vehicles)")
+        if self.arrived_count + self.not_arrived_count != self.cohort_size:
+            raise ValueError("arrived_count + not_arrived_count must equal cohort_size")
+        if (self.sla_denominator == 0) != (self.on_time_rate is None):
+            raise ValueError("on_time_rate must be None iff sla_denominator == 0")
+        if (self.feasible_sla_denominator == 0) != (self.feasible_on_time_rate is None):
+            raise ValueError("feasible_on_time_rate must be None iff feasible_sla_denominator == 0")
+        if (self.service_coverage_denominator == 0) != (self.service_coverage_rate is None):
+            raise ValueError("service_coverage_rate must be None iff service_coverage_denominator == 0")
+        if (self.service_coverage_denominator == 0) != (self.charged_coverage_rate is None):
+            raise ValueError("charged_coverage_rate must be None iff service_coverage_denominator == 0")
+        return self
+
+
+class SandboxBranchResult(BaseModel):
+    """Result of running a single isolated sandbox branch from a `CapturedSnapshot`."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    branch_label: str = Field(min_length=1, max_length=64)
+    applied: Literal[False] = False
+    snapshot_id: str = Field(min_length=1, max_length=64)
+    initial_snapshot_digest: str = Field(min_length=64, max_length=64)
+    experiment_fingerprint: str = Field(min_length=64, max_length=64)
+    event_manifest_sha256: str = Field(min_length=64, max_length=64)
+    policy_id: str = Field(min_length=1)
+    policy_version: str = Field(min_length=1)
+    as_of: AwareDatetime
+    horizon_end: AwareDatetime
+    horizon_minutes: int = Field(gt=0)
+    decisions_count: int = Field(ge=0)
+    executed_command_count: int = Field(ge=0)
+    blocked_command_count: int = Field(ge=0)
+    pending_approval_count_end: int = Field(ge=0)
+    safety_hold_booking_ids_end: list[str] = Field(default_factory=list)
+    final_physics_digest: str = Field(min_length=64, max_length=64)
+    wall_time_ms: float = Field(ge=0)
+    outcome_ledger: OutcomeLedger
+
+
+class PairedNoOpResult(BaseModel):
+    """Gate 3 paired no-op validation output: two independent forks from one immutable snapshot."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    applied: Literal[False] = False
+    snapshot_id: str = Field(min_length=1, max_length=64)
+    snapshot_digest: str = Field(min_length=64, max_length=64)
+    experiment_fingerprint: str = Field(min_length=64, max_length=64)
+    event_manifest_sha256: str = Field(min_length=64, max_length=64)
+    horizon_minutes: int = Field(gt=0)
+    known_booking_ids: list[str] = Field(default_factory=list)
+    baseline: SandboxBranchResult
+    counterfactual: SandboxBranchResult
+    non_timing_kpis_equal: bool
+    final_physics_digests_equal: bool
