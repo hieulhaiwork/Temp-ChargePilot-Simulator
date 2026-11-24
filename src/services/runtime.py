@@ -32,7 +32,7 @@ from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEnt
 from src.models.events import StationEvent, WsMessage, WsMessageType
 from src.models.planning import Scheduler
 from src.models.simulation import Scenario
-from src.models.station import LoadPoint, StationConfig, Tariff
+from src.models.station import ConnectorStatus, LoadPoint, StationConfig, Tariff
 from src.models.station_protocols import StationSimulator, VehicleVisit
 from src.services.errors import DomainError
 
@@ -104,6 +104,28 @@ class StationRuntime:
     # Final Acceptance §1.4 — booking bị ngắt công suất vì lỗi charging model / acceptance (giảm tải không sửa được):
     # control_loop không cấp lại công suất / gán cổng cho booking này; vận hành xử lý.
     safety_hold_booking_ids: set[str] = field(default_factory=set)
+
+    def admission_fingerprint(self) -> tuple:
+        """Final Acceptance §2.3 — dấu vân tay của những gì admission dựa vào ngoài diễn biến vật lý bình thường: tập
+        booking (`booking_version`), giới hạn nguồn hiện hành, đầu nối lỗi, policy, booking bị từ chối duyệt / giữ an
+        toàn. `book` / `change` chụp trước admission (ngoài khoá) và so lại khi commit dưới `booking_lock`; khác ⇒ chạy
+        lại admission. Không gồm phút trôi / xe cắm-rút theo lịch (diễn biến bình thường của trạm, không làm hỏng
+        admission) và phê duyệt đang chờ (đã báo qua `ScheduleProposal.approvals_pending_*`).
+
+        Giới hạn: khoá + dấu vân tay nằm trong RAM của MỘT worker (CLAUDE.md "Một worker"); chạy nhiều worker cần khoá /
+        ràng buộc phân tán (chưa làm — ngoài phạm vi).
+        """
+        state = self.simulator.state()
+        faults = tuple(sorted(c.connector_id for c in state.connectors if c.status == ConnectorStatus.FAULT))
+        policy = getattr(self.scheduler, "policy_id", None) or str(getattr(self.scheduler, "name", ""))
+        return (
+            self.booking_version,
+            round(float(state.available_power_kw), 6),
+            faults,
+            policy,
+            frozenset(self.rejected_booking_ids),
+            frozenset(self.safety_hold_booking_ids),
+        )
 
     def advance_clock(self) -> list[StationEvent]:
         """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
