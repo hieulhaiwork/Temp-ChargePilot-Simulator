@@ -83,6 +83,11 @@ class StationRuntime:
     plan: SchedulePlan | None = None  # lịch hiện hành
     open_trace: dict | None = None  # DecisionTrace của quyết định đang hiệu lực (đóng ở lần tính lại kế tiếp)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)  # on_event chạy tuần tự
+    # Final Review §4.6 — optimistic concurrency của booking: admission chạy NGOÀI khoá; commit (lưu booking + đưa xe
+    # vào trạm) dưới `booking_lock`, kiểm lại `booking_version` (tăng mỗi lần tập booking đổi: đặt / đổi / huỷ).
+    # Thứ tự khoá: booking_lock rồi lock (on_event chỉ lấy lock) — không deadlock.
+    booking_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    booking_version: int = 0
     recent_commands: deque[Command] = field(default_factory=lambda: deque(maxlen=RECENT_COMMANDS))
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
     recorder: SimRecorder = field(default_factory=SimRecorder)
@@ -288,8 +293,15 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
     chép sang để bản fork đi đúng đường như runtime thật (PHASE3_DESIGN §6).
     """
     fork = rt.simulator.fork()
-    algorithms = getattr(rt.scheduler, "algorithms", None)
-    scheduler = make_scheduler(rt.scheduler.name, lambda: fork, algorithms() if callable(algorithms) else None)
+    # Final Review §4.4: thuật toán của bản fork là bản ĐÃ CÔ LẬP bởi `StationKernel.fork` (thành phần có trạng thái
+    # được fork / copy; thành phần khai báo stateless dùng chung — cùng object như trước). Không gắn lại bản live.
+    kernel = getattr(fork, "kernel", None)
+    live_algorithms = getattr(rt.scheduler, "algorithms", None)
+    if kernel is not None:
+        algorithms = kernel.algorithms
+    else:
+        algorithms = live_algorithms() if callable(live_algorithms) else None
+    scheduler = make_scheduler(rt.scheduler.name, lambda: fork, algorithms)
     frt = _memory_runtime(
         fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
     )

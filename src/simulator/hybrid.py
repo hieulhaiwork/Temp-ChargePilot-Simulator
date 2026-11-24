@@ -8,6 +8,7 @@ from dataclasses import replace
 from time import perf_counter
 
 from src.models.decisions import AppliedResult, TimeConfig
+from src.models.scheduling.observations import ObservationModel
 from src.models.scheduling.optimization import SchedulingPolicy
 from src.models.simulation_core import Scenario, clock
 
@@ -35,6 +36,7 @@ class HybridSimulator(StationKernel):
         time: TimeConfig | None = None,
         policy_id: str = "custom",
         policy_version: str = "1",
+        observation_model: ObservationModel | None = None,
     ):
         resolved = default_algorithms() if algorithms is None else algorithms
         adapter = (
@@ -52,6 +54,7 @@ class HybridSimulator(StationKernel):
             strict=True,
             policy_id=policy_id,
             policy_version=policy_version,
+            observation_model=observation_model,
         )
         self.events = []
         self.frames = []

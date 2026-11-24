@@ -13,6 +13,14 @@ and the operations shared by the standalone simulator (`src/simulator/hybrid.py`
                        Physical Guard (after apply)
 
 `guard` is looked up as this module's global at call time, so both Guard stages stay patchable in one place.
+
+Ground truth vs planner input (Final Review §4.3): physics, the Physical Guard after apply and KPI read the adapter /
+queue directly (ground truth). Dispatch, coordinator and optimizers only receive vehicle rows built by `_view()`, which
+passes them through `observation_model` (default `PerfectObservation`, identity). Known remaining channel: a
+candidate's `allowed_kw` is the physical acceptance limit (EVSE / BMS) computed from the true SOC — the Physical Guard
+needs it; an observed acceptance is MVP-3.5 work.
+
+Fork isolation (Final Review §4.4): see `fork()` and `isolation.py`.
 """
 
 import copy
@@ -26,12 +34,19 @@ from src.models.decisions import AppliedResult, ApprovedDecision, ProposedDecisi
 from src.models.physical_constraints import TOL, ConstraintViolationError
 from src.models.physical_limits import EffectiveLimits, effective_limits, environment_boundary
 from src.models.scheduling.dispatch import DispatchObservation
-from src.models.scheduling.observations import Candidate, SchedulingObservation, VehicleObservation
+from src.models.scheduling.observations import (
+    Candidate,
+    ObservationModel,
+    PerfectObservation,
+    SchedulingObservation,
+    VehicleObservation,
+)
 from src.models.scheduling.optimization import PowerProposal, SchedulingPolicy
 from src.models.simulation_core import Scenario, clock
 
 from .algorithms import Algorithms
 from .ev2gym_adapter import EV2GymAdapter
+from .isolation import fork_component, isolated_algorithms
 from .queue import QueueController
 
 SOC_TOL = 1e-10
@@ -54,6 +69,7 @@ class StationKernel:
         policy_id: str = "custom",
         policy_version: str = "1",
         emit=None,
+        observation_model: ObservationModel | None = None,
     ):
         self.scenario = scenario
         self.adapter = adapter
@@ -61,6 +77,10 @@ class StationKernel:
         self.algorithms = algorithms
         # Compatibility path for existing combined power policies. The same guard applies.
         self.policy = policy
+        # Ground truth → planner input (Final Review §4.3). Identity by default ⇒ MVP-1/2/3 results unchanged.
+        self.observation_model: ObservationModel = (
+            PerfectObservation() if observation_model is None else observation_model
+        )
         self.time = TimeConfig() if time is None else time
         self.strict = strict
         self.policy_id = policy_id
@@ -91,13 +111,25 @@ class StationKernel:
     # ---- state -------------------------------------------------------------------------------
 
     def fork(self, emit=None) -> "StationKernel":
-        """Independent copy of the mutable physical state for what-if runs (admission).
+        """Independent copy for what-if runs (admission / WHAT-IF); the original kernel is never touched.
 
-        Immutable inputs are shared: scenario, algorithms (stateless), DC model. Queue sessions and EV2Gym models are
-        deep-copied together so connector bookkeeping stays consistent; the original kernel is never touched.
+        Sharing rule (Final Review §4.4, `isolation.py`):
+          - shared: the frozen `Scenario` and components DECLARED stateless (`isolation.STATELESS` or
+            `__stateless__ = True`): every registered dispatch / optimizer / coordinator, both DC charging models,
+            `PerfectObservation`. All current components are declared ⇒ the fork shares them exactly as before;
+          - forked: any other component — its own `fork()` if it has one, otherwise a deep copy — for algorithms,
+            combined policy, DC charging model and observation model. The same component used in two places (e.g. the
+            DC model in `algorithms` and in the adapter) maps to ONE copy;
+          - always copied: queue sessions + EV2Gym models (together, so connector bookkeeping stays consistent),
+            setpoints, faults, energy counters.
         """
         twin = copy.copy(self)
-        memo = {id(self.scenario): self.scenario, id(self.adapter.dc_model): self.adapter.dc_model}
+        memo: dict = {id(self.scenario): self.scenario}
+        dc_model = fork_component(self.adapter.dc_model, memo)
+        memo[id(self.adapter.dc_model)] = dc_model
+        twin.algorithms = isolated_algorithms(self.algorithms, memo)
+        twin.policy = None if self.policy is None else fork_component(self.policy, memo)
+        twin.observation_model = fork_component(self.observation_model, memo)
         twin.queue, twin.adapter = copy.deepcopy((self.queue, self.adapter), memo)
         twin.setpoints = dict(self.setpoints)
         twin.faults = set(self.faults)
@@ -156,7 +188,10 @@ class StationKernel:
         return environment_boundary(cfg, now, end, online=online)
 
     def observe(self) -> None:
-        """Environment transitions at `now`: departures, DC unplug after delay, arrivals into the waiting queues."""
+        """Environment transitions at `now`: departures, DC unplug after delay, arrivals into the waiting queues.
+
+        What the planner then sees of this (ground-truth) state goes through `observation_model` in `_view()`.
+        """
         before = [(s.state, s.connector) for s in self.queue.sessions.values()]
         self.queue.advance(self.now, self.scenario, self.adapter, self.emit)
         if before != [(s.state, s.connector) for s in self.queue.sessions.values()]:
@@ -165,7 +200,33 @@ class StationKernel:
     def _view(
         self, assignments: Mapping[str, str] | None = None, *, include_unseen: bool = False
     ) -> Mapping[str, VehicleObservation]:
-        """Vehicle observations; `assignments` (port -> vehicle) are shown as plugged, exactly as connect() would."""
+        """Vehicle rows the PLANNER sees; `assignments` (port -> vehicle) are shown as plugged, as connect() would.
+
+        Built from ground truth, then passed through `observation_model` (identity by default). A model may only change
+        the SOC: the same vehicles, states and connectors must come back (checked here).
+        """
+        truth = self._truth_view(assignments, include_unseen=include_unseen)
+        observed = self.observation_model.observe(self.now, truth)
+        if observed is truth:
+            return truth
+        if observed.keys() != truth.keys():
+            raise ValueError("observation model must return exactly the vehicles it was given")
+        for vid, row in observed.items():
+            fact = truth[vid]
+            if (row.vehicle, row.state, row.connector, row.charge_started, row.completed_at) != (
+                fact.vehicle,
+                fact.state,
+                fact.connector,
+                fact.charge_started,
+                fact.completed_at,
+            ):
+                raise ValueError(f"observation model may only change the SOC of {vid}")
+        return MappingProxyType(dict(observed))
+
+    def _truth_view(
+        self, assignments: Mapping[str, str] | None = None, *, include_unseen: bool = False
+    ) -> Mapping[str, VehicleObservation]:
+        """Ground-truth vehicle rows (physics SOC). Not for the planner — `_view()` is."""
         plugged = {vid: port for port, vid in (assignments or {}).items()}
         rows = {}
         for vid, s in self.queue.sessions.items():

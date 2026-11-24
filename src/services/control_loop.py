@@ -1,6 +1,8 @@
 """Vòng điều khiển MPC — chạy ngay khi có sự kiện, và theo bước LP nếu bật vòng nền (FR6, FR8).
 
     StationEvent ─► [POWER_LIMIT_CHANGED: guard.emergency.curtail_to_limit → dispatcher.submit NGAY]
+                 ─► [HARD_LIMIT_VIOLATED (opt-in guard.after_apply_failsafe, Final Review §4.5b):
+                     guard.emergency.curtail_to_hard_limits → dispatcher.submit NGAY]
                  ─► build_planning_context(rt) ─► rt.scheduler.plan() → SchedulePlan v+1
                  ─► diff_commands() → Command[] (chỉ bước t=0 — receding horizon)
                  ─► guard.dispatcher.submit(commands, ctx, rt.simulator, rt.sinks)
@@ -75,6 +77,9 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
         emergency_entries: list[DecisionLogEntry] = []
         if event.type == EventType.POWER_LIMIT_CHANGED and event.new_power_limit_kw is not None:
             emergency_entries = await _emergency(rt, event.new_power_limit_kw, correlation_id)
+        violated = [e for e in (*side_events, event) if e.type == EventType.HARD_LIMIT_VIOLATED]
+        if violated:
+            emergency_entries += await _failsafe(rt, violated[-1], correlation_id)
         _sync_booking_status(rt, (*side_events, event))
 
         ctx = build_planning_context(rt)
@@ -328,6 +333,32 @@ async def _emergency(
         return []
     commands = [c.model_copy(update={"correlation_id": correlation_id}) for c in commands]
     entries = await dispatcher.submit(commands, build_guard_context(rt, None), rt.simulator, rt.sinks)
+    await _notify_curtailed(rt, entries)
+    return entries
+
+
+async def _failsafe(
+    rt: StationRuntime, event: StationEvent, correlation_id: str | None = None
+) -> list[DecisionLogEntry]:
+    """Final Review §4.5b: trạm báo vi phạm trần cứng SAU khi áp ⇒ giảm tải NGAY qua guard/dispatcher.py (ADR-002),
+    độc lập optimizer; sau đó on_event tính lại lịch như mọi sự kiện. Trả nhật ký lệnh (DecisionTrace: emergency)."""
+    state = rt.simulator.state()
+    commands = emergency.curtail_to_hard_limits(state, rt.config, rt.clock(), event.detail)
+    logger.warning(
+        "fail-safe sau khi áp: %s — %d lệnh giảm tải (correlation_id=%s)", event.detail, len(commands), correlation_id
+    )
+    if not commands:
+        return []
+    commands = [c.model_copy(update={"correlation_id": correlation_id}) for c in commands]
+    entries = await dispatcher.submit(commands, build_guard_context(rt, None), rt.simulator, rt.sinks)
+    await _notify_curtailed(rt, entries, "Đã giảm công suất sạc để trạm về trong giới hạn an toàn")
+    return entries
+
+
+async def _notify_curtailed(
+    rt: StationRuntime, entries: list[DecisionLogEntry], title: str = "Đã giảm công suất sạc do nguồn điện giảm"
+) -> None:
+    """Báo cư dân SAU khi lệnh giảm tải khẩn cấp đã áp (AC5)."""
     bookings = {b.booking_id: b for b in rt.store.active_bookings()}
     for entry in entries:
         booking = bookings.get(entry.command.booking_id or "")
@@ -336,13 +367,12 @@ async def _emergency(
         note = Notification(
             notification_id=entry.entry_id,
             kind=NotificationKind.EMERGENCY_CURTAILMENT,
-            title="Đã giảm công suất sạc do nguồn điện giảm",
+            title=title,
             body=f"Công suất còn {entry.command.power_kw:g} kW. Lịch sẽ được tính lại để giữ cam kết nếu còn khả thi.",
             created_at=rt.clock(),
         )
         rt.store.add_notification(booking.resident_id, note)
         await rt.sinks.notify(_ws(WsMessageType.NOTIFICATION, note, rt), booking.resident_id)
-    return entries
 
 
 def _filter_held(rt: StationRuntime, commands: list[Command]) -> list[Command]:

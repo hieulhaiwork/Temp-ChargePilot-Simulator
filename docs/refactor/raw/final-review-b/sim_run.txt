@@ -1,0 +1,33 @@
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 51.11 min | peak grid: 105.263 kW
+Report: eval\results\final-review-b-sim\mvp1\20261124T033218904021Z-c5ad0f748d-bebc05c5\report.json
+2D replay: eval\results\final-review-b-sim\mvp1\20261124T033218904021Z-c5ad0f748d-bebc05c5\viewer.html
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 50.67 min | peak grid: 105.263 kW
+Report: eval\results\final-review-b-sim\mvp1_m3\20261124T033221839641Z-c5ad0f748d-9fb1f183\report.json
+2D replay: eval\results\final-review-b-sim\mvp1_m3\20261124T033221839641Z-c5ad0f748d-9fb1f183\viewer.html
+vinfast_dc_2port_120kw | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 8/9 | mean wait (started only): 44.78 min | peak grid: 149.474 kW
+Report: eval\results\final-review-b-sim\vf\20261124T033223085938Z-c05e3251f5-ccd21183\report.json
+2D replay: eval\results\final-review-b-sim\vf\20261124T033223085938Z-c05e3251f5-ccd21183\viewer.html
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 51.11 min | peak grid: 105.263 kW
+Report: eval\results\final-review-b-sim\script\20261124T033224348178Z-c5ad0f748d-299a19de\report.json
+2D replay: eval\results\final-review-b-sim\script\20261124T033224348178Z-c5ad0f748d-299a19de\viewer.html
+                      B0 | DC  74/180 | decision p95 0.173 ms
+                     M2a | DC  93/180 | decision p95 0.185 ms
+                     M2b | DC 100/180 | decision p95 3.103 ms
+                     M2c | DC  79/180 | decision p95 0.182 ms
+       M2b_no_sla_weight | DC 100/180 | decision p95 3.078 ms
+     M2b_no_queue_weight | DC  97/180 | decision p95 3.108 ms
+    M2b_10x_queue_weight | DC 100/180 | decision p95 2.992 ms
+D:\VIN\P-019-wt\review-b\eval\results\final-review-b-sim\mvp2\mvp2-benchmark-471trxmo
+B0 | AC 45/55 | DC 58/215 | TOU 916.15 USD | decision p95 0.247 ms
+M2b | AC 45/55 | DC 82/215 | TOU 917.88 USD | decision p95 3.449 ms
+M3a | AC 45/55 | DC 82/215 | TOU 896.13 USD | decision p95 7.557 ms
+M3b | AC 35/55 | DC 89/215 | TOU 953.20 USD | decision p95 8.102 ms
+D:\VIN\P-019-wt\review-b\eval\results\final-review-b-sim\mvp3\mvp3-benchmark-oq4pbgcp

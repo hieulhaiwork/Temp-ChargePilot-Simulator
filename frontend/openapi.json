@@ -1210,7 +1210,8 @@
           "connector_restored",
           "power_limit_changed",
           "charge_completed",
-          "replan_requested"
+          "replan_requested",
+          "hard_limit_violated"
         ],
         "title": "EventType",
         "type": "string"
@@ -1261,6 +1262,12 @@
       "GuardSettings": {
         "description": "Ngưỡng của Safety Guard (FR12) — nạp từ khối `guard:` của station.yaml.",
         "properties": {
+          "after_apply_failsafe": {
+            "default": false,
+            "description": "Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Mặc định tắt (chỉ đếm + log như trước)",
+            "title": "After Apply Failsafe",
+            "type": "boolean"
+          },
           "approval_ttl_minutes": {
             "default": 15,
             "description": "Hạn trả lời yêu cầu phê duyệt (AC4: hết hạn = không làm)",

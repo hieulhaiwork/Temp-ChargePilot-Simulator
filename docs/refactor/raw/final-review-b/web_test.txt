@@ -1,0 +1,13 @@
+
+> chargepilot-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 D:/VIN/P-019-wt/review-b/frontend
+
+
+ Test Files  4 passed (4)
+      Tests  28 passed (28)
+   Start at  10:26:54
+   Duration  2.26s (environment 78%, import 11%, tests 5%, transform 5%)
+

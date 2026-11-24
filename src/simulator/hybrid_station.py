@@ -43,7 +43,7 @@ from src.models.control import Command, CommandType
 from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
 from src.models.physical_limits import EffectiveLimits
-from src.models.scheduling.observations import SchedulingObservation
+from src.models.scheduling.observations import ObservationModel, SchedulingObservation
 from src.models.simulation import Incident, IncidentType, SessionOutcome
 from src.models.simulation import Scenario as BackendScenario
 from src.models.simulation_core import Cabinet, Scenario, Vehicle
@@ -95,10 +95,13 @@ class HybridStation:
         algorithms: Algorithms | None = None,
         policy_id: str = "custom",
         policy_version: str = "1",
+        observation_model: ObservationModel | None = None,
     ) -> None:
         if start.tzinfo is None:
             raise ValueError("start phải có múi giờ")
         self.config = config
+        # Final Review §4.3: lớp quan sát giữa ground truth và optimizer (mặc định PerfectObservation = như cũ)
+        self._observation_model = observation_model
         self.lock = threading.RLock()
         self.is_fork = False
         self._tz = ZoneInfo(config.timezone)
@@ -180,6 +183,7 @@ class HybridStation:
             policy_id=self._policy[0],
             policy_version=self._policy[1],
             emit=self._emit,
+            observation_model=self._observation_model,
         )
         self.kernel.command_resolution_kw = COMMAND_RESOLUTION_KW
         self.available_power_kw = available_kw
@@ -291,9 +295,22 @@ class HybridStation:
         """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC."""
         self._events = []
         kernel = self.kernel
+        failsafe = self.config.guard.after_apply_failsafe
+        signalled = False
         for _ in range(max(minutes, 0)):
             result = kernel.advance(kernel.now + 1)
             self._applied.append(result)
+            if failsafe and result.violations and not signalled:
+                # Final Review §4.5b: kernel non-strict chỉ đếm + log vi phạm trần cứng sau khi áp. Tín hiệu cho runtime
+                # sinh lệnh giảm tải qua guard/dispatcher.py (trạm không tự hạ setpoint). Một sự kiện / lần step.
+                signalled = True
+                self._events.append(
+                    StationEvent(
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=self._at(result.end),
+                        detail=f"Vi phạm trần cứng sau khi áp: {result.violations[0]}"[:500],
+                    )
+                )
             if result.budget_deviation_kw and not kernel._deviation_reported:
                 # Assigned budget (Coordinator) ≠ hard cap: vượt budget không phải vi phạm vật lý — ghi + tính lại một lần.
                 kernel._deviation_reported = True
@@ -424,6 +441,11 @@ class HybridStation:
         twin._events = []
         twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
         twin.kernel = self.kernel.fork(emit=twin._emit)
+        # Thành phần có trạng thái đã được cô lập trong kernel.fork (Final Review §4.4): bản fork giữ bản của nó.
+        if self._algorithms is not None:
+            twin._algorithms = twin.kernel.algorithms
+        if self._observation_model is not None:
+            twin._observation_model = twin.kernel.observation_model
         return twin
 
     def apply_approved(self, approved: ApprovedDecision) -> None:
