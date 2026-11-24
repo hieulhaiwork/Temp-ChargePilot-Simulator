@@ -83,6 +83,11 @@ class StationRuntime:
     plan: SchedulePlan | None = None  # lịch hiện hành
     open_trace: dict | None = None  # DecisionTrace của quyết định đang hiệu lực (đóng ở lần tính lại kế tiếp)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)  # on_event chạy tuần tự
+    # Final Review §4.6 — optimistic concurrency của booking: admission chạy NGOÀI khoá; commit (lưu booking + đưa xe
+    # vào trạm) dưới `booking_lock`, kiểm lại `booking_version` (tăng mỗi lần tập booking đổi: đặt / đổi / huỷ).
+    # Thứ tự khoá: booking_lock rồi lock (on_event chỉ lấy lock) — không deadlock.
+    booking_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    booking_version: int = 0
     recent_commands: deque[Command] = field(default_factory=lambda: deque(maxlen=RECENT_COMMANDS))
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
     recorder: SimRecorder = field(default_factory=SimRecorder)
