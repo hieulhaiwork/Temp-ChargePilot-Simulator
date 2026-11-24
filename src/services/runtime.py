@@ -156,6 +156,12 @@ def live_policy(config: StationConfig) -> tuple[str, dict]:
     return policy_id, dict(planning.parameters) if planning is not None else {}
 
 
+def live_scheduler(config: StationConfig, station) -> Scheduler:
+    """Scheduler của runtime live (`get_runtime`): policy + tham số theo `live_policy(config)`."""
+    policy_id, parameters = live_policy(config)
+    return make_scheduler(policy_id, lambda: station, parameters=parameters or None)
+
+
 def policy_parameters(config: StationConfig, strategy: StrategyName | str) -> dict:
     """Tham số optimizer của `strategy` theo CÙNG quy tắc với runtime live (Final Acceptance §3.1).
 
@@ -278,12 +284,11 @@ def get_runtime() -> StationRuntime:
         add_notification=repository.add_notification,
         save_trace=decision_trace.persist,
     )
-    policy_id, parameters = live_policy(config)
     rt = StationRuntime(
         config=config,
         tariff=catalog.load_tariff(),
         simulator=station,
-        scheduler=make_scheduler(policy_id, lambda: station, parameters=parameters or None),
+        scheduler=live_scheduler(config, station),
         forecaster=None,
         clock=clock,
         sinks=DispatchSinks(log_decision=log_decision, save_approval=repository.save_approval, notify=notify),
