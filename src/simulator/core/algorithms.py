@@ -16,6 +16,7 @@ from src.optimizer.dispatch.arrival_order import arrival_order
 from src.optimizer.registry import COORDINATORS, DISPATCH, OPTIMIZERS, Registration
 from src.optimizer.zones.equal_share import zone_equal_share
 
+from .charging_models.live_profiles import DynamicVehicleProfilesDCModel
 from .charging_models.synthetic_dc import SyntheticTaperV1
 from .charging_models.vehicle_profiles import INTEGRATION_SECONDS, PROFILE_VERSION, VehicleProfilesDCModel
 
@@ -73,6 +74,21 @@ DC_MODELS = {
     "synthetic_taper_v1": Registration(SyntheticTaperV1, configure=_synthetic_taper),
     "vinfast_profiles_v0_1": Registration(VehicleProfilesDCModel, version=PROFILE_VERSION, configure=_vehicle_profiles),
 }
+
+# Trạm nhận xe dần (backend): model cần biết xe trước có bản provider resolve khi xe được upsert (Final Review 4.2).
+# Tên vẫn là khoá của DC_MODELS (cùng registry với offline); model không cần danh sách xe dựng thẳng từ DC_MODELS.
+STATION_DC_MODELS = {"vinfast_profiles_v0_1": DynamicVehicleProfilesDCModel}
+
+
+def station_dc_model(name: str, scenario: Scenario) -> DCChargingModel:
+    """DC charging model cho trạm sống lâu theo tên registry `DC_MODELS` (`scenario` chưa có xe)."""
+    if name not in DC_MODELS:
+        raise ValueError(f"Unknown dc_charging_model: {name!r}. Available: {', '.join(DC_MODELS)}")
+    factory = STATION_DC_MODELS.get(name)
+    if factory is not None:
+        return factory()
+    model, _ = DC_MODELS[name].build({}, scenario)
+    return model
 
 
 def algorithm_labels(algorithms: Algorithms, combined: SchedulingPolicy | None = None) -> dict:
