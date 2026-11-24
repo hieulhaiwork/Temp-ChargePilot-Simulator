@@ -362,6 +362,8 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
         algorithms,
         parameters=getattr(rt.scheduler, "parameters", None) or None,
     )
+    # Provenance (Final Acceptance §3.2): bản fork chạy CÙNG thành phần đã resolve của live ⇒ cùng metadata.
+    scheduler.metadata = dict(getattr(rt.scheduler, "metadata", None) or {})
     frt = _memory_runtime(
         fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
     )

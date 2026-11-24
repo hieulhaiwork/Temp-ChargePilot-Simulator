@@ -78,3 +78,82 @@ def test_admission_fork_keeps_the_parameters():
     frt = fork_runtime(rt, [])
     assert frt.scheduler.parameters == rt.scheduler.parameters == TUNED
     assert frt.scheduler.algorithms().optimizers["DC"].config.horizon_minutes == 30
+
+
+# ---- §3.2 / §3.3 resolved experiment configuration + provenance ---------------------------------------------------------
+
+
+def test_resolved_experiment_is_explicit_and_stable():
+    from src.models.simulation import ResolvedExperiment
+    from src.services.experiment import canonical_sha256, resolve_experiment
+
+    config = _config()
+    scenario = _scenario()
+    tariff, start = catalog.load_tariff(), _start(scenario)
+    exp = resolve_experiment(build_sim_runtime(scenario, "M2b", config, tariff, start))
+    assert (exp.policy_id, exp.policy_version) == ("M2b", "1")
+    assert set(exp.components) == {
+        "dispatch.AC",
+        "dispatch.DC",
+        "optimizers.AC",
+        "optimizers.DC",
+        "coordinator",
+        "physical_guard",
+    }
+    assert exp.components["dispatch.DC"].name == "llf"
+    assert exp.components["optimizers.DC"].name == "rolling_lp"
+    assert exp.components["optimizers.DC"].parameters["horizon_minutes"] == 30  # tham số ĐÃ resolve, đủ mặc định
+    assert len(exp.components["optimizers.DC"].parameters) > 1
+    assert exp.dc_charging_model.name == "synthetic_taper_v1"
+    assert exp.parameters == TUNED
+    assert exp.time_config == {
+        "physics_step_minutes": 1,
+        "decision_interval_minutes": 15,
+        "planning_horizon_minutes": None,
+    }
+    # ổn định: dựng lại (seed khác, thời điểm khác) ⇒ cùng fingerprint; băm lại từ JSON ⇒ cùng giá trị
+    again = resolve_experiment(build_sim_runtime(_scenario(seed=99), "M2b", config, tariff, NOW))
+    assert again.fingerprint == exp.fingerprint
+    reloaded = ResolvedExperiment.model_validate_json(exp.model_dump_json())
+    assert canonical_sha256(reloaded.model_dump(mode="json", exclude={"fingerprint"})) == exp.fingerprint
+    # mỗi thay đổi cấu hình ⇒ fingerprint khác
+    default = resolve_experiment(build_sim_runtime(scenario, "M2b", config, tariff, start, parameters={}))
+    other = resolve_experiment(build_sim_runtime(scenario, "M3a", config, tariff, start))
+    planning = PlanningPolicyConfig(policy_id="M2b", parameters=TUNED, dc_charging_model="vinfast_profiles_v0_1")
+    vinfast = config.model_copy(update={"planning": planning})
+    dc = resolve_experiment(build_sim_runtime(scenario, "M2b", vinfast, tariff, start))
+    assert dc.dc_charging_model.name == "vinfast_profiles_v0_1"
+    assert len({exp.fingerprint, default.fingerprint, other.fingerprint, dc.fingerprint}) == 4
+
+
+def test_benchmark_report_and_manifest_carry_the_experiment(monkeypatch):
+    import json
+
+    from eval import run_benchmark
+    from src.services import simulation_service
+
+    config = _config()
+    monkeypatch.setattr(simulation_service.catalog, "load_station_config", lambda: config)
+    scenario = _scenario(duration_hours=2, n_vehicles=3)
+    report = simulation_service.run_benchmark([scenario], ["B0", "M2b"], [1, 2])
+    by_policy: dict[str, set[str]] = {}
+    for run in report.runs:
+        assert run.experiment is not None and run.experiment.policy_id == run.policy_id
+        by_policy.setdefault(run.policy_id, set()).add(run.experiment.fingerprint)
+    assert all(len(prints) == 1 for prints in by_policy.values())  # seed không thuộc cấu hình thí nghiệm
+    assert set(report.source.experiments) == {"B0", "M2b"}
+    assert report.source.experiments["M2b"].parameters == TUNED
+    assert report.source.experiments["B0"].parameters == {}
+    manifest = run_benchmark.build_manifest(report, report.model_dump_json(), ["--seeds", "1,2"])
+    expected = {pid: exp.fingerprint for pid, exp in report.source.experiments.items()}
+    assert manifest["experiment_fingerprints"] == expected
+    assert manifest["runs"] == 4 and manifest["command"] == "eval/run_benchmark.py --seeds 1,2"
+    json.dumps(manifest)  # ghi được ra file
+
+
+def test_old_baseline_without_experiments_still_loads():
+    from src.services import simulation_service
+
+    report = simulation_service.latest_benchmark()
+    assert report.source.experiments == {}  # baseline 2026-11-24 không có khoá này — evidence cũ không sửa
+    assert all(run.experiment is None for run in report.runs)

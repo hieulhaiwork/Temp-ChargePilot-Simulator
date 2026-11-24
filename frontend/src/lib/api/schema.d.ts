@@ -910,6 +910,13 @@ export interface components {
             baseline_id?: string | null;
             /** Code Commit */
             code_commit?: string | null;
+            /**
+             * Experiments
+             * @description policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ
+             */
+            experiments?: {
+                [key: string]: components["schemas"]["ResolvedExperiment"];
+            };
             kind: components["schemas"]["BenchmarkSourceKind"];
             /** Libraries */
             libraries?: {
@@ -1807,6 +1814,81 @@ export interface components {
              */
             soc_estimate?: number | null;
         };
+        /**
+         * ResolvedComponent
+         * @description Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.
+         */
+        ResolvedComponent: {
+            /** Implementation */
+            implementation?: string | null;
+            /** Name */
+            name: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version: string;
+        };
+        /**
+         * ResolvedExperiment
+         * @description Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.
+         *
+         *     `fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng
+         *     thành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code
+         *     (`src/services/experiment.py`), không chép tay.
+         */
+        ResolvedExperiment: {
+            /**
+             * Components
+             * @description dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard
+             */
+            components: {
+                [key: string]: components["schemas"]["ResolvedComponent"];
+            };
+            dc_charging_model: components["schemas"]["ResolvedComponent"];
+            /**
+             * Fingerprint
+             * @description sha256 ổn định của toàn bộ cấu hình đã resolve ở trên
+             */
+            fingerprint: string;
+            /**
+             * Parameters
+             * @description Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định
+             */
+            parameters?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Schema Version
+             * @description Version của chính định dạng này (đổi cách băm ⇒ tăng)
+             * @default 1
+             */
+            schema_version: string;
+            /**
+             * Station Config Sha256
+             * @description sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)
+             */
+            station_config_sha256: string;
+            /**
+             * Tariff Sha256
+             * @description sha256 của biểu giá đã nạp
+             */
+            tariff_sha256?: string | null;
+            /**
+             * Time Config
+             * @description TimeConfig của trạm (P1)
+             */
+            time_config?: {
+                [key: string]: number | null;
+            };
+        };
         /** ResumeRequest */
         ResumeRequest: {
             /** Resume */
@@ -2039,6 +2121,8 @@ export interface components {
         };
         /** SimulationRunResult */
         SimulationRunResult: {
+            /** @description Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2) */
+            experiment?: components["schemas"]["ResolvedExperiment"] | null;
             /**
              * Finished At
              * Format: date-time

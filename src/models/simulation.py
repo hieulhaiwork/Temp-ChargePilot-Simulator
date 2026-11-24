@@ -6,6 +6,7 @@ cùng định dạng kịch bản, nếu không số trên web và số trong b�
 
 from datetime import time
 from enum import StrEnum
+from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
@@ -122,6 +123,39 @@ class IncidentCounts(BaseModel):
     strict: bool = Field(default=False, description="True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi")
 
 
+class ResolvedComponent(BaseModel):
+    """Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định."""
+
+    name: str
+    version: str
+    implementation: str | None = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class ResolvedExperiment(BaseModel):
+    """Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.
+
+    `fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng
+    thành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code
+    (`src/services/experiment.py`), không chép tay.
+    """
+
+    schema_version: str = Field(default="1", description="Version của chính định dạng này (đổi cách băm ⇒ tăng)")
+    policy_id: str
+    policy_version: str
+    components: dict[str, ResolvedComponent] = Field(
+        description="dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard"
+    )
+    dc_charging_model: ResolvedComponent
+    parameters: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định"
+    )
+    time_config: dict[str, int | None] = Field(default_factory=dict, description="TimeConfig của trạm (P1)")
+    station_config_sha256: str = Field(description="sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)")
+    tariff_sha256: str | None = Field(default=None, description="sha256 của biểu giá đã nạp")
+    fingerprint: str = Field(description="sha256 ổn định của toàn bộ cấu hình đã resolve ở trên")
+
+
 class SimulationRunResult(BaseModel):
     run_id: str
     scenario_id: str
@@ -135,6 +169,9 @@ class SimulationRunResult(BaseModel):
     finished_at: AwareDatetime
     notes: str = ""
     incidents: IncidentCounts | None = Field(default=None, description="Số sự cố dự kiến / thực thi / bỏ qua")
+    experiment: ResolvedExperiment | None = Field(
+        default=None, description="Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2)"
+    )
 
     @model_validator(mode="after")
     def _policy_identity(self) -> "SimulationRunResult":
@@ -180,6 +217,10 @@ class BenchmarkSource(BaseModel):
     time_config: dict[str, int | None] = Field(default_factory=dict, description="TimeConfig của trạm khi đo (P1)")
     libraries: dict[str, str] = Field(default_factory=dict)
     note: str = ""
+    experiments: dict[str, ResolvedExperiment] = Field(
+        default_factory=dict,
+        description="policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ",
+    )
 
 
 class BenchmarkReport(BaseModel):

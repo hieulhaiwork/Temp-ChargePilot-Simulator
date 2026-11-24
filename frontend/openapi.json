@@ -249,6 +249,14 @@
             ],
             "title": "Code Commit"
           },
+          "experiments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedExperiment"
+            },
+            "description": "policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ",
+            "title": "Experiments",
+            "type": "object"
+          },
           "kind": {
             "$ref": "#/components/schemas/BenchmarkSourceKind"
           },
@@ -2081,6 +2089,127 @@
         "title": "ResidentSessionView",
         "type": "object"
       },
+      "ResolvedComponent": {
+        "description": "Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.",
+        "properties": {
+          "implementation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Implementation"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "ResolvedComponent",
+        "type": "object"
+      },
+      "ResolvedExperiment": {
+        "description": "Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.\n\n`fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng\nthành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code\n(`src/services/experiment.py`), không chép tay.",
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedComponent"
+            },
+            "description": "dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard",
+            "title": "Components",
+            "type": "object"
+          },
+          "dc_charging_model": {
+            "$ref": "#/components/schemas/ResolvedComponent"
+          },
+          "fingerprint": {
+            "description": "sha256 ổn định của toàn bộ cấu hình đã resolve ở trên",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định",
+            "title": "Parameters",
+            "type": "object"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": "1",
+            "description": "Version của chính định dạng này (đổi cách băm ⇒ tăng)",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "station_config_sha256": {
+            "description": "sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)",
+            "title": "Station Config Sha256",
+            "type": "string"
+          },
+          "tariff_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "sha256 của biểu giá đã nạp",
+            "title": "Tariff Sha256"
+          },
+          "time_config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "TimeConfig của trạm (P1)",
+            "title": "Time Config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "policy_id",
+          "policy_version",
+          "components",
+          "dc_charging_model",
+          "station_config_sha256",
+          "fingerprint"
+        ],
+        "title": "ResolvedExperiment",
+        "type": "object"
+      },
       "ResumeRequest": {
         "properties": {
           "resume": {
@@ -2625,6 +2754,17 @@
       },
       "SimulationRunResult": {
         "properties": {
+          "experiment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedExperiment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2)"
+          },
           "finished_at": {
             "format": "date-time",
             "title": "Finished At",

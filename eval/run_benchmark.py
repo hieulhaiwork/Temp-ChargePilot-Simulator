@@ -12,6 +12,8 @@ Xuất: `RESULTS_DIR/benchmark.md` + `RESULTS_DIR/benchmark.json` (mặc định
 `generated`: kịch bản, policy, seed, TimeConfig, thư viện, commit). `GET /simulation/benchmark` KHÔNG đọc file này mà
 đọc baseline có version (`simulation_service.BENCHMARK_BASELINE_DIR`); muốn dùng số mới làm baseline thì chép thành thư
 mục `eval/evidence/<ngày>-...-baseline/` có `manifest.json` (xem `2026-11-23-refactor-phase3-baseline/`).
+Kèm `RESULTS_DIR/manifest.json` (Final Acceptance §3.3): manifest nháp cùng khoá với baseline + `experiments`
+(cấu hình đã resolve + fingerprint của từng policy); mỗi run trong JSON có `experiment`.
 Exit 2 khi pipeline chưa implement (in rõ task còn thiếu) hoặc policy không có trong registry.
 `--strict-incidents` (benchmark nghiên cứu, Final Review 4.7): sự cố không áp được vào topology ⇒ exit 3 ngay. Mặc
 định giữ hành vi cũ (bỏ qua + note). Mọi chế độ ghi `incidents` (dự kiến / thực thi / bỏ qua) vào từng run của JSON.
@@ -21,6 +23,8 @@ Owner: TV1. Task: T3.4 (bảng đầu tiên), T4.1 (tập chưa thấy).
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -107,10 +111,39 @@ def main(argv: list[str] | None = None) -> int:
     if report.source is not None:
         report.source.code_commit = _git_commit()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    (RESULTS_DIR / "benchmark.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
+    data = report.model_dump_json(indent=2)
+    (RESULTS_DIR / "benchmark.json").write_text(data, encoding="utf-8")
     (RESULTS_DIR / "benchmark.md").write_text(render_markdown(report), encoding="utf-8")
-    print(f"==> Đã ghi {RESULTS_DIR / 'benchmark.md'}")
+    manifest = build_manifest(report, data, argv if argv is not None else sys.argv[1:])
+    (RESULTS_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"==> Đã ghi {RESULTS_DIR / 'benchmark.md'} (+ benchmark.json, manifest.json)")
     return 0
+
+
+def build_manifest(report: BenchmarkReport, benchmark_json: str, argv: list[str]) -> dict:
+    """Manifest NHÁP của bảng vừa sinh (Final Acceptance §3.3) — cùng khoá với manifest baseline có version, thêm
+    `experiments` (policy → cấu hình đã resolve + fingerprint). Thành baseline thì điều phối điền `baseline_id` /
+    `version` / `status` và chép cả thư mục vào `eval/evidence/<ngày>-...-baseline/`."""
+    src = report.source
+    experiments = {pid: exp.model_dump(mode="json") for pid, exp in (src.experiments if src else {}).items()}
+    return {
+        "kind": "generated",
+        "baseline_id": None,
+        "version": None,
+        "status": "generated",
+        "code_commit": src.code_commit if src else None,
+        "generated_at": report.generated_at.isoformat(),
+        "command": " ".join(["eval/run_benchmark.py", *argv]),
+        "benchmark_sha256": hashlib.sha256(benchmark_json.encode("utf-8")).hexdigest(),
+        "scenarios": src.scenarios if src else [],
+        "policies": src.policies if src else [],
+        "seeds": src.seeds if src else [],
+        "runs": len(report.runs),
+        "time_config": src.time_config if src else {},
+        "libraries": src.libraries if src else {},
+        "experiments": experiments,
+        "experiment_fingerprints": {pid: exp["fingerprint"] for pid, exp in experiments.items()},
+    }
 
 
 def _git_commit() -> str | None:
