@@ -15,6 +15,10 @@
   Backlog: `grep -rn 'NotImplementedError("\[T' src/ --include=*.py`.
 - **Simulator là gốc** (ADR-018, ADR-019 Unified Core): backend chạy `HybridStation` (`src/simulator/hybrid_station.py`)
   dựng từ engine simulator, với policy `M3a` (mặc định) / `M3b` / `M2b` / `B0` (`src/services/hybrid_planner.py`).
+  Nguồn policy duy nhất là `src/optimizer/registry.py`: B0–M3b đóng băng (version `"1"`); policy mới đăng ký bằng
+  `register_policy(PolicySpec(...))` là chạy được trên backend, chọn qua `policy_id` (API / CLI / khoá tuỳ chọn
+  `planning.policy_id` trong `config/station.yaml`); `StrategyName` chỉ là đường tương thích; danh sách hợp lệ:
+  `GET /api/v1/simulation/policies`. DC model backend chọn theo tên `DC_MODELS` (mặc định `SyntheticTaperV1`).
   Refactor Unified Core đang chạy theo phase (`docs/refactor/`, nhánh `feature/unified-core`). Code gốc MVP-1/2/3 chỉ
   được **di chuyển** (thuật toán: `src/optimizer/{dispatch,zones,coordination,registry.py}`; Physical Guard:
   `src/guard/physical/validator.py`; hợp đồng: `src/models/{simulation_core,scheduling,physical_*,charging_physics}`),
@@ -23,7 +27,10 @@
   Simulator phải chạy standalone (không FastAPI / DB / LLM). **Một kernel** `StationKernel`
   (`src/simulator/core/kernel.py`, `observe/propose/approve/apply_approved/advance`; vật lý / sự kiện ở
   `src/simulator/core/{ev2gym_adapter,charging_models,queue}`) cho cả `HybridSimulator` (`src/simulator/hybrid.py`) và
-  `HybridStation`; quote / booking chạy cùng kernel trên bản fork (`src/services/admission.py`). LP backend A–D và
+  `HybridStation`; quote / booking chạy cùng kernel trên bản fork (`src/services/admission.py`). Fork chỉ dùng chung
+  thành phần khai báo stateless (`src/simulator/core/isolation.py`); thành phần có trạng thái phải có `fork()` (hoặc bị
+  deep copy). Optimizer chỉ thấy trạng thái quan sát / ước lượng qua `observation_model` của kernel (mặc định
+  `PerfectObservation`); vật lý và KPI dùng ground truth — không cho optimizer đọc SOC thật. LP backend A–D và
   `LiveStation` đã xoá (`docs/refactor/DELETION_MANIFEST.md`).
 - **LLM**: `LLM_PROVIDER=openai` (OpenAI, hoặc Gemini / OpenRouter qua `OPENAI_BASE_URL`) · `local` · `mock` (chỉ
   dev/test, cấm ở production). Test và eval offline dùng LLM giả; để `OPENAI_API_KEY` RỖNG khi chưa có key (chuỗi
@@ -43,6 +50,10 @@
 - **Chỉ `src/guard/dispatcher.py` gửi lệnh tới trạm** (`StationActuator.apply_commands`) — ADR-002.
 - **DecisionTrace** (ADR-019 Phase 4): mỗi lần tính lại ghi một trace cùng schema với simulator (`src/services/decision_trace.py`), có `correlation_id` gắn vào mọi `Command`; tóm tắt ở bảng `decision_traces`, chi tiết ở artifact JSONL. Lý do / WHY chỉ lấy từ facts của trace, không để LLM tự tạo.
 - **Ba loại sai lệch công suất** tách riêng: deadband lệnh 0,01 kW / cổng (lượng tử hoá, làm tròn xuống), lệch assigned budget của Coordinator (ghi + replan), vi phạm trần cứng (Physical Guard, TOL 1e-7). Lệnh giảm tải cần cho an toàn không bị anti-flapping / HITL giữ lại.
+  Lô áp một phần (lệnh bị chặn / chờ duyệt): dispatcher kiểm lại lệnh tăng trên đúng tập sẽ áp. Vi phạm cứng sau khi áp
+  ⇒ sự kiện `hard_limit_violated` → lệnh EMERGENCY qua dispatcher khi bật `guard.after_apply_failsafe` (mặc định tắt).
+- **Booking đồng thời**: `charging_service.book` chạy admission ngoài khoá, commit dưới `StationRuntime.booking_lock`
+  + kiểm `booking_version` (đổi ⇒ chạy lại / `PROPOSAL_EXPIRED`); admission dùng đúng consent sẽ lưu.
 - **Agent graph** (chat cư dân): `src/llm_chat/graph.py` — ReAct harness: guardrail → reason → act (tools, HITL
   interrupt cho risky tools, gồm `confirm_booking`) → assess → finalize (escape hatch max-iterations). Đừng thêm node mà
   không cập nhật state schema (`src/llm_chat/state.py`). Chỉ `src/api/routes.py` import `src.llm_chat.graph`. LLM
@@ -73,6 +84,7 @@ make migrate       # alembic upgrade head
 make openapi       # ghi lại frontend/openapi.json
 make eval-agent    # python eval/run_agent_eval.py --offline
 make benchmark     # benchmark B0 / M2b / M3a / M3b (exit 2 khi pipeline còn stub)
+                   #   nghiên cứu: python eval/run_benchmark.py --strict-incidents (sự cố không hợp lệ ⇒ exit 3)
 make web-check     # lint + typecheck + test + build của frontend/
 ```
 
@@ -87,7 +99,7 @@ src/
   agents/      # dành cho AI-1 negotiation / AI-4 decision copilot (ADR-019) — chưa có code
   services/    # tầng ứng dụng: charging_service, admission, hybrid_planner, station_service, control_loop, runtime, event_bus,
                #   realtime, auth, repository, catalog, energy, llm, errors
-  optimizer/   # Trụ 2: dispatch/, zones/ (AC/DC LP), coordination/, registry.py (policy B0/M2b/M3a/M3b) — gốc simulator;
+  optimizer/   # Trụ 2: dispatch/, zones/ (AC/DC LP), coordination/, registry.py (nguồn policy; B0–M3b đóng băng) — gốc simulator;
                #   (LP backend A–D cũ đã xoá ở Phase 3)
   forecast/    # F6: dự báo lúc rút đầu nối (cấm feature unplug_time)
   guard/       # Trụ 3: rules (7 luật), checker, approval, emergency, dispatcher (chokepoint);
