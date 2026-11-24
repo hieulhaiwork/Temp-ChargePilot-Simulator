@@ -1,0 +1,2 @@
+# Thay đổi CHỦ Ý ở Phase 2 (mọi dòng phải có lý do; khai báo mà không đổi thì cổng fail).
+src/services/hybrid_planner.py::POLICIES | Bảng policy chép tay được thay bằng ánh xạ StrategyName → src.optimizer.registry.POLICIES (một nguồn, ADR-019). Giá trị trùng từng tuple (test_policy_bundles_have_a_single_source kiểm `is`).

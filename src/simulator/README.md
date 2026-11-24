@@ -59,18 +59,25 @@ Report và replay hoàn chỉnh chỉ có ở run thành công.
 
 ## Kiến trúc
 
+> **Bố cục sau refactor Unified Core (ADR-019 Phase 4).** Gói `src/simulator/src/` cũ đã bỏ (không còn shim). Đoạn
+> mô tả bên dưới giữ tên file gốc; vị trí hiện tại:
+
 ```text
-src/simulator/src/
-├── algorithms.py                  # Registry và lựa chọn theo config
-├── scenario.py                    # Kịch bản và giới hạn vật lý
-├── observations.py                # Snapshot chỉ đọc dùng chung
-├── engine/                        # hybrid.py, queue.py, ev2gym_adapter.py
-├── dispatch/                      # FIFO/FCFS, EDF, LLF
-├── optimizers/                    # Equal Share, Deadline First, DC Rolling LP
-├── coordination/                  # base.py, fixed_budget.py
-├── safety/                        # constraints.py, guard.py
-├── charging_models/               # Contract, taper MVP-1 và profile theo xe
-└── evaluation/                    # KPI, DecisionTrace, benchmark audit
+src/simulator/
+├── core/                          # MỘT kernel dùng chung với backend (HybridStation)
+│   ├── kernel.py                  # StationKernel: observe / boundary / propose / approve / apply_approved / advance
+│   ├── algorithms.py              # Ghép thuật toán theo config + DC model registry
+│   ├── queue.py                   # Phiên, hàng chờ, mốc xe đến / rời / rút DC
+│   ├── ev2gym_adapter.py          # Tích phân năng lượng EV2Gym
+│   └── charging_models/           # Taper MVP-1 và profile theo xe
+├── hybrid.py                      # HybridSimulator = kernel + trace / frame / report
+├── evaluation/                    # KPI, DecisionTrace, benchmark audit
+└── hybrid_station.py              # Adapter backend trên cùng kernel
+src/models/simulation_core.py      # (trước: scenario.py) kịch bản và giới hạn vật lý
+src/models/scheduling/             # (trước: observations.py, */base.py) hợp đồng snapshot / dispatch / optimizer
+src/models/physical_{constraints,limits}.py, src/models/charging_physics.py
+src/optimizer/{dispatch,zones,coordination}/   # (trước: dispatch/, optimizers/, coordination/)
+src/guard/physical/validator.py    # (trước: safety/guard.py) Physical Guard
 ```
 
 - `src/scenario.py` validate scenario và chuẩn hóa giờ theo phút. Sau nửa đêm,
@@ -263,7 +270,7 @@ SOC cao cho thấy công suất thực AC có thể thấp hơn đề xuất.
 ```bash
 .simulator/bin/python -m pytest src/simulator/tests/test_ev2gym_p0.py -q -s
 .simulator/bin/python -m pytest src/simulator/tests src/simulator/tests/ev2gym_smoke.py -q
-.simulator/bin/ruff check src/simulator/run.py src/simulator/src src/simulator/tests
+.simulator/bin/ruff check src/simulator src/models src/optimizer src/guard/physical
 ```
 
 Suite v1.2 với DC Vehicle Profiles đạt 112 test, gồm 24 ca tích hợp mới.

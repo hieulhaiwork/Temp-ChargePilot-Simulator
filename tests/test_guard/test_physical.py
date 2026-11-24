@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-from src.guard import physical
+from src.guard.physical import adapter as physical
 from src.models.control import CommandType, GuardRule
 from tests.test_guard.test_rules import _cmd, _ctx, _rules_hit, _state
 
@@ -34,6 +34,6 @@ def test_violation_detail_carries_the_simulator_reason():
 
 def test_physical_layer_does_not_import_ev2gym():
     """Image Render không cài ev2gym: lớp vật lý chỉ dùng phần thuần Python của simulator."""
-    code = "import sys; import src.guard.physical; print('ev2gym' in sys.modules)"
+    code = "import sys; import src.guard.physical.adapter; print('ev2gym' in sys.modules)"
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"

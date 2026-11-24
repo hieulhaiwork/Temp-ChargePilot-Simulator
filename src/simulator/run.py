@@ -15,16 +15,15 @@ from shutil import rmtree
 from tempfile import mkdtemp
 from uuid import uuid4
 
-if __package__:
-    from .src.algorithms import resolve_algorithms
-    from .src.engine.hybrid import HybridSimulator
-    from .src.safety.constraints import ConstraintViolationError
-    from .src.scenario import Scenario
-else:
-    from src.algorithms import resolve_algorithms
-    from src.engine.hybrid import HybridSimulator
-    from src.safety.constraints import ConstraintViolationError
-    from src.scenario import Scenario
+if not __package__:
+    # Script mode (`python src/simulator/run.py`): put the repository root first so `src` is the repository package
+    # and shared contracts in `src.models` resolve (ADR-019). Only this entrypoint bootstraps the path.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.models.physical_constraints import ConstraintViolationError  # noqa: E402
+from src.models.simulation_core import Scenario  # noqa: E402
+from src.simulator.core.algorithms import resolve_algorithms  # noqa: E402
+from src.simulator.hybrid import HybridSimulator  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 SCENARIOS = ROOT / "scenario"

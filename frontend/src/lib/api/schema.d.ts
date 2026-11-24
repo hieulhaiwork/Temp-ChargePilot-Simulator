@@ -596,7 +596,7 @@ export interface paths {
         };
         /**
          * Benchmark
-         * @description US8 — bảng A–D gần nhất (eval/run_benchmark.py sinh ra).
+         * @description US8 — bảng B0 / M2b / M3a / M3b của baseline có version hiện hành; `source` ghi nguồn + version + điều kiện đo.
          */
         get: operations["benchmark_api_v1_simulation_benchmark_get"];
         put?: never;
@@ -621,6 +621,26 @@ export interface paths {
          * @description US6 — bơm sự cố (trụ hỏng / nguồn giảm) vào simulator đang chạy để demo trực tiếp.
          */
         post: operations["inject_incident_api_v1_simulation_incidents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Policies
+         * @description Policy hợp lệ của Planning Core — đọc từ registry (cùng nguồn với runtime / benchmark), không chép tay.
+         */
+        get: operations["policies_api_v1_simulation_policies_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -866,7 +886,7 @@ export interface components {
         ApprovalStatus: "pending" | "approved" | "rejected" | "expired";
         /**
          * BenchmarkReport
-         * @description Bảng A–D cùng tập phiên, cùng biểu giá (PRD §8). Lưu ở eval/results/benchmark.json.
+         * @description Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.
          */
         BenchmarkReport: {
             /**
@@ -878,7 +898,66 @@ export interface components {
             notes?: string[];
             /** Runs */
             runs: components["schemas"]["SimulationRunResult"][];
+            /** @description Nguồn và version của bảng (Phase 4) */
+            source?: components["schemas"]["BenchmarkSource"] | null;
         };
+        /**
+         * BenchmarkSource
+         * @description Nguồn + điều kiện đo của bảng benchmark (Phase 4 quyết định 8): không so hai bảng khác điều kiện.
+         */
+        BenchmarkSource: {
+            /** Baseline Id */
+            baseline_id?: string | null;
+            /** Code Commit */
+            code_commit?: string | null;
+            /**
+             * Experiments
+             * @description policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ
+             */
+            experiments?: {
+                [key: string]: components["schemas"]["ResolvedExperiment"];
+            };
+            kind: components["schemas"]["BenchmarkSourceKind"];
+            /** Libraries */
+            libraries?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Path
+             * @description Đường dẫn trong repo của dữ liệu
+             */
+            path?: string | null;
+            /** Policies */
+            policies?: string[];
+            /** Scenarios */
+            scenarios?: string[];
+            /** Seeds */
+            seeds?: number[];
+            /**
+             * Status
+             * @description provisional = baseline tạm; final = baseline nghiệm thu
+             */
+            status?: string | null;
+            /**
+             * Time Config
+             * @description TimeConfig của trạm khi đo (P1)
+             */
+            time_config?: {
+                [key: string]: number | null;
+            };
+            /** Version */
+            version?: string | null;
+        };
+        /**
+         * BenchmarkSourceKind
+         * @enum {string}
+         */
+        BenchmarkSourceKind: "versioned_baseline" | "generated";
         /**
          * Booking
          * @description Lịch sạc đã chốt của một cư dân.
@@ -1079,6 +1158,11 @@ export interface components {
             command_id?: string;
             /** Connector Id */
             connector_id: string;
+            /**
+             * Correlation Id
+             * @description DecisionTrace của lần tính lại sinh lệnh này (ADR-019 Phase 4) — None nếu không có
+             */
+            correlation_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1302,7 +1386,7 @@ export interface components {
          * @description FR8 — mọi sự kiện đều kích hoạt tính lại lịch.
          * @enum {string}
          */
-        EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "replan_requested";
+        EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "charge_completed" | "replan_requested" | "hard_limit_violated";
         /**
          * FieldProvenance
          * @description Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).
@@ -1330,6 +1414,12 @@ export interface components {
          * @description Ngưỡng của Safety Guard (FR12) — nạp từ khối `guard:` của station.yaml.
          */
         GuardSettings: {
+            /**
+             * After Apply Failsafe
+             * @description Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Thiếu khoá = tắt (chỉ đếm + log như trước); config/station.yaml bật (Final Acceptance §1)
+             * @default false
+             */
+            after_apply_failsafe: boolean;
             /**
              * Approval Ttl Minutes
              * @description Hạn trả lời yêu cầu phê duyệt (AC4: hết hạn = không làm)
@@ -1386,6 +1476,38 @@ export interface components {
             type: components["schemas"]["IncidentType"];
         };
         /**
+         * IncidentCounts
+         * @description Số sự cố của một lần chạy (Final Review 4.7): dự kiến = trong kịch bản, đã thực thi, bị bỏ qua.
+         */
+        IncidentCounts: {
+            /**
+             * Applied
+             * @description Số sự cố đã bơm vào trạm
+             */
+            applied: number;
+            /**
+             * Planned
+             * @description Số sự cố khai trong kịch bản
+             */
+            planned: number;
+            /**
+             * Skipped
+             * @description Số sự cố bị bỏ qua (không khớp topology) — strict thì phải 0
+             */
+            skipped: number;
+            /**
+             * Skipped Details
+             * @description `loại@phút' (đầu nối)` của sự cố bị bỏ qua
+             */
+            skipped_details?: string[];
+            /**
+             * Strict
+             * @description True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi
+             * @default false
+             */
+            strict: boolean;
+        };
+        /**
          * IncidentType
          * @enum {string}
          */
@@ -1419,7 +1541,7 @@ export interface components {
             peak_load_kw: number;
             /**
              * Power Limit Violations
-             * @description MT4 — mục tiêu 0
+             * @description MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count
              */
             power_limit_violations: number;
             /**
@@ -1539,6 +1661,61 @@ export interface components {
             unmet_penalty_factor: number;
         };
         /**
+         * PlanningPolicyConfig
+         * @description Khối `planning:` TUỲ CHỌN của station.yaml (Final Review 4.1 / 4.2). Thiếu khối / khoá = hành vi cũ.
+         *
+         *     - `policy_id`: policy của runtime live (id registry `src/optimizer/registry.py`); None ⇒ env `LIVE_STRATEGY`.
+         *     - `version`: phải khớp version đã đăng ký (None ⇒ không kiểm).
+         *     - `dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒
+         *       `synthetic_taper_v1` như cũ. Áp cho mọi trạm dựng từ config (live, benchmark, fork admission).
+         *     - `parameters`: tham số theo thành phần (`dispatch_dc` / `optimizer_ac` / `optimizer_dc` / `coordinator`), cùng
+         *       khoá `parameters` của registry. Chỉ áp cho policy live.
+         */
+        PlanningPolicyConfig: {
+            /** Dc Charging Model */
+            dc_charging_model?: string | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Policy Id */
+            policy_id?: string | null;
+            /** Version */
+            version?: string | null;
+        };
+        /**
+         * PolicyInfo
+         * @description Một policy hợp lệ của Planning Core — đọc từ registry (`src/optimizer/registry.py`), không chép tay.
+         */
+        PolicyInfo: {
+            /** Coordinator */
+            coordinator: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Dispatch Dc */
+            dispatch_dc: string;
+            /**
+             * Frozen
+             * @description B0 / M2b / M3a / M3b đóng băng để tái lập số MVP-2/3
+             */
+            frozen: boolean;
+            /** @description Giá trị enum StrategyName tương ứng (nếu có) — client cũ gửi giá trị này */
+            legacy_strategy?: components["schemas"]["StrategyName"] | null;
+            /** Optimizer Ac */
+            optimizer_ac: string;
+            /** Optimizer Dc */
+            optimizer_dc: string;
+            /** Policy Id */
+            policy_id: string;
+            /** Version */
+            version: string;
+        };
+        /**
          * PowerSlot
          * @description Công suất cấp cho một booking trong một bước MPC.
          */
@@ -1564,6 +1741,12 @@ export interface components {
             /** Vehicle Model */
             vehicle_model?: string | null;
         };
+        /**
+         * ProposalCertainty
+         * @description Mức chắc chắn của phương án (Phase 4 quyết định 5) — không phương án nào là SLA bảo đảm vô điều kiện.
+         * @enum {string}
+         */
+        ProposalCertainty: "estimate" | "conditional";
         /**
          * QueueStatus
          * @description US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.
@@ -1631,6 +1814,81 @@ export interface components {
              */
             soc_estimate?: number | null;
         };
+        /**
+         * ResolvedComponent
+         * @description Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.
+         */
+        ResolvedComponent: {
+            /** Implementation */
+            implementation?: string | null;
+            /** Name */
+            name: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version: string;
+        };
+        /**
+         * ResolvedExperiment
+         * @description Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.
+         *
+         *     `fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng
+         *     thành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code
+         *     (`src/services/experiment.py`), không chép tay.
+         */
+        ResolvedExperiment: {
+            /**
+             * Components
+             * @description dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard
+             */
+            components: {
+                [key: string]: components["schemas"]["ResolvedComponent"];
+            };
+            dc_charging_model: components["schemas"]["ResolvedComponent"];
+            /**
+             * Fingerprint
+             * @description sha256 ổn định của toàn bộ cấu hình đã resolve ở trên
+             */
+            fingerprint: string;
+            /**
+             * Parameters
+             * @description Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định
+             */
+            parameters?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Schema Version
+             * @description Version của chính định dạng này (đổi cách băm ⇒ tăng)
+             * @default 1
+             */
+            schema_version: string;
+            /**
+             * Station Config Sha256
+             * @description sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)
+             */
+            station_config_sha256: string;
+            /**
+             * Tariff Sha256
+             * @description sha256 của biểu giá đã nạp
+             */
+            tariff_sha256?: string | null;
+            /**
+             * Time Config
+             * @description TimeConfig của trạm (P1)
+             */
+            time_config?: {
+                [key: string]: number | null;
+            };
+        };
         /** ResumeRequest */
         ResumeRequest: {
             /** Resume */
@@ -1694,6 +1952,16 @@ export interface components {
              */
             horizon_start: string;
             /**
+             * Policy Id
+             * @description Id policy trong registry (src/optimizer/registry.py); luôn có sau khi validate
+             */
+            policy_id?: string | null;
+            /**
+             * Policy Version
+             * @description Version policy trong registry
+             */
+            policy_version?: string | null;
+            /**
              * Queue
              * @description booking_id chờ đầu nối, đầu hàng trước
              */
@@ -1707,19 +1975,43 @@ export interface components {
             solve_time_s?: number | null;
             /** Step Minutes */
             step_minutes: number;
-            strategy: components["schemas"]["StrategyName"];
+            /** @description Policy B0 / M2b / M3a / M3b (enum cũ). None khi policy đăng ký mới không có trong enum — xem policy_id */
+            strategy?: components["schemas"]["StrategyName"] | null;
             /** Version */
             version: number;
         };
         /**
          * ScheduleProposal
-         * @description Phương án what-if cho màn S3 — CHƯA giữ chỗ.
+         * @description Phương án what-if cho màn S3 — CHƯA giữ chỗ, là ƯỚC TÍNH chứ không phải cam kết SLA.
          *
-         *     `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa.
+         *     `reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa. `certainty` /
+         *     `assumptions` / `approvals_pending_*` cho biết kết quả phụ thuộc điều gì (services/admission.py).
          */
         ScheduleProposal: {
             /** Alternatives */
             alternatives?: components["schemas"]["Alternative"][];
+            /**
+             * Approvals Pending For Booking
+             * @description Số phê duyệt chờ cho lệnh của chính xe này trong lúc mô phỏng
+             * @default 0
+             */
+            approvals_pending_for_booking: number;
+            /**
+             * Approvals Pending For Others
+             * @description Số phê duyệt chờ cho lệnh của xe khác (không lộ xe nào)
+             * @default 0
+             */
+            approvals_pending_for_others: number;
+            /**
+             * Assumptions
+             * @description Giả định của kết quả (code sinh)
+             */
+            assumptions?: string[];
+            /**
+             * @description estimate = ước tính theo giả định; conditional = còn chờ phê duyệt (HITL). Không bao giờ là SLA
+             * @default estimate
+             */
+            certainty: components["schemas"]["ProposalCertainty"];
             /** Connector Id */
             connector_id?: string | null;
             energy: components["schemas"]["EnergyEstimate"];
@@ -1808,27 +2100,52 @@ export interface components {
         SimulationRunRequest: {
             /** N Vehicles */
             n_vehicles?: number | null;
+            /**
+             * Policy Id
+             * @description Id policy trong registry (GET /simulation/policies) — chọn được policy mới không có trong enum
+             */
+            policy_id?: string | null;
             /** Power Limit Kw */
             power_limit_kw?: number | null;
             /** Scenario Id */
             scenario_id: string;
             /** Seed */
             seed?: number | null;
-            strategy: components["schemas"]["StrategyName"];
+            /** @description Policy enum cũ (B0 / M2b / M3a / M3b). Client cũ chỉ gửi trường này */
+            strategy?: components["schemas"]["StrategyName"] | null;
+            /**
+             * Strict Incidents
+             * @description Chế độ nghiên cứu: sự cố trỏ đầu nối không tồn tại ⇒ lỗi thay vì bỏ qua. None / false = như cũ
+             */
+            strict_incidents?: boolean | null;
         };
         /** SimulationRunResult */
         SimulationRunResult: {
+            /** @description Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2) */
+            experiment?: components["schemas"]["ResolvedExperiment"] | null;
             /**
              * Finished At
              * Format: date-time
              */
             finished_at: string;
+            /** @description Số sự cố dự kiến / thực thi / bỏ qua */
+            incidents?: components["schemas"]["IncidentCounts"] | null;
             kpis: components["schemas"]["KpiReport"];
             /**
              * Notes
              * @default
              */
             notes: string;
+            /**
+             * Policy Id
+             * @description Id policy trong registry; luôn có sau khi validate
+             */
+            policy_id?: string | null;
+            /**
+             * Policy Version
+             * @description Version policy trong registry
+             */
+            policy_version?: string | null;
             /** Run Id */
             run_id: string;
             /** Scenario Id */
@@ -1838,7 +2155,10 @@ export interface components {
              * Format: date-time
              */
             started_at: string;
-            strategy: components["schemas"]["StrategyName"];
+            /** @description Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id */
+            strategy?: components["schemas"]["StrategyName"] | null;
+            /** @description Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5) */
+            violations?: components["schemas"]["ViolationCounts"] | null;
         };
         /**
          * StationConfig
@@ -1896,6 +2216,8 @@ export interface components {
             physical_zone_cap_kw?: {
                 [key: string]: number;
             } | null;
+            /** @description Chọn policy / DC model / tham số (tuỳ chọn; None = LIVE_STRATEGY + synthetic DC) */
+            planning?: components["schemas"]["PlanningPolicyConfig"] | null;
             /**
              * Power Conversion Efficiency
              * @description η chuyển đổi lưới → đầu ra tủ. E_grid = E_output / η
@@ -1953,6 +2275,10 @@ export interface components {
              */
             occurred_at: string;
             type: components["schemas"]["EventType"];
+            /** Violation Booking Ids */
+            violation_booking_ids?: string[];
+            /** Violation Kinds */
+            violation_kinds?: components["schemas"]["ViolationKind"][];
         };
         /**
          * StationOverview
@@ -2021,10 +2347,13 @@ export interface components {
         };
         /**
          * StrategyName
-         * @description Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8).
+         * @description Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.
+         *
+         *     A_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký
+         *     trong registry rồi mới thêm giá trị ở đây.
          * @enum {string}
          */
-        StrategyName: "A_fcfs" | "A_edf" | "B" | "C" | "D" | "B0" | "M2b" | "M3a" | "M3b";
+        StrategyName: "B0" | "M2b" | "M3a" | "M3b";
         /**
          * SupplyMode
          * @description Cách hai vùng lấy điện (ADR-010). `shared` là [GIẢ ĐỊNH] — chưa có số liệu lưới tại site.
@@ -2178,6 +2507,44 @@ export interface components {
             detail: string;
             rule: components["schemas"]["GuardRule"];
         };
+        /**
+         * ViolationCounts
+         * @description Hai loại "vượt giới hạn" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.
+         *
+         *     - `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn
+         *       của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;
+         *     - `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng
+         *       (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế
+         *       (`StationKernel.applied_constraint_violation_count`);
+         *     - `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).
+         */
+        ViolationCounts: {
+            /**
+             * Applied Constraint Violation Count
+             * @description Vi phạm trần cứng sau khi áp (kernel)
+             */
+            applied_constraint_violation_count: number;
+            /**
+             * Rejected Allocation Count
+             * @description Đề xuất bị Physical Guard từ chối trước áp
+             * @default 0
+             */
+            rejected_allocation_count: number;
+            /**
+             * Sampled Power Over Limit Minutes
+             * @description = kpis.power_limit_violations (MT4)
+             */
+            sampled_power_over_limit_minutes: number;
+        };
+        /**
+         * ViolationKind
+         * @description Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — cùng giá trị với `src.models.decisions.HardViolationKind`.
+         *
+         *     aggregate_power: tổng công suất vượt trần tủ / vùng / lưới → giảm tải. charging_model / acceptance: lỗi phản hồi
+         *     pin / SOC / acceptance của một xe → giảm tải tổng không sửa được: ngắt công suất cổng đó + báo vận hành.
+         * @enum {string}
+         */
+        ViolationKind: "aggregate_power" | "charging_model" | "acceptance";
     };
     responses: never;
     parameters: never;
@@ -5061,6 +5428,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    policies_api_v1_simulation_policies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyInfo"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Not Implemented */

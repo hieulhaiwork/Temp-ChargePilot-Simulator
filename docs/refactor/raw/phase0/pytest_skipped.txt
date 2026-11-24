@@ -1,0 +1,8 @@
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:19: [T2.3] features.build_features
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:27: [T2.3] features.build_features
+SKIPPED [1] tests\\test_forecast\\test_forecast_contracts.py:32: [T2.3] features.build_features \u2014 ch\u1ed1t \u1edf T2.3 sau EDA
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:37: [T2.3] features.build_features
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:42: [T2.3] datasets.temporal_split
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:47: [T2.3] predict.*Forecaster
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:52: [T2.3] predict.LightGBMForecaster
+SKIPPED [1] tests\test_forecast\test_forecast_contracts.py:57: [T2.1] FR9 — xem thêm test_forecast_never_relaxes_declared_deadline

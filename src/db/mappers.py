@@ -16,6 +16,7 @@ from src.db.tables import (
     ApprovalRow,
     BookingRow,
     DecisionLogRow,
+    DecisionTraceRow,
     LoadPointRow,
     NotificationRow,
     SchedulePlanRow,
@@ -25,6 +26,7 @@ from src.db.tables import (
 from src.models.api import Notification
 from src.models.charging import Booking, SchedulePlan
 from src.models.control import Approval, DecisionLogEntry
+from src.models.decision_trace import DecisionTraceSummary
 from src.models.events import StationEvent
 from src.models.identity import UserRecord
 from src.models.station import LoadPoint
@@ -84,10 +86,17 @@ def row_to_booking(row: BookingRow) -> Booking:
     return Booking.model_validate(row.payload)
 
 
+STRATEGY_COLUMN_CHARS = 8  # schedule_plans.strategy String(8) — cột tóm tắt; id đầy đủ nằm trong payload
+
+
 def plan_to_row(plan: SchedulePlan) -> SchedulePlanRow:
+    # B0 / M2b / M3a / M3b ghi như cũ. Policy đăng ký mới có id dài hơn cột ⇒ ghi "custom" (payload giữ policy_id đầy
+    # đủ, row_to_plan đọc payload) — không đổi schema DB cho một cột chỉ để lọc nhanh (Final Review 4.1).
+    label = plan.policy_id or ""
+    strategy = label if len(label) <= STRATEGY_COLUMN_CHARS else "custom"
     return SchedulePlanRow(
         version=plan.version,
-        strategy=plan.strategy.value,
+        strategy=strategy,
         created_at=plan.created_at,
         horizon_start=plan.horizon_start,
         step_minutes=plan.step_minutes,
@@ -186,3 +195,20 @@ def load_point_to_row(point: LoadPoint) -> LoadPointRow:
 
 def row_to_load_point(row: LoadPointRow) -> LoadPoint:
     return LoadPoint(timestamp=row.ts, total_power_kw=row.total_power_kw, power_limit_kw=row.power_limit_kw)
+
+
+def trace_to_row(summary: DecisionTraceSummary) -> DecisionTraceRow:
+    return DecisionTraceRow(
+        correlation_id=summary.correlation_id,
+        decided_at=summary.decided_at,
+        policy_id=summary.policy_id,
+        schedule_version=summary.schedule_version,
+        budget_deviation_kw_max=summary.budget_deviation_kw_max,
+        hard_violations=summary.hard_violations,
+        closed=summary.closed,
+        payload=summary.model_dump(mode="json"),
+    )
+
+
+def row_to_trace(row: DecisionTraceRow) -> DecisionTraceSummary:
+    return DecisionTraceSummary.model_validate(row.payload)

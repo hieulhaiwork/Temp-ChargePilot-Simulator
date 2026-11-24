@@ -184,7 +184,7 @@
         "type": "string"
       },
       "BenchmarkReport": {
-        "description": "Bảng A–D cùng tập phiên, cùng biểu giá (PRD §8). Lưu ở eval/results/benchmark.json.",
+        "description": "Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.",
         "properties": {
           "generated_at": {
             "format": "date-time",
@@ -204,6 +204,17 @@
             },
             "title": "Runs",
             "type": "array"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BenchmarkSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nguồn và version của bảng (Phase 4)"
           }
         },
         "required": [
@@ -212,6 +223,140 @@
         ],
         "title": "BenchmarkReport",
         "type": "object"
+      },
+      "BenchmarkSource": {
+        "description": "Nguồn + điều kiện đo của bảng benchmark (Phase 4 quyết định 8): không so hai bảng khác điều kiện.",
+        "properties": {
+          "baseline_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Id"
+          },
+          "code_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Commit"
+          },
+          "experiments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedExperiment"
+            },
+            "description": "policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ",
+            "title": "Experiments",
+            "type": "object"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/BenchmarkSourceKind"
+          },
+          "libraries": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Libraries",
+            "type": "object"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Đường dẫn trong repo của dữ liệu",
+            "title": "Path"
+          },
+          "policies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Policies",
+            "type": "array"
+          },
+          "scenarios": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "array"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "provisional = baseline tạm; final = baseline nghiệm thu",
+            "title": "Status"
+          },
+          "time_config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "TimeConfig của trạm khi đo (P1)",
+            "title": "Time Config",
+            "type": "object"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "BenchmarkSource",
+        "type": "object"
+      },
+      "BenchmarkSourceKind": {
+        "enum": [
+          "versioned_baseline",
+          "generated"
+        ],
+        "title": "BenchmarkSourceKind",
+        "type": "string"
       },
       "Booking": {
         "description": "Lịch sạc đã chốt của một cư dân.",
@@ -591,6 +736,18 @@
           "connector_id": {
             "title": "Connector Id",
             "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "DecisionTrace của lần tính lại sinh lệnh này (ADR-019 Phase 4) — None nếu không có",
+            "title": "Correlation Id"
           },
           "created_at": {
             "format": "date-time",
@@ -1060,7 +1217,9 @@
           "connector_fault",
           "connector_restored",
           "power_limit_changed",
-          "replan_requested"
+          "charge_completed",
+          "replan_requested",
+          "hard_limit_violated"
         ],
         "title": "EventType",
         "type": "string"
@@ -1111,6 +1270,12 @@
       "GuardSettings": {
         "description": "Ngưỡng của Safety Guard (FR12) — nạp từ khối `guard:` của station.yaml.",
         "properties": {
+          "after_apply_failsafe": {
+            "default": false,
+            "description": "Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Thiếu khoá = tắt (chỉ đếm + log như trước); config/station.yaml bật (Final Acceptance §1)",
+            "title": "After Apply Failsafe",
+            "type": "boolean"
+          },
           "approval_ttl_minutes": {
             "default": 15,
             "description": "Hạn trả lời yêu cầu phê duyệt (AC4: hết hạn = không làm)",
@@ -1226,6 +1391,50 @@
         "title": "Incident",
         "type": "object"
       },
+      "IncidentCounts": {
+        "description": "Số sự cố của một lần chạy (Final Review 4.7): dự kiến = trong kịch bản, đã thực thi, bị bỏ qua.",
+        "properties": {
+          "applied": {
+            "description": "Số sự cố đã bơm vào trạm",
+            "minimum": 0.0,
+            "title": "Applied",
+            "type": "integer"
+          },
+          "planned": {
+            "description": "Số sự cố khai trong kịch bản",
+            "minimum": 0.0,
+            "title": "Planned",
+            "type": "integer"
+          },
+          "skipped": {
+            "description": "Số sự cố bị bỏ qua (không khớp topology) — strict thì phải 0",
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "skipped_details": {
+            "description": "`loại@phút' (đầu nối)` của sự cố bị bỏ qua",
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped Details",
+            "type": "array"
+          },
+          "strict": {
+            "default": false,
+            "description": "True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi",
+            "title": "Strict",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "planned",
+          "applied",
+          "skipped"
+        ],
+        "title": "IncidentCounts",
+        "type": "object"
+      },
       "IncidentType": {
         "enum": [
           "connector_fault",
@@ -1269,7 +1478,7 @@
             "type": "number"
           },
           "power_limit_violations": {
-            "description": "MT4 — mục tiêu 0",
+            "description": "MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count",
             "minimum": 0.0,
             "title": "Power Limit Violations",
             "type": "integer"
@@ -1495,6 +1704,118 @@
         "title": "OptimizerSettings",
         "type": "object"
       },
+      "PlanningPolicyConfig": {
+        "description": "Khối `planning:` TUỲ CHỌN của station.yaml (Final Review 4.1 / 4.2). Thiếu khối / khoá = hành vi cũ.\n\n- `policy_id`: policy của runtime live (id registry `src/optimizer/registry.py`); None ⇒ env `LIVE_STRATEGY`.\n- `version`: phải khớp version đã đăng ký (None ⇒ không kiểm).\n- `dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒\n  `synthetic_taper_v1` như cũ. Áp cho mọi trạm dựng từ config (live, benchmark, fork admission).\n- `parameters`: tham số theo thành phần (`dispatch_dc` / `optimizer_ac` / `optimizer_dc` / `coordinator`), cùng\n  khoá `parameters` của registry. Chỉ áp cho policy live.",
+        "properties": {
+          "dc_charging_model": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dc Charging Model"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "PlanningPolicyConfig",
+        "type": "object"
+      },
+      "PolicyInfo": {
+        "description": "Một policy hợp lệ của Planning Core — đọc từ registry (`src/optimizer/registry.py`), không chép tay.",
+        "properties": {
+          "coordinator": {
+            "title": "Coordinator",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "dispatch_dc": {
+            "title": "Dispatch Dc",
+            "type": "string"
+          },
+          "frozen": {
+            "description": "B0 / M2b / M3a / M3b đóng băng để tái lập số MVP-2/3",
+            "title": "Frozen",
+            "type": "boolean"
+          },
+          "legacy_strategy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Giá trị enum StrategyName tương ứng (nếu có) — client cũ gửi giá trị này"
+          },
+          "optimizer_ac": {
+            "title": "Optimizer Ac",
+            "type": "string"
+          },
+          "optimizer_dc": {
+            "title": "Optimizer Dc",
+            "type": "string"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy_id",
+          "version",
+          "dispatch_dc",
+          "optimizer_ac",
+          "optimizer_dc",
+          "coordinator",
+          "frozen"
+        ],
+        "title": "PolicyInfo",
+        "type": "object"
+      },
       "PowerSlot": {
         "description": "Công suất cấp cho một booking trong một bước MPC.",
         "properties": {
@@ -1570,6 +1891,15 @@
         },
         "title": "ProfileUpdateRequest",
         "type": "object"
+      },
+      "ProposalCertainty": {
+        "description": "Mức chắc chắn của phương án (Phase 4 quyết định 5) — không phương án nào là SLA bảo đảm vô điều kiện.",
+        "enum": [
+          "estimate",
+          "conditional"
+        ],
+        "title": "ProposalCertainty",
+        "type": "string"
       },
       "QueueStatus": {
         "description": "US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.",
@@ -1759,6 +2089,127 @@
         "title": "ResidentSessionView",
         "type": "object"
       },
+      "ResolvedComponent": {
+        "description": "Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.",
+        "properties": {
+          "implementation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Implementation"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "ResolvedComponent",
+        "type": "object"
+      },
+      "ResolvedExperiment": {
+        "description": "Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.\n\n`fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng\nthành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code\n(`src/services/experiment.py`), không chép tay.",
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedComponent"
+            },
+            "description": "dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard",
+            "title": "Components",
+            "type": "object"
+          },
+          "dc_charging_model": {
+            "$ref": "#/components/schemas/ResolvedComponent"
+          },
+          "fingerprint": {
+            "description": "sha256 ổn định của toàn bộ cấu hình đã resolve ở trên",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định",
+            "title": "Parameters",
+            "type": "object"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": "1",
+            "description": "Version của chính định dạng này (đổi cách băm ⇒ tăng)",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "station_config_sha256": {
+            "description": "sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)",
+            "title": "Station Config Sha256",
+            "type": "string"
+          },
+          "tariff_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "sha256 của biểu giá đã nạp",
+            "title": "Tariff Sha256"
+          },
+          "time_config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "TimeConfig của trạm (P1)",
+            "title": "Time Config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "policy_id",
+          "policy_version",
+          "components",
+          "dc_charging_model",
+          "station_config_sha256",
+          "fingerprint"
+        ],
+        "title": "ResolvedExperiment",
+        "type": "object"
+      },
       "ResumeRequest": {
         "properties": {
           "resume": {
@@ -1865,6 +2316,30 @@
             "title": "Horizon Start",
             "type": "string"
           },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id policy trong registry (src/optimizer/registry.py); luôn có sau khi validate",
+            "title": "Policy Id"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version policy trong registry",
+            "title": "Policy Version"
+          },
           "queue": {
             "description": "booking_id chờ đầu nối, đầu hàng trước",
             "items": {
@@ -1899,7 +2374,15 @@
             "type": "integer"
           },
           "strategy": {
-            "$ref": "#/components/schemas/StrategyName"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Policy B0 / M2b / M3a / M3b (enum cũ). None khi policy đăng ký mới không có trong enum — xem policy_id"
           },
           "version": {
             "minimum": 0.0,
@@ -1909,7 +2392,6 @@
         },
         "required": [
           "version",
-          "strategy",
           "created_at",
           "horizon_start",
           "step_minutes"
@@ -1918,7 +2400,7 @@
         "type": "object"
       },
       "ScheduleProposal": {
-        "description": "Phương án what-if cho màn S3 — CHƯA giữ chỗ.\n\n`reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa.",
+        "description": "Phương án what-if cho màn S3 — CHƯA giữ chỗ, là ƯỚC TÍNH chứ không phải cam kết SLA.\n\n`reasons` do CODE sinh từ kết quả tối ưu; Agent chỉ diễn đạt lại (US3), không bịa. `certainty` /\n`assumptions` / `approvals_pending_*` cho biết kết quả phụ thuộc điều gì (services/admission.py).",
         "properties": {
           "alternatives": {
             "items": {
@@ -1926,6 +2408,33 @@
             },
             "title": "Alternatives",
             "type": "array"
+          },
+          "approvals_pending_for_booking": {
+            "default": 0,
+            "description": "Số phê duyệt chờ cho lệnh của chính xe này trong lúc mô phỏng",
+            "minimum": 0.0,
+            "title": "Approvals Pending For Booking",
+            "type": "integer"
+          },
+          "approvals_pending_for_others": {
+            "default": 0,
+            "description": "Số phê duyệt chờ cho lệnh của xe khác (không lộ xe nào)",
+            "minimum": 0.0,
+            "title": "Approvals Pending For Others",
+            "type": "integer"
+          },
+          "assumptions": {
+            "description": "Giả định của kết quả (code sinh)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "certainty": {
+            "$ref": "#/components/schemas/ProposalCertainty",
+            "default": "estimate",
+            "description": "estimate = ước tính theo giả định; conditional = còn chờ phê duyệt (HITL). Không bao giờ là SLA"
           },
           "connector_id": {
             "anyOf": [
@@ -2171,6 +2680,20 @@
             ],
             "title": "N Vehicles"
           },
+          "policy_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id policy trong registry (GET /simulation/policies) — chọn được policy mới không có trong enum",
+            "title": "Policy Id"
+          },
           "power_limit_kw": {
             "anyOf": [
               {
@@ -2200,22 +2723,63 @@
             "title": "Seed"
           },
           "strategy": {
-            "$ref": "#/components/schemas/StrategyName"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Policy enum cũ (B0 / M2b / M3a / M3b). Client cũ chỉ gửi trường này"
+          },
+          "strict_incidents": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chế độ nghiên cứu: sự cố trỏ đầu nối không tồn tại ⇒ lỗi thay vì bỏ qua. None / false = như cũ",
+            "title": "Strict Incidents"
           }
         },
         "required": [
-          "scenario_id",
-          "strategy"
+          "scenario_id"
         ],
         "title": "SimulationRunRequest",
         "type": "object"
       },
       "SimulationRunResult": {
         "properties": {
+          "experiment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedExperiment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2)"
+          },
           "finished_at": {
             "format": "date-time",
             "title": "Finished At",
             "type": "string"
+          },
+          "incidents": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Số sự cố dự kiến / thực thi / bỏ qua"
           },
           "kpis": {
             "$ref": "#/components/schemas/KpiReport"
@@ -2224,6 +2788,30 @@
             "default": "",
             "title": "Notes",
             "type": "string"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id policy trong registry; luôn có sau khi validate",
+            "title": "Policy Id"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version policy trong registry",
+            "title": "Policy Version"
           },
           "run_id": {
             "title": "Run Id",
@@ -2239,13 +2827,31 @@
             "type": "string"
           },
           "strategy": {
-            "$ref": "#/components/schemas/StrategyName"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id"
+          },
+          "violations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ViolationCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5)"
           }
         },
         "required": [
           "run_id",
           "scenario_id",
-          "strategy",
           "kpis",
           "started_at",
           "finished_at"
@@ -2351,6 +2957,17 @@
             ],
             "description": "Trần THIẾT BỊ theo vùng, phía đầu ra tủ — Guard chặn theo số này. None ⇒ ngân sách vùng là trần (như scenario cũ của simulator)",
             "title": "Physical Zone Cap Kw"
+          },
+          "planning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanningPolicyConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chọn policy / DC model / tham số (tuỳ chọn; None = LIVE_STRATEGY + synthetic DC)"
           },
           "power_conversion_efficiency": {
             "default": 1.0,
@@ -2472,6 +3089,20 @@
           },
           "type": {
             "$ref": "#/components/schemas/EventType"
+          },
+          "violation_booking_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Violation Booking Ids",
+            "type": "array"
+          },
+          "violation_kinds": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationKind"
+            },
+            "title": "Violation Kinds",
+            "type": "array"
           }
         },
         "required": [
@@ -2611,13 +3242,8 @@
         "type": "object"
       },
       "StrategyName": {
-        "description": "Các phương án đối chứng — PRD §8 (benchmark A–D, màn S8).",
+        "description": "Policy của Planning Core (registry `src/optimizer/registry.py`, version 1) — chạy thật, benchmark, màn S8.\n\nA_fcfs / A_edf / B / C / D (LP backend cũ) đã bỏ hẳn (Tech Lead, quyết định Phase 4 số 1). Policy mới phải đăng ký\ntrong registry rồi mới thêm giá trị ở đây.",
         "enum": [
-          "A_fcfs",
-          "A_edf",
-          "B",
-          "C",
-          "D",
           "B0",
           "M2b",
           "M3a",
@@ -2919,6 +3545,46 @@
         ],
         "title": "Violation",
         "type": "object"
+      },
+      "ViolationCounts": {
+        "description": "Hai loại \"vượt giới hạn\" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.\n\n- `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn\n  của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;\n- `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng\n  (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế\n  (`StationKernel.applied_constraint_violation_count`);\n- `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).",
+        "properties": {
+          "applied_constraint_violation_count": {
+            "description": "Vi phạm trần cứng sau khi áp (kernel)",
+            "minimum": 0.0,
+            "title": "Applied Constraint Violation Count",
+            "type": "integer"
+          },
+          "rejected_allocation_count": {
+            "default": 0,
+            "description": "Đề xuất bị Physical Guard từ chối trước áp",
+            "minimum": 0.0,
+            "title": "Rejected Allocation Count",
+            "type": "integer"
+          },
+          "sampled_power_over_limit_minutes": {
+            "description": "= kpis.power_limit_violations (MT4)",
+            "minimum": 0.0,
+            "title": "Sampled Power Over Limit Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sampled_power_over_limit_minutes",
+          "applied_constraint_violation_count"
+        ],
+        "title": "ViolationCounts",
+        "type": "object"
+      },
+      "ViolationKind": {
+        "description": "Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — cùng giá trị với `src.models.decisions.HardViolationKind`.\n\naggregate_power: tổng công suất vượt trần tủ / vùng / lưới → giảm tải. charging_model / acceptance: lỗi phản hồi\npin / SOC / acceptance của một xe → giảm tải tổng không sửa được: ngắt công suất cổng đó + báo vận hành.",
+        "enum": [
+          "aggregate_power",
+          "charging_model",
+          "acceptance"
+        ],
+        "title": "ViolationKind",
+        "type": "string"
       }
     },
     "securitySchemes": {
@@ -6419,7 +7085,7 @@
     },
     "/api/v1/simulation/benchmark": {
       "get": {
-        "description": "US8 — bảng A–D gần nhất (eval/run_benchmark.py sinh ra).",
+        "description": "US8 — bảng B0 / M2b / M3a / M3b của baseline có version hiện hành; `source` ghi nguồn + version + điều kiện đo.",
         "operationId": "benchmark_api_v1_simulation_benchmark_get",
         "responses": {
           "200": {
@@ -6610,6 +7276,97 @@
           }
         ],
         "summary": "Inject Incident",
+        "tags": [
+          "simulation"
+        ]
+      }
+    },
+    "/api/v1/simulation/policies": {
+      "get": {
+        "description": "Policy hợp lệ của Planning Core — đọc từ registry (cùng nguồn với runtime / benchmark), không chép tay.",
+        "operationId": "policies_api_v1_simulation_policies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyInfo"
+                  },
+                  "title": "Response Policies Api V1 Simulation Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Policies",
         "tags": [
           "simulation"
         ]

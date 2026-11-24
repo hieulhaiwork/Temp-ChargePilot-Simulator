@@ -41,7 +41,7 @@ bộ kiểm tra an toàn kiểm soát thực thi. AI không tính công suất v
 - **Trạm tự vận hành** — vòng điều khiển theo sự kiện (đặt / huỷ lịch, sự cố, mỗi 15 phút) tính lại lịch và áp lệnh
   qua Guard; con người chỉ tham gia khi quyết định vượt quyền đã cho phép.
 - **Màn vận hành realtime** — tải tổng, trạng thái từng đầu nối, lịch, nhật ký quyết định, hàng chờ phê duyệt qua
-  WebSocket; bơm sự cố (nguồn giảm, đầu nối lỗi); chạy kịch bản mô phỏng và xem bảng so sánh chiến lược A–D.
+  WebSocket; bơm sự cố (nguồn giảm, đầu nối lỗi); chạy kịch bản mô phỏng và xem bảng so sánh policy B0 / M2b / M3a / M3b.
 - **Giải thích** — cư dân xem vì sao lịch như vậy (kWh cần nạp, khung giờ, chi phí, lý do điều chỉnh).
 
 ## Target User
@@ -51,34 +51,39 @@ bộ kiểm tra an toàn kiểm soát thực thi. AI không tính công suất v
 
 ## Kết quả đo được
 
-Benchmark trên simulator backend (`LiveStation`), 2 kịch bản tổng hợp × 5 seed, trung bình — bằng chứng và cách chạy
-lại: [`eval/evidence/2026-11-22/`](eval/evidence/2026-11-22/README.md).
+Baseline backend **đóng băng** `backend-unified-core-frozen` / `2026-11-24-frozen` (kết thúc refactor Unified Core):
+`HybridStation` trên kernel dùng chung với simulator, vật lý 1', trần quyết định 15', 5 kịch bản × 4 policy × seed 1–5,
+mỗi run ghi cấu hình thí nghiệm đã resolve + fingerprint. Dữ liệu + điều kiện đo:
+[`eval/evidence/2026-11-24-unified-core-frozen-baseline/`](eval/evidence/2026-11-24-unified-core-frozen-baseline/README.md)
+(màn S8 đọc đúng thư mục này qua `GET /simulation/benchmark`). Trung bình 5 seed, trích hai kịch bản:
 
-| Kịch bản | Chiến lược | Đúng hạn | Chi phí điện (VND) | Vượt giới hạn nguồn | Tính lại p95 |
+| Kịch bản | Policy | Đúng hạn | Chi phí điện (VND) | Vượt giới hạn nguồn | Tính lại p95 (max 5 seed) |
 |---|---|---|---|---|---|
-| `hybrid_evening` | A — EDF | 52,4% | 878.838 | 0 | 0,003 s |
-| `hybrid_evening` | B — LP + MPC | 52,4% | 753.849 | 0 | 0,019 s |
-| `hybrid_power_drop` (nguồn 106 → 40 kW) | A — EDF | 46,1% | 799.300 | 0 | 0,003 s |
-| `hybrid_power_drop` | B — LP + MPC | 42,2% | 701.336 | 0 | 0,018 s |
+| `hybrid_evening` | B0 — FCFS + chia đều | 47,5% | 866.529 | 0 | ≤ 0,01 s |
+| `hybrid_evening` | M3a — LLF + LP AC/DC | 46,3% | 795.965 | 0 | 0,01 s |
+| `hybrid_power_drop` (nguồn 106 → 40 kW) | B0 | 45,0% | 770.856 | 0 | ≤ 0,01 s |
+| `hybrid_power_drop` | M3a | 41,2% | 710.446 | 0 | 0,01 s |
 
 Đọc đúng các số này:
 
-- **0 lần vượt giới hạn nguồn** ở mọi chiến lược, kể cả khi nguồn rớt và đầu nối lỗi; tính lại lịch p95 ≤ 0,021 s
-  (mục tiêu ≤ 2 s).
-- B **rẻ hơn EDF khoảng 12–14% tiền điện**, nhưng tỉ lệ đúng hạn **không tốt hơn** (bằng ở `hybrid_evening`, kém
-  khoảng 4 điểm ở `hybrid_power_drop`) — không tuyên bố "tối ưu đúng hạn tốt hơn baseline".
-- Tỉ lệ đúng hạn thấp vì kịch bản **cố ý quá tải** (16 xe, 4 cổng); đây không phải số đo trạm thật.
-- Chiến lược C = B vì mô hình dự báo giờ rút cổng (F6) đang hoãn.
+- **0 phút vượt giới hạn nguồn (lấy mẫu) và 0 vi phạm cứng của kernel** ở cả 100 run, kể cả khi nguồn rớt và đầu nối
+  lỗi; tính lại lịch p95 ≤ 0,02 s (mục tiêu ≤ 2 s; đo trên một máy Windows, không phải trạm thật).
+- M3a **rẻ hơn B0 khoảng 8 %** tiền điện nhưng tỉ lệ đúng hạn **không tốt hơn** — không tuyên bố "tối ưu đúng hạn
+  tốt hơn baseline".
+- Tỉ lệ đúng hạn thấp vì kịch bản **cố ý quá tải**; đây không phải số đo trạm thật.
+- Không so với bảng A–D cũ (LP backend + `LiveStation`, đã xoá): bảng đó là archive deprecated ở
+  [`eval/results/archive/2026-11-22-pre-refactor/`](eval/results/archive/2026-11-22-pre-refactor/README.md), và
+  bằng chứng lịch sử [`eval/evidence/2026-11-22/`](eval/evidence/2026-11-22/README.md) đo trên kiến trúc cũ.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | AI Agent | LangGraph 1.x + LangChain 1.x; LLM qua API tương thích OpenAI (OpenAI hoặc Gemini); prompt ở `prompts/*.md` |
-| Optimizer | SciPy `linprog` (HiGHS) — LP + MPC horizon trượt; baseline FCFS / EDF |
+| Optimizer | Planning Core: dispatch (FCFS / EDF / LLF) → LP vùng AC / DC (SciPy `linprog`, HiGHS) → Global Coordinator; registry policy B0 / M2b / M3a / M3b |
 | Backend | FastAPI + Python 3.12, Pydantic v2, WebSocket, SSE cho chat |
 | Database | PostgreSQL (Neon) khi deploy, SQLite khi chạy local; SQLAlchemy 2 + Alembic |
-| Simulator | `LiveStation` (thuần Python, cho backend); `HybridSimulator` EV2Gym cho R&D offline |
+| Simulator | Một kernel `StationKernel` (EV2Gym AC, đường sạc DC): `HybridStation` cho backend, `HybridSimulator` cho CLI / golden (ADR-019) |
 | Frontend | Next.js 16 + TypeScript, type sinh từ `openapi.json` |
 | DevOps | Docker, GitHub Actions trên self-hosted runner, Docker Hub, Render (backend), Vercel (web) |
 
@@ -94,7 +99,7 @@ flowchart LR
     API --> SV
     SV --> OPT["Optimizer"] --> SV
     SV --> GD["Guard<br/>7 luật · duyệt · khẩn cấp"]
-    GD -- "lệnh duy nhất" --> ST["LiveStation<br/>trạm mô phỏng"]
+    GD -- "lệnh duy nhất" --> ST["HybridStation<br/>trạm mô phỏng (StationKernel)"]
     SV --> DB[("Neon Postgres")]
 ```
 
@@ -139,11 +144,12 @@ Kiểm tra: `make check` (ruff + format + pytest + docs) · `make check-all` (+ 
 
 ```
 ├── src/
-│   ├── agents/          # Trụ 1 — LangGraph: graph.py, state.py, nodes/, tools/charging.py, guardrails.py
-│   ├── optimizer/       # Trụ 2 — baselines (FCFS/EDF), lp_model + mpc (HiGHS), assignment (gán cổng AC/DC)
+│   ├── llm_chat/        # Trụ 1 — chat cư dân LangGraph: graph.py, state.py, nodes/, tools/charging.py, guardrails.py
+│   ├── agents/          # dành cho AI-1 / AI-4 (chưa có code)
+│   ├── optimizer/       # Trụ 2 — dispatch/, zones/ (LP AC/DC, HiGHS), coordination/, registry.py (B0/M2b/M3a/M3b)
 │   ├── guard/           # Trụ 3 — rules (7 luật), approval, emergency, dispatcher (cửa duy nhất tới trạm)
-│   ├── simulator/       # base.py (interface), live.py (LiveStation), src/ (HybridSimulator R&D)
-│   ├── services/        # charging, station, control_loop, runtime, event_bus, realtime, auth, repository…
+│   ├── simulator/       # StationKernel + HybridSimulator (src/engine/hybrid.py), hybrid_station.py (backend)
+│   ├── services/        # charging, admission, hybrid_planner, station, control_loop, runtime, event_bus, realtime…
 │   ├── db/              # SQLAlchemy: 9 bảng, session, mappers
 │   ├── api/             # REST /api/v1 + WebSocket: auth, resident, operations, simulation, catalog, chat
 │   ├── models/          # Pydantic — hợp đồng dữ liệu
@@ -155,7 +161,7 @@ Kiểm tra: `make check` (ruff + format + pytest + docs) · `make check-all` (+ 
 ├── migrations/          # Alembic
 ├── frontend/            # Next.js
 ├── tests/               # pytest (405 test)
-├── eval/                # eval Agent, benchmark A–D, bằng chứng theo ngày
+├── eval/                # eval Agent, benchmark B0–M3b, baseline có version, bằng chứng theo ngày (A–D: archive)
 ├── docs/                # PRD, ADR, plan, sơ đồ kiến trúc, mockups, guidebook
 ├── Dockerfile, docker-compose.yml, render*.yaml
 └── .github/workflows/   # CI (6 job) + deploy
@@ -188,8 +194,11 @@ Kiểm tra: `make check` (ruff + format + pytest + docs) · `make check-all` (+ 
 - [ ] Pitch Deck (`presentation/`)
 - [x] Weekly Journal ([`JOURNAL.md`](JOURNAL.md))
 - [x] Worklog ([`WORKLOG.md`](WORKLOG.md))
-- [ ] Evaluation Evidence — benchmark A–D đã có ([`eval/evidence/`](eval/evidence/2026-11-22/README.md),
-  [`eval/results/benchmark.md`](eval/results/benchmark.md)); `eval/results/report.md` (eval Agent với LLM thật) chưa chạy
+- [ ] Evaluation Evidence — baseline backend B0–M3b đóng băng
+  ([`eval/evidence/2026-11-24-unified-core-frozen-baseline/`](eval/evidence/2026-11-24-unified-core-frozen-baseline/README.md));
+  baseline trước giữ làm lịch sử (Phase 3, final 2026-11-24); bằng chứng lịch sử A–D
+  ([`eval/evidence/2026-11-22/`](eval/evidence/2026-11-22/README.md), archive); `eval/results/report.md` (eval Agent với
+  LLM thật) chưa chạy
 
 ## Team
 

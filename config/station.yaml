@@ -60,6 +60,10 @@ guard:
   flap_max_toggles: 3
   # AC4: yêu cầu phê duyệt quá hạn = KHÔNG thực thi.
   approval_ttl_minutes: 15
+  # Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp (Physical Guard sau thực thi) → sự kiện
+  # hard_limit_violated → lệnh giảm tải khẩn cấp qua guard/dispatcher.py. false = như trước (chỉ đếm + log).
+  # Final Acceptance §1 (ngoại lệ được duyệt): bật mặc định cho vận hành. Thiếu khoá = false (GuardSettings).
+  after_apply_failsafe: true
 
 # Hệ số hàm mục tiêu của bài LP (FR6) — công thức ở docs/plan/30-ai.md §5.2.
 # Giá trị khởi điểm, TV1 hiệu chỉnh ở T2.1 và báo cáo trong phân tích độ nhạy.
@@ -90,3 +94,13 @@ connectors:
   - { connector_id: AC-02-1, cabinet_id: AC-02, zone: AC, max_power_kw: 11.0 }
   - { connector_id: DC-01-1, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
   - { connector_id: DC-01-2, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
+
+# Chọn policy / DC model / tham số (TUỲ CHỌN, Final Review 4.1 / 4.2). VẮNG khối này = hành vi cũ:
+# policy live theo env LIVE_STRATEGY (mặc định M3a), DC model synthetic_taper_v1. Id policy hợp lệ:
+# GET /api/v1/simulation/policies (đọc từ src/optimizer/registry.py). Ví dụ:
+# planning:
+#   policy_id: M3a                          # id trong registry (B0 / M2b / M3a / M3b hoặc policy đăng ký mới)
+#   version: "1"                            # phải khớp version đã đăng ký
+#   dc_charging_model: vinfast_profiles_v0_1  # tên trong DC_MODELS; áp cho mọi trạm dựng từ config này
+#   parameters:                             # dispatch_dc / optimizer_ac / optimizer_dc / coordinator
+#     optimizer_dc: { horizon_minutes: 60 }

@@ -36,7 +36,7 @@ services:
       # Vòng nền bật; gói Free ngủ sau 15 phút không request thì vòng nền cũng dừng theo.
       - key: CONTROL_LOOP_ENABLED
         value: "true"
-      # ADR-018 — trạm và thuật toán của simulator R&D
+      # ADR-018 / ADR-019 — trạm = HybridStation trên kernel dùng chung với simulator (chỉ "hybrid"); policy B0/M2b/M3a/M3b
       - key: STATION_ENGINE
         value: hybrid
       - key: LIVE_STRATEGY

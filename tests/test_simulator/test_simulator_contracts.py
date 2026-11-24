@@ -1,7 +1,7 @@
 """Hợp đồng của trạm giả lập (FR10, FR11), KPI (AC7) và bộ sinh phiên (FR18) — docs/plan/30-ai.md §4, §7.
 
-Backend chạy trên `LiveStation` (src/simulator/live.py) sau bề mặt công khai `src/simulator/base.py`.
-HybridSimulator (src/simulator/src/) là công cụ R&D offline, có bộ test riêng ở src/simulator/tests/.
+Backend chạy trên `HybridStation` (kernel dùng chung với HybridSimulator, ADR-019 Phase 3) sau bề mặt công khai
+`src/models/station_protocols.py`. LiveStation đã xoá; các test hợp đồng T1.4 chạy lại trên HybridStation.
 """
 
 import inspect
@@ -13,9 +13,9 @@ import pytest
 from src.models.control import Command, CommandSource, CommandType
 from src.models.events import EventType, StationEvent
 from src.models.simulation import Incident, IncidentType, KpiReport, SessionOutcome
+from src.models.station_protocols import StationActuator, StationReader, VehicleVisit
 from src.services import catalog, simulation_service
-from src.simulator.base import StationActuator, StationReader, VehicleVisit
-from src.simulator.live import LiveStation
+from src.simulator.hybrid_station import HybridStation
 from tests.factories import NOW
 
 READER_METHODS = [name for name, _ in inspect.getmembers(StationReader, inspect.isfunction) if not name.startswith("_")]
@@ -51,11 +51,11 @@ def test_kpi_report_covers_every_prd_metric():
     assert required <= set(KpiReport.model_fields)
 
 
-# ---- T1.4: LiveStation -------------------------------------------------------------------
+# ---- T1.4: hợp đồng trạm — chạy trên HybridStation (LiveStation đã xoá, ADR-019 Phase 3) -------------------
 
 
-def _station() -> LiveStation:
-    return LiveStation(catalog.load_station_config(), start=NOW)
+def _station() -> HybridStation:
+    return HybridStation(catalog.load_station_config(), start=NOW)
 
 
 def _cmd(ctype, connector_id, booking_id=None, power=None, version=0) -> Command:
@@ -112,7 +112,11 @@ def test_vehicle_power_is_capped_and_finishes():
         [_cmd(CommandType.ASSIGN_CONNECTOR, "AC-01-1", "b1"), _cmd(CommandType.SET_POWER, "AC-01-1", "b1", 11)]
     )
     assert sim.state().connectors[0].power_kw == 3.7
-    sim.step(30)
+    # HybridStation có mô hình pin EV2Gym (LiveStation cũ: hằng số kW) — chờ tới khi đầy thay vì đúng 1 kWh / 3,7 kW.
+    for _ in range(120):
+        sim.step(1)
+        if sim.queue.sessions["b1"].completed_at is not None:
+            break
     conn = sim.state().connectors[0]
     assert conn.status == "finished" and conn.power_kw == 0  # đầy rồi vẫn chiếm cổng (F14)
 
@@ -133,8 +137,15 @@ def test_dc_vehicle_unplugs_after_delay_when_full():
     sim.apply_commands(
         [_cmd(CommandType.ASSIGN_CONNECTOR, "DC-01-1", "b1"), _cmd(CommandType.SET_POWER, "DC-01-1", "b1", 60)]
     )
-    events = sim.step(5 + sim.config.dc_unplug_delay_minutes + 1)
-    assert EventType.VEHICLE_DEPARTED in [e.type for e in events]
+    events = []
+    for _ in range(120):  # đường sạc DC (taper) làm thời gian tới đầy dài hơn 5 kWh / 60 kW
+        events += sim.step(1)
+        if sim.queue.sessions["b1"].completed_at is not None:
+            break
+    done = sim.queue.sessions["b1"].completed_at
+    assert done is not None and EventType.VEHICLE_DEPARTED not in [e.type for e in events]
+    events = sim.step(sim.config.dc_unplug_delay_minutes)
+    assert [e.type for e in events] == [EventType.VEHICLE_DEPARTED]
 
 
 def test_wrong_zone_and_unknown_assignments_are_ignored():

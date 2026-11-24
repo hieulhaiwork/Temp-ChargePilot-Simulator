@@ -1,0 +1,6 @@
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 51.11 min | peak grid: 105.263 kW
+Report: <LOCAL_TMP>\p4api_kpi_bw455gaq\mvp1\20261123T165235744546Z-c5ad0f748d-d35100a1\report.json
+2D replay: <LOCAL_TMP>\p4api_kpi_bw455gaq\mvp1\20261123T165235744546Z-c5ad0f748d-d35100a1\viewer.html
+exit=0

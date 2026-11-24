@@ -1,0 +1,338 @@
+unformatted: File would be reformatted
+  --> scripts\check_docs.py:14:1
+   |
+13 | """
+14 +
+15 | import re
+--------------------------------------------------------------------------------
+24 | DEPRECATED_MODELS = [
+   -     "gpt-3.5-turbo",       # retired — thay bằng gpt-4o-mini/gpt-4.1
+25 +     "gpt-3.5-turbo",  # retired — thay bằng gpt-4o-mini/gpt-4.1
+26 |     "text-davinci-003",
+27 | ]
+28 | # Path trong template mà guidebook được phép nhắc (file thật phải tồn tại)
+29 | TEMPLATE_PATHS = [
+   -     "src/llm_chat/guardrails.py", "src/llm_chat/nodes/human_review_node.py",
+   -     "eval/run_eval.py", "pytest.ini",
+   -     "Makefile", "requirements.txt", "Dockerfile", "docker-compose.yml",
+   -     ".env.example", "ruff.toml", "src/main.py", "src/config.py",
+   -     "src/llm_chat/graph.py", "src/llm_chat/state.py",
+30 +     "src/llm_chat/guardrails.py",
+31 +     "src/llm_chat/nodes/human_review_node.py",
+32 +     "eval/run_eval.py",
+33 +     "pytest.ini",
+34 +     "Makefile",
+35 +     "requirements.txt",
+36 +     "Dockerfile",
+37 +     "docker-compose.yml",
+38 +     ".env.example",
+39 +     "ruff.toml",
+40 +     "src/main.py",
+41 +     "src/config.py",
+42 +     "src/llm_chat/graph.py",
+43 +     "src/llm_chat/state.py",
+44 | ]
+--------------------------------------------------------------------------------
+76 |             start = max(0, m.start() - 80)
+   -             ctx = text[start:m.end() + 80]
+77 +             ctx = text[start : m.end() + 80]
+78 |             ctx_l = ctx.lower()
+   |
+
+unformatted: File would be reformatted
+   --> scripts\log_antigravity.py:51:1
+    |
+50  | """
+51  +
+52  | import argparse
+--------------------------------------------------------------------------------
+89  |         return subprocess.check_output(
+    -             cmd.split(), shell=False, text=True, stderr=subprocess.DEVNULL,
+90  +             cmd.split(),
+91  +             shell=False,
+92  +             text=True,
+93  +             stderr=subprocess.DEVNULL,
+94  |             cwd=cwd,
+--------------------------------------------------------------------------------
+113 |         git("git rev-parse --short HEAD", cwd),
+    -         git("git config user.email", cwd)
+    -         or os.environ.get("USERNAME", os.environ.get("USER", "unknown")),
+114 +         git("git config user.email", cwd) or os.environ.get("USERNAME", os.environ.get("USER", "unknown")),
+115 |     )
+--------------------------------------------------------------------------------
+121 |
+122 +
+123 | def get_brain_dirs() -> list[Path]:
+--------------------------------------------------------------------------------
+135 |
+136 +
+137 | def _normalize(p: str) -> str:
+--------------------------------------------------------------------------------
+241 |                     continue
+    -                 for tc in (entry.get("tool_calls") or []):
+242 +                 for tc in entry.get("tool_calls") or []:
+243 |                     args = tc.get("args") or {}
+--------------------------------------------------------------------------------
+263 |
+264 +
+265 | def extract_user_prompt(content: str) -> str:
+--------------------------------------------------------------------------------
+280 |
+281 +
+282 | def get_logged_entry_ids(log_file: Path) -> set[str]:
+--------------------------------------------------------------------------------
+304 |
+    - def iter_transcript_inputs(transcript: Path, conv_id: str,
+    -                            cutoff: datetime | None):
+305 +
+306 + def iter_transcript_inputs(transcript: Path, conv_id: str, cutoff: datetime | None):
+307 |     """Yield the user-typed prompts recorded in one transcript.jsonl."""
+--------------------------------------------------------------------------------
+316 |                 continue
+    -             if (entry.get("type") != "USER_INPUT"
+    -                     or entry.get("source") != "USER_EXPLICIT"):
+317 +             if entry.get("type") != "USER_INPUT" or entry.get("source") != "USER_EXPLICIT":
+318 |                 continue
+--------------------------------------------------------------------------------
+340 |
+    - def iter_user_inputs(brain_dirs: list[Path], cutoff: datetime | None,
+    -                      only_conv: str | None, repo_root_n: str):
+341 + def iter_user_inputs(brain_dirs: list[Path], cutoff: datetime | None, only_conv: str | None, repo_root_n: str):
+342 |     """Yield user-input dicts from every matching conversation transcript."""
+--------------------------------------------------------------------------------
+349 |                 continue
+    -             transcript = (
+    -                 conv_dir / ".system_generated" / "logs" / "transcript.jsonl"
+    -             )
+350 +             transcript = conv_dir / ".system_generated" / "logs" / "transcript.jsonl"
+351 |             if not transcript.exists():
+--------------------------------------------------------------------------------
+368 |
+    -             yield from iter_transcript_inputs(transcript, conv_dir.name,
+    -                                               cutoff)
+369 +             yield from iter_transcript_inputs(transcript, conv_dir.name, cutoff)
+370 |
+--------------------------------------------------------------------------------
+375 |
+    - def build_entry(msg: dict, repo: str, branch: str, commit: str,
+    -                 student: str, model: str = "gemini") -> dict:
+376 +
+377 + def build_entry(msg: dict, repo: str, branch: str, commit: str, student: str, model: str = "gemini") -> dict:
+378 |     ts = msg["timestamp"]
+379 |     if ts.endswith("Z"):
+380 |         try:
+    -             ts = (
+    -                 datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    -                 .astimezone(VN_TZ)
+    -                 .isoformat()
+    -             )
+381 +             ts = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(VN_TZ).isoformat()
+382 |         except ValueError:
+--------------------------------------------------------------------------------
+404 |
+405 +
+406 | def transcript_from_payload(data: dict) -> Path | None:
+--------------------------------------------------------------------------------
+417 |         for brain in get_brain_dirs():
+    -             cand = (brain / conv / ".system_generated" / "logs"
+    -                     / "transcript.jsonl")
+418 +             cand = brain / conv / ".system_generated" / "logs" / "transcript.jsonl"
+419 |             if cand.is_file():
+--------------------------------------------------------------------------------
+451 |     new_entries = [
+    -         e for e in (
+452 +         e
+453 +         for e in (
+454 |             build_entry(msg, repo, branch, commit, student, model)
+--------------------------------------------------------------------------------
+484 |             if n:
+    -                 print(f"[antigravity-log] Logged {n} prompt(s).",
+    -                       file=sys.stderr)
+485 +                 print(f"[antigravity-log] Logged {n} prompt(s).", file=sys.stderr)
+486 |     except Exception:
+--------------------------------------------------------------------------------
+492 |     parser = argparse.ArgumentParser(
+    -         description="Extract user prompts from Antigravity IDE transcripts"
+    -                     " into .ai-log/session.jsonl."
+493 +         description="Extract user prompts from Antigravity IDE transcripts into .ai-log/session.jsonl."
+494 |     )
+    -     parser.add_argument("--hook", action="store_true",
+    -                         help="Antigravity 2.0 hook: read the PreInvocation"
+    -                              " payload from stdin.")
+    -     parser.add_argument("--auto", action="store_true",
+    -                         help="Default mode: scan recent conversations.")
+    -     parser.add_argument("--hours", type=int, default=24,
+    -                         help="Window in hours when scanning (default: 24).")
+    -     parser.add_argument("--all", action="store_true",
+    -                         help="Ignore the time window; scan everything.")
+    -     parser.add_argument("--conv-id",
+    -                         help="Limit to a single conversation id.")
+    -     parser.add_argument("--no-repo-filter", action="store_true",
+    -                         help="Don't filter conversations by current repo.")
+    -     parser.add_argument("--dry-run", action="store_true",
+    -                         help="Show what would be logged, don't write.")
+495 +     parser.add_argument(
+496 +         "--hook", action="store_true", help="Antigravity 2.0 hook: read the PreInvocation payload from stdin."
+497 +     )
+498 +     parser.add_argument("--auto", action="store_true", help="Default mode: scan recent conversations.")
+499 +     parser.add_argument("--hours", type=int, default=24, help="Window in hours when scanning (default: 24).")
+500 +     parser.add_argument("--all", action="store_true", help="Ignore the time window; scan everything.")
+501 +     parser.add_argument("--conv-id", help="Limit to a single conversation id.")
+502 +     parser.add_argument("--no-repo-filter", action="store_true", help="Don't filter conversations by current repo.")
+503 +     parser.add_argument("--dry-run", action="store_true", help="Show what would be logged, don't write.")
+504 |     # Legacy positional args from old log_manual.py callers.
+--------------------------------------------------------------------------------
+519 |     if not brain_dirs:
+    -         print("[antigravity-log] No Antigravity brain/ directory found "
+    -               f"(checked {', '.join(str(p) for p in BRAIN_CANDIDATES)}).",
+    -               file=sys.stderr)
+520 +         print(
+521 +             "[antigravity-log] No Antigravity brain/ directory found "
+522 +             f"(checked {', '.join(str(p) for p in BRAIN_CANDIDATES)}).",
+523 +             file=sys.stderr,
+524 +         )
+525 |         sys.exit(0)
+--------------------------------------------------------------------------------
+560 |         repo_note = "any repo" if args.no_repo_filter else f"repo={repo_root_n or '(unknown)'}"
+    -         print(f"[antigravity-log] No new prompts ({repo_note}, window={scope}).",
+    -               file=sys.stderr)
+561 +         print(f"[antigravity-log] No new prompts ({repo_note}, window={scope}).", file=sys.stderr)
+562 |         sys.exit(0)
+563 |
+564 |     if args.dry_run:
+    -         print(f"\n[antigravity-log] DRY RUN — would log "
+    -               f"{len(new_entries)} entries:\n")
+565 +         print(f"\n[antigravity-log] DRY RUN — would log {len(new_entries)} entries:\n")
+566 |         for e in new_entries:
+--------------------------------------------------------------------------------
+574 |
+    -     print(f"[antigravity-log] Logged {len(new_entries)} prompt(s) from "
+    -           f"Antigravity IDE.", file=sys.stderr)
+575 +     print(f"[antigravity-log] Logged {len(new_entries)} prompt(s) from Antigravity IDE.", file=sys.stderr)
+576 |
+--------------------------------------------------------------------------------
+582 |
+583 +
+584 | def _legacy_log(summary: str, model: str) -> None:
+--------------------------------------------------------------------------------
+594 |         "commit": git("git rev-parse --short HEAD"),
+    -         "student": git("git config user.email") or os.environ.get(
+    -             "USERNAME", os.environ.get("USER", "unknown")),
+595 +         "student": git("git config user.email") or os.environ.get("USERNAME", os.environ.get("USER", "unknown")),
+596 |         "prompt": summary[:1000],
+    |
+
+unformatted: File would be reformatted
+   --> scripts\log_hook.py:6:1
+    |
+5   | """
+6   +
+7   | import json
+--------------------------------------------------------------------------------
+73  |         "event": event,
+    -         "session_id": (
+    -             data.get("session_id") or
+    -             data.get("conversation_id") or
+    -             data.get("generation_id") or ""
+    -         ),
+74  +         "session_id": (data.get("session_id") or data.get("conversation_id") or data.get("generation_id") or ""),
+75  |         "model": data.get("model", ""),
+--------------------------------------------------------------------------------
+89  |             prompt = data["tool_input"].get("prompt") or data["tool_input"].get("content") or ""
+    -         base.update({
+    -             "prompt": prompt,
+    -             "tool_name": data.get("tool_name", ""),
+    -             "tool_input": data.get("tool_input") if event != "UserPromptSubmit" else None,
+    -             "tool_response": str(data.get("tool_response", ""))[:500],
+    -         })
+90  +         base.update(
+91  +             {
+92  +                 "prompt": prompt,
+93  +                 "tool_name": data.get("tool_name", ""),
+94  +                 "tool_input": data.get("tool_input") if event != "UserPromptSubmit" else None,
+95  +                 "tool_response": str(data.get("tool_response", ""))[:500],
+96  +             }
+97  +         )
+98  |
+--------------------------------------------------------------------------------
+122 |     elif tool == "codex":
+    -         base.update({
+    -             "prompt": data.get("prompt", "")[:1000],
+    -             "turn_id": data.get("turn_id", ""),
+    -             "transcript_path": data.get("transcript_path", ""),
+    -         })
+123 +         base.update(
+124 +             {
+125 +                 "prompt": data.get("prompt", "")[:1000],
+126 +                 "turn_id": data.get("turn_id", ""),
+127 +                 "transcript_path": data.get("transcript_path", ""),
+128 +             }
+129 +         )
+130 |
+131 |     elif tool == "cursor":
+    -         base.update({
+    -             "prompt": data.get("prompt", "")[:1000],
+    -             "files_context": data.get("attachments", []),
+    -         })
+132 +         base.update(
+133 +             {
+134 +                 "prompt": data.get("prompt", "")[:1000],
+135 +                 "files_context": data.get("attachments", []),
+136 +             }
+137 +         )
+138 |
+139 |     elif tool == "copilot":
+    -         base.update({
+    -             "prompt": data.get("prompt", "")[:1000],
+    -             "tool_name": data.get("toolName", ""),
+    -             "tool_args": data.get("toolArgs"),
+    -         })
+140 +         base.update(
+141 +             {
+142 +                 "prompt": data.get("prompt", "")[:1000],
+143 +                 "tool_name": data.get("toolName", ""),
+144 +                 "tool_args": data.get("toolArgs"),
+145 +             }
+146 +         )
+147 |
+--------------------------------------------------------------------------------
+152 |     # any Gemini/Cursor/Copilot turn that carried context but no plain prompt.
+    -     _PAYLOAD_KEYS = ("prompt", "tool_input", "response_summary",
+    -                      "tool_response", "tool_args", "files_context")
+153 +     _PAYLOAD_KEYS = ("prompt", "tool_input", "response_summary", "tool_response", "tool_args", "files_context")
+154 |     _LIFECYCLE_EVENTS = ("Stop", "stop", "SessionEnd", "sessionEnd", "AfterModel")
+    |
+
+unformatted: File would be reformatted
+  --> scripts\log_manual.py:22:1
+   |
+21 | """
+22 +
+23 | import json
+--------------------------------------------------------------------------------
+85 |         print(f"[log] ⚠️  git email not set! Using fallback: {student}", file=sys.stderr)
+   -         print(f"[log] Run: git config user.email \"your@vinuni.edu.vn\"", file=sys.stderr)
+86 +         print(f'[log] Run: git config user.email "your@vinuni.edu.vn"', file=sys.stderr)
+87 |
+   |
+
+unformatted: File would be reformatted
+  --> scripts\submit_log.py:12:1
+   |
+11 | """
+12 +
+13 | import json
+--------------------------------------------------------------------------------
+22 |
+23 +
+24 | def _load_logging_config() -> dict[str, str]:
+--------------------------------------------------------------------------------
+47 |                             val = v.strip()
+   -                             if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+48 +                             if (val.startswith('"') and val.endswith('"')) or (
+49 +                                 val.startswith("'") and val.endswith("'")
+50 +                             ):
+51 |                                 val = val[1:-1]
+   |
+
+5 files would be reformatted, 217 files already formatted

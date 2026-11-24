@@ -26,11 +26,11 @@ DEPRECATED_MODELS = [
 ]
 # Path trong template mà guidebook được phép nhắc (file thật phải tồn tại)
 TEMPLATE_PATHS = [
-    "src/agents/guardrails.py", "src/agents/nodes/human_review_node.py",
+    "src/llm_chat/guardrails.py", "src/llm_chat/nodes/human_review_node.py",
     "eval/run_eval.py", "pytest.ini",
     "Makefile", "requirements.txt", "Dockerfile", "docker-compose.yml",
     ".env.example", "ruff.toml", "src/main.py", "src/config.py",
-    "src/agents/graph.py", "src/agents/state.py",
+    "src/llm_chat/graph.py", "src/llm_chat/state.py",
 ]
 
 errors: list[str] = []

@@ -1,0 +1,61 @@
+mvp1/decision_trace.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp1/events.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp1/power_trace.csv vs HEAD: OK (byte-identical)
+mvp1/replay.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1/report.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1/vehicles.csv vs HEAD: OK (byte-identical)
+mvp1_m3/decision_trace.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp1_m3/events.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp1_m3/power_trace.csv vs HEAD: OK (byte-identical)
+mvp1_m3/replay.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1_m3/report.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1_m3/vehicles.csv vs HEAD: OK (byte-identical)
+vf/events.json vs HEAD: OK - 0 unexpected, 0 allowed
+vf/power_trace.csv vs HEAD: OK (byte-identical)
+vf/replay.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+vf/report.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+vf/vehicles.csv vs HEAD: OK (byte-identical)
+mvp1_script/events.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp1_script/power_trace.csv vs HEAD: OK (byte-identical)
+mvp1_script/replay.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1_script/report.json vs HEAD: OK - 0 unexpected, 2 allowed
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1_script/vehicles.csv vs HEAD: OK (byte-identical)
+mvp2/benchmark.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/benchmark.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_B0.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_M2b.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_M3a.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_M3b.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_B0.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_M2b.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_M3a.json vs HEAD: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_M3b.json vs HEAD: OK - 0 unexpected, 0 allowed
+MVP3 vs evidence-2026-11-22: OK - 0 unexpected, 16 allowed
+   allowed    /algorithm_metadata/B0/dispatch/AC/implementation
+MVP2 vs evidence-2026-11-22: OK - 0 unexpected, 0 allowed
+MVP1 report vs evidence: OK - 0 unexpected, 8 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+MVP1+mvp3cfg report vs evidence: OK - 0 unexpected, 12 allowed
+   allowed    /metadata/algorithms/coordinator/config_source
+VINFAST report vs evidence: OK - 0 unexpected, 9 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+MVP1 script-mode vs evidence: OK - 0 unexpected, 8 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+MVP1+mvp3cfg DecisionTrace vs evidence: OK - 0 unexpected, 0 allowed
+OVERALL rc=0

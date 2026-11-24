@@ -1,5 +1,13 @@
 # Plan 21 — Đặc tả UI chi tiết: S1–S8, đặt lịch bằng form, thông báo, hồ sơ
 
+> **Hiện trạng 23/11/2026 (ADR-019, refactor Unified Core Phase 4) — đọc trước, ưu tiên hơn nội dung bên dưới:**
+> backend chạy `HybridStation` trên một kernel `StationKernel` dùng chung với `HybridSimulator`; `LiveStation` và LP
+> backend A–D (`mpc`, `lp_model`, `assignment`, `baselines`, `strategies`) **đã xoá**, A–D bỏ khỏi `StrategyName` /
+> OpenAPI / S8. Policy hiện hành: B0 / M2b / M3a / M3b (`src/optimizer/registry.py`). Benchmark S8 = baseline có version
+> (`eval/evidence/2026-11-23-refactor-phase3-baseline/`); bảng A–D cũ là archive deprecated. Quote / booking = admission
+> trên bản fork, kết quả là ước tính có điều kiện, không phải SLA. Chỗ nào bên dưới còn nhắc `LiveStation` / A–D /
+> `lp_model` là plan lịch sử.
+>
 > **Cập nhật 21/11/2026 theo [ADR-010](../adr/ADR-010-bai-hybrid-ac-dc.md)…[ADR-015](../adr/ADR-015-pham-vi-mvp4-va-quy-tac-bang-chung.md).**
 > Bãi không còn là 8 đầu nối × 7 kW / giới hạn 35 kW: số cổng, ID đầu nối, công suất từng cổng và giới hạn **lấy từ
 > API** (fixture nền 4 cổng: 2 AC 11 kW + 1 tủ DC 2 cổng 60 kW, ADR-010). ID kiểu A01–A08, A07 và số 35 kW / 7 kW còn
@@ -237,7 +245,7 @@ Bảng `ConnectorStatus` ở mục 1.1.
 | `NotificationKind` | `approval_request` → "Cần bạn trả lời" (⚠ · warning) · `schedule_changed` → "Lịch thay đổi" (mũi tên vòng · info) · `emergency_curtailment` → "Đã giảm công suất khẩn cấp" (⚠ · danger) · `info` → "Thông tin" (i · info) |
 | `StrategyName` | `A_fcfs` → "A — FCFS (đến trước phục vụ trước)" · `A_edf` → "A — Ưu tiên hạn rời gần nhất (EDF)" · `B` → "B — Bộ tối ưu, không ML" · `C` → "C — Bộ tối ưu + dự báo (phương án chính)" · `D` → "D — Oracle (cận trên lý tưởng)" |
 | `IncidentType` | `connector_fault` → "Trụ hỏng" · `connector_restored` → "Trụ hoạt động lại" · `power_limit_change` → "Đổi giới hạn nguồn" |
-| `EventType` | `tick` → "Bước định kỳ" (ticker ẩn loại này) · `vehicle_arrived` → "Xe đến" · `vehicle_departed` → "Xe rút đầu nối" · `booking_created` → "Có lịch mới" · `booking_changed` → "Lịch đổi yêu cầu" · `booking_cancelled` → "Lịch bị huỷ" · `connector_fault` → "Đầu nối lỗi" · `connector_restored` → "Đầu nối hoạt động lại" · `power_limit_changed` → "Giới hạn nguồn đổi thành {new_power_limit_kw} kW" · `replan_requested` → "Yêu cầu lập lịch lại" |
+| `EventType` | `tick` → "Bước định kỳ" (ticker ẩn loại này) · `vehicle_arrived` → "Xe đến" · `vehicle_departed` → "Xe rút đầu nối" · `booking_created` → "Có lịch mới" · `booking_changed` → "Lịch đổi yêu cầu" · `booking_cancelled` → "Lịch bị huỷ" · `connector_fault` → "Đầu nối lỗi" · `connector_restored` → "Đầu nối hoạt động lại" · `power_limit_changed` → "Giới hạn nguồn đổi thành {new_power_limit_kw} kW" · `charge_completed` → "Sạc xong" (xe đạt SOC mục tiêu, ADR-019 Phase 4) · `replan_requested` → "Yêu cầu lập lịch lại" |
 | `AlternativeKind` | `other_time` → "Giờ khác" · `lower_target` → "Mức pin thấp hơn" · `join_queue` → "Vào hàng đợi" |
 | `ChargeMode` | `reservation` → "Đặt trước" · `walk_in` → "Đến trực tiếp" |
 | `SessionSource` | `synthetic` → "Dữ liệu giả lập" · `norway_2024` → "Khu dân cư Na Uy 2024" · `norway_2021` → "Chung cư Na Uy 2021" · `acn` → "ACN-Data (Caltech)" |

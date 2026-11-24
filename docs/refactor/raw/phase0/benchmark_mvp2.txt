@@ -1,0 +1,9 @@
+                      B0 | DC  74/180 | decision p95 0.261 ms
+                     M2a | DC  93/180 | decision p95 0.253 ms
+                     M2b | DC 100/180 | decision p95 5.135 ms
+                     M2c | DC  79/180 | decision p95 0.293 ms
+       M2b_no_sla_weight | DC 100/180 | decision p95 5.749 ms
+     M2b_no_queue_weight | DC  97/180 | decision p95 5.114 ms
+    M2b_10x_queue_weight | DC 100/180 | decision p95 4.895 ms
+<LOCAL_TMP>/scratch_p0\out\mvp2\mvp2-benchmark-fsn63g8b
+exit=0

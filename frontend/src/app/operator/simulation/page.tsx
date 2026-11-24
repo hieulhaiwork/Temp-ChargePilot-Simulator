@@ -2,7 +2,8 @@
 
 /**
  * S8 · Mô phỏng kịch bản (mockup docs/mockups/van-hanh/operator-simulation.html; spec 21 §3.4; FR18, FR11 · US6, US8 · AC3, AC5, AC7 · MT1–MT6).
- * Chạy kịch bản trong config/scenarios với chiến lược A–D (POST /simulation/runs, chạy đồng bộ — không tự gửi lại),
+ * Chạy kịch bản trong config/scenarios với một policy của registry (danh sách từ GET /simulation/policies, gửi `policy_id`;
+ * policy mới đăng ký ở backend tự hiện, không sửa màn này — Final Acceptance §4.1) (POST /simulation/runs, chạy đồng bộ — không tự gửi lại),
  * bơm sự cố (POST /simulation/incidents, luôn hỏi xác nhận), bảng đối chứng từ GET /simulation/benchmark.
  * Giá trị trên màn này là kết quả MÔ PHỎNG, không phải số đo của trạm sạc thật.
  */
@@ -20,19 +21,16 @@ import { ApiError } from "@/lib/api/errors";
 import { queries } from "@/lib/api/queries";
 import type { components } from "@/lib/api/schema";
 import { formatKw, formatKwh, formatVnd } from "@/lib/format";
+import { policyOf, policyOptions, selectedPolicy } from "@/lib/policies";
 
-type Strategy = components["schemas"]["StrategyName"];
 type Run = components["schemas"]["SimulationRunResult"];
 type IncidentType = components["schemas"]["IncidentType"];
 
-const STRATEGIES: [Strategy, string][] = [
-  ["A_fcfs", "A · FCFS"],
-  ["A_edf", "A · EDF"],
-  ["B", "B · Tối ưu, không ML"],
-  ["C", "C · Tối ưu + dự báo"],
-  ["D", "D · Biết trước"],
-];
-const label = (s: Strategy) => STRATEGIES.find(([k]) => k === s)?.[1] ?? s;
+/** Tiêu đề cột: id policy + seed (baseline có 5 seed / policy, đọc từ ghi chú của run). */
+const column = (r: Run) => {
+  const seed = /seed (\d+)/.exec(r.notes ?? "")?.[1];
+  return seed ? `${policyOf(r)} · seed ${seed}` : policyOf(r);
+};
 
 /** Hàng của bảng đối chứng: [tên, mục tiêu, giá trị, kiểm đạt (null = chỉ theo dõi)]. */
 const KPI_ROWS: [string, string, (r: Run) => string, ((r: Run) => boolean) | null][] = [
@@ -73,7 +71,7 @@ function BenchTable({ runs }: { runs: Run[] }) {
             <th>Mục tiêu</th>
             {runs.map((r) => (
               <th key={r.run_id} className="num">
-                {label(r.strategy)}
+                {column(r)}
               </th>
             ))}
           </tr>
@@ -100,7 +98,7 @@ function BenchTable({ runs }: { runs: Run[] }) {
 }
 
 function downloadCsv(runs: Run[]) {
-  const head = ["Chỉ số", ...runs.map((r) => label(r.strategy))];
+  const head = ["Chỉ số", ...runs.map(column)];
   const lines = [head, ...KPI_ROWS.map(([name, , value]) => [name, ...runs.map(value)])].map((row) => row.map((c) => `"${c.replaceAll('"', '""')}"`).join(","));
   const url = URL.createObjectURL(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
@@ -114,8 +112,9 @@ export default function OperatorSimulationPage() {
   const queryClient = useQueryClient();
   const scenarios = useQuery(queries.scenarios());
   const benchmark = useQuery(queries.benchmark());
+  const policies = useQuery(queries.policies());
   const [scenario, setScenario] = useState("");
-  const [strategy, setStrategy] = useState<Strategy>("C");
+  const [chosenPolicy, setChosenPolicy] = useState("");
   const [nVehicles, setNVehicles] = useState(30);
   const [seed, setSeed] = useState(42);
   const [extraRuns, setExtraRuns] = useState<Run[]>([]);
@@ -127,8 +126,10 @@ export default function OperatorSimulationPage() {
   const scenarioId = scenario || scenarios.data?.[0]?.scenario_id || "";
   const current = scenarios.data?.find((s) => s.scenario_id === scenarioId);
   const nError = !Number.isInteger(nVehicles) || nVehicles <= 0 ? "Số xe phải lớn hơn 0." : "";
+  const options = policyOptions(policies.data);
+  const policyId = selectedPolicy(policies.data, chosenPolicy);
   const run = useMutation({
-    mutationFn: () => unwrap(api.POST("/api/v1/simulation/runs", { body: { scenario_id: scenarioId, strategy, n_vehicles: nVehicles, seed } })),
+    mutationFn: () => unwrap(api.POST("/api/v1/simulation/runs", { body: { scenario_id: scenarioId, policy_id: policyId, n_vehicles: nVehicles, seed } })),
     onSuccess: (r) => setExtraRuns((prev) => [...prev, r]),
   });
   const inject = useMutation({
@@ -149,7 +150,7 @@ export default function OperatorSimulationPage() {
     <>
       <PageHead
         title="Mô phỏng kịch bản"
-        sub="Chạy lại kịch bản, bơm sự cố và so chiến lược A–D. Kết quả là mô phỏng, không phải số đo của trạm thật."
+        sub="Chạy lại kịch bản, bơm sự cố và so các policy của registry (B0 / M2b / M3a / M3b và policy mới đăng ký). Kết quả là mô phỏng, không phải số đo của trạm thật."
         actions={
           <button type="button" className="btn btn-secondary" disabled={!runs.length} onClick={() => downloadCsv(runs)}>
             <Icon name="download" />
@@ -182,10 +183,12 @@ export default function OperatorSimulationPage() {
             </div>
             <div className="field">
               <label htmlFor="sim-strat">Chiến lược</label>
-              <select id="sim-strat" value={strategy} onChange={(e) => setStrategy(e.target.value as Strategy)}>
-                {STRATEGIES.map(([k, l]) => (
-                  <option key={k} value={k}>
-                    {l}
+              <select id="sim-strat" value={policyId} onChange={(e) => setChosenPolicy(e.target.value)} disabled={!options.length}>
+                {policies.isPending ? <option value="">Đang tải policy…</option> : null}
+                {policies.isError ? <option value="">Không tải được danh sách policy</option> : null}
+                {options.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
                   </option>
                 ))}
               </select>
@@ -202,13 +205,14 @@ export default function OperatorSimulationPage() {
           </div>
           {current ? <p className="hint" style={{ marginTop: 10 }}>{current.description}</p> : null}
           <div className="actions">
-            <button type="button" className="btn btn-primary" disabled={!scenarioId || Boolean(nError) || run.isPending} onClick={() => run.mutate()}>
+            <button type="button" className="btn btn-primary" disabled={!scenarioId || !policyId || Boolean(nError) || run.isPending} onClick={() => run.mutate()}>
               <Icon name="play" />
               {run.isPending ? "Đang chạy…" : "Chạy"}
             </button>
             {run.isSuccess ? <span role="status" className="hint">Chạy xong · đã thêm cột kết quả.</span> : null}
           </div>
           <MutationError error={run.error} endpoint="POST /api/v1/simulation/runs" />
+          {policies.isError ? <ErrorPanel error={policies.error} onRetry={() => void policies.refetch()} /> : null}
         </Panel>
         <Panel dark label="Bơm sự cố">
           <SectionHead title="Bơm sự cố" icon="alert" sub="Tác động ngay lên trạm mô phỏng đang chạy" />
@@ -270,14 +274,25 @@ export default function OperatorSimulationPage() {
         </Panel>
       </div>
       <Panel label="Bảng đối chứng">
-        <SectionHead title="Bảng đối chứng A–D" icon="chart" sub="✓ đạt mục tiêu · ✕ chưa đạt" />
+        <SectionHead title="Bảng đối chứng B0 / M2b / M3a / M3b" icon="chart" sub="✓ đạt mục tiêu · ✕ chưa đạt" />
         <DataBlock endpoint="GET /api/v1/simulation/benchmark" query={queries.benchmark()} loadingLines={6}>
-          {() => <BenchTable runs={runs} />}
+          {(report) => (
+            <>
+              {report.source ? (
+                <p className="hint" style={{ margin: "0 0 10px" }} data-testid="bench-source">
+                  Nguồn: {report.source.kind === "versioned_baseline" ? "baseline có version" : "số vừa sinh"} {report.source.baseline_id ?? ""} · version {report.source.version ?? "—"}
+                  {report.source.status === "provisional" ? " (tạm)" : ""} · code {report.source.code_commit?.slice(0, 7) ?? "—"} · seed {report.source.seeds?.join(", ") || "—"} · vật lý{" "}
+                  {report.source.time_config?.physics_step_minutes ?? "—"}′, quyết định ≤ {report.source.time_config?.decision_interval_minutes ?? "—"}′. Chỉ so các cột cùng điều kiện đo.
+                </p>
+              ) : null}
+              <BenchTable runs={runs} />
+            </>
+          )}
         </DataBlock>
         {runs.some((r) => r.kpis.on_time_rate < 0.95) ? (
           <div style={{ marginTop: 12 }}>
             <Notice title="Có lần chạy chưa đạt MT1" tone="gold" icon="alert">
-              Tỉ lệ đúng hạn dưới 95%. Xem ghi chú của lần chạy trong eval/results.
+              Tỉ lệ đúng hạn dưới 95%. Xem ghi chú và nguồn của bảng ở trên.
             </Notice>
           </div>
         ) : null}

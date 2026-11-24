@@ -1,6 +1,6 @@
 """Luồng đầu–cuối theo tiêu chí nghiệm thu của PRD §9 (sequence diagram: docs/plan/10-backend.md §6).
 
-Chạy trên runtime live THẬT (LiveStation + optimizer B + Guard + repository trên DB test). Đồng hồ trạm được
+Chạy trên runtime live THẬT (HybridStation + Planning Core M3a + Guard + repository trên DB test). Đồng hồ trạm được
 cố định bằng fixture `station_clock` để kết quả không phụ thuộc giờ chạy test (giá điện theo giờ).
 """
 
@@ -434,7 +434,7 @@ def mock_llm_real_services(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "mock")
     monkeypatch.setenv("AGENT_DEMO_SERVICES", "false")
     # LLM giả hiểu "7h sáng mai" theo đồng hồ của nó — khoá về cùng mốc với đồng hồ trạm.
-    monkeypatch.setattr("src.agents.mock_llm._now_local", lambda state: T0)
+    monkeypatch.setattr("src.llm_chat.mock_llm._now_local", lambda state: T0)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -461,3 +461,55 @@ async def test_chat_booking_kwh_matches_fr3(client, station_clock, resident, moc
     assert current["energy"]["battery_energy_kwh"] == pytest.approx(kwh)
     explanation = (await client.get("/api/v1/resident/explanation")).json()
     assert any(current["booking_id"] in line for line in explanation)
+
+
+# ---- Nghiệm thu E2E Phase 4 (ADR-019): booking → planning → Guard/HITL → vật lý → trace → KPI --------------------
+
+
+async def test_e2e_unified_core_acceptance(client, station_clock, resident, as_role):
+    """Một luồng xuyên suốt trên runtime thật (HybridStation + Planning Core M3a + Guard + DB test):
+
+    quote có điều kiện → booking → control loop lập lịch → lệnh qua dispatcher (Guard) → vật lý kernel từng phút →
+    sự kiện CHARGE_COMPLETED → mọi lệnh truy được về DecisionTrace theo correlation ID → không vi phạm vật lý →
+    `/simulation/benchmark` chỉ còn policy của registry, có nguồn / version.
+    """
+    from src.models.events import EventType
+
+    resident("res-a")
+    request = _dc_request(hours=3, soc_now=60)
+    quote = (await client.post("/api/v1/resident/quote", json=request)).json()
+    assert quote["feasible"] is True
+    assert quote["certainty"] in ("estimate", "conditional") and quote["assumptions"], "quote không được là SLA"
+    assert (await client.post("/api/v1/resident/bookings", json=request)).status_code == 201
+
+    rt = runtime.get_runtime()
+    seen: list = []
+    for _ in range(240):
+        station_clock.advance(minutes=1)
+        async with rt.lock:
+            events = rt.sync_clock()
+        seen += events
+        await control_loop.on_minute(rt, events)
+        if any(e.type == EventType.CHARGE_COMPLETED for e in seen):
+            break
+    assert any(e.type == EventType.CHARGE_COMPLETED for e in seen), "kernel / backend phải phát CHARGE_COMPLETED"
+    assert getattr(rt.simulator, "applied_constraint_violation_count", 0) == 0
+
+    decisions = repository.list_decisions(limit=500)
+    executed = [d for d in decisions if d.executed]
+    assert executed, "lệnh phải tới trạm qua dispatcher"
+    for entry in executed:
+        cid = entry.command.correlation_id
+        assert cid, f"lệnh {entry.command.command_id} thiếu correlation_id"
+        trace = repository.get_decision_trace(cid)
+        if entry.command.source != CommandSource.EMERGENCY:
+            assert trace is not None and trace.policy_id == "M3a", cid
+
+    as_role(Role.OPERATOR, user_id="op-1")
+    kinds = {e["type"] for e in (await client.get("/api/v1/operator/events?limit=200")).json()}
+    assert EventType.CHARGE_COMPLETED.value in kinds
+    bench = await client.get("/api/v1/simulation/benchmark")
+    assert bench.status_code == 200, bench.text
+    report = bench.json()
+    assert report["source"], "benchmark phải ghi nguồn + version"
+    assert {run["strategy"] for run in report["runs"]} <= {"B0", "M2b", "M3a", "M3b"}

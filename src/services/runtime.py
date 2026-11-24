@@ -18,7 +18,7 @@ Owner: TV3. Task: T2.6 (live), T1.5 (benchmark).
 import asyncio
 import logging
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
@@ -26,21 +26,29 @@ from zoneinfo import ZoneInfo
 from src.config import get_settings
 from src.forecast.predict import DepartureForecaster
 from src.guard.dispatcher import DispatchSinks
-from src.models.api import Notification, NotificationKind
+from src.models.api import ErrorCode, Notification, NotificationKind
 from src.models.charging import Booking, BookingStatus, SchedulePlan, StrategyName
 from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEntry, Role
 from src.models.events import StationEvent, WsMessage, WsMessageType
+from src.models.planning import Scheduler
 from src.models.simulation import Scenario
-from src.models.station import LoadPoint, StationConfig, Tariff
-from src.optimizer import get_scheduler
-from src.optimizer.base import Scheduler
-from src.simulator.base import StationSimulator, VehicleVisit
-from src.simulator.live import LiveStation
+from src.models.station import ConnectorStatus, LoadPoint, StationConfig, Tariff
+from src.models.station_protocols import StationSimulator, VehicleVisit
+from src.services.errors import DomainError
 
 logger = logging.getLogger(__name__)
 
 ACTIVE = (BookingStatus.CONFIRMED, BookingStatus.QUEUED, BookingStatus.CHARGING)
 RECENT_COMMANDS = 200  # đủ cho cửa sổ anti_flapping (10 phút × 4 cổng)
+OUTBOX_MAX = 10_000  # sự kiện chưa giao tối đa (chặn tràn bộ nhớ nếu không vòng nào nhận)
+_APP_LOOP: asyncio.AbstractEventLoop | None = None  # vòng sự kiện của app (lifespan) — giao outbox khi rt.loop chưa có
+
+
+def register_app_loop(loop: asyncio.AbstractEventLoop | None) -> None:
+    """Lifespan ghi vòng sự kiện của app: runtime dựng trong threadpool (router `def`) vẫn giao được sự kiện của
+    `sync_clock` cho control_loop ngay, kể cả khi vòng nền tắt (Final Acceptance §1.2, ESCALATION 4 của nhánh B)."""
+    global _APP_LOOP
+    _APP_LOOP = loop
 
 
 @dataclass
@@ -55,6 +63,8 @@ class RuntimeStore:
     record_load: Callable[[LoadPoint], None]
     pending_approvals: Callable[[], list[Approval]]
     add_notification: Callable[[str, Notification], None]
+    # DecisionTrace (ADR-019 Phase 4): (trace, closed) — live: tóm tắt vào DB + artifact khi đóng; benchmark: bộ nhớ
+    save_trace: Callable[[dict, bool], None] = lambda trace, closed: None
 
 
 @dataclass
@@ -64,6 +74,7 @@ class SimRecorder:
     replan_durations_s: list[float] = field(default_factory=list)
     blocked_commands: int = 0
     load_trace: list[LoadPoint] = field(default_factory=list)
+    decision_traces: list[dict] = field(default_factory=list)  # DecisionTrace đã đóng (benchmark / admission / test)
 
 
 @dataclass
@@ -72,47 +83,180 @@ class StationRuntime:
 
     config: StationConfig
     tariff: Tariff
-    simulator: (
-        StationSimulator  # LiveStation | HybridStation; đọc qua .state()/.step(); KHÔNG gọi phần ghi ở ngoài dispatcher
-    )
-    scheduler: Scheduler  # optimizer.get_scheduler(strategy)
+    simulator: StationSimulator  # HybridStation; đọc qua .state()/.step(); KHÔNG gọi phần ghi ở ngoài dispatcher
+    scheduler: Scheduler  # SimulatorScheduler (Planning Core của kernel) — make_scheduler(strategy)
     forecaster: DepartureForecaster | None  # chỉ chiến lược C (F6 hoãn — ADR-015 → None)
     clock: Callable[[], datetime]  # trả thời điểm hiện tại CÓ múi giờ
     sinks: DispatchSinks  # nơi dispatcher ghi nhật ký / phê duyệt / thông báo
     store: RuntimeStore
     plan: SchedulePlan | None = None  # lịch hiện hành
+    open_trace: dict | None = None  # DecisionTrace của quyết định đang hiệu lực (đóng ở lần tính lại kế tiếp)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)  # on_event chạy tuần tự
+    # Final Review §4.6 — optimistic concurrency của booking: admission chạy NGOÀI khoá; commit (lưu booking + đưa xe
+    # vào trạm) dưới `booking_lock`, kiểm lại `booking_version` (tăng mỗi lần tập booking đổi: đặt / đổi / huỷ).
+    # Thứ tự khoá: booking_lock rồi lock (on_event chỉ lấy lock) — không deadlock.
+    booking_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    booking_version: int = 0
     recent_commands: deque[Command] = field(default_factory=lambda: deque(maxlen=RECENT_COMMANDS))
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
-    oracle_bookings: tuple[Booking, ...] = ()  # chỉ benchmark chiến lược D
     recorder: SimRecorder = field(default_factory=SimRecorder)
     live: bool = True
+    # Final Acceptance §1.2 — sự kiện trạm phát sinh khi tiến đồng hồ (bất kỳ consumer nào gọi sync_clock) nằm ở đây tới
+    # khi control_loop nhận (on_event / run_forever / deliver_pending) — không consumer nào được bỏ sự kiện.
+    outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
+    # Vòng sự kiện sở hữu `lock` (ghi lại ở on_event / get_runtime): đường đọc đồng bộ (threadpool) đẩy giao sự kiện về đây.
+    loop: asyncio.AbstractEventLoop | None = None
+    # coroutine factory giao outbox cho control_loop (live: control_loop.deliver_pending); None = chờ on_event kế tiếp
+    deliver: Callable[["StationRuntime"], Awaitable[object]] | None = None
+    deliveries: set = field(default_factory=set)  # future / task đang giao (giữ tham chiếu; test chờ được)
+    # Final Acceptance §1.4 — booking bị ngắt công suất vì lỗi charging model / acceptance (giảm tải không sửa được):
+    # control_loop không cấp lại công suất / gán cổng cho booking này; vận hành xử lý.
+    safety_hold_booking_ids: set[str] = field(default_factory=set)
+
+    def admission_fingerprint(self) -> tuple:
+        """Final Acceptance §2.3 — dấu vân tay của những gì admission dựa vào ngoài diễn biến vật lý bình thường: tập
+        booking (`booking_version`), giới hạn nguồn hiện hành, đầu nối lỗi, policy, booking bị từ chối duyệt / giữ an
+        toàn. `book` / `change` chụp trước admission (ngoài khoá) và so lại khi commit dưới `booking_lock`; khác ⇒ chạy
+        lại admission. Không gồm phút trôi / xe cắm-rút theo lịch (diễn biến bình thường của trạm, không làm hỏng
+        admission) và phê duyệt đang chờ (đã báo qua `ScheduleProposal.approvals_pending_*`).
+
+        Giới hạn: khoá + dấu vân tay nằm trong RAM của MỘT worker (CLAUDE.md "Một worker"); chạy nhiều worker cần khoá /
+        ràng buộc phân tán (chưa làm — ngoài phạm vi).
+        """
+        state = self.simulator.state()
+        faults = tuple(sorted(c.connector_id for c in state.connectors if c.status == ConnectorStatus.FAULT))
+        policy = getattr(self.scheduler, "policy_id", None) or str(getattr(self.scheduler, "name", ""))
+        return (
+            self.booking_version,
+            round(float(state.available_power_kw), 6),
+            faults,
+            policy,
+            frozenset(self.rejected_booking_ids),
+            frozenset(self.safety_hold_booking_ids),
+        )
+
+    def advance_clock(self) -> list[StationEvent]:
+        """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
+        minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
+        events = self.simulator.step(minutes) if minutes > 0 else []
+        self.outbox.extend(events)
+        return events
+
+    def take_events(self) -> list[StationEvent]:
+        """Lấy (và xoá) mọi sự kiện chưa giao — control_loop gọi dưới `lock` trước khi tính lại."""
+        events = list(self.outbox)
+        self.outbox.clear()
+        return events
 
     def sync_clock(self) -> list[StationEvent]:
-        """Tiến simulator tới đồng hồ của runtime (live: thời gian thật × SIM_TIME_SCALE); trả sự kiện phát sinh."""
-        minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
-        return self.simulator.step(minutes) if minutes > 0 else []
+        """Đường dùng chung cho MỌI consumer (quote, book, change, session_view, queue_status, overview…): tiến simulator
+        tới đồng hồ runtime (live: thời gian thật × SIM_TIME_SCALE) rồi đẩy sự kiện phát sinh tới control_loop.
+
+        Sự kiện (kể cả `hard_limit_violated`, `charge_completed`) ở lại `outbox` tới khi control_loop nhận: lên lịch giao
+        ngay trên vòng sự kiện của runtime nếu biết (`deliver_pending`), không thì lần on_event / run_forever kế tiếp
+        lấy. Giá trị trả về giữ cho tương thích (đã nằm trong outbox — người gọi KHÔNG cần tự phát lại).
+        """
+        events = self.advance_clock()
+        if self.outbox:
+            self.request_delivery()
+        return events
+
+    def request_delivery(self) -> None:
+        """Lên lịch `deliver(rt)` trên vòng sự kiện của runtime — không chặn người gọi (an toàn từ threadpool)."""
+        if self.deliver is None:
+            return
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        loop = self.loop or _APP_LOOP
+        if running is not None and (loop is None or running is loop):
+            future = running.create_task(self.deliver(self))
+        elif loop is not None and loop.is_running() and not loop.is_closed():
+            future = asyncio.run_coroutine_threadsafe(self.deliver(self), loop)
+        else:
+            return  # chưa có vòng sự kiện: outbox chờ on_event / run_forever kế tiếp
+        self.deliveries.add(future)
+        future.add_done_callback(self.deliveries.discard)
 
 
 def make_station(config: StationConfig, start: datetime, engine: str | None = None):
-    """Trạm mô phỏng theo STATION_ENGINE (ADR-018): HybridStation (engine simulator, mặc định) hoặc LiveStation."""
+    """Trạm mô phỏng của backend: `HybridStation` trên kernel dùng chung với simulator (ADR-018, ADR-019 Phase 3).
+
+    `LiveStation` đã bị xoá (DELETION_MANIFEST); STATION_ENGINE chỉ còn "hybrid".
+    """
     engine = engine or get_settings().station_engine
-    if engine == "hybrid":
-        from src.simulator.hybrid_station import HybridStation  # cần ev2gym — import trễ cho môi trường "live"
+    if engine != "hybrid":
+        raise ValueError(f"STATION_ENGINE={engine!r} không còn được hỗ trợ — chỉ 'hybrid' (ADR-019 Phase 3)")
+    from src.simulator.hybrid_station import HybridStation  # cần ev2gym — import trễ
 
-        return HybridStation(config, start=start)
-    return LiveStation(config, start=start)
+    dc_name = config.planning.dc_charging_model if config.planning is not None else None
+    if dc_name is None:
+        return HybridStation(config, start=start)  # mặc định: SyntheticTaperV1 như cũ
+    return HybridStation(config, start=start, dc_charging_model=dc_name)
 
 
-def make_scheduler(strategy: StrategyName, station: Callable[[], object]) -> Scheduler:
-    """A–D: bộ tối ưu backend (src/optimizer). B0 / M2b / M3a / M3b: thuật toán simulator trên HybridStation."""
-    from src.services.hybrid_planner import SIMULATOR_STRATEGIES, SimulatorScheduler
+def make_scheduler(
+    strategy: StrategyName | str,
+    station: Callable[[], object],
+    algorithms=None,
+    *,
+    parameters: dict | None = None,
+) -> Scheduler:
+    """Policy đã đăng ký (`src/optimizer/registry.py POLICIES`) chạy trên Planning Core của kernel (`SimulatorScheduler`).
 
-    if strategy in SIMULATOR_STRATEGIES:
-        if not hasattr(station(), "scheduling_observation"):
-            raise ValueError(f"Chiến lược {strategy.value} cần STATION_ENGINE=hybrid")
-        return SimulatorScheduler(strategy, station)
-    return get_scheduler(strategy)
+    `strategy`: StrategyName hoặc id chuỗi — tra thẳng registry, nên policy mới đăng ký chạy được không sửa ở đây.
+    """
+    from src.services.hybrid_planner import SimulatorScheduler, is_registered, policy_key
+
+    if not is_registered(strategy):
+        from src.optimizer.registry import POLICIES
+
+        raise DomainError(
+            ErrorCode.NOT_FOUND,
+            f"Policy {policy_key(strategy)!r} không có trong registry — có: {', '.join(POLICIES)}",
+        )
+    return SimulatorScheduler(strategy, station, algorithms=algorithms, parameters=parameters)
+
+
+def live_policy(config: StationConfig) -> tuple[str, dict]:
+    """Policy của runtime live: `planning.policy_id` của station.yaml nếu có, không thì env LIVE_STRATEGY (như cũ).
+
+    `planning.version` (nếu có) phải khớp version đăng ký trong registry — config không âm thầm chạy bản khác.
+    """
+    from src.optimizer import registry
+
+    planning = config.planning
+    policy_id = planning.policy_id if planning is not None and planning.policy_id else get_settings().live_strategy
+    if planning is not None and planning.version is not None and policy_id in registry.POLICIES:
+        registered = registry.policy_spec(policy_id).version
+        if planning.version != registered:
+            raise ValueError(
+                f"planning.version={planning.version!r} không khớp version đăng ký của {policy_id}: {registered!r}"
+            )
+    return policy_id, dict(planning.parameters) if planning is not None else {}
+
+
+def live_scheduler(config: StationConfig, station) -> Scheduler:
+    """Scheduler của runtime live (`get_runtime`): policy + tham số theo `live_policy(config)`."""
+    policy_id, parameters = live_policy(config)
+    return make_scheduler(policy_id, lambda: station, parameters=parameters or None)
+
+
+def policy_parameters(config: StationConfig, strategy: StrategyName | str) -> dict:
+    """Tham số optimizer của `strategy` theo CÙNG quy tắc với runtime live (Final Acceptance §3.1).
+
+    `planning.parameters` gắn với policy mà runtime live chạy (`live_policy`): benchmark / admission / WHAT-IF chạy
+    ĐÚNG policy đó nhận ĐÚNG tham số đó (cùng policy + config ⇒ cùng thuật toán). Policy khác chạy tham số mặc định của
+    registry — tham số theo thành phần (vd. `optimizer_dc.horizon_minutes`) không áp được cho thành phần khác loại.
+    Trạng thái đã resolve của mỗi run ghi ở `ResolvedExperiment` (services/experiment.py).
+    """
+    from src.services.hybrid_planner import policy_key
+
+    if config.planning is None or not config.planning.parameters:
+        return {}
+    live_id, parameters = live_policy(config)
+    return parameters if policy_key(strategy) == live_id else {}
 
 
 def visit_of(booking: Booking, now: datetime) -> VehicleVisit:
@@ -176,7 +320,7 @@ def get_runtime() -> StationRuntime:
     global _live
     if _live is not None:
         return _live
-    from src.services import catalog, control_loop, event_bus, realtime, repository
+    from src.services import catalog, control_loop, decision_trace, event_bus, realtime, repository
 
     config = catalog.load_station_config()
     clock = _live_clock(config)
@@ -219,12 +363,13 @@ def get_runtime() -> StationRuntime:
         record_load=repository.append_load_point,
         pending_approvals=lambda: repository.list_approvals(status=ApprovalStatus.PENDING),
         add_notification=repository.add_notification,
+        save_trace=decision_trace.persist,
     )
     rt = StationRuntime(
         config=config,
         tariff=catalog.load_tariff(),
         simulator=station,
-        scheduler=make_scheduler(StrategyName(get_settings().live_strategy), lambda: station),
+        scheduler=live_scheduler(config, station),
         forecaster=None,
         clock=clock,
         sinks=DispatchSinks(log_decision=log_decision, save_approval=repository.save_approval, notify=notify),
@@ -232,6 +377,11 @@ def get_runtime() -> StationRuntime:
         plan=repository.latest_plan(),
     )
     rt_ref.append(rt)
+    rt.deliver = control_loop.deliver_pending  # Final Acceptance §1.2: sự kiện của sync_clock → control_loop
+    try:
+        rt.loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass  # dựng từ threadpool: on_event / run_forever ghi lại vòng sự kiện ở lần chạy đầu
     restored = store.active_bookings()
     for booking in restored:
         rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now))
@@ -260,22 +410,71 @@ def reset_runtime() -> None:
 
 def build_sim_runtime(
     scenario: Scenario,
-    strategy: StrategyName,
+    strategy: StrategyName | str,
     config: StationConfig,
     tariff: Tariff,
     start: datetime,
-    oracle_bookings: tuple[Booking, ...] = (),
     engine: str | None = None,
+    *,
+    parameters: dict | None = None,
 ) -> StationRuntime:
     """Runtime cho MỘT lần chạy benchmark: simulator mới, đồng hồ mô phỏng, store + sinks vào bộ nhớ.
 
     Đồng hồ = đồng hồ của simulator (simulation_service tự gọi simulator.step). Yêu cầu phê duyệt trong
     benchmark không có người trả lời → hết hạn = không thực thi (AC4), đúng như vận hành thật.
+    `parameters`: None ⇒ như runtime live (`policy_parameters(config, strategy)`, Final Acceptance §3.1); dict ⇒ tường
+    minh (thí nghiệm), `{}` = tham số mặc định của registry.
     """
     simulator = make_station(config, start, engine)
     simulator.reset(scenario)
-    bookings: dict[str, Booking] = {}
-    approvals: dict[str, Approval] = {}
+    params = policy_parameters(config, strategy) if parameters is None else dict(parameters)
+    scheduler = make_scheduler(strategy, lambda: simulator, parameters=params or None)
+    return _memory_runtime(simulator, scheduler, config, tariff)
+
+
+def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
+    """Runtime what-if cho admission: bản fork của trạm + CÙNG policy, control_loop, Guard; store trong bộ nhớ.
+
+    Trạm live không đổi. Phê duyệt đang chờ, lệnh gần đây (anti_flapping), booking đã từ chối và lịch hiện hành được
+    chép sang để bản fork đi đúng đường như runtime thật (PHASE3_DESIGN §6).
+    """
+    fork = rt.simulator.fork()
+    # Final Review §4.4: thuật toán của bản fork là bản ĐÃ CÔ LẬP bởi `StationKernel.fork` (thành phần có trạng thái
+    # được fork / copy; thành phần khai báo stateless dùng chung — cùng object như trước). Không gắn lại bản live.
+    kernel = getattr(fork, "kernel", None)
+    live_algorithms = getattr(rt.scheduler, "algorithms", None)
+    if kernel is not None:
+        algorithms = kernel.algorithms
+    else:
+        algorithms = live_algorithms() if callable(live_algorithms) else None
+    scheduler = make_scheduler(
+        rt.scheduler.name,
+        lambda: fork,
+        algorithms,
+        parameters=getattr(rt.scheduler, "parameters", None) or None,
+    )
+    # Provenance (Final Acceptance §3.2): bản fork chạy CÙNG thành phần đã resolve của live ⇒ cùng metadata.
+    scheduler.metadata = dict(getattr(rt.scheduler, "metadata", None) or {})
+    frt = _memory_runtime(
+        fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
+    )
+    frt.plan = rt.plan
+    frt.recent_commands.extend(rt.recent_commands)
+    frt.rejected_booking_ids.update(rt.rejected_booking_ids)
+    return frt
+
+
+def _memory_runtime(
+    simulator,
+    scheduler: Scheduler,
+    config: StationConfig,
+    tariff: Tariff,
+    *,
+    bookings: list[Booking] = (),
+    approvals: list[Approval] = (),
+) -> StationRuntime:
+    store_bookings: dict[str, Booking] = {b.booking_id: b for b in bookings}
+    store_approvals: dict[str, Approval] = {a.approval_id: a for a in approvals}
     rt_ref: list[StationRuntime] = []
 
     async def notify(message: WsMessage, resident_id: str | None) -> None:
@@ -286,29 +485,29 @@ def build_sim_runtime(
             rt_ref[0].recorder.load_trace.append(point)
 
     store = RuntimeStore(
-        active_bookings=lambda: [b for b in bookings.values() if b.status in ACTIVE],
-        get_booking=bookings.get,
-        save_booking=lambda b: bookings.__setitem__(b.booking_id, b),
+        active_bookings=lambda: [b for b in store_bookings.values() if b.status in ACTIVE],
+        get_booking=store_bookings.get,
+        save_booking=lambda b: store_bookings.__setitem__(b.booking_id, b),
         save_plan=lambda plan: None,
         record_event=lambda event: None,
         record_load=record_load,
-        pending_approvals=lambda: [a for a in approvals.values() if a.status == ApprovalStatus.PENDING],
+        pending_approvals=lambda: [a for a in store_approvals.values() if a.status == ApprovalStatus.PENDING],
         add_notification=lambda resident_id, note: None,
+        save_trace=lambda trace, closed: rt_ref[0].recorder.decision_traces.append(trace) if closed else None,
     )
     rt = StationRuntime(
         config=config,
         tariff=tariff,
         simulator=simulator,
-        scheduler=make_scheduler(strategy, lambda: simulator),
+        scheduler=scheduler,
         forecaster=None,
         clock=lambda: simulator.now,
         sinks=DispatchSinks(
             log_decision=lambda entry: _remember_executed(rt_ref, entry),
-            save_approval=lambda a: approvals.__setitem__(a.approval_id, a),
+            save_approval=lambda a: store_approvals.__setitem__(a.approval_id, a),
             notify=notify,
         ),
         store=store,
-        oracle_bookings=oracle_bookings,
         live=False,
     )
     rt_ref.append(rt)

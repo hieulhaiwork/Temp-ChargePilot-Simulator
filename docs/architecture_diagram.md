@@ -12,10 +12,11 @@
 > chưa đưa vào repo) §5.2 và §10.2; các thành phần trong đó **chưa có trong code** của branch này. Mục 1–11 vẫn mô tả
 > skeleton hiện có (bãi cũ 8 × 7 kW / 35 kW); chỗ nào đã bị thay thì có ghi "(cũ, thay bởi …)".
 
-> **Hiện trạng 22/11 ([ADR-016](adr/ADR-016-livestation-cho-backend.md)):** backend chạy trên **`LiveStation`**
-> (`src/simulator/live.py`) cho cả chạy thật, mô phỏng S8 và `eval/run_benchmark.py`; **không** gọi `HybridSimulator`.
-> Đích A / Đích B dưới đây là hướng dài hạn của ADR-011. Mục 1–11 mô tả code hiện có. Bản sơ đồ dạng tài liệu (sơ đồ
-> thành phần + luồng dữ liệu theo code `develop`) có thể dựng lại từ mục 1–8.
+> **Hiện trạng 23/11 ([ADR-018](adr/ADR-018-backend-chay-engine-simulator.md), [ADR-019](adr/ADR-019-unified-core-hop-dong-dung-chung.md)):**
+> backend chạy **`HybridStation`** trên một kernel `StationKernel` dùng chung với `HybridSimulator` cho chạy thật, mô
+> phỏng S8, `eval/run_benchmark.py` và admission (quote / booking trên bản fork). `LiveStation` và LP backend A–D
+> (`mpc`, `lp_model`, `assignment`, `baselines`) **đã xoá**; optimizer = `dispatch/`, `zones/`, `coordination/`,
+> `registry.py` (B0 / M2b / M3a / M3b). Sơ đồ mục 1–11 vẽ skeleton cũ: chỗ ghi `LiveStation` / A–D đọc theo câu này.
 
 ## Đích A — Dataflow simulator (master context §5.2 · ADR-011)
 
@@ -80,7 +81,7 @@ flowchart TB
 
 | Trụ | Package | Được làm | KHÔNG được làm |
 |---|---|---|---|
-| 1. AI hiểu yêu cầu (F1) | `src/agents/` | trích `ChargeRequest`, hỏi lại chỗ thiếu, giải thích lịch | tự tính kWh, tự quyết công suất, gửi lệnh trạm (FR5) |
+| 1. AI hiểu yêu cầu (F1) | `src/llm_chat/` (chat cư dân; `src/agents/` dành cho AI-1 / AI-4) | trích `ChargeRequest`, hỏi lại chỗ thiếu, giải thích lịch | tự tính kWh, tự quyết công suất, gửi lệnh trạm (FR5) |
 | 2. Bộ tối ưu (F2/F3) | `src/optimizer/` | tính `SchedulePlan` từ `PlanningContext` | đọc file/DB/API, gọi LLM, gửi lệnh trạm |
 | 3. Bộ kiểm tra (F4) | `src/guard/` | kiểm 7 luật FR12, phê duyệt, khẩn cấp, **là cửa duy nhất tới trạm** | phụ thuộc LLM (phải chạy được khi LLM sập) |
 
@@ -95,14 +96,14 @@ flowchart LR
     FE["Frontend Next.js<br/>Vercel"] -- "REST /api/v1 + WebSocket" --> BE["Backend FastAPI<br/>Render, Docker, 1 worker"]
     BE -- "tool-calling" --> LLM["LLM provider<br/>OpenAI, cascade router"]
     BE -- "trace" --> LS["LangSmith<br/>AI logs - deliverable 4"]
-    BE --> SIM["LiveStation — trạm mô phỏng in-process<br/>sau StationReader / StationActuator (ADR-016)"]
+    BE --> SIM["HybridStation — trạm mô phỏng in-process<br/>StationKernel dùng chung với simulator (ADR-019)"]
     BE -- "SQLAlchemy + Alembic" --> DB[("Postgres Neon<br/>local và CI: SQLite")]
     DS[("Dữ liệu phiên sạc<br/>Na Uy / ACN-Data (HOÃN)")] -. "HOÃN, ADR-015" .-> ML["Mô hình F6<br/>LightGBM — HOÃN"]
     ML -. "nạp lúc chạy" .-> BE
 ```
 
-(cũ, thay bởi ADR-011 / ADR-015 / ADR-016) Không còn phương án ACN-Sim. Backend dùng `LiveStation`; `HybridSimulator`
-EV2Gym-first là R&D offline (ADR-016). Nhánh dữ liệu phiên sạc → LightGBM F6 **HOÃN** khỏi sprint 20–26/11.
+(cũ, thay bởi ADR-011 / ADR-015 / ADR-018 / ADR-019) Không còn phương án ACN-Sim. Backend dùng `HybridStation` trên
+kernel chung với `HybridSimulator` (EV2Gym-first); `LiveStation` đã xoá. Nhánh dữ liệu phiên sạc → LightGBM F6 **HOÃN** khỏi sprint 20–26/11.
 
 Ngoài phạm vi (Brief §7): OCPP/cột sạc thật, thanh toán thật, app di động riêng, nhiều
 bãi sạc, SCADA/EVN, digital twin 3D, RL quy mô lớn.
@@ -121,7 +122,7 @@ flowchart TB
         ws["ws.py<br/>FR16"]
     end
 
-    subgraph AG["src/agents — Trụ 1: F1"]
+    subgraph AG["src/llm_chat — Trụ 1: F1 chat cư dân"]
         agraph["graph.py<br/>ReAct + HITL"]
         tools["tools/charging.py"]
     end
@@ -144,9 +145,9 @@ flowchart TB
     end
 
     subgraph OPT["src/optimizer — Trụ 2: F2/F3"]
-        mpc["mpc.py + lp_model.py<br/>B, C"]
-        asg["assignment.py<br/>FR7"]
-        base["baselines.py<br/>A, D"]
+        mpc["dispatch/ · zones/ (LP AC/DC)<br/>coordination/"]
+        asg["registry.py<br/>B0 / M2b / M3a / M3b"]
+        base["Equal share · Fixed / Dynamic slack<br/>(zones/, coordination/ theo policy)"]
     end
 
     subgraph FC["src/forecast — F6, HOÃN"]
@@ -160,7 +161,7 @@ flowchart TB
         disp["dispatcher.py<br/>CHOKEPOINT"]
     end
 
-    subgraph SM["src/simulator — FR11 · LiveStation (ADR-016)"]
+    subgraph SM["src/simulator — FR11 · HybridStation + StationKernel (ADR-019)"]
         reader["StationReader<br/>reset, step, state"]
         act["StationActuator<br/>apply_commands"]
     end
@@ -198,7 +199,8 @@ flowchart TB
 
 Mũi tên nghĩa là "được phép gọi". Ba điều sơ đồ này khoá lại:
 
-- Không có mũi tên nào từ `agents` tới `optimizer`, `guard`, `simulator` hay `db`: Agent chỉ đi qua `services` (FR5).
+- Không có mũi tên nào từ `llm_chat` (và `agents`, AI-1 / AI-4) tới `optimizer`, `guard`, `simulator` hay `db`: chỉ đi
+  qua `services` (FR5, ADR-019).
 - Không có mũi tên nào từ `api` tới `guard`, `optimizer`, `simulator` hay `db`: router chỉ gọi `services`; quyết định
   phê duyệt đi qua `control_loop.resolve_approval` (ADR-007).
 - `dispatcher` không tự biết ghi nhật ký vào đâu: nó nhận `DispatchSinks`. Chế độ chạy thật (`runtime.get_runtime`)
@@ -213,7 +215,7 @@ Giữ harness ReAct của template (ADR-001). ChargePilot thêm tool sạc, bộ
 `confirm_booking` là tool rủi ro: `interrupt()` của graph chính là bước cư dân bấm
 "Xác nhận" ở màn S3 (FR2).
 
-State (`src/agents/state.py:AgentState`) ngoài các field của vòng ReAct còn có: `turn_context` (server đặt mỗi lượt:
+State (`src/llm_chat/state.py:AgentState`) ngoài các field của vòng ReAct còn có: `turn_context` (server đặt mỗi lượt:
 `now`, `timezone`, `vehicle_model`, `display_name`), `history` (giữ 20 tin gần nhất), `draft_request` (các trường
 `ChargeRequest` đã thu được — thiếu thì hỏi lại, không đoán), `proposal` (`ScheduleProposal` gần nhất, payload của S3).
 `resident_id` **không** nằm trong state: nó đi trong `config["configurable"]` (ADR-006), LLM không đọc / ghi được.

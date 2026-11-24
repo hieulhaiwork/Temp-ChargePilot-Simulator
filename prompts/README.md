@@ -27,7 +27,7 @@ Prompt của template (pipeline RAG mẫu — giữ tới T2.5 rồi gỡ):
 
 ## Placeholder
 
-Dùng `{{tên_biến}}` — `src/agents/prompts.py` sẽ substitute. Ví dụ:
+Dùng `{{tên_biến}}` — `src/llm_chat/prompts.py` sẽ substitute. Ví dụ:
 `{{shared_rules}}`, `{{safeguards}}`.
 
 `render(name, **variables)` thay biến **một lượt** và **fail khi thiếu biến** — nội dung người dùng chèn vào không
@@ -37,7 +37,7 @@ rằng không có prompt dài nào nhúng trong module node.
 ## Loader
 
 ```python
-from src.agents.prompts import load_prompt, render, SHARED_RULES
+from src.llm_chat.prompts import load_prompt, render, SHARED_RULES
 
 text = render("finalize.md", **variables)  # ChargePilot: thiếu biến → lỗi ngay
 

@@ -1,0 +1,2 @@
+src/services/llm.py::get_llm | chỉ đổi chuỗi thông báo lỗi: đường dẫn src/agents/mock_llm.py -> src/llm_chat/mock_llm.py
+src/services/llm.py::describe_provider | chỉ đổi chuỗi mô tả model mock: đường dẫn src/agents/mock_llm.py -> src/llm_chat/mock_llm.py

@@ -1,6 +1,6 @@
 """Safety Guard (F4) — trụ 3 của nguyên tắc: "Bộ kiểm tra an toàn kiểm soát thực thi".
 
-KHÁC với src/agents/guardrails.py: guardrails.py chặn prompt injection / output bịa của
+KHÁC với src/llm_chat/guardrails.py: guardrails.py chặn prompt injection / output bịa của
 LLM; package này kiểm LỆNH ĐIỀU KHIỂN trạm. Hai lớp độc lập (defence-in-depth).
 
 Bất biến (PRD F4, NFR an toàn — khoá bởi tests/test_architecture.py):

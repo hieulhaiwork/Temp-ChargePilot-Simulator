@@ -1,0 +1,12 @@
+All checks passed!
+exit=0
+214 files already formatted
+exit=0
+--- ruff check scripts (toàn bộ; lỗi chỉ ở hook scripts/log_*.py, submit_log.py có sẵn từ trước, không thuộc phạm vi):
+4	I001 	[*] unsorted-imports
+2	N806 	[ ] non-lowercase-variable-in-function
+1	UP017	[*] datetime-timezone-utc
+1	F541 	[*] f-string-missing-placeholders
+Found 8 errors.
+[*] 6 fixable with `--fix`.
+exit=1

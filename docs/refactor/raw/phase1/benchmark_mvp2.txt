@@ -1,0 +1,9 @@
+                      B0 | DC  74/180 | decision p95 0.168 ms
+                     M2a | DC  93/180 | decision p95 0.152 ms
+                     M2b | DC 100/180 | decision p95 3.102 ms
+                     M2c | DC  79/180 | decision p95 0.161 ms
+       M2b_no_sla_weight | DC 100/180 | decision p95 3.129 ms
+     M2b_no_queue_weight | DC  97/180 | decision p95 3.115 ms
+    M2b_10x_queue_weight | DC 100/180 | decision p95 2.916 ms
+<LOCAL_TMP>/claude\1ce8fb91e84c1e1f\01544b1a-7c39-4638-a6ad-226dc5999a72\scratchpad\phase1\mvp2\mvp2-benchmark-s1ex0128
+exit=0

@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI):
         logger.exception("Seed tài khoản demo thất bại")
     # T2.6: vòng nền (bước simulator, TICK, hết hạn phê duyệt) — chỉ khi CONTROL_LOOP_ENABLED. Tắt thì sự kiện vẫn
     # được xử lý ngay trong request (ADR-007), nhưng xe đến / rời theo giờ chỉ được thấy ở request kế tiếp.
+    runtime.register_app_loop(asyncio.get_running_loop())  # sự kiện của đường đọc tới control_loop cả khi vòng nền tắt
     stop = asyncio.Event()
     background: asyncio.Task | None = None
     if settings.control_loop_enabled:
@@ -56,6 +57,7 @@ async def lifespan(app: FastAPI):
     stop.set()
     if background is not None:
         await background
+    runtime.register_app_loop(None)
     repository.dispose()
     logger.info("Shutting down")
 

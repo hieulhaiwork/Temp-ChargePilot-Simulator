@@ -2,6 +2,7 @@
 
 - Trạng thái: Proposed — người phụ trách chọn 2026-11-22; **phần quyết định bị thay bởi
   [ADR-018](ADR-018-backend-chay-engine-simulator.md) (23/11: backend chạy engine simulator)**. LiveStation giữ làm dự phòng.
+- **Superseded bởi ADR-018 rồi [ADR-019](ADR-019-unified-core-hop-dong-dung-chung.md)** (2026-11-24): `LiveStation` đã xoá (Phase 3, `docs/refactor/DELETION_MANIFEST.md`). Giữ lại làm lịch sử quyết định; evidence 2026-11-22 đo bằng `LiveStation` là archive.
 - Ngày: 2026-11-22
 - Liên quan: **sửa đổi một phần ADR-011** (mục "một simulator"); ADR-002 (Guard là chokepoint), ADR-003, ADR-007, ADR-010
 - Bằng chứng: [`eval/evidence/2026-11-22/`](../../eval/evidence/2026-11-22/README.md)

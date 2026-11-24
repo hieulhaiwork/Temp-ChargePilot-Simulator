@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from src.models.physical_constraints import ConstraintViolationError
+from src.models.simulation_core import Scenario, minute
+from src.simulator.core.ev2gym_adapter import DCEV, PrecisionEV
+from src.simulator.hybrid import HybridSimulator
 from src.simulator.run import main
-from src.simulator.src.engine.ev2gym_adapter import DCEV, PrecisionEV
-from src.simulator.src.engine.hybrid import HybridSimulator
-from src.simulator.src.safety.constraints import ConstraintViolationError
-from src.simulator.src.scenario import Scenario, minute
 
 FIXTURE = Path(__file__).resolve().parents[1] / "scenario/mvp1.json"
 

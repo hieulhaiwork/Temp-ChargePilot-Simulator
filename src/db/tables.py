@@ -1,4 +1,4 @@
-"""9 bảng của ChargePilot — cột khoá + `payload` (docs/plan/40-database.md §3).
+"""10 bảng của ChargePilot — cột khoá + `payload` (docs/plan/40-database.md §3).
 
 Quy ước:
   - Cột khoá phục vụ lọc / sắp xếp / ràng buộc. `payload` = model_dump(mode="json") của model
@@ -181,3 +181,23 @@ class LoadPointRow(Base):
     ts: Mapped[datetime] = mapped_column(UtcDateTime, primary_key=True)
     total_power_kw: Mapped[float] = mapped_column(Float)
     power_limit_kw: Mapped[float] = mapped_column(Float)
+
+
+class DecisionTraceRow(Base):
+    """ADR-019 Phase 4 (quyết định 6) — tóm tắt DecisionTrace backend. payload = DecisionTraceSummary.
+
+    Ghi khi mở (sau dispatch) và ghi đè khi đóng (lần tính lại kế tiếp, có số đo thật). Trace chi tiết là artifact
+    JSONL (DECISION_TRACE_DIR), nối với decision_log qua `correlation_id` của Command.
+    """
+
+    __tablename__ = "decision_traces"
+    __table_args__ = (Index("ix_decision_traces_decided", "decided_at"),)
+
+    correlation_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    decided_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    policy_id: Mapped[str] = mapped_column(String(16))
+    schedule_version: Mapped[int] = mapped_column(Integer)
+    budget_deviation_kw_max: Mapped[float] = mapped_column(Float)
+    hard_violations: Mapped[int] = mapped_column(Integer)
+    closed: Mapped[bool] = mapped_column(Boolean)
+    payload: Mapped[dict] = mapped_column(JsonDoc)

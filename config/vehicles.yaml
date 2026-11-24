@@ -14,8 +14,8 @@
 #   - source, verified    : DEPRECATED (ADR-012), giữ một vòng cho client cũ. verified luôn false ở đây.
 #
 # Giá trị VF3 / VF8_NEW_2026 / VF9_123 chép NGUYÊN từ simulator v1.2 (`feature/simulator` @ d15871a):
-#   src/simulator/src/charging_models/dc_charging_models.py  (resolve_dc_profile)
-#   src/simulator/src/charging_models/vehicle_profiles.py    (OEM_SOURCES, CURVE_SOURCES, PROFILE_VERSION 0.1.0)
+#   src/simulator/core/charging_models/dc_charging_models.py  (resolve_dc_profile)
+#   src/simulator/core/charging_models/vehicle_profiles.py    (OEM_SOURCES, CURVE_SOURCES, PROFILE_VERSION 0.1.0)
 # KHÔNG đường sạc nào là số đo OEM: VF3 synthetic; VF8_NEW_2026 proxy EVKX (VF8 Plus đời cũ);
 # VF9_123 generic Simolin et al. 2025 (DOI 10.1016/j.treng.2025.100350).
 # max_ac_power_kw KHÔNG có trong code simulator: dùng 11.0 = giới hạn cổng AC của fixture (ADR-010),

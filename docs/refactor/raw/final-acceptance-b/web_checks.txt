@@ -1,0 +1,29 @@
+# Frontend (OpenAPI đổi: StationEvent.violation_kinds / violation_booking_ids, ViolationKind; mô tả GuardSettings)
+# Chạy trong frontend/ ngày 2026-11-24 trên cây nhánh feature/unified-core-accept-b (sau commit 1981c50).
+# Ghi tay từ stdout (quyền shell của phiên không cho redirect sau `cd`).
+
+$ npm ci
+found 0 vulnerabilities
+
+$ npm run gen:api
+✨ openapi-typescript 7.13.0
+🚀 ./openapi.json → src/lib/api/schema.d.ts
+
+$ npm run lint
+> chargepilot-web@0.1.0 lint
+> eslint
+(không lỗi, không cảnh báo)
+
+$ npm run typecheck
+> next typegen && tsc --noEmit
+✓ Types generated successfully
+(tsc không lỗi)
+
+$ npm test
+> vitest run
+ Test Files  4 passed (4)
+      Tests  28 passed (28)
+
+$ npm run build
+✓ Generating static pages using 11 workers (17/17)
+Route (app): 16 route (○ static, ◐ /resident/notifications/[approvalId] partial prerender) — build thành công

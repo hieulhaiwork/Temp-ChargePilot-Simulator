@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # LLM provider — đổi qua lại bằng 1 dòng .env, không sửa code (src/services/llm.py):
     #   openai = gọi API (OPENAI_API_KEY + MODEL_*)
     #   local  = server OpenAI-compatible tự host (Ollama / vLLM / LM Studio trên VM) — LOCAL_LLM_*
-    #   mock   = bộ não luật cố định, KHÔNG gọi mạng (src/agents/mock_llm.py) — dev/test khi chưa có key/VM
+    #   mock   = bộ não luật cố định, KHÔNG gọi mạng (src/llm_chat/mock_llm.py) — dev/test khi chưa có key/VM
     llm_provider: Literal["openai", "local", "mock"] = "openai"
     local_llm_base_url: str = "http://localhost:11434/v1"  # Ollama mặc định; vLLM: http://<vm-ip>:8000/v1
     local_llm_api_key: str = "local"  # Ollama bỏ qua; vLLM chạy với --api-key thì điền đúng key đó
@@ -79,12 +79,16 @@ class Settings(BaseSettings):
     # gian, không cần request. Mặc định TẮT cho local / test (đồng hồ thật làm test không tất định); deploy BẬT
     # (render*.yaml, docs/plan/56). Sự kiện vẫn luôn được xử lý ngay trong request dù bật hay tắt.
     control_loop_enabled: bool = False
-    # Trạm mô phỏng của backend (ADR-018): "hybrid" = HybridStation dựng từ engine simulator R&D (gốc, cần ev2gym);
-    # "live" = LiveStation cũ (không taper DC) — chỉ để dự phòng khi môi trường thiếu ev2gym.
-    station_engine: Literal["hybrid", "live"] = "hybrid"
+    # Trạm mô phỏng của backend (ADR-018, ADR-019 Phase 3): chỉ còn "hybrid" = HybridStation trên kernel dùng chung
+    # với simulator (cần ev2gym). LiveStation đã xoá (docs/refactor/DELETION_MANIFEST.md).
+    station_engine: Literal["hybrid"] = "hybrid"
     # Chiến lược chạy thật: mặc định M3a — policy tham chiếu cho demo (SIMULATOR_INTEGRATION_CONTRACT.md §2).
-    live_strategy: str = "M3a"
+    # Chỉ policy của registry; A–D đã bỏ (Phase 4) → giá trị cũ bị từ chối ngay lúc đọc cấu hình.
+    live_strategy: Literal["B0", "M2b", "M3a", "M3b"] = "M3a"
     sim_time_scale: float = Field(default=1.0, gt=0, le=3600)  # 1 = thời gian thật; 60 = 1 phút thật = 1 giờ mô phỏng
+    # DecisionTrace backend (ADR-019 Phase 4, quyết định 6): tóm tắt vận hành luôn vào DB (bảng decision_traces);
+    # trace chi tiết (JSONL, một file / ngày) chỉ ghi khi đặt thư mục này — artifact có kiểm soát, không commit.
+    decision_trace_dir: str = ""
     # ADR-008: chỉ đặt ở backend TEST để nhận URL preview của Vercel; production dùng cors_origins chính xác.
     cors_origin_regex: str = ""
 

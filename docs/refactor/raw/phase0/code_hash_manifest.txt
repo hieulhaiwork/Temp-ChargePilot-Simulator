@@ -1,0 +1,58 @@
+# path | sha256(file)[:16] | sha256(ast, no docstrings)[:16] | top-level defs: name=sha256(ast)[:12]
+src/simulator/src/__init__.py | e3b0c44298fc1c14 | 3543b4693a36a109 | 
+src/simulator/src/algorithms.py | ef943925414752bb | 91ffc670f96e2c0d | Algorithms=50647f1d64b0 default_algorithms=df1b57f0c165 Registration=4ad5c49bc507 _fixed_budget=ce9340a92c0a _fixed_share=78a117c5d407 _dynamic_slack=b047bc2fb124 _synthetic_taper=e135c9e2dbaf _vehicle_profiles=31950f5d17c5 _rolling_lp=f4a7b3dff69d _llf=396b89b14f2e _ac_rolling_lp=c714fb06473c algorithm_labels=65a211daddc0 _choice=13ec5f0aee71 _metadata=4b416288a339 resolve_algorithms=acb2680b9a5f
+src/simulator/src/charging_models/__init__.py | 2153cc899a00cd10 | 5c04595997820c90 | 
+src/simulator/src/charging_models/base.py | febb81745e349fc3 | e038e8f7e7069670 | VehicleBatteryState=3ca3c20212bc DCChargingModel=3fc20433a40d energy_to_target=4ee8a043a11f
+src/simulator/src/charging_models/dc_charging_models.py | fcd027af4d2998b1 | 75c030266c7d91bc | _finite_nonnegative=9a3715fa4a6f _fraction=dfb5c1371327 _ratio=642ef38f139e _linear_curve=f84137dc696f _generic_heterogeneous=76774a8b7144 DCProfile=2ea35efc5eb8 resolve_dc_profile=07e34e18ede5 DCStepResult=94b28ea797dc charge_dc_step=cebd4cdd0229
+src/simulator/src/charging_models/synthetic_dc.py | 502575385ce090d2 | d4ba54c50c9a7f0f | SyntheticTaperV1=5b19fd18bbd2
+src/simulator/src/charging_models/vehicle_profiles.py | 24ba2e371554178e | 8833e2e7413fb7b0 | VehicleProfilesDCModel=f1c6c89c3929
+src/simulator/src/coordination/__init__.py | b04d74a12f298708 | 5c04595997820c90 | 
+src/simulator/src/coordination/base.py | 4c16f3287ae6d9cc | e2a71441d7b44dda | ZoneBudgets=116cc196cc43 GlobalCoordinator=179796a614a7
+src/simulator/src/coordination/dynamic_slack.py | 370118ff472c1dbd | 25ea0cb1791cb8ba | DynamicSlackCoordinator=3a930b568e34
+src/simulator/src/coordination/fixed_budget.py | a31dfa95891e8664 | 39d5402a0cd47a0c | FixedBudgetCoordinator=b6f9177bf334 FixedShareCoordinator=c3401b4b21a1
+src/simulator/src/dispatch/__init__.py | edd29d7652e6b896 | 5c04595997820c90 | 
+src/simulator/src/dispatch/arrival_order.py | fdc809cb50951105 | 796ecc937f8b9946 | arrival_order=3ff87f64e9f7
+src/simulator/src/dispatch/base.py | b999922dc56956f7 | f0e6049336c3220a | DispatchObservation=b1dd90c458e4 DispatchPolicy=d7a5bec68d5d
+src/simulator/src/dispatch/edf.py | ead00a927f5ed9ac | 32280bb723fbf468 | earliest_deadline=dd52f8c32e7e
+src/simulator/src/dispatch/least_laxity.py | 8f8a85a36237c622 | 916eadbbe109279f | optimistic_laxity=a401149e0cde least_laxity=d9b0ff20fa17
+src/simulator/src/engine/__init__.py | 96db2be4c9923450 | 5c04595997820c90 | 
+src/simulator/src/engine/ev2gym_adapter.py | e0c8e4b600451ff3 | 7311a9730b51e9d0 | PrecisionEV=80e2ee2f2878 DCEV=cb7bab16c827 Delivered=f9d97962384c EV2GymAdapter=d7d0c3e7bcce
+src/simulator/src/engine/hybrid.py | 6fe2ef41401264c9 | be34c9e8ded00408 | HybridSimulator=f6f3ec95d858
+src/simulator/src/engine/queue.py | 9e06432660001190 | 85c7303dc14664e4 | Session=05806798271b QueueController=43bf67b9a820
+src/simulator/src/evaluation/__init__.py | 602b53a3c7b02ea4 | 5c04595997820c90 | 
+src/simulator/src/evaluation/extended.py | 7643b10a77482a99 | 8e4dd48edca9a9da | percentile=f22c1e290c9f latency_summary=866eee9849ba _within_limit=1642640725e5 audit=d32978efd7f2 RunSample=fb81558d656b sample_run=e23d539229cc _session_metrics=f90cdc6be66e benchmark_metrics=812074067a95
+src/simulator/src/evaluation/metrics.py | f7836ab6aefeb116 | f125a3e52d6c932f | summarize=52ecb1ff27cd
+src/simulator/src/evaluation/trace.py | 8eb7fda399c76a53 | 93ef8a6d1e16b31f | _binding_constraints=8429afeb3dbc decision_record=ced1b24928b1
+src/simulator/src/observations.py | df9933c6548b5e66 | ae7099466deaee1d | Candidate=d08f38c806e7 VehicleObservation=bfb1055dc24b SchedulingObservation=96a6d4c4179a
+src/simulator/src/optimizers/__init__.py | c6fd1a596950d773 | 5c04595997820c90 | 
+src/simulator/src/optimizers/ac_lp.py | c65a928d666dec7b | d88ed6ae8a15667d | ACConfig=ffc2ce833fee _boundaries=5f0373a4e821 _solve=757540cd205f ACRollingLP=3e9d8d374bc3
+src/simulator/src/optimizers/base.py | d30483b7d51d2add | 8283c57ad178fcec | SchedulingPolicy=d070848de271 PowerProposal=9bcf6b1c6560 ZonePowerOptimizer=ba30db72ad36
+src/simulator/src/optimizers/deadline_first.py | cf1bcb482161b53a | 8947eb180ecd605c | deadline_first=c06428bc14d9
+src/simulator/src/optimizers/equal_share.py | 36df29ef74ae6d0f | f95bdbb698d270cc | equal_share_policy=18963e371040 equal_share=77dcb3af5318 zone_equal_share=72f693b1f617 _equal_share_zone=223d251ffe55
+src/simulator/src/optimizers/rolling_lp.py | b35be8c6a44852d0 | a9c98574d04a3e07 | LPConfig=e09138299621 _acceptance_line=63c1e24fbcb1 _blocks=d9be7052de35 _valid_primal=982ae87da12f RollingHorizonLP=0f0dc409faa3
+src/simulator/src/safety/__init__.py | 16313252d3784551 | 5c04595997820c90 | 
+src/simulator/src/safety/constraints.py | ed184d61d7e23c89 | 793f7ce7070865b1 | ConstraintViolationError=3334483e533b
+src/simulator/src/safety/guard.py | 5f65dbb9a7f1af87 | ac6e7ea195e1910f | valid_kw=7da82b1ca1ff validate_dispatch=ae7e4795b37c validate_budgets=1bac084c7499 _validate_supply=3357265856eb guard=624c82aae4ce validate_response=aea2361b4334
+src/simulator/src/safety/limits.py | e771728ecf8b3fd1 | c25fe04473d62495 | EffectiveLimits=6452e381563d effective_limits=4ab6d28a22d3 environment_boundary=693ac8d5262b
+src/simulator/src/scenario.py | 24ba83fa21080745 | 99278886f6f99e19 | minute=0cfce85c463d clock=6d84309d0dd5 number=81fa4447f44f integer=b535cc24c066 identifier=d831ae029cf8 Cabinet=14f3f019ac2d Vehicle=ad4fa34f5cb5 LimitEvent=b2cd41a3e4da Tariff=84d0b2c2cab4 Scenario=fb447d71024c _zone_values=ff76cf44b8a7 _optional_zone_values=dec8c350cb3f _limit_events=8719da110949 _tariff=36b1a20560ae
+src/simulator/hybrid_station.py | ac999b6821fb8349 | 905d74838aea91c1 | _locked=b28ed0fe29b6 _ceil_minutes=bc3a6a4c2ded HybridStation=ba0882dbc1a9
+src/simulator/live.py | 449148442b7b5002 | e18e43319f0b48b5 | _Port=c2914fe7117e _Session=cd543a28e2ea LiveStation=f942f638b239
+src/simulator/base.py | 3740d351cf87cfba | ecdb79ab68485f15 | VehicleVisit=8abccec6754c StationReader=dace34e2f0c0 StationActuator=738bcc1ae338 StationSimulator=9c835d003ce9
+src/simulator/run.py | 386cb53c37acccdd | b77f961c3fcd6881 | resolve_scenario=0f2516d1c10f write_json=511c9bb3956f write_csv=8a7a47467536 metadata_for=ff1e3801ef72 export=a5c00d1283c4 main=9c36c58dbc21
+src/simulator/benchmark.py | adc501073cd2e0c4 | 2b80d0999ed9ee43 | workload=64a03ea40843 _comparison=04da19f17e2b run_benchmark=e2491b47e3b3 main=2aa2d55b897b
+src/simulator/benchmark_mvp3.py | a24cf0eae066fa5a | 85ba30565b721783 | _time=27f0c05e4483 workload_mvp3=84e0cc7ee96b _selection=4b9f007cc399 _paired=9d0b93337121 run_benchmark=b3f0731981e7 main=47046575304a
+src/guard/__init__.py | ee9493a1a920027d | 5c04595997820c90 | 
+src/guard/approval.py | 8a80056a2c7c378e | f37912c62afa558a | start_delay_minutes=eef1eb038137 requires_approval=f0c3fe2cbb2c open_approval=4f692d1fd9ce decide=ef7865ed3997 expire_overdue=fa8f2090ddad
+src/guard/checker.py | d340f5398378f1d6 | 54ecf07c2411b5c1 | check=72bd2532cb17 check_batch=1a53f4f5bd74
+src/guard/dispatcher.py | 67ec363929c7b946 | a60b879a8b8bcf50 | DispatchSinks=1d3ce1f513a5 _message=fba4ae0235f1 _booking_for=7bc14e5c8453 submit=f0061dc7cb2a execute_approved=0fb883bba326
+src/guard/emergency.py | d35e72ce78b3f17f | 1fdad1c3fdaa20cc | curtail_to_limit=37b377ca2751
+src/guard/physical.py | 8f69038af6a11bbe | 4cfd563cc104c40e | effective_limits=d656c4fe6e6b _cabinet=0eb0311a09aa _vehicle_id=dd763ff9231d _eligible=66eb1677b97c check_connector_allocation=366290aafcaf check_site_allocation=b0ecfce352e3 check_dispatch=5b604629de48 _explain=55bff9237e0b _explain_dispatch=a64e2e7cdd1b
+src/guard/rules.py | baf5a11a62890121 | da08d45d25e78131 | GuardContext=63aafaf87ff5 _connector=5f8230d52fcc target_power_kw=3539682da976 _batch_with=0dd14dbf8524 _power_after=9fc00f8f060f _occupant_after=04488f10c9a7 _is_on=108cfc2bc63c check_total_power=8f6c9fa5bcf2 check_connector_power=b2bd561daed4 check_anti_flapping=68a008ad56a3 check_stale_state=454910c50390 check_permission=84e7954c56e8 check_schedule_version=f4927686ec05 check_conflicts=1ce67cd6c560
+src/optimizer/__init__.py | e17100764f59392f | c7e3c9da9ab74963 | get_scheduler=c20784d1435a
+src/optimizer/assignment.py | 16f85713ab74b4de | 494409a48a8b1b17 | Assignment=c98d4d1ed00c remaining_kwh=698a892c3b03 _release_time=020412884349 assign_connectors=8b193aaf5e84
+src/optimizer/base.py | f31ed02dd2469308 | cec7684605922d4c | PlanningContext=d97739d1f7b3 Scheduler=869857c431ad
+src/optimizer/baselines.py | 9d88581c1c00d017 | 6c7e08fc209b5f91 | _headroom=eecbd9ab2746 _allocate=58aca5c3305c _plan=7c599018a598 FcfsScheduler=44f6a60966a9 EdfScheduler=3b31e1b8043f OracleScheduler=e4006d3f9d88
+src/optimizer/horizon.py | 157978f2812209d7 | beb77b1954259c6b | Grid=5742e19d0585 SessionWindow=ba0afa29cd0e Group=0a4bc43991be build_grid=b32307297514 session_windows=6ab4a355742d _start_requirement=54385bd186e5 constraint_groups=d59b5367a406 prices=921af7a445fc to_session_plans=75dc518c784d
+src/optimizer/lp_model.py | c22afbff47d26eb6 | 61814ad1e6c6924b | LpSolveError=3f1e8bf93db8 solve_power_allocation=c06176e2b368 solve_with_unmet=1006ccef951b _solve=7b402f486e9a
+src/optimizer/mpc.py | b9b42383f1b1a76d | 702b47b07d2544a2 | MpcScheduler=d92fabb31f80
+src/services/hybrid_planner.py | 82697d030edf08c4 | 1b87a922ae92b5b6 | selection=0d4c497d0662 SimulatorScheduler=61b5fba81301 _start_minimums=d4b8ea8b93ab _fit_with_minimums=039b464af76d _to_plan=7ba85bb87516 _queue_etas=cef292c8575e _sim_tariff=8f981a5358cf

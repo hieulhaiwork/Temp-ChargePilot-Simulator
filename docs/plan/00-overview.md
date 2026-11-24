@@ -1,5 +1,13 @@
 # Plan 00 — Tổng quan, roadmap W1–W4, critical path
 
+> **Hiện trạng 23/11/2026 (ADR-019, refactor Unified Core Phase 4) — đọc trước, ưu tiên hơn nội dung bên dưới:**
+> backend chạy `HybridStation` trên một kernel `StationKernel` dùng chung với `HybridSimulator`; `LiveStation` và LP
+> backend A–D (`mpc`, `lp_model`, `assignment`, `baselines`, `strategies`) **đã xoá**, A–D bỏ khỏi `StrategyName` /
+> OpenAPI / S8. Policy hiện hành: B0 / M2b / M3a / M3b (`src/optimizer/registry.py`). Benchmark S8 = baseline có version
+> (`eval/evidence/2026-11-23-refactor-phase3-baseline/`); bảng A–D cũ là archive deprecated. Quote / booking = admission
+> trên bản fork, kết quả là ước tính có điều kiện, không phải SLA. Chỗ nào bên dưới còn nhắc `LiveStation` / A–D /
+> `lp_model` là plan lịch sử.
+>
 > **Cập nhật 21/11/2026 theo ADR-010…015.** Đọc §0 trước. Nội dung từ §1 trở đi là plan Pha A (17/11), giữ để truy vết;
 > đoạn nào đã bị thay có ghi "(cũ, thay bởi …)". Roadmap W1–W4 tới 13/12 **không còn dùng** — thay bằng sprint
 > 20–26/11 (§0.3).
@@ -17,7 +25,7 @@ song); ADR [010](../adr/ADR-010-bai-hybrid-ac-dc.md) · [011](../adr/ADR-011-mot
 |---|---|---|
 | Bài toán | 1 bãi 8 đầu nối × 7 kW, giới hạn 35 kW | 1 bãi hybrid AC + DC; fixture nền `mvp1`: 2 cổng AC 11 kW, 1 tủ DC 2 cổng 60 kW (tủ 120 kW), lưới 106 kW, ngân sách AC 22 / DC 78 kW, 9 lượt xe — fixture, không chốt cuối (ADR-010) |
 | Bước mô phỏng | 15 phút, horizon 24 h | 1 phút ở fixture `mvp1` |
-| Simulator | EV2Gym ưu tiên, ACN-Sim dự phòng, adapter sau `StationReader` / `StationActuator` | Đích: một `HybridSimulator` EV2Gym-first (ADR-011). **Hiện tại (22/11):** backend dùng `LiveStation` sau `StationReader` / `StationActuator`; `HybridSimulator` v1.2 đã merge, chỉ chạy R&D offline (ADR-016) |
+| Simulator | EV2Gym ưu tiên, ACN-Sim dự phòng, adapter sau `StationReader` / `StationActuator` | Đích: một `HybridSimulator` EV2Gym-first (ADR-011). **Hiện tại (23/11):** backend dùng `HybridStation` trên kernel `StationKernel` chung với `HybridSimulator` (ADR-018, ADR-019); `LiveStation` đã xoá |
 | Optimizer | MPC + LP; MILP gán đầu nối "nếu kịp"; `highspy` | Dispatch (FIFO/FCFS, EDF, LLF) + AC/DC optimizer + Global Coordinator; **LP liên tục + receding horizon**, không phải MILP; SciPy `linprog` / HiGHS là hướng R&D |
 | Agent | ReAct graph điều phối tool | Workflow xác định là xương sống; LLM ở hai đầu; LangGraph cho hội thoại + HITL (ADR-013) |
 | Giá trị AI | F6 dự báo lúc rút (LightGBM), đối chứng C vs B | **AI-4 Decision Copilot (WHY + WHAT-IF)** là trục chính; AI-1 SLA negotiation + HITL bổ trợ (ADR-014) |

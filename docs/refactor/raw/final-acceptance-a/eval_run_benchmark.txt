@@ -1,0 +1,2 @@
+==> Đã ghi D:\VIN\P-019-wt\accept-a\eval\results\benchmark.md (+ benchmark.json, manifest.json)
+exit 0

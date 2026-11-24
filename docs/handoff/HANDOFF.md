@@ -3,7 +3,33 @@
 > Chỉ giữ trạng thái **mới nhất** + bẫy còn đúng. Lịch sử các phiên trước (16–21/11: plan Pha A–C, skeleton, mockup,
 > căn chỉnh SC-16) xem `git log -- docs/handoff/`. Quyết định kỹ thuật nằm ở `docs/adr/`, không lặp lại ở đây.
 
-## Trạng thái 22/11 (mới nhất)
+## Trạng thái 24/11 (mới nhất) — Unified Core đã nghiệm thu và ĐÓNG BĂNG
+
+- Refactor kết thúc: `docs/refactor/FINAL_ACCEPTANCE_REPORT.md` (+ `FINAL_REVIEW_FIX_REPORT.md`). Không refactor thêm;
+  việc tiếp theo là nghiên cứu MVP-3.5 (Tech Lead / Codex).
+- `/simulation/benchmark` + S8 = baseline đóng băng `eval/evidence/2026-11-24-unified-core-frozen-baseline/`
+  (provenance theo policy). S8 lấy danh sách policy từ `GET /simulation/policies`.
+- `guard.after_apply_failsafe: true` mặc định; sự kiện của `sync_clock` không còn bị bỏ.
+- Nhánh `feature/unified-core` đã push lên P-019 `origin` để mở PR vào `develop`. Nhánh `feature/be-fe-integration`
+  (FE G1–G24) cần merge `develop` mới: lệch import `src.agents.*` → `src.llm_chat.*`, `quote_change` phải dùng
+  admission async + consent thật, sơ đồ bãi G24 nên đọc `rt.store` và không phát trong bản fork / benchmark, `budget_kw`
+  của G23 đang là trần vật lý (không phải ngân sách optimizer), frontend dùng `policy_id ?? strategy`.
+- Chưa kiểm chứng: E2E Postgres thật, LLM thật, deploy Render sau refactor; một worker.
+
+## Trạng thái 23/11 (lịch sử) — refactor Unified Core, Phase 4
+
+Đọc `docs/refactor/TECHLEAD_PHASE4_DECISIONS.md` + `docs/refactor/PHASE4_*_REPORT.md`. Hiện trạng kiến trúc (thay mọi
+mô tả `LiveStation` / A–D ở mục 22/11 bên dưới):
+- Backend = `HybridStation` trên **một kernel** `StationKernel` dùng chung với `HybridSimulator` (ADR-018, ADR-019).
+  `LiveStation`, LP backend A–D (`lp_model`, `assignment`, `mpc`, `baselines`, `strategies`) **đã xoá**;
+  `STATION_ENGINE` chỉ còn `hybrid`. `LIVE_STRATEGY` ∈ B0 / M2b / M3a / M3b (A–D bị từ chối khi đọc cấu hình).
+- Quote / booking / đổi yêu cầu = admission trên bản fork của trạm (`src/services/admission.py`), trả **ước tính có
+  điều kiện** (`ScheduleProposal.certainty`, `assumptions`, số phê duyệt chờ) — không phải SLA.
+- (Lịch sử) S8 từng đọc baseline tạm `eval/evidence/2026-11-23-refactor-phase3-baseline/`; nay là baseline đóng băng ở trên. Bảng A–D cũ: archive deprecated ở
+  `eval/results/archive/2026-11-22-pre-refactor/`.
+- Alembic `0003` (`0003_drop_lp_strategy_plans.py`) xoá lịch lưu của A–D → sau deploy chạy `make migrate` / `alembic upgrade head`.
+
+## Trạng thái 22/11 (lịch sử — kiến trúc `LiveStation` / A–D nay đã bỏ)
 
 **Đã merge vào `develop`:** PR #8 (backend chạy thật: DB, auth, Guard, optimizer, `LiveStation`, WebSocket), PR #9
 (job CI `deploy` qua Docker Hub + Render Deploy Hook), PR #10 (hiện trạng deploy, `docs/plan/56`).
@@ -26,18 +52,18 @@ công suất nhận theo đường sạc DC (cần nối HybridSimulator).
 `src/simulator/hybrid_station.py` (trạm dựng từ QueueController + EV2GymAdapter, phát lại `mvp1` khớp HybridSimulator),
 `src/services/hybrid_planner.py` (B0 / M2b / M3a / M3b từ `benchmark_mvp3.POLICIES`), `STATION_ENGINE` / `LIVE_STRATEGY`,
 ev2gym `--no-deps` trong Dockerfile / CI / `make install`. Bằng chứng `eval/evidence/2026-11-23/`. Còn: đo RAM image trong
-Docker, profile DC VinFast cho xe đến dần (`with_vinfast_profiles` TODO), consent cư dân trong thuật toán simulator, nhóm chọn
+Docker, profile DC VinFast cho xe đến dần (đã làm ở Final Review 4.2), consent cư dân trong thuật toán simulator, nhóm chọn
 `LIVE_STRATEGY` (M3a rẻ hơn nhưng đúng hạn thấp hơn A_edf trên kịch bản backend).
 
 **Việc tiếp theo:**
 1. Sau merge: Render → Environment đặt `CONTROL_LOOP_ENABLED=true` (service tạo từ image, không đọc `render.yaml`).
 2. Nhóm chốt chính sách tạm dừng: với `allow_power_reduction=true`, LP sạc bước đầu rồi tạm dừng tới giờ thấp điểm
    (booking vẫn "đang sạc"). Chọn: giữ + sửa UI / mức công suất tối thiểu / mặc định không cho giảm.
-3. Nhóm duyệt ADR-016 (Proposed). Hướng: thêm taper DC vào `LiveStation` (registry `dc_curve`, ADR-012) hoặc adapter
-   `HybridSimulator` + test "live = research".
+3. ~~Nhóm duyệt ADR-016~~ — đã giải quyết: ADR-018 thay ADR-016, ADR-019 xoá `LiveStation` (differential test
+   CLI ↔ backend thay cho "live = research").
 4. Production: PR `develop` → `main`, service Render riêng (Starter trước demo), Neon nhánh `main`,
    `RENDER_DEPLOY_HOOK_PROD`, đổi `NEXT_PUBLIC_API_URL` Production trên Vercel (plan 56 §3.5).
-5. Giới hạn tần suất `/chat` theo user; sửa regex phút trong `src/agents/mock_llm.py` (nhận tới 99).
+5. Giới hạn tần suất `/chat` theo user; sửa regex phút trong `src/llm_chat/mock_llm.py` (nhận tới 99).
 6. Runner: giữ VM laptop hay thuê VPS x86_64 (4 vCPU / 8 GB) — nhóm quyết.
 7. Deliverable BTC: `README.md`, `JOURNAL.md`, `WORKLOG.md` đã điền theo dự án (22/11). Còn thiếu: mã sinh viên trong
    README, phần tuần 1 của JOURNAL ("[nhóm bổ sung]"), video demo, pitch deck, `eval/results/report.md` với LLM thật.
@@ -71,8 +97,9 @@ cd frontend && npm run typecheck && npm test
 **Backend**
 - Autogenerate Alembic sinh `astext_type=Text()` thiếu `sa.` → sửa tay. Không có relationship ORM → flush user trước booking.
 - Tool async của LangChain không hỗ trợ `.invoke` (raise NotImplementedError — dễ nhầm thành 501) → node dùng `ainvoke`.
-- `eval/run_eval.py` và `eval/run_benchmark.py` ghi đè file được track trong `eval/results/` → chạy thử thì `--out` /
-  trỏ `RESULTS_DIR` ra thư mục tạm.
+- `eval/run_eval.py` ghi đè file được track trong `eval/results/` → chạy thử thì `--out` ra thư mục tạm.
+  `eval/run_benchmark.py` ghi `eval/results/benchmark.{json,md}` (kind `generated`); S8 không đọc file này mà đọc
+  baseline có version — muốn đổi baseline thì tạo thư mục `eval/evidence/<ngày>-...-baseline/` có `manifest.json`.
 - HiGHS lỗi native khi đổi thread → mọi lần giải LP qua `src/services/solver.py` (một worker thread).
 - Lỗi không phải `OpenAIError` trong `/chat/stream` làm luồng đứt im lặng (web chỉ thấy "Máy chủ gặp lỗi") → xem log Render.
   Ví dụ đã gặp: `OPENAI_API_KEY` còn chuỗi mẫu tiếng Việt → `UnicodeEncodeError: 'ascii'` khi dựng header.

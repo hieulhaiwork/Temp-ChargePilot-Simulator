@@ -26,7 +26,26 @@ class EventType(StrEnum):
     CONNECTOR_FAULT = "connector_fault"
     CONNECTOR_RESTORED = "connector_restored"
     POWER_LIMIT_CHANGED = "power_limit_changed"
-    REPLAN_REQUESTED = "replan_requested"  # vận hành bấm "Lập lịch lại" (S6) / sau khi phê duyệt bị từ chối
+    # Xe đạt SOC mục tiêu (kernel phát cuối bước vật lý): phiên đổi trạng thái, công suất được giải phóng
+    # (ADR-019 Phase 4, quyết định 2). Tách khỏi REPLAN_REQUESTED; gộp với sự kiện cùng thời điểm, một lần tính lại.
+    CHARGE_COMPLETED = "charge_completed"
+    # vận hành bấm "Lập lịch lại" (S6) / sau phê duyệt / trạm báo công suất thực vượt budget vùng (một lần / quyết định)
+    REPLAN_REQUESTED = "replan_requested"
+    # Final Review §4.5b (opt-in `guard.after_apply_failsafe`): trạm phát hiện vi phạm trần cứng SAU khi áp (Physical
+    # Guard sau thực thi) → control_loop sinh lệnh giảm tải khẩn cấp qua guard/dispatcher.py rồi tính lại.
+    HARD_LIMIT_VIOLATED = "hard_limit_violated"
+
+
+class ViolationKind(StrEnum):
+    """Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — cùng giá trị với `src.models.decisions.HardViolationKind`.
+
+    aggregate_power: tổng công suất vượt trần tủ / vùng / lưới → giảm tải. charging_model / acceptance: lỗi phản hồi
+    pin / SOC / acceptance của một xe → giảm tải tổng không sửa được: ngắt công suất cổng đó + báo vận hành.
+    """
+
+    AGGREGATE_POWER = "aggregate_power"
+    CHARGING_MODEL = "charging_model"
+    ACCEPTANCE = "acceptance"
 
 
 class StationEvent(BaseModel):
@@ -37,6 +56,9 @@ class StationEvent(BaseModel):
     booking_id: str | None = None
     new_power_limit_kw: float | None = Field(default=None, ge=0)
     detail: str = ""
+    # Chỉ HARD_LIMIT_VIOLATED (Final Acceptance §1.4): loại vi phạm + xe liên quan (rỗng = vi phạm tổng của trạm)
+    violation_kinds: list[ViolationKind] = Field(default_factory=list)
+    violation_booking_ids: list[str] = Field(default_factory=list)
 
 
 class WsMessageType(StrEnum):

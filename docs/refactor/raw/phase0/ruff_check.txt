@@ -1,0 +1,20 @@
+# Trích gọn (Phase 0): chỉ vị trí + mã lỗi, bỏ trích đoạn code.
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\log_antigravity.py:51:1
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\log_hook.py:6:1
+N806 Variable `_PAYLOAD_KEYS` in function should be lowercase
+   --> scripts\log_hook.py:148:5
+N806 Variable `_LIFECYCLE_EVENTS` in function should be lowercase
+   --> scripts\log_hook.py:150:5
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\log_manual.py:22:1
+F541 [*] f-string without any placeholders
+  --> scripts\log_manual.py:85:15
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\submit_log.py:12:1
+UP017 [*] Use `datetime.UTC` alias
+  --> scripts\submit_log.py:77:26
+Found 8 errors.
+[*] 6 fixable with `--fix`.
+exit=1

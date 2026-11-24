@@ -1,0 +1,348 @@
+SAME         src/guard/approval.py::OPERATOR_INBOX
+SAME         src/guard/approval.py::TOL_KW
+SAME         src/guard/approval.py::start_delay_minutes
+SAME         src/guard/approval.py::requires_approval
+SAME         src/guard/approval.py::open_approval
+SAME         src/guard/approval.py::decide
+SAME         src/guard/approval.py::expire_overdue
+SAME         src/guard/checker.py::check
+SAME         src/guard/checker.py::check_batch
+SAME         src/guard/dispatcher.py::DispatchSinks
+SAME         src/guard/dispatcher.py::_message
+SAME         src/guard/dispatcher.py::_booking_for
+SAME         src/guard/dispatcher.py::submit
+SAME         src/guard/dispatcher.py::execute_approved
+SAME         src/guard/emergency.py::curtail_to_limit
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::EMPTY_PREFIX
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::effective_limits
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::_cabinet
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::_vehicle_id
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::_eligible
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::check_connector_allocation
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::check_site_allocation
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::check_dispatch
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::_explain
+SAME (src/guard/physical/adapter.py) src/guard/physical.py::_explain_dispatch
+SAME         src/guard/rules.py::TOL_KW
+SAME         src/guard/rules.py::POWER_COMMANDS
+SAME         src/guard/rules.py::GuardContext
+SAME         src/guard/rules.py::Rule
+SAME         src/guard/rules.py::_connector
+SAME         src/guard/rules.py::target_power_kw
+SAME         src/guard/rules.py::_batch_with
+SAME         src/guard/rules.py::_power_after
+SAME         src/guard/rules.py::_occupant_after
+SAME         src/guard/rules.py::_is_on
+SAME         src/guard/rules.py::check_total_power
+SAME         src/guard/rules.py::check_connector_power
+SAME         src/guard/rules.py::check_anti_flapping
+SAME         src/guard/rules.py::check_stale_state
+SAME         src/guard/rules.py::check_permission
+SAME         src/guard/rules.py::check_schedule_version
+SAME         src/guard/rules.py::check_conflicts
+SAME         src/guard/rules.py::RULES
+SAME         src/models/api.py::ErrorCode
+SAME         src/models/api.py::ErrorResponse
+SAME         src/models/api.py::ReadinessReport
+SAME         src/models/api.py::LoginRequest
+SAME         src/models/api.py::TokenResponse
+SAME         src/models/api.py::UserProfile
+SAME         src/models/api.py::EnergyEstimateRequest
+SAME         src/models/api.py::QueueStatus
+SAME         src/models/api.py::NotificationKind
+SAME         src/models/api.py::Notification
+SAME         src/models/api.py::ApprovalDecisionRequest
+SAME         src/models/api.py::ManualAssignRequest
+SAME         src/models/api.py::StationOverview
+SAME         src/models/api.py::SimulationRunRequest
+SAME         src/models/api.py::ResidentProfile
+SAME         src/models/api.py::ProfileUpdateRequest
+SAME         src/models/api.py::BookingChangeRequest
+SAME         src/models/api.py::ResidentSessionView
+SAME         src/models/api.py::ConnectorDetail
+SAME         src/models/charging.py::ChargeMode
+SAME         src/models/charging.py::ProvenanceStatus
+SAME         src/models/charging.py::FieldProvenance
+SAME         src/models/charging.py::VehicleSpec
+SAME         src/models/charging.py::ChargeRequest
+SAME         src/models/charging.py::EnergyEstimate
+SAME         src/models/charging.py::ConsentScope
+SAME         src/models/charging.py::BookingStatus
+SAME         src/models/charging.py::Booking
+SAME         src/models/charging.py::AlternativeKind
+SAME         src/models/charging.py::Alternative
+SAME         src/models/charging.py::ScheduleProposal
+SAME         src/models/charging.py::StrategyName
+SAME         src/models/charging.py::PowerSlot
+SAME         src/models/charging.py::SessionPlan
+SAME         src/models/charging.py::SchedulePlan
+SAME         src/models/charging.py::ChargingSession
+SAME         src/models/charging_physics.py::VehicleBatteryState
+SAME         src/models/charging_physics.py::DCChargingModel
+SAME         src/models/charging_physics.py::energy_to_target
+SAME         src/models/control.py::Role
+SAME         src/models/control.py::CommandType
+SAME         src/models/control.py::CommandSource
+SAME         src/models/control.py::Command
+SAME         src/models/control.py::GuardRule
+SAME         src/models/control.py::Violation
+SAME         src/models/control.py::GuardVerdict
+SAME         src/models/control.py::ApprovalKind
+SAME         src/models/control.py::ApprovalStatus
+SAME         src/models/control.py::Approval
+SAME         src/models/control.py::DecisionLogEntry
+SAME         src/models/events.py::EventType
+SAME         src/models/events.py::StationEvent
+SAME         src/models/events.py::WsMessageType
+SAME         src/models/events.py::WsMessage
+SAME         src/models/events.py::WS_PAYLOAD_MODELS
+SAME         src/models/identity.py::UserRecord
+SAME         src/models/physical_constraints.py::TOL
+SAME         src/models/physical_constraints.py::ConstraintViolationError
+SAME         src/models/physical_constraints.py::valid_kw
+SAME         src/models/physical_limits.py::EffectiveLimits
+SAME         src/models/physical_limits.py::effective_limits
+SAME         src/models/physical_limits.py::environment_boundary
+SAME         src/models/scheduling/__init__.py::__all__
+SAME         src/models/scheduling/coordination.py::ZoneBudgets
+SAME         src/models/scheduling/coordination.py::GlobalCoordinator
+SAME         src/models/scheduling/dispatch.py::DispatchObservation
+SAME         src/models/scheduling/dispatch.py::DispatchPolicy
+SAME         src/models/scheduling/observations.py::Candidate
+SAME         src/models/scheduling/observations.py::VehicleObservation
+SAME         src/models/scheduling/observations.py::SchedulingObservation
+SAME         src/models/scheduling/optimization.py::SchedulingPolicy
+SAME         src/models/scheduling/optimization.py::PowerProposal
+SAME         src/models/scheduling/optimization.py::ZonePowerOptimizer
+SAME         src/models/schemas.py::ChatRequest
+SAME         src/models/schemas.py::ChatResponse
+SAME         src/models/schemas.py::AgentDecision
+SAME         src/models/schemas.py::FinalAnswer
+SAME         src/models/schemas.py::AgentAnswer
+SAME         src/models/simulation.py::IncidentType
+SAME         src/models/simulation.py::Incident
+SAME         src/models/simulation.py::ScheduledIncident
+SAME         src/models/simulation.py::SessionSource
+SAME         src/models/simulation.py::Scenario
+SAME         src/models/simulation.py::SessionOutcome
+SAME         src/models/simulation.py::SimulationTrace
+SAME         src/models/simulation.py::KpiReport
+SAME         src/models/simulation.py::SimulationRunResult
+SAME         src/models/simulation.py::BenchmarkReport
+SAME         src/models/simulation_core.py::minute
+SAME         src/models/simulation_core.py::clock
+SAME         src/models/simulation_core.py::number
+SAME         src/models/simulation_core.py::integer
+SAME         src/models/simulation_core.py::identifier
+SAME         src/models/simulation_core.py::Cabinet
+SAME         src/models/simulation_core.py::Vehicle
+SAME         src/models/simulation_core.py::LimitEvent
+SAME         src/models/simulation_core.py::Tariff
+SAME         src/models/simulation_core.py::Scenario
+SAME         src/models/simulation_core.py::_zone_values
+SAME         src/models/simulation_core.py::_optional_zone_values
+SAME         src/models/simulation_core.py::_limit_events
+SAME         src/models/simulation_core.py::_tariff
+SAME         src/models/station.py::ChargerZone
+SAME         src/models/station.py::SupplyMode
+SAME         src/models/station.py::CabinetSpec
+SAME         src/models/station.py::ConnectorSpec
+SAME         src/models/station.py::GuardSettings
+SAME         src/models/station.py::OptimizerSettings
+SAME         src/models/station.py::StationConfig
+SAME         src/models/station.py::ConnectorStatus
+SAME         src/models/station.py::ConnectorState
+SAME         src/models/station.py::SessionProgress
+SAME         src/models/station.py::StationState
+SAME         src/models/station.py::LoadPoint
+SAME         src/models/station.py::TariffPeriod
+SAME         src/models/station.py::Tariff
+SAME (src/optimizer/strategies.py) src/optimizer/__init__.py::__all__
+SAME (src/optimizer/strategies.py) src/optimizer/__init__.py::get_scheduler
+SAME         src/optimizer/assignment.py::Assignment
+SAME         src/optimizer/assignment.py::remaining_kwh
+SAME         src/optimizer/assignment.py::_release_time
+SAME         src/optimizer/assignment.py::assign_connectors
+SAME         src/optimizer/base.py::PlanningContext
+SAME         src/optimizer/base.py::Scheduler
+SAME         src/optimizer/baselines.py::_headroom
+SAME         src/optimizer/baselines.py::_allocate
+SAME         src/optimizer/baselines.py::_plan
+SAME         src/optimizer/baselines.py::FcfsScheduler
+SAME         src/optimizer/baselines.py::EdfScheduler
+SAME         src/optimizer/baselines.py::OracleScheduler
+SAME         src/optimizer/horizon.py::EPS
+SAME         src/optimizer/horizon.py::Grid
+SAME         src/optimizer/horizon.py::SessionWindow
+SAME         src/optimizer/horizon.py::Group
+SAME         src/optimizer/horizon.py::build_grid
+SAME         src/optimizer/horizon.py::session_windows
+SAME         src/optimizer/horizon.py::_start_requirement
+SAME         src/optimizer/horizon.py::constraint_groups
+SAME         src/optimizer/horizon.py::prices
+SAME         src/optimizer/horizon.py::to_session_plans
+SAME         src/optimizer/lp_model.py::LpSolveError
+SAME         src/optimizer/lp_model.py::solve_power_allocation
+SAME         src/optimizer/lp_model.py::solve_with_unmet
+SAME         src/optimizer/lp_model.py::_solve
+SAME         src/optimizer/mpc.py::MpcScheduler
+SAME         src/services/hybrid_planner.py::logger
+CHANGED      src/services/hybrid_planner.py::POLICIES
+SAME         src/services/hybrid_planner.py::SIMULATOR_STRATEGIES
+SAME         src/services/hybrid_planner.py::TARIFF_HORIZON_HOURS
+SAME         src/services/hybrid_planner.py::selection
+SAME         src/services/hybrid_planner.py::SimulatorScheduler
+SAME         src/services/hybrid_planner.py::_start_minimums
+SAME         src/services/hybrid_planner.py::_fit_with_minimums
+SAME         src/services/hybrid_planner.py::_to_plan
+SAME         src/services/hybrid_planner.py::_queue_etas
+SAME         src/services/hybrid_planner.py::_sim_tariff
+SAME         src/services/hybrid_planner.py::__all__
+SAME (src/models/station_protocols.py) src/simulator/base.py::VehicleVisit
+SAME (src/models/station_protocols.py) src/simulator/base.py::StationReader
+SAME (src/models/station_protocols.py) src/simulator/base.py::StationActuator
+SAME (src/models/station_protocols.py) src/simulator/base.py::StationSimulator
+SAME         src/simulator/benchmark.py::SEEDS
+SAME         src/simulator/benchmark.py::START
+SAME         src/simulator/benchmark.py::DC_FAMILIES
+SAME         src/simulator/benchmark.py::AC_FLEET
+SAME         src/simulator/benchmark.py::POLICIES
+SAME         src/simulator/benchmark.py::WEIGHT_SENSITIVITY
+SAME         src/simulator/benchmark.py::workload
+SAME         src/simulator/benchmark.py::_comparison
+SAME         src/simulator/benchmark.py::run_benchmark
+SAME         src/simulator/benchmark.py::main
+SAME         src/simulator/benchmark_mvp3.py::FAMILIES
+MOVED-SAME -> src/optimizer/registry.py src/simulator/benchmark_mvp3.py::POLICIES
+SAME         src/simulator/benchmark_mvp3.py::_time
+SAME         src/simulator/benchmark_mvp3.py::workload_mvp3
+SAME         src/simulator/benchmark_mvp3.py::_selection
+SAME         src/simulator/benchmark_mvp3.py::_paired
+SAME         src/simulator/benchmark_mvp3.py::run_benchmark
+SAME         src/simulator/benchmark_mvp3.py::main
+SAME         src/simulator/hybrid_station.py::logger
+SAME         src/simulator/hybrid_station.py::EPS
+SAME         src/simulator/hybrid_station.py::SOC_TOL
+SAME         src/simulator/hybrid_station.py::END_MINUTE
+SAME         src/simulator/hybrid_station.py::_locked
+SAME         src/simulator/hybrid_station.py::_ceil_minutes
+SAME         src/simulator/hybrid_station.py::HybridStation
+SAME         src/simulator/live.py::logger
+SAME         src/simulator/live.py::EPS_KWH
+SAME         src/simulator/live.py::_Port
+SAME         src/simulator/live.py::_Session
+SAME         src/simulator/live.py::LiveStation
+SAME         src/simulator/run.py::ROOT
+SAME         src/simulator/run.py::SCENARIOS
+SAME         src/simulator/run.py::VIEWER
+SAME         src/simulator/run.py::ENGINE
+SAME         src/simulator/run.py::VERSION
+SAME         src/simulator/run.py::resolve_scenario
+SAME         src/simulator/run.py::write_json
+SAME         src/simulator/run.py::write_csv
+SAME         src/simulator/run.py::metadata_for
+SAME         src/simulator/run.py::export
+SAME         src/simulator/run.py::main
+SAME         src/simulator/src/algorithms.py::ZONES
+SAME         src/simulator/src/algorithms.py::Algorithms
+SAME         src/simulator/src/algorithms.py::default_algorithms
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::Registration
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::_fixed_budget
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::_fixed_share
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::_dynamic_slack
+SAME         src/simulator/src/algorithms.py::_synthetic_taper
+SAME         src/simulator/src/algorithms.py::_vehicle_profiles
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::_rolling_lp
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::_llf
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::_ac_rolling_lp
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::DISPATCH
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::OPTIMIZERS
+MOVED-SAME -> src/optimizer/registry.py src/simulator/src/algorithms.py::COORDINATORS
+SAME         src/simulator/src/algorithms.py::DC_MODELS
+SAME         src/simulator/src/algorithms.py::algorithm_labels
+SAME         src/simulator/src/algorithms.py::_choice
+SAME         src/simulator/src/algorithms.py::_metadata
+SAME         src/simulator/src/algorithms.py::resolve_algorithms
+SAME         src/simulator/src/charging_models/base.py::__all__
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_VF3_CURVE
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_VF8_OLD_SHAPE_PROXY
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_finite_nonnegative
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_fraction
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_ratio
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_linear_curve
+SAME         src/simulator/src/charging_models/dc_charging_models.py::_generic_heterogeneous
+SAME         src/simulator/src/charging_models/dc_charging_models.py::CurveKind
+SAME         src/simulator/src/charging_models/dc_charging_models.py::DCProfile
+SAME         src/simulator/src/charging_models/dc_charging_models.py::resolve_dc_profile
+SAME         src/simulator/src/charging_models/dc_charging_models.py::DCStepResult
+SAME         src/simulator/src/charging_models/dc_charging_models.py::charge_dc_step
+SAME         src/simulator/src/charging_models/synthetic_dc.py::SyntheticTaperV1
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::PROFILE_VERSION
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::INTEGRATION_SECONDS
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::GENERIC_CURVE
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::VF8_SHAPE
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::OEM_SOURCES
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::CURVE_SOURCES
+SAME         src/simulator/src/charging_models/vehicle_profiles.py::VehicleProfilesDCModel
+SAME         src/simulator/src/coordination/base.py::__all__
+SAME (src/optimizer/coordination/dynamic_slack.py) src/simulator/src/coordination/dynamic_slack.py::DynamicSlackCoordinator
+SAME (src/optimizer/coordination/fixed_budget.py) src/simulator/src/coordination/fixed_budget.py::FixedBudgetCoordinator
+SAME (src/optimizer/coordination/fixed_budget.py) src/simulator/src/coordination/fixed_budget.py::FixedShareCoordinator
+SAME (src/optimizer/dispatch/arrival_order.py) src/simulator/src/dispatch/arrival_order.py::arrival_order
+SAME         src/simulator/src/dispatch/base.py::__all__
+SAME (src/optimizer/dispatch/edf.py) src/simulator/src/dispatch/edf.py::earliest_deadline
+SAME (src/optimizer/dispatch/least_laxity.py) src/simulator/src/dispatch/least_laxity.py::optimistic_laxity
+SAME (src/optimizer/dispatch/least_laxity.py) src/simulator/src/dispatch/least_laxity.py::least_laxity
+SAME         src/simulator/src/engine/ev2gym_adapter.py::PrecisionEV
+SAME         src/simulator/src/engine/ev2gym_adapter.py::DCEV
+SAME         src/simulator/src/engine/ev2gym_adapter.py::Delivered
+SAME         src/simulator/src/engine/ev2gym_adapter.py::EV2GymAdapter
+SAME         src/simulator/src/engine/hybrid.py::ZERO_POWER
+SAME         src/simulator/src/engine/hybrid.py::LOGGER
+SAME         src/simulator/src/engine/hybrid.py::HybridSimulator
+SAME         src/simulator/src/engine/queue.py::Session
+SAME         src/simulator/src/engine/queue.py::QueueController
+SAME         src/simulator/src/evaluation/extended.py::ENERGY_TOL_KWH
+SAME         src/simulator/src/evaluation/extended.py::percentile
+SAME         src/simulator/src/evaluation/extended.py::latency_summary
+SAME         src/simulator/src/evaluation/extended.py::_within_limit
+SAME         src/simulator/src/evaluation/extended.py::audit
+SAME         src/simulator/src/evaluation/extended.py::RunSample
+SAME         src/simulator/src/evaluation/extended.py::sample_run
+SAME         src/simulator/src/evaluation/extended.py::_session_metrics
+SAME         src/simulator/src/evaluation/extended.py::benchmark_metrics
+SAME         src/simulator/src/evaluation/metrics.py::summarize
+SAME         src/simulator/src/evaluation/trace.py::SCHEMA_VERSION
+SAME         src/simulator/src/evaluation/trace.py::_binding_constraints
+SAME         src/simulator/src/evaluation/trace.py::decision_record
+SAME         src/simulator/src/observations.py::__all__
+SAME (src/optimizer/zones/ac_lp.py) src/simulator/src/optimizers/ac_lp.py::AC_TRANSITION_SOC
+SAME (src/optimizer/zones/ac_lp.py) src/simulator/src/optimizers/ac_lp.py::FORECAST
+SAME (src/optimizer/zones/ac_lp.py) src/simulator/src/optimizers/ac_lp.py::ACConfig
+SAME (src/optimizer/zones/ac_lp.py) src/simulator/src/optimizers/ac_lp.py::_boundaries
+SAME (src/optimizer/zones/ac_lp.py) src/simulator/src/optimizers/ac_lp.py::_solve
+SAME (src/optimizer/zones/ac_lp.py) src/simulator/src/optimizers/ac_lp.py::ACRollingLP
+SAME         src/simulator/src/optimizers/base.py::__all__
+SAME (src/optimizer/zones/deadline_first.py) src/simulator/src/optimizers/deadline_first.py::deadline_first
+SAME (src/optimizer/zones/equal_share.py) src/simulator/src/optimizers/equal_share.py::equal_share_policy
+SAME (src/optimizer/zones/equal_share.py) src/simulator/src/optimizers/equal_share.py::equal_share
+SAME (src/optimizer/zones/equal_share.py) src/simulator/src/optimizers/equal_share.py::zone_equal_share
+SAME (src/optimizer/zones/equal_share.py) src/simulator/src/optimizers/equal_share.py::_equal_share_zone
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::SAMPLE_COUNT
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::FORECAST
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::LPConfig
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::_acceptance_line
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::_blocks
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::_valid_primal
+SAME (src/optimizer/zones/rolling_lp.py) src/simulator/src/optimizers/rolling_lp.py::RollingHorizonLP
+SAME         src/simulator/src/safety/constraints.py::__all__
+SAME (src/guard/physical/validator.py) src/simulator/src/safety/guard.py::validate_dispatch
+SAME (src/guard/physical/validator.py) src/simulator/src/safety/guard.py::validate_budgets
+SAME (src/guard/physical/validator.py) src/simulator/src/safety/guard.py::_validate_supply
+SAME (src/guard/physical/validator.py) src/simulator/src/safety/guard.py::guard
+SAME (src/guard/physical/validator.py) src/simulator/src/safety/guard.py::validate_response
+SAME         src/simulator/src/safety/limits.py::__all__
+SAME         src/simulator/src/scenario.py::__all__
+DECLARED     src/services/hybrid_planner.py::POLICIES — Bảng policy chép tay được thay bằng ánh xạ StrategyName → src.optimizer.registry.POLICIES (một nguồn, ADR-019). Giá trị trùng từng tuple (test_policy_bundles_have_a_single_source kiểm `is`).
+
+# definitions compared: 345; not identical (undeclared): 0; declared changes: 1

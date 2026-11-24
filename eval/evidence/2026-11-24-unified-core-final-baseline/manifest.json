@@ -1,0 +1,55 @@
+{
+  "baseline_id": "backend-unified-core-final",
+  "version": "2026-11-24-final",
+  "status": "final",
+  "status_note": "Baseline chính thức cuối refactor Unified Core (TECHLEAD_PHASE4_DECISIONS mục 8), sau khi sửa sai lệch budget (mục 3). Khác baseline Phase 3 có chủ ý: docs/refactor/REFACTOR_REPORT.md mục 'Baseline'.",
+  "code_commit": "157f403e2171a20630260efd7a9fe87793276be9",
+  "code_branch": "feature/unified-core-p4-final",
+  "generated_at": "2026-11-23T17:22:34.515808Z",
+  "copied_from": "eval/run_benchmark.py --seeds 1,2,3,4,5 chạy trên code_commit (RESULTS_DIR trỏ ra thư mục tạm)",
+  "copy_sha256": "323e4799f8029cd10d048e11af4e8da741f8ec66e9c50ec8a4bb6c1c69cc31fb",
+  "command": "eval/run_benchmark.py --seeds 1,2,3,4,5 (RESULTS_DIR trỏ ra thư mục tạm)",
+  "engine": "HybridStation (StationKernel dùng chung với simulator)",
+  "scenarios": [
+    "connector_failure",
+    "hybrid_evening",
+    "hybrid_power_drop",
+    "peak_evening",
+    "power_drop"
+  ],
+  "config": "config/station.yaml, config/tariff.yaml, config/vehicles.yaml, config/scenarios/*.yaml tại code_commit",
+  "policies": [
+    "B0",
+    "M2b",
+    "M3a",
+    "M3b"
+  ],
+  "policy_registry": "src/optimizer/registry.py POLICIES, version 1",
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "runs": 100,
+  "time_config": {
+    "physics_step_minutes": 1,
+    "decision_interval_minutes": 15,
+    "planning_horizon_minutes": null
+  },
+  "libraries": {
+    "os": "Windows 11",
+    "python": "3.12.10",
+    "ev2gym": "2.0.0",
+    "numpy": "2.5.5",
+    "scipy": "1.18.1"
+  },
+  "not_comparable_with": [
+    "eval/evidence/2026-11-23-refactor-phase2 (khác cấu hình thời gian / interval quyết định — ADR-019 P1)",
+    "eval/results/archive/2026-11-22-pre-refactor (A–D, LP backend đã bỏ)",
+    "eval/evidence/2026-11-23-refactor-phase3-baseline (cùng điều kiện, nhưng trước sửa lỗi làm tròn setpoint; so như trước / sau sửa lỗi, không như hai optimizer)"
+  ],
+  "previous_baseline": "eval/evidence/2026-11-23-refactor-phase3-baseline (backend-phase3, provisional)",
+  "copy_sha256_note": "sha256 của benchmark.json với xuống dòng LF (checkout Windows có thể đổi sang CRLF)"
+}

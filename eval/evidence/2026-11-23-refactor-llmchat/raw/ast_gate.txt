@@ -1,0 +1,138 @@
+SAME (src/llm_chat/graph.py) src/agents/graph.py::logger
+SAME (src/llm_chat/graph.py) src/agents/graph.py::__all__
+SAME (src/llm_chat/graph.py) src/agents/graph.py::guardrail_check_node
+SAME (src/llm_chat/graph.py) src/agents/graph.py::make_entry_node
+SAME (src/llm_chat/graph.py) src/agents/graph.py::route_after_guardrail
+SAME (src/llm_chat/graph.py) src/agents/graph.py::route_after_reason
+SAME (src/llm_chat/graph.py) src/agents/graph.py::route_after_act
+SAME (src/llm_chat/graph.py) src/agents/graph.py::route_after_assess
+SAME (src/llm_chat/graph.py) src/agents/graph.py::build_graph
+SAME (src/llm_chat/graph.py) src/agents/graph.py::agent
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::logger
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::SchemaT
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::GuardrailViolation
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::BANNED_INPUT_PATTERNS
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::BANNED_OUTPUT_PATTERNS
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::Guardrails
+SAME (src/llm_chat/guardrails.py) src/agents/guardrails.py::guardrails
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_PCT_RE
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_TIME_RE
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_VEHICLE_RE
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_now_local
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_resolve_time
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_fmt_dt
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_fmt_vnd
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_fmt_num
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_extract_draft
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::_missing_fields
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::mock_reason
+SAME (src/llm_chat/mock_llm.py) src/agents/mock_llm.py::mock_generate
+SAME (src/llm_chat/nodes/act_node.py) src/agents/nodes/act_node.py::logger
+SAME (src/llm_chat/nodes/act_node.py) src/agents/nodes/act_node.py::TOOL_ERROR_PREFIX
+SAME (src/llm_chat/nodes/act_node.py) src/agents/nodes/act_node.py::_parse_proposal
+SAME (src/llm_chat/nodes/act_node.py) src/agents/nodes/act_node.py::act_node
+SAME (src/llm_chat/nodes/assess_node.py) src/agents/nodes/assess_node.py::logger
+SAME (src/llm_chat/nodes/assess_node.py) src/agents/nodes/assess_node.py::assess_node
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::logger
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::GenerateFn
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::PARTIAL_NOTE
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::build_generate_prompt
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::llm_generate
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::_with_reply
+SAME (src/llm_chat/nodes/finalize_node.py) src/agents/nodes/finalize_node.py::_make_finalize
+SAME (src/llm_chat/nodes/human_review_node.py) src/agents/nodes/human_review_node.py::logger
+SAME (src/llm_chat/nodes/human_review_node.py) src/agents/nodes/human_review_node.py::human_review_node
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::logger
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::ReasonFn
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::describe_tools
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::_format_history_line
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::build_reason_prompt
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::llm_reason
+SAME (src/llm_chat/nodes/reason_node.py) src/agents/nodes/reason_node.py::make_reason_node
+MISSING      src/agents/nodes/retrieve_node.py::_MOCK_KB
+MISSING      src/agents/nodes/retrieve_node.py::retrieve_node
+MISSING      src/agents/nodes/retrieve_node.py::_retrieve_chunks
+SAME (src/llm_chat/nodes/safety_node.py) src/agents/nodes/safety_node.py::DANGER_KEYWORDS
+SAME (src/llm_chat/nodes/safety_node.py) src/agents/nodes/safety_node.py::DANGER_RESPONSE
+SAME (src/llm_chat/nodes/safety_node.py) src/agents/nodes/safety_node.py::safety_node
+MOVED-SAME -> src/llm_chat/nodes/validate_node.py src/agents/nodes/synthesize_node.py::logger
+MISSING      src/agents/nodes/synthesize_node.py::synthesize_node
+MISSING      src/agents/nodes/synthesize_node.py::_get_structured_answer
+MISSING      src/agents/nodes/synthesize_node.py::_parse_answer
+MISSING      src/agents/nodes/synthesize_node.py::_render_answer
+SAME (src/llm_chat/nodes/validate_node.py) src/agents/nodes/validate_node.py::logger
+SAME (src/llm_chat/nodes/validate_node.py) src/agents/nodes/validate_node.py::validate_node
+SAME (src/llm_chat/nodes/validate_node.py) src/agents/nodes/validate_node.py::should_retry
+SAME (src/llm_chat/personas.py) src/agents/personas.py::Persona
+SAME (src/llm_chat/personas.py) src/agents/personas.py::PERSONAS
+SAME (src/llm_chat/personas.py) src/agents/personas.py::get_persona
+SAME (src/llm_chat/prompts.py) src/agents/prompts.py::_PROMPTS_DIR
+SAME (src/llm_chat/prompts.py) src/agents/prompts.py::SHARED_RULES
+SAME (src/llm_chat/prompts.py) src/agents/prompts.py::load_prompt
+SAME (src/llm_chat/prompts.py) src/agents/prompts.py::_PLACEHOLDER
+SAME (src/llm_chat/prompts.py) src/agents/prompts.py::render
+SAME (src/llm_chat/prompts.py) src/agents/prompts.py::build_system_prompt
+SAME (src/llm_chat/state.py) src/agents/state.py::Stage
+SAME (src/llm_chat/state.py) src/agents/state.py::HISTORY_LIMIT
+SAME (src/llm_chat/state.py) src/agents/state.py::AgentState
+SAME (src/llm_chat/tools/__init__.py) src/agents/tools/__init__.py::TOOL_REGISTRY
+SAME (src/llm_chat/tools/__init__.py) src/agents/tools/__init__.py::TEMPLATE_DEMO_TOOL_NAMES
+SAME (src/llm_chat/tools/__init__.py) src/agents/tools/__init__.py::__all__
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::PROPOSAL_TOOL_NAME
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::CONFIRM_TOOL_NAME
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::_svc
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::_current_resident_id
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::_chat_idempotency_key
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::lookup_vehicle
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::estimate_charging_energy
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::propose_charging_plan
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::confirm_booking
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::get_queue_status
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::explain_schedule
+SAME (src/llm_chat/tools/charging.py) src/agents/tools/charging.py::CHARGING_TOOLS
+SAME (src/llm_chat/tools/knowledge.py) src/agents/tools/knowledge.py::_SAFE_OPERATORS
+SAME (src/llm_chat/tools/knowledge.py) src/agents/tools/knowledge.py::search_knowledge
+SAME (src/llm_chat/tools/knowledge.py) src/agents/tools/knowledge.py::calculate
+SAME (src/llm_chat/tools/knowledge.py) src/agents/tools/knowledge.py::_eval_node
+SAME (src/llm_chat/tools/knowledge.py) src/agents/tools/knowledge.py::TOOLS
+SAME (src/llm_chat/tools/mcp_tool.py) src/agents/tools/mcp_tool.py::_MCP_SERVER_URL
+SAME (src/llm_chat/tools/mcp_tool.py) src/agents/tools/mcp_tool.py::_mcp_call
+SAME (src/llm_chat/tools/mcp_tool.py) src/agents/tools/mcp_tool.py::mcp_knowledge_lookup
+SAME (src/llm_chat/tools/risky_tools.py) src/agents/tools/risky_tools.py::RISKY_TOOL_NAMES
+SAME (src/llm_chat/tools/risky_tools.py) src/agents/tools/risky_tools.py::send_email
+SAME         src/api/routes.py::logger
+SAME         src/api/routes.py::router
+SAME         src/api/routes.py::CHAT_STREAM_TIMEOUT_SECONDS
+SAME         src/api/routes.py::MAX_CONCURRENT_STREAMS_PER_USER
+SAME         src/api/routes.py::_active_user_streams
+SAME         src/api/routes.py::_config
+SAME         src/api/routes.py::_turn_context
+SAME         src/api/routes.py::_proposal_from
+SAME         src/api/routes.py::_to_chat_response
+SAME         src/api/routes.py::_invoke
+SAME         src/api/routes.py::chat
+SAME         src/api/routes.py::_sse
+SAME         src/api/routes.py::chat_stream
+SAME         src/api/routes.py::ResumeRequest
+SAME         src/api/routes.py::chat_resume
+SAME         src/api/routes.py::agent_status
+SAME         src/api/routes.py::reset_demo_state
+SAME         src/api/routes.py::agent_playground_page
+SAME         src/api/routes.py::_PLAYGROUND_HTML
+SAME         src/config.py::DEFAULT_DATABASE_URL
+SAME         src/config.py::Settings
+SAME         src/config.py::get_settings
+SAME         src/models/schemas.py::ChatRequest
+SAME         src/models/schemas.py::ChatResponse
+MOVED-SAME -> src/llm_chat/schemas.py src/models/schemas.py::AgentDecision
+MOVED-SAME -> src/llm_chat/schemas.py src/models/schemas.py::FinalAnswer
+MOVED-SAME -> src/llm_chat/schemas.py src/models/schemas.py::AgentAnswer
+SAME         src/services/llm.py::TaskType
+SAME         src/services/llm.py::_model_name
+CHANGED      src/services/llm.py::get_llm
+SAME         src/services/llm.py::get_structured_llm
+CHANGED      src/services/llm.py::describe_provider
+DECLARED     src/services/llm.py::describe_provider — chỉ đổi chuỗi mô tả model mock: đường dẫn src/agents/mock_llm.py -> src/llm_chat/mock_llm.py
+DECLARED     src/services/llm.py::get_llm — chỉ đổi chuỗi thông báo lỗi: đường dẫn src/agents/mock_llm.py -> src/llm_chat/mock_llm.py
+
+# definitions compared: 134; not identical (undeclared): 7; declared changes: 2

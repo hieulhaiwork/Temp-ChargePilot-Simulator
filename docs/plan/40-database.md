@@ -213,6 +213,23 @@ Index: `(status, expires_at)` cho `expire_overdue`; `(requested_from, status)`.
 | `payload` | json | `DecisionLogEntry` |
 
 Index: `(guard_passed, seq)` cho tab "Bị Guard chặn"; `(booking_id, seq)` cho `charging_service.explain`.
+
+**`decision_traces`** — ADR-019 Phase 4 (quyết định 6), migration `0002`. Tóm tắt vận hành của một lần tính lại; trace
+chi tiết (facts cùng schema DecisionTrace của simulator) là artifact JSONL trong `DECISION_TRACE_DIR`
+(`src/services/decision_trace.py`). Nối với `decision_log` qua `payload.command.correlation_id`.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `correlation_id` | str(32) PK | cũng nằm trong `Command.correlation_id` |
+| `decided_at` | ts | |
+| `policy_id` | str(16) | B0 / M2b / M3a / M3b |
+| `schedule_version` | int | |
+| `budget_deviation_kw_max` | float | vượt assigned budget ngoài command deadband |
+| `hard_violations` | int | Physical Guard sau thực thi |
+| `closed` | bool | `false` = quyết định còn hiệu lực (chưa có số đo) |
+| `payload` | json | `DecisionTraceSummary` |
+
+Index: `(decided_at)`.
 `repository` không có hàm sửa hay xoá bảng này; test kiểm điều đó.
 
 **`notifications`** — FR15

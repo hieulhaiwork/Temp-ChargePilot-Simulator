@@ -25,7 +25,7 @@ File agent đọc ĐẦU TIÊN khi resume. Mục tiêu: < 60 giây để agent "
 
 ## 0.1 Current Invariants (để không drift)
 - Source of truth kỹ thuật: code trong src/. Doc chỉ tóm tắt — CODE WINS.
-- Agent flow: src/agents/graph.py.
+- Agent flow: src/llm_chat/graph.py.
 
 ## 0.2 Known Ambiguities / Mismatches
 - [liệt kê chỗ doc-vs-code lệch]

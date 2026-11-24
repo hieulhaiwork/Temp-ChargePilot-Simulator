@@ -1,0 +1,6 @@
+vinfast_dc_2port_120kw | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 8/9 | mean wait (started only): 44.78 min | peak grid: 149.474 kW
+Report: <LOCAL_TMP>/claude\1ce8fb91e84c1e1f\01544b1a-7c39-4638-a6ad-226dc5999a72\scratchpad\phase2\vf\20261123T090410548228Z-c05e3251f5-ba44ca89\report.json
+2D replay: <LOCAL_TMP>/claude\1ce8fb91e84c1e1f\01544b1a-7c39-4638-a6ad-226dc5999a72\scratchpad\phase2\vf\20261123T090410548228Z-c05e3251f5-ba44ca89\viewer.html
+exit=0

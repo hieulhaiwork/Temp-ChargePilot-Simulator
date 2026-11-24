@@ -1,75 +1,78 @@
-"""HybridStation — trạm backend chạy liên tục, dùng NGUYÊN các thành phần của simulator R&D (src/simulator/src/).
+"""HybridStation — trạm backend chạy liên tục trên CÙNG kernel với HybridSimulator (ADR-019 Phase 3).
 
-Vì sao tồn tại: nhóm coi HybridSimulator (EV2Gym + QueueController + đường sạc DC) là mô hình vật lý gốc, còn
-LiveStation (live.py) là mô hình đơn giản (không taper DC). HybridSimulator chạy trọn kịch bản với dispatch /
-optimizer / guard của riêng nó nên không đặt được sau chokepoint Guard của backend (ADR-002). Lớp này tách phần
-VẬT LÝ của `HybridSimulator.step` (src/simulator/src/engine/hybrid.py) ra: quyết định gán cổng / công suất đến từ
-backend qua `apply_commands` (đã qua Guard), còn hàng chờ, xe đến / rời / rút DC, phản hồi pin, kiểm tra vật lý
-là đúng code simulator (QueueController, EV2GymAdapter, safety.guard). Hành vi công khai giống LiveStation
-(cùng Protocol StationReader + StationActuator của base.py) để thay thế được nhau.
+Vì sao tồn tại: backend cần một trạm sống lâu, nhận lệnh đã qua Guard (ADR-002) và nhận dữ kiện môi trường dần dần
+(booking, sự cố). Lớp này chỉ là adapter: mọi trạng thái vật lý, vòng tích phân (Physical Core) và lập kế hoạch
+(Planning Core) nằm trong `StationKernel` (src/simulator/core/kernel.py), dùng chung với simulator standalone.
+Ở đây chỉ còn: dịch StationConfig ↔ Scenario, booking ↔ Vehicle, Command → primitive của kernel, sự kiện simulator →
+StationEvent, StationState / SessionOutcome cho backend.
 
-Nguồn đối chiếu: `HybridSimulator.step` / `_dispatch` / `_observed_vehicles` (hybrid.py). Test
-tests/test_simulator/test_hybrid_station.py phát lại quyết định của HybridSimulator trên fixture mvp1 và đòi
-năng lượng từng xe khớp 1e-6 kWh ("live = research", ADR-016).
+Thời gian (P1, docs/refactor/PHASE3_DESIGN.md §2): `physics_step_minutes = 1`, `decision_interval_minutes =
+optimizer.planning_step_minutes` (15). Chỉ `guard/dispatcher.py` được gọi `apply_commands`; bản fork (admission) nhận
+quyết định đã duyệt qua `apply_approved`.
 
 [GIẢ ĐỊNH]
-  - Đồng hồ simulator = phút nguyên kể từ `start` của trạm (phút 0), `timestep=1`, `end` rất lớn. Mốc giờ
-    đến / rời của VehicleVisit làm tròn LÊN phút (như LiveStation: xe "có mặt" khi now ≥ giờ đến).
+  - Đồng hồ = phút nguyên kể từ `start` của trạm (phút 0), `end` rất lớn. Giờ đến / rời của VehicleVisit làm tròn LÊN
+    phút (xe "có mặt" khi now ≥ giờ đến).
   - VehicleVisit thiếu pin: battery_kwh = required_kwh × η_sạc, SOC 0 → 1. Có pin nhưng thiếu SOC: SOC đầu 0,
     target = min(1, SOC đầu + required_kwh × η_sạc / pin).
-  - `SessionProgress.delivered_grid_kwh` của backend = năng lượng ĐẦU RA cổng (Σ kW·h, không chia η chuyển đổi),
-    theo dõi riêng; `Session.delivered_grid_kwh` của simulator vẫn giữ nghĩa phía lưới (÷ conversion).
-  - Xe đạt SOC target trước deadline ⇒ `delivered_kwh_by_deadline = max(thực tế, requested)` vì required_kwh
-    (FR3, η mặc định) và SOC target (η của EV2Gym) có thể lệch nhau chút do hiệu suất.
-  - Setpoint giữ tới lệnh sau; công suất thực = min(setpoint, cổng, acceptance của xe) — xe tự giới hạn theo
-    đường sạc là vật lý, không phải lỗi. Vi phạm guard vật lý sau mỗi phút chỉ đếm + log, KHÔNG raise (trạm live
-    không được chết); HybridSimulator thì raise.
-  - Lỗi cổng: xe đang cắm bị rút, về ĐẦU hàng chờ (như LiveStation), `charge_started` xoá.
-  - Không hỗ trợ đổi cổng cho xe đang cắm (ASSIGN xe không ở QUEUED bị bỏ qua) — QueueController không có thao tác này.
+  - `SessionProgress.delivered_grid_kwh` = năng lượng ĐẦU RA cổng (kernel.output_kwh); `Session.delivered_grid_kwh`
+    của simulator giữ nghĩa phía lưới (÷ conversion).
+  - Xe đạt SOC target trước deadline ⇒ `delivered_kwh_by_deadline = max(thực tế, requested)` (FR3 ↔ η EV2Gym).
+  - Setpoint giữ tới lệnh sau; công suất thực = min(setpoint, cổng, acceptance 1'). Vi phạm sau khi áp đếm + log
+    (trạm live không được chết); bật `guard.after_apply_failsafe` ⇒ phát HARD_LIMIT_VIOLATED (có loại vi phạm) và dừng
+    catch-up ở phút vi phạm để runtime xử lý an toàn qua dispatcher (Final Acceptance §1); HybridSimulator thì raise.
+  - Lỗi cổng: xe đang cắm bị rút, về ĐẦU hàng chờ, `charge_started` xoá. Không đổi cổng cho xe đang cắm.
   - Xe đã rời mà upsert lại ⇒ bỏ qua (log).
 
-Chưa làm: profile DC VinFast (`VehicleProfilesDCModel` cần biết xe từ trước, `from_scenario`) — TODO: truyền
-`dc_model` tự dựng nếu cần. Không hỗ trợ limit_events / tariff của Scenario simulator (backend tự xử lý giá).
+DC charging model: `dc_charging_model=<tên DC_MODELS>` (cùng registry với simulator offline) hoặc `dc_model` tự dựng;
+mặc định `SyntheticTaperV1()`. `vinfast_profiles_v0_1` dùng provider resolve profile khi xe được upsert
+(`core/charging_models/live_profiles.py`, Final Review 4.2).
 """
 
+import copy
 import functools
 import logging
 import math
 import threading
+from collections import deque
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta
 from types import MappingProxyType
 from zoneinfo import ZoneInfo
 
+from src.models.charging_physics import DCChargingModel
 from src.models.control import Command, CommandType
+from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
+from src.models.physical_constraints import ConstraintViolationError
+from src.models.physical_limits import EffectiveLimits
+from src.models.scheduling.observations import ObservationModel, SchedulingObservation
 from src.models.simulation import Incident, IncidentType, SessionOutcome
 from src.models.simulation import Scenario as BackendScenario
+from src.models.simulation_core import Cabinet, Scenario, Vehicle
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationConfig, StationState
-from src.simulator.base import VehicleVisit
-from src.simulator.src.charging_models.base import DCChargingModel
-from src.simulator.src.charging_models.synthetic_dc import SyntheticTaperV1
-from src.simulator.src.dispatch.base import DispatchObservation
-from src.simulator.src.engine.ev2gym_adapter import EV2GymAdapter
-from src.simulator.src.engine.queue import QueueController, Session
-from src.simulator.src.observations import Candidate, SchedulingObservation, VehicleObservation
-from src.simulator.src.safety.constraints import ConstraintViolationError
-from src.simulator.src.safety.guard import guard, validate_response
-from src.simulator.src.safety.limits import EffectiveLimits, effective_limits
-from src.simulator.src.scenario import Cabinet, Scenario, Vehicle
+from src.models.station_protocols import VehicleVisit
+from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms, station_dc_model
+from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
+from src.simulator.core.ev2gym_adapter import EV2GymAdapter
+from src.simulator.core.kernel import SOC_TOL, StationKernel
+from src.simulator.core.queue import QueueController, Session
+from src.simulator.evaluation.trace import decision_record
 
 logger = logging.getLogger(__name__)
 EPS = 1e-6
-SOC_TOL = 1e-10  # cùng ngưỡng hoàn thành của HybridSimulator.step
+APPLIED_BUFFER_STEPS = 24 * 60  # tối đa một ngày bước 1' giữa hai lần drain (vòng nền drain ≤ 15')
+# Độ phân giải lệnh công suất: control_loop.diff_commands không gửi lệnh khi đổi < POWER_TOL_KW (khoá bằng test).
+COMMAND_RESOLUTION_KW = 0.01
 END_MINUTE = 10**9  # "end rất lớn" — trạm live không có chân trời
 
 
 def _locked(method):
     """Mọi thao tác đọc / ghi trạng thái trạm chạy dưới `self.lock`.
 
-    Vì sao: control_loop giải lịch trên thread solver (services/solver.py) và bộ lập lịch simulator đọc thẳng trạm,
-    trong khi request khác có thể gọi `sync_clock()` → `step()` trên event loop. RLock để các hàm gọi lồng nhau được.
+    Vì sao: control_loop giải lịch trên thread solver (services/solver.py) và bộ lập lịch đọc thẳng kernel, trong khi
+    request khác có thể gọi `sync_clock()` → `step()` trên event loop. RLock để các hàm gọi lồng nhau được.
     """
 
     @functools.wraps(method)
@@ -84,25 +87,57 @@ def _ceil_minutes(delta: timedelta) -> int:
     return math.ceil(delta.total_seconds() / 60 - 1e-9)
 
 
-class HybridStation:
-    """Cài StationReader + StationActuator (src/simulator/base.py) trên mô hình vật lý của HybridSimulator."""
+def _violation_signature(result: AppliedResult) -> tuple:
+    """Nhận diện "cùng một vi phạm" giữa hai phút liền nhau: loại + xe + thông điệp Physical Guard."""
+    if result.hard_violations:
+        return tuple((v.kind, v.vehicle_ids, v.message) for v in result.hard_violations)
+    return tuple(result.violations)
 
-    def __init__(self, config: StationConfig, start: datetime, dc_model: DCChargingModel | None = None) -> None:
+
+class HybridStation:
+    """StationReader + StationActuator (src/models/station_protocols.py) trên `StationKernel`."""
+
+    def __init__(
+        self,
+        config: StationConfig,
+        start: datetime,
+        dc_model: DCChargingModel | None = None,
+        *,
+        algorithms: Algorithms | None = None,
+        policy_id: str = "custom",
+        policy_version: str = "1",
+        observation_model: ObservationModel | None = None,
+        dc_charging_model: str | None = None,
+    ) -> None:
+        """`dc_charging_model`: tên trong `DC_MODELS` của simulator (vd. `vinfast_profiles_v0_1`); None ⇒ `dc_model`
+        hoặc `SyntheticTaperV1()` như cũ. Không truyền cả hai."""
         if start.tzinfo is None:
             raise ValueError("start phải có múi giờ")
+        if dc_model is not None and dc_charging_model is not None:
+            raise ValueError("Chọn dc_model HOẶC dc_charging_model, không cả hai")
         self.config = config
+        # Final Review §4.3: lớp quan sát giữa ground truth và optimizer (mặc định PerfectObservation = như cũ)
+        self._observation_model = observation_model
         self.lock = threading.RLock()
+        self.is_fork = False
         self._tz = ZoneInfo(config.timezone)
         self._dc_model = dc_model
+        self.dc_model_name = dc_charging_model
+        self._algorithms = algorithms
+        self._policy = (policy_id, policy_version)
         self._connector_to_port: dict[str, str] = {}
         self._port_to_connector: dict[str, str] = {}
         self._cabinets = self._build_cabinets(config)
+        if dc_charging_model is not None:
+            # Cùng registry DC_MODELS với offline; model cần biết xe ⇒ provider resolve khi xe được upsert.
+            self._dc_model = station_dc_model(dc_charging_model, self._build_scenario())
+        self.time = TimeConfig(physics_step_minutes=1, decision_interval_minutes=config.optimizer.planning_step_minutes)
         self._init(start.astimezone(self._tz), config.grid_input_limit_kw or config.power_limit_kw)
 
     @classmethod
     def with_vinfast_profiles(cls, *args, **kwargs) -> "HybridStation":
-        # TODO: VehicleProfilesDCModel.from_scenario cần danh sách xe từ trước; trạm live nhận xe dần.
-        raise NotImplementedError("Profile DC VinFast chưa nối vào HybridStation — truyền dc_model tự dựng")
+        """Trạm dùng profile DC VinFast (`vinfast_profiles_v0_1`), resolve theo xe lúc upsert (xe đến động)."""
+        return cls(*args, dc_charging_model="vinfast_profiles_v0_1", **kwargs)
 
     # ---- dựng Scenario simulator từ StationConfig ----------------------------------------
 
@@ -154,29 +189,80 @@ class HybridStation:
 
     def _init(self, start: datetime, available_kw: float) -> None:
         self._start = start
-        self.now = start
-        self.available_power_kw = available_kw
         self.schedule_version = 0
-        self.scenario = self._build_scenario()
-        self.queue = QueueController(self.scenario)
-        self.adapter = EV2GymAdapter(self.scenario, self._dc_model or SyntheticTaperV1())
-        self._faults: set[str] = set()  # port simulator đang lỗi
-        self._setpoint: dict[str, float] = {}  # vid → kW đầu ra (giữ tới lệnh sau)
+        scenario = self._build_scenario()
+        if self.dc_model_name is not None and hasattr(self._dc_model, "clear"):
+            self._dc_model.clear()  # reset: trạm mới không còn xe nào ⇒ bảng profile theo xe cũng rỗng
+        adapter = EV2GymAdapter(scenario, self._dc_model or SyntheticTaperV1())
+        algorithms = self._algorithms or replace(default_algorithms(), dc_charging_model=adapter.dc_model)
+        self.kernel = StationKernel(
+            scenario,
+            adapter,
+            QueueController(scenario),
+            algorithms,
+            time=self.time,
+            strict=False,
+            policy_id=self._policy[0],
+            policy_version=self._policy[1],
+            emit=self._emit,
+            observation_model=self._observation_model,
+        )
+        self.kernel.command_resolution_kw = COMMAND_RESOLUTION_KW
+        self.available_power_kw = available_kw
         self._visits: dict[str, VehicleVisit] = {}
-        self._output_kwh: dict[str, float] = {}  # năng lượng đầu ra cổng (nghĩa backend)
-        self._output_by_deadline_kwh: dict[str, float] = {}
-        self.applied_constraint_violation_count = 0
         self._events: list[StationEvent] = []
+        self._halted_on: tuple | None = None  # vi phạm mà step() đã dừng catch-up ở phút gần nhất (§1.3)
+        # Kết quả từng bước vật lý từ lần drain trước — DecisionTrace backend đóng quyết định bằng số đo thật.
+        self._applied: deque[AppliedResult] = deque(maxlen=APPLIED_BUFFER_STEPS)
+
+    def configure(self, algorithms: Algorithms, policy_id: str, policy_version: str = "1") -> None:
+        """Chọn policy (thuật toán) cho Planning Core của kernel — composition root gọi một lần."""
+        with self.lock:
+            self._algorithms = algorithms
+            self._policy = (policy_id, policy_version)
+            self.kernel.algorithms = algorithms
+            self.kernel.policy_id, self.kernel.policy_version = policy_id, policy_version
 
     # ---- tiện ích ánh xạ ------------------------------------------------------------------
 
     @property
+    def scenario(self) -> Scenario:
+        return self.kernel.scenario
+
+    @property
+    def queue(self) -> QueueController:
+        return self.kernel.queue
+
+    @property
+    def adapter(self) -> EV2GymAdapter:
+        return self.kernel.adapter
+
+    @property
+    def applied_constraint_violation_count(self) -> int:
+        return self.kernel.applied_constraint_violation_count
+
+    @property
+    def available_power_kw(self) -> float:
+        return self._available_power_kw
+
+    @available_power_kw.setter
+    def available_power_kw(self, value: float) -> None:
+        self._available_power_kw = float(value)
+        self.kernel.grid_input_override_kw = float(value)
+
+    @property
     def minute(self) -> int:
-        # now = start + số phút nguyên (step tiến từng phút) → phép chia luôn ra số nguyên; round chỉ khử sai số float.
-        return round((self.now - self._start).total_seconds() / 60)
+        return self.kernel.now
+
+    @property
+    def now(self) -> datetime:
+        return self._at(self.kernel.now)
 
     def _at(self, minute: int) -> datetime:
         return self._start + timedelta(minutes=minute)
+
+    def minute_of(self, when: datetime) -> int:
+        return _ceil_minutes(when - self._start)
 
     def port_of(self, connector_id: str) -> str:
         return self._connector_to_port[connector_id]
@@ -186,7 +272,13 @@ class HybridStation:
 
     @_locked
     def effective_limits(self) -> EffectiveLimits:
-        return replace(effective_limits(self.scenario, self.minute), grid_input_kw=self.available_power_kw)
+        return self.kernel.effective_limits()
+
+    @property
+    def next_decision_at(self) -> datetime | None:
+        """Mốc boundary của quyết định gần nhất (TOU, xe đến / rời, rút DC, trần 15') — runtime phát TICK ở đây."""
+        minute = self.kernel.next_decision_minute
+        return None if minute is None else self._at(minute)
 
     # ---- StationReader -------------------------------------------------------------------
 
@@ -209,7 +301,7 @@ class HybridStation:
                     connector_id=self.connector_of(s.connector) if s.connector else None,
                     arrived_at=self._at(s.vehicle.arrival),
                     plugged_in_at=self._at(s.charge_started) if s.connector and s.charge_started is not None else None,
-                    delivered_grid_kwh=round(self._output_kwh.get(vid, 0.0), 6),
+                    delivered_grid_kwh=round(self.kernel.output_kwh.get(vid, 0.0), 6),
                 )
             )
         return StationState(
@@ -223,17 +315,66 @@ class HybridStation:
 
     @_locked
     def step(self, minutes: int) -> list[StationEvent]:
+        """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC.
+
+        Bật `guard.after_apply_failsafe` (Final Acceptance §1.3): catch-up nhiều phút DỪNG ở phút có vi phạm cứng mới
+        (trả sự kiện, các phút còn lại chưa tích phân) để fail-safe xử lý trước; lần gọi sau chạy tiếp từ đó. Vi phạm y
+        hệt vi phạm đã dừng ở lần trước, liền mạch (fail-safe đã có một lượt mà không sửa được, vd. lỗi charging model)
+        thì không dừng lại nữa — vẫn phát sự kiện mỗi lần step — để đồng hồ trạm không bị treo.
+        """
         self._events = []
+        kernel = self.kernel
+        failsafe = self.config.guard.after_apply_failsafe
+        signalled = False
         for _ in range(max(minutes, 0)):
-            self._charge_one_minute()
-            self.now += timedelta(minutes=1)
-            self.queue.advance(self.minute, self.scenario, self.adapter, self._emit)
+            result = kernel.advance(kernel.now + 1)
+            self._applied.append(result)
+            halt = False
+            if failsafe and result.violations:
+                if not signalled:
+                    # Final Review §4.5b: kernel non-strict chỉ đếm + log vi phạm trần cứng sau khi áp. Tín hiệu cho
+                    # runtime sinh lệnh an toàn qua guard/dispatcher.py (trạm không tự hạ setpoint). Một sự kiện / step.
+                    signalled = True
+                    self._events.append(self._violation_event(result))
+                signature = _violation_signature(result)
+                halt = signature != self._halted_on
+                self._halted_on = signature
+            elif failsafe:
+                self._halted_on = None
+            if result.budget_deviation_kw and not kernel._deviation_reported:
+                # Assigned budget (Coordinator) ≠ hard cap: vượt budget không phải vi phạm vật lý — ghi + tính lại một lần.
+                kernel._deviation_reported = True
+                detail = ", ".join(f"{zone} +{kw:.3f} kW" for zone, kw in sorted(result.budget_deviation_kw.items()))
+                self._events.append(
+                    StationEvent(
+                        type=EventType.REPLAN_REQUESTED,
+                        occurred_at=self._at(result.end),
+                        detail=f"Công suất thực vượt budget vùng ({detail})",
+                    )
+                )
+            kernel.observe()
+            if halt:
+                break
         return self._drain()
+
+    def _violation_event(self, result: AppliedResult) -> StationEvent:
+        """HARD_LIMIT_VIOLATED có loại vi phạm + xe liên quan (Final Acceptance §1.4) để fail-safe chọn cách xử lý."""
+        kinds = list(dict.fromkeys(v.kind for v in result.hard_violations))
+        vehicles = sorted({vid for v in result.hard_violations for vid in v.vehicle_ids})
+        label = ", ".join(kinds) or "?"
+        return StationEvent(
+            type=EventType.HARD_LIMIT_VIOLATED,
+            occurred_at=self._at(result.end),
+            detail=f"Vi phạm trần cứng sau khi áp ({label}): {result.violations[0]}"[:500],
+            violation_kinds=kinds,
+            violation_booking_ids=vehicles,
+        )
 
     @_locked
     def inject_incident(self, incident: Incident) -> list[StationEvent]:
         if incident.type == IncidentType.POWER_LIMIT_CHANGE:
             self.available_power_kw = float(incident.new_power_limit_kw)
+            self.kernel.state_version += 1
             return [
                 StationEvent(
                     type=EventType.POWER_LIMIT_CHANGED,
@@ -247,19 +388,7 @@ class HybridStation:
             raise ValueError(f"Không có đầu nối {incident.connector_id}")
         port = self.port_of(connector_id)
         if incident.type == IncidentType.CONNECTOR_FAULT:
-            self._faults.add(port)
-            vid = self.queue.occupied.get(port)
-            if vid is not None:
-                # Xe bị gián đoạn: rút khỏi cổng lỗi, quay lại ĐẦU hàng chờ để được gán cổng khác.
-                cab, index = self.queue.connectors[port]
-                self.adapter.disconnect(vid, cab.id, index)
-                del self.queue.occupied[port]
-                session = self.queue.sessions[vid]
-                session.connector = None
-                session.charge_started = None
-                session.state = "QUEUED"
-                self.queue.waiting[cab.zone].appendleft(vid)
-                self._setpoint.pop(vid, None)
+            vid = self.kernel.fault_port(port)
             return [
                 StationEvent(
                     type=EventType.CONNECTOR_FAULT,
@@ -269,7 +398,7 @@ class HybridStation:
                     detail=f"Đầu nối {connector_id} lỗi",
                 )
             ]
-        self._faults.discard(port)
+        self.kernel.restore_port(port)
         return [
             StationEvent(
                 type=EventType.CONNECTOR_RESTORED,
@@ -299,8 +428,10 @@ class HybridStation:
             vehicle = self._vehicle(visit, arrival, departure)
             self.queue.sessions[vid] = Session(vehicle)
             self.adapter.models[vid] = EV2GymAdapter._vehicle(vehicle, self.scenario)
+            self._register_profile(vehicle)
             self._visits[vid] = visit
-        self.queue.advance(now, self.scenario, self.adapter, self._emit)
+        self.kernel.state_version += 1
+        self.kernel.observe()
         return self._drain()
 
     @_locked
@@ -311,17 +442,7 @@ class HybridStation:
         if session.state == "NOT_ARRIVED":
             self._forget(booking_id)
             return []
-        port = session.connector
-        if port is None:
-            self.queue.waiting[session.vehicle.zone].remove(booking_id)
-        else:
-            cab, index = self.queue.connectors[port]
-            self.adapter.disconnect(booking_id, cab.id, index)
-            del self.queue.occupied[port]
-        session.connector = None
-        session.state = "DEPARTED"
-        session.departed_at = self.minute
-        self._setpoint.pop(booking_id, None)
+        port = self.kernel.withdraw(booking_id)
         return [
             StationEvent(
                 type=EventType.VEHICLE_DEPARTED,
@@ -347,12 +468,118 @@ class HybridStation:
                 vid = self.queue.occupied.get(port)
                 if vid is not None:
                     cab, _ = self.queue.connectors[port]
-                    if cmd.type == CommandType.STOP or port in self._faults:
+                    if cmd.type == CommandType.STOP or port in self.kernel.faults:
                         wanted = 0.0
                     else:
                         wanted = cab.port_kw if cmd.power_kw is None else float(cmd.power_kw)
-                    self._setpoint[vid] = max(0.0, min(wanted, cab.port_kw))
+                    self.kernel.hold_setpoint(vid, max(0.0, min(wanted, cab.port_kw)))
             self.schedule_version = max(self.schedule_version, cmd.based_on_schedule_version + 1)
+
+    # ---- bản fork cho admission (quote / booking) --------------------------------------
+
+    @_locked
+    def fork(self) -> "HybridStation":
+        """Bản sao (EV2Gym, queue, setpoint, cổng lỗi, nguồn) để chạy what-if — trạm này không đổi."""
+        twin = copy.copy(self)
+        twin.lock = threading.RLock()
+        twin.is_fork = True
+        twin._visits = dict(self._visits)
+        twin._events = []
+        twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
+        twin.kernel = self.kernel.fork(emit=twin._emit)
+        # Thành phần có trạng thái đã được cô lập trong kernel.fork (Final Review §4.4): bản fork giữ bản của nó.
+        if self._algorithms is not None:
+            twin._algorithms = twin.kernel.algorithms
+        if self._observation_model is not None:
+            twin._observation_model = twin.kernel.observation_model
+        # DC model có trạng thái (provider profile theo xe, có fork()) đã được kernel.fork tách bằng memo chung cho
+        # adapter + algorithms; bản fork đăng ký xe what-if không đụng bản live.
+        twin._dc_model = twin.kernel.adapter.dc_model
+        return twin
+
+    def apply_approved(self, approved: ApprovedDecision) -> None:
+        """Áp quyết định đã duyệt THẲNG vào kernel — chỉ cho bản fork; trạm thật chỉ nhận lệnh qua dispatcher."""
+        if not self.is_fork:
+            raise RuntimeError("apply_approved chỉ dùng cho bản fork (admission); trạm thật đi guard/dispatcher.py")
+        with self.lock:
+            self.kernel.apply_approved(approved)
+
+    # ---- DecisionTrace (ADR-019 Phase 4, quyết định 6) ----------------------------------
+
+    @_locked
+    def drain_applied(self) -> list[AppliedResult]:
+        """Kết quả các bước vật lý từ lần gọi trước (rồi xoá) — để đóng DecisionTrace của quyết định đang hiệu lực."""
+        results, self._applied = list(self._applied), deque(maxlen=APPLIED_BUFFER_STEPS)
+        return results
+
+    @_locked
+    def decision_facts(self, approved: ApprovedDecision, results: Sequence[AppliedResult]) -> dict:
+        """Facts của một quyết định theo ĐÚNG schema DecisionTrace của simulator (`evaluation/trace.decision_record`).
+
+        `results`: các bước vật lý đã chạy dưới quyết định này. Công suất thực = trung bình theo thời gian, năng lượng
+        nạp = tổng; khoảng = số phút thực sự chạy (quyết định có thể bị thay sớm bởi sự kiện). Chưa chạy phút nào thì
+        giữ khoảng đã lập kế hoạch và công suất thực 0.
+        """
+        proposal = approved.proposal
+        minutes = sum(r.end - r.minute for r in results)
+        kw_minutes: dict[str, float] = {}
+        stored: dict[str, float] = {}
+        for result in results:
+            for vid, kw in result.actual_kw.items():
+                kw_minutes[vid] = kw_minutes.get(vid, 0.0) + kw * (result.end - result.minute)
+            for vid, kwh in result.stored_kwh.items():
+                stored[vid] = stored.get(vid, 0.0) + kwh
+        observation = proposal.observation
+        if minutes > 0 and minutes != observation.interval_minutes:
+            observation = replace(observation, interval_minutes=minutes)
+        power_by_vehicle = {
+            vid: {
+                "requested_output_kw": approved.setpoints_kw.get(vid, 0.0),
+                "allowed_output_kw": candidate.allowed_kw,
+                "actual_output_kw": kw_minutes.get(vid, 0.0) / minutes if minutes else 0.0,
+            }
+            for vid, candidate in proposal.candidates.items()
+        }
+        return decision_record(
+            observation,
+            proposal.dispatch,
+            proposal.assignments,
+            proposal.demand,
+            proposal.budgets,
+            algorithm_labels(self.kernel.algorithms),
+            power_by_vehicle,
+            {vid: stored.get(vid, 0.0) for vid in proposal.candidates},
+            proposal.diagnostics,
+        )
+
+    def guard_inputs(self, approved: ApprovedDecision) -> dict:
+        """Đúng đầu vào Physical Guard đã dùng cho quyết định (để replay / debug lại phán quyết từ trace)."""
+        proposal = approved.proposal
+        limits = proposal.effective_limits
+        return {
+            "candidates": {
+                vid: {
+                    "cabinet": c.cabinet.id,
+                    "zone": c.cabinet.zone,
+                    "ports": c.cabinet.ports,
+                    "port_kw": c.cabinet.port_kw,
+                    "cabinet_kw": c.cabinet.output_kw,
+                    "allowed_kw": c.allowed_kw,
+                }
+                for vid, c in proposal.candidates.items()
+            },
+            "budgets_kw": dict(proposal.budgets.output_kw),
+            "limits": {
+                "minute": limits.minute,
+                "conversion": limits.conversion,
+                "grid_input_kw": limits.grid_input_kw,
+                "zone_output_kw": dict(limits.zone_output_kw),
+                "cabinet_output_kw": dict(limits.cabinet_output_kw),
+                "independent_grid_input_kw": None
+                if limits.independent_grid_input_kw is None
+                else dict(limits.independent_grid_input_kw),
+            },
+        }
 
     # ---- Báo cáo cho KPI (benchmark) ----------------------------------------------------
 
@@ -364,7 +591,7 @@ class HybridStation:
             if s.state == "NOT_ARRIVED":
                 continue
             visit = self._visits[vid]
-            delivered = self._output_by_deadline_kwh.get(vid, 0.0)
+            delivered = self.kernel.output_by_deadline_kwh.get(vid, 0.0)
             if s.completed_at is not None and s.completed_at <= s.vehicle.departure:
                 delivered = max(delivered, visit.required_kwh)  # [GIẢ ĐỊNH] đạt SOC target = giao đủ
             rows.append(
@@ -383,30 +610,10 @@ class HybridStation:
 
     # ---- API đọc cho tầng lập lịch -------------------------------------------------------
 
-    def _observed_vehicles(self) -> MappingProxyType:
-        return MappingProxyType(
-            {
-                vid: VehicleObservation(
-                    s.vehicle, s.state, self.adapter.soc(vid), s.connector, s.charge_started, s.completed_at
-                )
-                for vid, s in self.queue.sessions.items()
-                if s.state != "NOT_ARRIVED"
-            }
-        )
-
-    def _candidates(self, minutes: int) -> dict[str, Candidate]:
-        candidates = {}
-        for port, vid in self.queue.occupied.items():
-            session = self.queue.sessions[vid]
-            if session.state == "CHARGING":
-                cab, _ = self.queue.connectors[port]
-                candidates[vid] = Candidate(cab, min(cab.port_kw, self.adapter.acceptance_kw(session.vehicle, minutes)))
-        return candidates
-
     @_locked
     def scheduling_observation(self, interval_minutes: int = 1) -> SchedulingObservation:
-        """Snapshot giống `HybridSimulator.step` (sau dispatch) cho optimizer / coordinator của simulator."""
-        vehicles = self._observed_vehicles()
+        """Snapshot (chưa dispatch) theo hợp đồng optimizer — cho ước tính ETA hàng chờ và test."""
+        vehicles = self.kernel._view()
         return SchedulingObservation(
             scenario=replace(self.scenario, vehicles=tuple(row.vehicle for row in vehicles.values())),
             minute=self.minute,
@@ -414,30 +621,15 @@ class HybridStation:
             vehicles=vehicles,
             queues=MappingProxyType({zone: tuple(q) for zone, q in self.queue.waiting.items()}),
             ports=MappingProxyType({port: self.queue.occupied.get(port) for port in self.queue.connectors}),
-            candidates=MappingProxyType(self._candidates(interval_minutes)),
+            candidates=MappingProxyType(self.kernel.candidates(interval_minutes)),
             dc_charging_model=self.adapter.dc_model,
-            effective_limits=self.effective_limits(),
+            effective_limits=self.kernel.effective_limits(),
         )
 
     @_locked
-    def dispatch_observation(self, zone: str) -> DispatchObservation:
-        """Giống `HybridSimulator._dispatch` cho một vùng; cổng lỗi không tính là cổng trống."""
-        effective = self.effective_limits()
-        limits = {
-            port: min(cab.port_kw, effective.cabinet_output_kw[cab.id], effective.zone_capacity_kw(zone))
-            for port, (cab, _) in self.queue.connectors.items()
-            if cab.zone == zone
-        }
-        empty = tuple(p for p in limits if p not in self.queue.occupied and p not in self._faults)
-        return DispatchObservation(
-            self.minute,
-            zone,
-            empty,
-            tuple(self.queue.waiting[zone]),
-            self._observed_vehicles(),
-            MappingProxyType(limits),
-            self.scenario.efficiency,
-        )
+    def dispatch_observation(self, zone: str):
+        """Như `StationKernel.dispatch_observation`: cổng lỗi không tính là cổng trống."""
+        return self.kernel.dispatch_observation(zone)
 
     # ---- nội bộ --------------------------------------------------------------------------
 
@@ -474,6 +666,7 @@ class HybridStation:
             max_kw=visit.max_power_kw,
         )
         session.vehicle = vehicle
+        self._register_profile(vehicle)
         ev = self.adapter.models[visit.booking_id]
         ev.desired_capacity = vehicle.target * vehicle.battery_kwh
         ev.time_of_departure = vehicle.departure - self.scenario.start
@@ -489,6 +682,15 @@ class HybridStation:
         self.queue.sessions.pop(vid, None)
         self.adapter.models.pop(vid, None)
         self._visits.pop(vid, None)
+        forget = getattr(self.adapter.dc_model, "forget_vehicle", None)
+        if forget is not None:
+            forget(vid)
+
+    def _register_profile(self, vehicle: Vehicle) -> None:
+        """Model DC cần biết xe (provider profile, Final Review 4.2): resolve lúc xe được upsert. Model khác: bỏ qua."""
+        register = getattr(self.adapter.dc_model, "register_vehicle", None)
+        if register is not None:
+            register(vehicle, self.scenario)
 
     def _assign(self, port: str, vid: str) -> None:
         session = self.queue.sessions.get(vid)
@@ -498,7 +700,7 @@ class HybridStation:
         if (
             session is None
             or session.state != "QUEUED"
-            or port in self._faults
+            or port in self.kernel.faults
             or port in self.queue.occupied
             or session.vehicle.zone != cab.zone
         ):
@@ -506,53 +708,10 @@ class HybridStation:
                 "Bỏ qua ASSIGN %s → %s: xe không chờ / cổng bận, lỗi / khác vùng", vid, self._port_to_connector[port]
             )
             return
-        self.queue.connect(self.minute, {port: vid}, self.adapter, self._emit)
-
-    def _charge_one_minute(self) -> None:
-        """Một phút vật lý — đúng thứ tự của HybridSimulator.step (sau dispatch)."""
-        when = self.minute
-        cfg = self.scenario
-        try:
-            candidates = self._candidates(1)
-        except ConstraintViolationError as exc:
-            self._violation(exc)
-            return
-        actual: dict[str, float] = {}
-        for vid, candidate in candidates.items():
-            s = self.queue.sessions[vid]
-            setpoint = min(self._setpoint.get(vid, 0.0), candidate.allowed_kw)
-            before = self.adapter.soc(vid)
-            try:
-                response = self.adapter.step(vid, candidate.cabinet.id, setpoint, 1)
-                soc = self.adapter.soc(vid)
-                kw, energy = response.actual_output_kw, response.battery_kwh
-                validate_response(cfg, s.vehicle, 1, setpoint, before, soc, kw, energy)
-            except ConstraintViolationError as exc:
-                self._violation(exc)
-                continue
-            actual[vid] = max(0.0, kw)
-            output_kwh = actual[vid] / 60
-            s.delivered_battery_kwh += max(0.0, energy)
-            s.delivered_grid_kwh += output_kwh / cfg.conversion  # nghĩa simulator (phía lưới)
-            self._output_kwh[vid] = self._output_kwh.get(vid, 0.0) + output_kwh
-            if when < s.vehicle.departure:
-                self._output_by_deadline_kwh[vid] = self._output_by_deadline_kwh.get(vid, 0.0) + output_kwh
-            if soc >= s.vehicle.target - SOC_TOL:
-                s.state = "FINISHED"
-                s.completed_at = when + 1
-                self._emit(when + 1, "CHARGE_COMPLETED", s.vehicle, connector=s.connector)
-        limits = self.effective_limits()
-        try:
-            guard(cfg, candidates, actual, limits.zone_output_kw, limits=limits)
-        except ConstraintViolationError as exc:
-            self._violation(exc)
-
-    def _violation(self, exc: Exception) -> None:
-        self.applied_constraint_violation_count += 1
-        logger.error("HybridStation vi phạm ràng buộc vật lý lúc %s: %s", self.now.isoformat(), exc)
+        self.kernel.connect({port: vid})
 
     def _emit(self, when: int, kind: str, v: Vehicle, **metadata) -> None:
-        """Dịch sự kiện simulator → StationEvent như LiveStation phát (chỉ xe đến / rời)."""
+        """Dịch sự kiện simulator → StationEvent."""
         port = metadata.get("connector")
         connector_id = self._port_to_connector.get(port) if port else None
         if kind == "ARRIVED":
@@ -560,9 +719,12 @@ class HybridStation:
         elif kind in ("UNPLUGGED", "LEFT_QUEUE"):
             event_type = EventType.VEHICLE_DEPARTED
             detail = "Tới giờ rời" if metadata.get("reason") == "declared_departure" else "Xe DC rút sau khi đầy"
-            self._setpoint.pop(v.id, None)
+            self.kernel.setpoints.pop(v.id, None)
+        elif kind == "CHARGE_COMPLETED":
+            # Kernel báo phiên đạt target: giải phóng công suất → tính lại ngay, không chờ mốc 15' (PHASE0 §2 #4).
+            event_type, detail = EventType.CHARGE_COMPLETED, f"Xe {v.id} sạc xong"
         else:
-            return  # PLUGGED_IN / CHARGE_COMPLETED: LiveStation không phát sự kiện tương ứng
+            return  # PLUGGED_IN: hệ quả của lệnh ASSIGN vừa áp, không phải mốc mới
         self._events.append(
             StationEvent(
                 type=event_type, occurred_at=self._at(when), connector_id=connector_id, booking_id=v.id, detail=detail
@@ -579,17 +741,25 @@ class HybridStation:
         vid = self.queue.occupied.get(port)
         session = self.queue.sessions.get(vid) if vid else None
         power = 0.0
-        if port in self._faults:
+        if port in self.kernel.faults:
             status = ConnectorStatus.FAULT
         elif session is None:
             status = ConnectorStatus.IDLE
         elif session.state == "FINISHED":
             status = ConnectorStatus.FINISHED
         else:
-            allowed = min(cab.port_kw, self.adapter.acceptance_kw(session.vehicle, 1))
-            power = min(self._setpoint.get(vid, 0.0), allowed)
-            cap = min(cab.port_kw, session.vehicle.max_kw)
-            status = ConnectorStatus.CHARGING if power >= cap - EPS else ConnectorStatus.THROTTLED
+            try:
+                allowed = min(cab.port_kw, self.adapter.acceptance_kw(session.vehicle, 1))
+            except ConstraintViolationError:
+                # Final Acceptance §1.4: acceptance của xe lỗi ⇒ cổng hiển thị FAULT, 0 kW (Guard không cấp điện cho
+                # cổng FAULT) thay vì làm hỏng cả state() của trạm. Đường bình thường không đổi.
+                allowed = None
+            if allowed is None:
+                status = ConnectorStatus.FAULT
+            else:
+                power = min(self.kernel.setpoints.get(vid, 0.0), allowed)
+                cap = min(cab.port_kw, session.vehicle.max_kw)
+                status = ConnectorStatus.CHARGING if power >= cap - EPS else ConnectorStatus.THROTTLED
         return ConnectorState(
             connector_id=connector_id,
             status=status,

@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
-from src.models.charging import Booking, ConsentScope, SessionPlan, StrategyName
+from src.models.charging import Booking, ConsentScope, SessionPlan, StrategyName, resolve_policy_fields
 from src.models.control import DecisionLogEntry, Role
 from src.models.station import ConnectorState, SessionProgress, StationState
 
@@ -147,10 +147,29 @@ class SimulationRunRequest(BaseModel):
     """S8 — chạy một kịch bản với một chiến lược; field None = giữ giá trị của kịch bản."""
 
     scenario_id: str = Field(min_length=1)
-    strategy: StrategyName
+    strategy: StrategyName | None = Field(
+        default=None, description="Policy enum cũ (B0 / M2b / M3a / M3b). Client cũ chỉ gửi trường này"
+    )
+    policy_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="Id policy trong registry (GET /simulation/policies) — chọn được policy mới không có trong enum",
+    )
     n_vehicles: int | None = Field(default=None, gt=0)
     power_limit_kw: float | None = Field(default=None, gt=0)
     seed: int | None = None
+    strict_incidents: bool | None = Field(
+        default=None,
+        description="Chế độ nghiên cứu: sự cố trỏ đầu nối không tồn tại ⇒ lỗi thay vì bỏ qua. None / false = như cũ",
+    )
+
+    @model_validator(mode="after")
+    def _one_policy(self) -> "SimulationRunRequest":
+        self.strategy, self.policy_id = resolve_policy_fields(self.strategy, self.policy_id)
+        if self.policy_id is None:
+            raise ValueError("cần strategy hoặc policy_id")
+        return self
 
 
 class ResidentProfile(BaseModel):

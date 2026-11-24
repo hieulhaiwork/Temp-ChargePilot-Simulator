@@ -1,0 +1,2 @@
+OK — frontend\openapi.json khớp với code.
+exit=0

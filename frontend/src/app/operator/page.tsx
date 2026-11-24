@@ -35,6 +35,7 @@ const EVENT: Partial<Record<EventType, [string, Tone]>> = {
   connector_fault: ["Lỗi", "bad"],
   connector_restored: ["Phục hồi", "good"],
   power_limit_changed: ["Nguồn", "gold"],
+  charge_completed: ["Sạc xong", "good"],
   replan_requested: ["Lập lịch", "good"],
 };
 

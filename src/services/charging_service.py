@@ -19,7 +19,6 @@ Owner: TV3. Task: T2.2 (gán đầu nối, hàng đợi, idempotency), T2.5 (Age
 
 import hashlib
 import math
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -32,21 +31,21 @@ from src.models.charging import (
     BookingStatus,
     ChargeRequest,
     ConsentScope,
+    ProposalCertainty,
     ScheduleProposal,
     VehicleSpec,
 )
 from src.models.events import EventType, StationEvent
 from src.models.station import StationConfig
-from src.optimizer.assignment import assign_connectors
-from src.optimizer.lp_model import solve_with_unmet
-from src.services import catalog, event_bus, repository, solver
-from src.services.control_loop import build_planning_context
+from src.services import admission, catalog, event_bus, repository
 from src.services.energy import estimate_energy
 from src.services.errors import DomainError
 from src.services.runtime import StationRuntime, get_runtime, visit_of
 
 QUOTE_ID = "quote-what-if"
 UNMET_TOL_KWH = 0.05  # dưới mức này coi như đủ (sai số làm tròn của LP)
+# Final Review §4.6: số lần chạy lại admission khi tập booking đổi giữa lúc tính và lúc commit; hết lượt → PROPOSAL_EXPIRED
+BOOKING_COMMIT_ATTEMPTS = 3
 ACTIVE = (BookingStatus.CONFIRMED, BookingStatus.QUEUED, BookingStatus.CHARGING)
 
 
@@ -95,35 +94,34 @@ def _hypothetical(rt: StationRuntime, request: ChargeRequest, resident_id: str, 
     )
 
 
-def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None) -> ScheduleProposal:
-    """Thêm booking giả định vào PlanningContext, giải LP (chiến lược B), đọc điện thiếu — KHÔNG giữ chỗ."""
-    base = build_planning_context(rt)
-    others = tuple(b for b in base.bookings if b.booking_id != exclude)
-    ctx = replace(base, bookings=(*others, candidate), oracle_bookings=())
-    assignment = assign_connectors(ctx, "edf")
-    plan, unmet_by_booking = solver.run(solve_with_unmet, ctx, assignment, rt.scheduler.name)
-    session = next((s for s in plan.sessions if s.booking_id == candidate.booking_id), None)
+def _consent_assumption(consent: ConsentScope) -> str:
+    """Final Acceptance §2.4: quote chưa có consent cuối của booking ⇒ ghi rõ consent đã giả định (code sinh)."""
+    return (
+        "Giả định phạm vi đồng ý (consent) chưa chốt: lùi giờ bắt đầu tối đa "
+        f"{consent.max_start_delay_minutes} phút, {'được' if consent.allow_power_reduction else 'không được'} giảm "
+        f"công suất, {'có' if consent.emergency_curtailment else 'không'} đồng ý giảm tải khẩn cấp; khi đặt lịch, "
+        "kết quả được tính lại với consent thật của lịch sạc"
+    )
+
+
+async def _what_if(
+    rt: StationRuntime, candidate: Booking, exclude: str | None = None, *, assume_consent: bool = False
+) -> ScheduleProposal:
+    """Admission: chạy policy thực thi trên bản fork của trạm với booking giả định — KHÔNG giữ chỗ (ADR-019 Phase 3).
+
+    `assume_consent=True` (quote): consent của `candidate` chỉ là giả định ⇒ thêm vào `assumptions`. book / change
+    chạy trên consent thật của booking nên không thêm.
+    """
+    result = await admission.evaluate(rt, candidate, exclude=exclude)
     energy = candidate.energy
     need = energy.grid_energy_kwh
-    unmet = unmet_by_booking.get(candidate.booking_id, need)
-    connector_id = session.connector_id if session else None
-    step = timedelta(minutes=plan.step_minutes)
-    tz = ZoneInfo(rt.config.timezone)
-    planned_start = session.slots[0].start if session and session.slots else None
-    planned_end = (session.slots[-1].start + step) if session and session.slots else None
+    unmet = result.unmet_kwh
+    connector_id = result.connector_id
+    planned_start = result.charge_start or result.plugged_at
+    planned_end = result.charge_end
     if planned_end and planned_end > candidate.request.deadline:
         planned_end = candidate.request.deadline
-    cost = None
-    if session and session.slots:
-        cost = round(
-            sum(
-                s.power_kw * plan.step_minutes / 60 * rt.tariff.price_at(s.start.astimezone(tz).time())
-                for s in session.slots
-            )
-        )
-    queue_position = (
-        (assignment.queue.index(candidate.booking_id) + 1) if candidate.booking_id in assignment.queue else None
-    )
+    queue_position = result.queue_position
     feasible = connector_id is not None and unmet <= UNMET_TOL_KWH
     reasons = [f"Cần {energy.grid_energy_kwh:.1f} kWh (tính bằng code từ dung lượng pin và hiệu suất, FR3)"]
     if connector_id:
@@ -134,6 +132,18 @@ def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None)
         reasons.append(f"Đang hết cổng {candidate.request.zone}: vị trí {queue_position} trong hàng đợi")
     if unmet > UNMET_TOL_KWH:
         reasons.append(f"Thiếu khoảng {unmet:.1f} kWh so với yêu cầu trước giờ lấy xe")
+    reasons.append(f"Mô phỏng theo đúng chiến lược đang vận hành ({result.policy}) trên bản sao trạng thái trạm")
+    if result.approvals_for_candidate:
+        reasons.append(
+            f"Phụ thuộc phê duyệt: {result.approvals_for_candidate} lệnh của xe này cần bạn đồng ý (vượt phạm vi đã cho "
+            "phép); kết quả trên coi như chưa được duyệt"
+        )
+    if result.approvals_for_others:
+        reasons.append(
+            f"Phụ thuộc phê duyệt: {result.approvals_for_others} lệnh của xe khác đang chờ duyệt; khi được duyệt / từ chối "
+            "lịch của bạn có thể đổi"
+        )
+    reasons.append("Đây là ước tính theo trạng thái trạm lúc này, không phải cam kết bảo đảm (xem giả định)")
     slack = (candidate.request.deadline - planned_end).total_seconds() / 60 if feasible and planned_end else None
     alternatives = [] if feasible else _alternatives(rt, candidate, need - unmet, planned_start, connector_id)
     return ScheduleProposal(
@@ -142,11 +152,15 @@ def _what_if(rt: StationRuntime, candidate: Booking, exclude: str | None = None)
         connector_id=connector_id,
         planned_start=planned_start,
         planned_end=planned_end,
-        estimated_cost_vnd=cost,
+        estimated_cost_vnd=result.cost_vnd,
         slack_minutes=round(slack) if slack is not None else None,
         queue_position=queue_position,
         reasons=reasons,
         alternatives=alternatives,
+        certainty=ProposalCertainty.CONDITIONAL if result.depends_on_approval else ProposalCertainty.ESTIMATE,
+        approvals_pending_for_booking=result.approvals_for_candidate,
+        approvals_pending_for_others=result.approvals_for_others,
+        assumptions=[*admission.ASSUMPTIONS, *([_consent_assumption(candidate.consent)] if assume_consent else [])],
     )
 
 
@@ -186,6 +200,12 @@ def _alternatives(
     return options
 
 
+def _ensure_no_active_booking(resident_id: str) -> None:
+    current = repository.active_booking(resident_id)
+    if current is not None:
+        raise DomainError(ErrorCode.BOOKING_CONFLICT, f"Bạn đã có lịch sạc {current.booking_id} đang hiệu lực")
+
+
 def _own_active(booking_id: str, resident_id: str) -> Booking:
     booking = repository.get_booking(booking_id)
     if booking is None or booking.resident_id != resident_id:
@@ -201,13 +221,15 @@ def _own_active(booking_id: str, resident_id: str) -> Booking:
 def quote(request: ChargeRequest, resident_id: str) -> ScheduleProposal:
     """What-if cho màn S3: hỏi bộ tối ưu phương án, KHÔNG giữ chỗ.
 
-    Cách làm (docs/plan/30-ai.md §5.3): thêm booking giả định vào PlanningContext, giải, đọc
-    điện thiếu. Không khả thi thì PHẢI trả ≥ 1 phương án thay thế (FR4 — ScheduleProposal ép
-    điều này). `reasons` do code sinh từ nghiệm, Agent chỉ diễn đạt lại.
+    Cách làm (ADR-019 Phase 3): chạy policy đang vận hành trên bản fork của trạm với booking giả định
+    (`services/admission.py`), đọc điện thiếu. Không khả thi thì PHẢI trả ≥ 1 phương án thay thế (FR4 —
+    ScheduleProposal ép điều này). `reasons` do code sinh từ kết quả, Agent chỉ diễn đạt lại.
     """
     rt = get_runtime()
     rt.sync_clock()
-    return _what_if(rt, _hypothetical(rt, request, resident_id, QUOTE_ID))
+    # Final Acceptance §2.4: quote giữ consent mặc định như cũ (chưa có consent cuối) nhưng ghi rõ giả định đó.
+    candidate = _hypothetical(rt, request, resident_id, QUOTE_ID)
+    return admission.run_sync(_what_if(rt, candidate, assume_consent=True))
 
 
 async def book(
@@ -223,41 +245,62 @@ async def book(
       IDEMPOTENCY_MISMATCH. Luồng chat dùng key "chat:{session_id}" (ADR-008).
     - Cư dân đã có booking đang hiệu lực → DomainError BOOKING_CONFLICT (mặc định Q6).
     - Tính lại mà không còn khả thi (trạm đã đổi từ lúc quote) → DomainError PROPOSAL_EXPIRED.
+
+    Đồng thời (Final Review §4.6) — optimistic concurrency: admission chạy NGOÀI khoá (không giữ trạm suốt rollout);
+    commit dưới `rt.booking_lock` kiểm lại idempotency, booking hiệu lực của cư dân và `rt.booking_version`. Tập booking
+    đổi giữa lúc tính và lúc commit ⇒ chạy lại admission (tối đa BOOKING_COMMIT_ATTEMPTS), hết lượt ⇒ PROPOSAL_EXPIRED.
+    Consent parity: admission chạy với ĐÚNG consent sẽ lưu vào booking (quote giữ consent mặc định như cũ).
     """
     request_hash = _request_hash(request)
     if idempotency_key:
         existing = repository.find_idempotent(idempotency_key, resident_id, request_hash)
         if existing is not None:
             return existing
-    current = repository.active_booking(resident_id)
-    if current is not None:
-        raise DomainError(ErrorCode.BOOKING_CONFLICT, f"Bạn đã có lịch sạc {current.booking_id} đang hiệu lực")
+    _ensure_no_active_booking(resident_id)
     rt = get_runtime()
-    rt.sync_clock()
+    user = repository.get_user(resident_id)
+    chosen = consent or (user.consent if user else ConsentScope())
     booking_id = uuid4().hex[:12]
-    candidate = _hypothetical(rt, request, resident_id, booking_id)
-    proposal = _what_if(rt, candidate)
-    if not proposal.feasible:
+    booking: Booking | None = None
+    for _attempt in range(BOOKING_COMMIT_ATTEMPTS):
+        rt.sync_clock()
+        seen = rt.admission_fingerprint()  # Final Acceptance §2.3: booking + nguồn / cổng lỗi / policy
+        candidate = _hypothetical(rt, request, resident_id, booking_id).model_copy(update={"consent": chosen})
+        proposal = await _what_if(rt, candidate)
+        if not proposal.feasible:
+            raise DomainError(
+                ErrorCode.PROPOSAL_EXPIRED,
+                "Phương án không còn kịp hạn — " + "; ".join(a.description for a in proposal.alternatives),
+            )
+        async with rt.booking_lock:
+            if idempotency_key:
+                existing = repository.find_idempotent(idempotency_key, resident_id, request_hash)
+                if existing is not None:
+                    return existing
+            _ensure_no_active_booking(resident_id)
+            if rt.admission_fingerprint() != seen:
+                continue  # booking khác / nguồn / cổng đổi trong lúc tính: admission của mình dựa trên trạng thái cũ
+            booking = candidate.model_copy(
+                update={
+                    "status": BookingStatus.QUEUED if proposal.queue_position else BookingStatus.CONFIRMED,
+                    "connector_id": proposal.connector_id,
+                    "planned_start": proposal.planned_start,
+                    "planned_end": proposal.planned_end,
+                    "estimated_cost_vnd": proposal.estimated_cost_vnd,
+                    "schedule_version": rt.plan.version if rt.plan else 0,
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            repository.save_booking(booking, idempotency_key=idempotency_key, request_hash=request_hash)
+            rt.booking_version += 1
+            async with rt.lock:
+                rt.outbox.extend(rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)))
+        break
+    if booking is None:
         raise DomainError(
             ErrorCode.PROPOSAL_EXPIRED,
-            "Phương án không còn kịp hạn — " + "; ".join(a.description for a in proposal.alternatives),
+            "Trạm vừa nhận thêm lịch sạc khác trong lúc tính — vui lòng xem lại phương án",
         )
-    user = repository.get_user(resident_id)
-    booking = candidate.model_copy(
-        update={
-            "status": BookingStatus.QUEUED if proposal.queue_position else BookingStatus.CONFIRMED,
-            "consent": consent or (user.consent if user else ConsentScope()),
-            "connector_id": proposal.connector_id,
-            "planned_start": proposal.planned_start,
-            "planned_end": proposal.planned_end,
-            "estimated_cost_vnd": proposal.estimated_cost_vnd,
-            "schedule_version": rt.plan.version if rt.plan else 0,
-            "created_at": datetime.now(UTC),
-        }
-    )
-    repository.save_booking(booking, idempotency_key=idempotency_key, request_hash=request_hash)
-    async with rt.lock:
-        rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now))
     await event_bus.publish(
         StationEvent(type=EventType.BOOKING_CREATED, occurred_at=rt.clock(), booking_id=booking.booking_id)
     )
@@ -265,17 +308,32 @@ async def book(
 
 
 async def cancel(booking_id: str, resident_id: str) -> Booking:
-    booking = _own_active(booking_id, resident_id)
-    cancelled = booking.model_copy(update={"status": BookingStatus.CANCELLED})
-    repository.save_booking(cancelled)
+    """Huỷ booking đang hiệu lực, phát BOOKING_CANCELLED.
+
+    Final Acceptance §2.2: trạng thái được kiểm LẠI dưới `rt.booking_lock` — hai lần huỷ đồng thời chỉ một lần đổi
+    trạng thái + một sự kiện (lần kia BOOKING_CONFLICT); booking đã kết thúc trong lúc chờ khoá không bị ghi đè.
+    """
+    _own_active(booking_id, resident_id)  # kiểm nhanh (NOT_FOUND / đã kết thúc) trước khi chờ khoá
     rt = get_runtime()
-    async with rt.lock:
-        rt.sync_clock()
-        rt.simulator.remove_vehicle(booking_id)
+    async with rt.booking_lock:  # Final Review §4.6: tập booking đổi ⇒ booking đang tính phải kiểm lại
+        booking = _own_active(booking_id, resident_id)
+        cancelled = booking.model_copy(update={"status": BookingStatus.CANCELLED})
+        repository.save_booking(cancelled)
+        rt.booking_version += 1
+        async with rt.lock:
+            rt.sync_clock()
+            rt.outbox.extend(rt.simulator.remove_vehicle(booking_id))  # sự kiện trạm không bị bỏ (§1.2)
     await event_bus.publish(
         StationEvent(type=EventType.BOOKING_CANCELLED, occurred_at=rt.clock(), booking_id=booking_id)
     )
     return cancelled
+
+
+def _changed_request(booking: Booking, patch: BookingChangeRequest) -> ChargeRequest:
+    try:
+        return ChargeRequest.model_validate({**booking.request.model_dump(), **patch.model_dump(exclude_none=True)})
+    except ValueError as exc:
+        raise DomainError(ErrorCode.BOOKING_CONFLICT, f"Yêu cầu mới không hợp lệ: {exc}") from None
 
 
 async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str) -> Booking:
@@ -283,34 +341,52 @@ async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str)
 
     Dựng lại ChargeRequest (validator chạy lại) và tính lại kWh bằng services.energy (FR3).
     Không khả thi → DomainError kèm phương án thay thế (FR4), booking cũ giữ nguyên.
+
+    Final Acceptance §2 — optimistic concurrency như `book`: admission NGOÀI khoá, trên ĐÚNG consent của booking;
+    commit dưới `rt.booking_lock` kiểm lại (a) booking vẫn hiệu lực (đã huỷ / kết thúc ⇒ BOOKING_CONFLICT, không "sống
+    lại") và (b) `rt.admission_fingerprint()` (booking khác / nguồn / cổng lỗi / policy đổi ⇒ chạy lại admission, tối đa
+    BOOKING_COMMIT_ATTEMPTS, hết lượt ⇒ PROPOSAL_EXPIRED). Bản ghi mới dựng từ booking ĐỌC LẠI dưới khoá. Không giữ khoá
+    suốt rollout; khoá chỉ có hiệu lực trong một worker (xem `StationRuntime.admission_fingerprint`).
     """
-    booking = _own_active(booking_id, resident_id)
-    try:
-        request = ChargeRequest.model_validate({**booking.request.model_dump(), **patch.model_dump(exclude_none=True)})
-    except ValueError as exc:
-        raise DomainError(ErrorCode.BOOKING_CONFLICT, f"Yêu cầu mới không hợp lệ: {exc}") from None
+    _changed_request(_own_active(booking_id, resident_id), patch)  # kiểm nhanh: booking + yêu cầu mới hợp lệ
     rt = get_runtime()
-    rt.sync_clock()
-    candidate = _hypothetical(rt, request, resident_id, booking_id)
-    proposal = _what_if(rt, candidate, exclude=booking_id)
-    if not proposal.feasible:
+    updated: Booking | None = None
+    for _attempt in range(BOOKING_COMMIT_ATTEMPTS):
+        rt.sync_clock()
+        seen = rt.admission_fingerprint()
+        current = _own_active(booking_id, resident_id)
+        request = _changed_request(current, patch)
+        candidate = _hypothetical(rt, request, resident_id, booking_id).model_copy(update={"consent": current.consent})
+        proposal = await _what_if(rt, candidate, exclude=booking_id)
+        if not proposal.feasible:
+            raise DomainError(
+                ErrorCode.PROPOSAL_EXPIRED,
+                "Không đổi được — " + "; ".join(a.description for a in proposal.alternatives),
+            )
+        async with rt.booking_lock:
+            latest = _own_active(booking_id, resident_id)
+            if rt.admission_fingerprint() != seen or latest.request != current.request:
+                continue  # trạng thái admission dựa vào đã đổi trong lúc tính ⇒ tính lại trên trạng thái mới
+            updated = latest.model_copy(
+                update={
+                    "request": request,
+                    "energy": candidate.energy,
+                    "max_charge_power_kw": candidate.max_charge_power_kw,
+                    "planned_start": proposal.planned_start or latest.planned_start,
+                    "planned_end": proposal.planned_end,
+                    "estimated_cost_vnd": proposal.estimated_cost_vnd,
+                }
+            )
+            repository.save_booking(updated)
+            rt.booking_version += 1
+            async with rt.lock:
+                rt.outbox.extend(rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)))
+        break
+    if updated is None:
         raise DomainError(
             ErrorCode.PROPOSAL_EXPIRED,
-            "Không đổi được — " + "; ".join(a.description for a in proposal.alternatives),
+            "Trạm vừa thay đổi (lịch sạc khác / nguồn / đầu nối) trong lúc tính — vui lòng xem lại phương án",
         )
-    updated = booking.model_copy(
-        update={
-            "request": request,
-            "energy": candidate.energy,
-            "max_charge_power_kw": candidate.max_charge_power_kw,
-            "planned_start": proposal.planned_start or booking.planned_start,
-            "planned_end": proposal.planned_end,
-            "estimated_cost_vnd": proposal.estimated_cost_vnd,
-        }
-    )
-    repository.save_booking(updated)
-    async with rt.lock:
-        rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now))
     await event_bus.publish(StationEvent(type=EventType.BOOKING_CHANGED, occurred_at=rt.clock(), booking_id=booking_id))
     return repository.get_booking(booking_id) or updated
 

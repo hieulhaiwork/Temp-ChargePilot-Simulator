@@ -1,0 +1,8 @@
+src/simulator/src/scenario.py -> src/models/simulation_core.py
+src/simulator/src/charging_models/base.py -> src/models/charging_physics.py
+src/simulator/src/safety/constraints.py -> src/models/physical_constraints.py
+src/simulator/src/safety/limits.py -> src/models/physical_limits.py
+src/simulator/src/observations.py -> src/models/scheduling/observations.py
+src/simulator/src/dispatch/base.py -> src/models/scheduling/dispatch.py
+src/simulator/src/coordination/base.py -> src/models/scheduling/coordination.py
+src/simulator/src/optimizers/base.py -> src/models/scheduling/optimization.py

@@ -142,9 +142,3 @@ async def test_at_risk_simulator_strategy_flags_only_tight_sessions():
     Sau sửa (laxity < 30'): xe dễ kịp không gắn, xe sát hạn vẫn gắn."""
     flagged = await _at_risk_after_tick(StrategyName.SIM_M3A, _makers())
     assert set(flagged) == {"dc-sat"}
-
-
-async def test_at_risk_backend_lp_keeps_planned_shortfall_definition():
-    """A–D giữ định nghĩa cũ: nguy cơ = lịch dự kiến giao thiếu. Xe sát hạn nhưng lịch vẫn đủ → không gắn.
-    Hai định nghĩa khác nghĩa — ghi rõ, chưa hợp nhất (ADR-018)."""
-    assert await _at_risk_after_tick(StrategyName.OPT_NO_ML, _makers()) == []

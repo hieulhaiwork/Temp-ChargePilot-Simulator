@@ -1,0 +1,178 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\log_antigravity.py:51:1
+   |
+49 |     AI_LOG_DIR             where session.jsonl is written (default: .ai-log)
+50 |   """
+51 | / import argparse
+52 | | import json
+53 | | import os
+54 | | import re
+55 | | import subprocess
+56 | | import sys
+57 | | from datetime import datetime, timezone, timedelta
+58 | | from pathlib import Path
+   | |________________________^
+59 |
+60 |   # Fix Windows console encoding so VN diacritics in prompts print cleanly.
+   |
+help: Organize imports
+   |
+56 | import sys
+   - from datetime import datetime, timezone, timedelta
+57 + from datetime import datetime, timedelta, timezone
+58 | from pathlib import Path
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\log_hook.py:6:1
+   |
+ 4 |   Reads JSON from stdin, normalizes to common format, appends to .ai-log/session.jsonl
+ 5 |   """
+ 6 | / import json
+ 7 | | import os
+ 8 | | import sys
+ 9 | | import subprocess
+10 | | from datetime import datetime, timezone, timedelta
+11 | | from pathlib import Path
+   | |________________________^
+12 |
+13 |   VN_TZ = timezone(timedelta(hours=7))
+   |
+help: Organize imports
+   |
+7  | import os
+8  + import subprocess
+9  | import sys
+   - import subprocess
+   - from datetime import datetime, timezone, timedelta
+10 + from datetime import datetime, timedelta, timezone
+11 | from pathlib import Path
+   |
+
+N806 Variable `_PAYLOAD_KEYS` in function should be lowercase
+   --> scripts\log_hook.py:148:5
+    |
+146 |     # tool_input has `command` / `file_path`, not `prompt` or `content`) and
+147 |     # any Gemini/Cursor/Copilot turn that carried context but no plain prompt.
+148 |     _PAYLOAD_KEYS = ("prompt", "tool_input", "response_summary",
+    |     ^^^^^^^^^^^^^
+149 |                      "tool_response", "tool_args", "files_context")
+150 |     _LIFECYCLE_EVENTS = ("Stop", "stop", "SessionEnd", "sessionEnd", "AfterModel")
+    |
+
+N806 Variable `_LIFECYCLE_EVENTS` in function should be lowercase
+   --> scripts\log_hook.py:150:5
+    |
+148 |     _PAYLOAD_KEYS = ("prompt", "tool_input", "response_summary",
+149 |                      "tool_response", "tool_args", "files_context")
+150 |     _LIFECYCLE_EVENTS = ("Stop", "stop", "SessionEnd", "sessionEnd", "AfterModel")
+    |     ^^^^^^^^^^^^^^^^^
+151 |     has_payload = any(base.get(k) for k in _PAYLOAD_KEYS)
+152 |     if not has_payload and event not in _LIFECYCLE_EVENTS:
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\log_manual.py:22:1
+   |
+20 |     python scripts/log_manual.py
+21 |   """
+22 | / import json
+23 | | import os
+24 | | import sys
+25 | | import subprocess
+26 | | import argparse
+27 | | from datetime import datetime, timezone, timedelta
+28 | | from pathlib import Path
+   | |________________________^
+29 |
+30 |   VN_TZ = timezone(timedelta(hours=7))
+   |
+help: Organize imports
+   |
+21 | """
+22 + import argparse
+23 | import json
+24 | import os
+25 + import subprocess
+26 | import sys
+   - import subprocess
+   - import argparse
+   - from datetime import datetime, timezone, timedelta
+27 + from datetime import datetime, timedelta, timezone
+28 | from pathlib import Path
+   |
+
+F541 [*] f-string without any placeholders
+  --> scripts\log_manual.py:85:15
+   |
+83 |         student = os.environ.get("USERNAME", os.environ.get("USER", "unknown"))
+84 |         print(f"[log] ⚠️  git email not set! Using fallback: {student}", file=sys.stderr)
+85 |         print(f"[log] Run: git config user.email \"your@vinuni.edu.vn\"", file=sys.stderr)
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+86 |
+87 |     entry = {
+   |
+help: Remove extraneous `f` prefix
+   |
+84 |         print(f"[log] ⚠️  git email not set! Using fallback: {student}", file=sys.stderr)
+   -         print(f"[log] Run: git config user.email \"your@vinuni.edu.vn\"", file=sys.stderr)
+85 +         print("[log] Run: git config user.email \"your@vinuni.edu.vn\"", file=sys.stderr)
+86 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts\submit_log.py:12:1
+   |
+10 |   If the POST fails, the pending file is restored so nothing is lost.
+11 |   """
+12 | / import json
+13 | | import os
+14 | | import shutil
+15 | | import sys
+16 | | import time
+17 | | import urllib.request
+18 | | import urllib.error
+19 | | from datetime import datetime, timezone
+20 | | from pathlib import Path
+   | |________________________^
+21 |
+22 |   def _load_logging_config() -> dict[str, str]:
+   |
+help: Organize imports
+   |
+16 | import time
+17 + import urllib.error
+18 | import urllib.request
+   - import urllib.error
+19 | from datetime import datetime, timezone
+20 | from pathlib import Path
+21 |
+22 +
+23 | def _load_logging_config() -> dict[str, str]:
+   |
+
+UP017 [*] Use `datetime.UTC` alias
+  --> scripts\submit_log.py:77:26
+   |
+75 |         return
+76 |     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+77 |     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+   |                          ^^^^^^^^^^^^
+78 |     archive_file = ARCHIVE_DIR / f"{today}.jsonl"
+79 |     with open(pending, "rb") as src, open(archive_file, "ab") as dst:
+   |
+help: Convert to `datetime.UTC` alias
+   |
+18 | import urllib.error
+   - from datetime import datetime, timezone
+19 + from datetime import datetime, timezone, UTC
+20 | from pathlib import Path
+--------------------------------------------------------------------------------
+76 |     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+   -     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+77 +     today = datetime.now(UTC).strftime("%Y-%m-%d")
+78 |     archive_file = ARCHIVE_DIR / f"{today}.jsonl"
+   |
+
+Found 8 errors.
+[*] 6 fixable with `--fix`.
