@@ -25,7 +25,7 @@ from src.guard.physical.validator import guard
 from src.models.control import DecisionLogEntry
 from src.models.decision_trace import TRACE_SCHEMA, DecisionTraceSummary
 from src.models.decisions import ReasonCode
-from src.models.events import StationEvent
+from src.models.events import EventType, StationEvent
 from src.models.physical_constraints import ConstraintViolationError
 from src.models.physical_limits import EffectiveLimits
 from src.models.scheduling.observations import Candidate
@@ -73,7 +73,7 @@ def open_trace(
     scheduler = rt.scheduler
     approved = getattr(scheduler, "last_approved", None)
     diagnostics = getattr(scheduler, "last_diagnostics", {}) or {}
-    entries, emergency = list(entries), list(emergency)
+    entries, emergency, batch = list(entries), list(emergency), tuple(batch)
     proposal = approved.proposal if approved is not None else None
     time = getattr(station, "time", None)
     codes = list(approved.reason_codes) if approved is not None else list(diagnostics.get("reason_codes", []))
@@ -115,6 +115,21 @@ def open_trace(
         "commands": [_command_row(e) for e in entries],
         "emergency_commands": [_command_row(e) for e in emergency],
         "held_for_pending_approval": sorted(set(held_for_approval)),
+        # Final Acceptance §1.4: vi phạm cứng sau khi áp đã kích hoạt fail-safe trong lần tính lại này (loại + xe), và
+        # booking đang bị giữ an toàn (ngắt công suất vì lỗi charging model / acceptance, chờ vận hành)
+        "safety": {
+            "hard_limit_violations": [
+                {
+                    "event_id": e.event_id,
+                    "kinds": [str(k) for k in e.violation_kinds],
+                    "booking_ids": list(e.violation_booking_ids),
+                    "detail": e.detail,
+                }
+                for e in (*batch, event)
+                if e.type == EventType.HARD_LIMIT_VIOLATED
+            ],
+            "held_booking_ids": sorted(getattr(rt, "safety_hold_booking_ids", ()) or ()),
+        },
         "decision": None,
         "applied": None,
         "closed": False,
@@ -126,7 +141,7 @@ def open_trace(
 
 def _applied(results) -> dict:
     deviation, deadband, stale, energy = {}, {}, {}, {}
-    completed, violations = [], []
+    completed, violations, details = [], [], []
     for result in results:
         minutes = result.end - result.minute
         for vid, kw in result.actual_kw.items():
@@ -138,6 +153,10 @@ def _applied(results) -> dict:
             stale[vid] = max(stale.get(vid, 0.0), kw)
         completed += list(result.completed)
         violations += list(result.violations)
+        details += [
+            {"minute": result.minute, "kind": v.kind, "vehicle_ids": list(v.vehicle_ids), "message": v.message}
+            for v in getattr(result, "hard_violations", ())
+        ]
     return {
         "from_minute": results[0].minute if results else None,
         "to_minute": results[-1].end if results else None,
@@ -145,6 +164,8 @@ def _applied(results) -> dict:
         "output_kwh": energy,
         "completed": completed,
         "hard_violations": violations,
+        # Final Acceptance §1.4: loại (aggregate_power / charging_model / acceptance) + xe của từng vi phạm cứng
+        "hard_violation_details": details,
         "budget_deviation_kw": deviation,
         "budget_deviation_minutes": sum(1 for r in results if r.budget_deviation_kw),
         "command_deadband_kw": deadband,

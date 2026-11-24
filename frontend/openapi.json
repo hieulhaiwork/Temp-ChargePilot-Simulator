@@ -1264,7 +1264,7 @@
         "properties": {
           "after_apply_failsafe": {
             "default": false,
-            "description": "Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Mặc định tắt (chỉ đếm + log như trước)",
+            "description": "Final Review §4.5b: vi phạm trần cứng phát hiện SAU khi áp → phát sự kiện hard_limit_violated và giảm tải khẩn cấp qua dispatcher. Thiếu khoá = tắt (chỉ đếm + log như trước); config/station.yaml bật (Final Acceptance §1)",
             "title": "After Apply Failsafe",
             "type": "boolean"
           },
@@ -2938,6 +2938,20 @@
           },
           "type": {
             "$ref": "#/components/schemas/EventType"
+          },
+          "violation_booking_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Violation Booking Ids",
+            "type": "array"
+          },
+          "violation_kinds": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationKind"
+            },
+            "title": "Violation Kinds",
+            "type": "array"
           }
         },
         "required": [
@@ -3380,6 +3394,16 @@
         ],
         "title": "Violation",
         "type": "object"
+      },
+      "ViolationKind": {
+        "description": "Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — cùng giá trị với `src.models.decisions.HardViolationKind`.\n\naggregate_power: tổng công suất vượt trần tủ / vùng / lưới → giảm tải. charging_model / acceptance: lỗi phản hồi\npin / SOC / acceptance của một xe → giảm tải tổng không sửa được: ngắt công suất cổng đó + báo vận hành.",
+        "enum": [
+          "aggregate_power",
+          "charging_model",
+          "acceptance"
+        ],
+        "title": "ViolationKind",
+        "type": "string"
       }
     },
     "securitySchemes": {

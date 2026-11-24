@@ -36,6 +36,18 @@ class EventType(StrEnum):
     HARD_LIMIT_VIOLATED = "hard_limit_violated"
 
 
+class ViolationKind(StrEnum):
+    """Loại vi phạm cứng sau khi áp (Final Acceptance §1.4) — cùng giá trị với `src.models.decisions.HardViolationKind`.
+
+    aggregate_power: tổng công suất vượt trần tủ / vùng / lưới → giảm tải. charging_model / acceptance: lỗi phản hồi
+    pin / SOC / acceptance của một xe → giảm tải tổng không sửa được: ngắt công suất cổng đó + báo vận hành.
+    """
+
+    AGGREGATE_POWER = "aggregate_power"
+    CHARGING_MODEL = "charging_model"
+    ACCEPTANCE = "acceptance"
+
+
 class StationEvent(BaseModel):
     event_id: str = Field(default_factory=lambda: uuid4().hex)
     type: EventType
@@ -44,6 +56,9 @@ class StationEvent(BaseModel):
     booking_id: str | None = None
     new_power_limit_kw: float | None = Field(default=None, ge=0)
     detail: str = ""
+    # Chỉ HARD_LIMIT_VIOLATED (Final Acceptance §1.4): loại vi phạm + xe liên quan (rỗng = vi phạm tổng của trạm)
+    violation_kinds: list[ViolationKind] = Field(default_factory=list)
+    violation_booking_ids: list[str] = Field(default_factory=list)
 
 
 class WsMessageType(StrEnum):

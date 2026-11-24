@@ -1,0 +1,3 @@
+Checked 50 md files, 131 internal links.
+✅ doc-check PASS — links, models, template paths đều khớp.
+rc=0
