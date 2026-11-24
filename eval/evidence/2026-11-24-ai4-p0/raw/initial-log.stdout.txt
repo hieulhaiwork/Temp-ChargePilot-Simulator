@@ -1,0 +1,7 @@
+cwd=/home/lehieu/Projects/P-019
+$ git log -5 --oneline 
+ce23136 docs(refactor): báo cáo Final Acceptance, cập nhật CLAUDE.md / ADR-019 / FINAL_MAP / README / PROJECT_STATE / HANDOFF theo code cuối, kết thúc refactor Unified Core
+9a69e5a feat(eval): đóng băng baseline Unified Core (backend-unified-core-frozen 2026-11-24) có provenance; /simulation/benchmark trả baseline này, KPI trùng baseline final (100/100, 0 problems)
+a9def2f fix(runtime): lifespan ghi vòng sự kiện của app để sự kiện của đường đọc tới control_loop ngay cả khi runtime dựng trong threadpool và vòng nền tắt (Final Acceptance §1.2)
+d4cdb2a merge: gộp nhánh accept-a (Final Acceptance §3 config parity + provenance, §4 hardcode + isolation)
+57971d8 merge: gộp nhánh accept-b (Final Acceptance §1 safety event delivery, §2 admission consistency)

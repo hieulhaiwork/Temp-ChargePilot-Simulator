@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 TZ=UTC PYTHONPATH=. timeout 30s python -c import\ faulthandler\,\ runpy\,\ sys\;\ faulthandler.dump_traceback_later\(10\)\;\ runpy.run_path\(sys.argv\[1\]\,\ run_name=\"__main__\"\) /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/probe_issues.py 

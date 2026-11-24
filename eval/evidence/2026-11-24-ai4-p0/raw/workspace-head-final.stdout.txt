@@ -1,0 +1,3 @@
+cwd=/home/lehieu/Projects/P-019
+$ git rev-parse HEAD 
+d2b5d4869bff35ad9e417bee504c6dbf652258b1

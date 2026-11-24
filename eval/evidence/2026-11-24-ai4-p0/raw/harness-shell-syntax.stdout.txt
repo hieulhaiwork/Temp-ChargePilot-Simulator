@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ bash -n eval/evidence/2026-11-24-ai4-p0/run.sh eval/evidence/2026-11-24-ai4-p0/run_async_checks.sh eval/evidence/2026-11-24-ai4-p0/run_golden_crlf.sh 

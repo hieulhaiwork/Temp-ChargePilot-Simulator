@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git diff --exit-code ce23136d50ad08abb7c9fdc98eff791875d24516 -- src config tests frontend migrations eval/datasets eval/thresholds.yaml eval/evidence/2026-11-24-unified-core-frozen-baseline requirements.txt requirements-runtime.txt 

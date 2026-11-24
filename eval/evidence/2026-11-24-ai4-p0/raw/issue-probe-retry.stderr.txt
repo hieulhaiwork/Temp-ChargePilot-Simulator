@@ -1,0 +1,19 @@
+minute=1 physical constraint violated after apply: Invalid battery response for dc-a
+fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=f33f584723dd400fbb6f6a3c4909b2aa)
+fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=f33f584723dd400fbb6f6a3c4909b2aa)
+Traceback (most recent call last):
+  File "/home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/probe_issues.py", line 99, in <module>
+    asyncio.run(run())
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/probe_issues.py", line 44, in run
+    assert post_apply["hard_violations"] and post_apply["minutes"] == 1
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

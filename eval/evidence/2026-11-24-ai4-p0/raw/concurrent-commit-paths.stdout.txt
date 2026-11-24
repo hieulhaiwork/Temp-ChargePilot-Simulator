@@ -1,0 +1,5 @@
+cwd=/home/lehieu/Projects/P-019
+$ git diff --name-status ce23136d50ad08abb7c9fdc98eff791875d24516 HEAD 
+A	docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md
+A	docs/ai4/collaboration_chat.md
+A	eval/evidence/2026-11-24-ai4-p0/run.sh

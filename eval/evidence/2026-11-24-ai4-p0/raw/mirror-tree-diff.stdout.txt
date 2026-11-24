@@ -1,0 +1,25 @@
+cwd=/home/lehieu/Projects/P-019
+$ diff -u /tmp/chargepilot-p0.AxGpr2/evidence/local-tree.stdout.txt /tmp/chargepilot-p0.AxGpr2/evidence/mirror-tree.stdout.txt 
+--- /tmp/chargepilot-p0.AxGpr2/evidence/local-tree.stdout.txt	2026-11-24 12:55:06.779868076 +0000
++++ /tmp/chargepilot-p0.AxGpr2/evidence/mirror-tree.stdout.txt	2026-11-24 12:55:06.787298504 +0000
+@@ -1,19 +1,7 @@
+ cwd=/home/lehieu/Projects/P-019
+-$ git ls-tree -r ce23136d50ad08abb7c9fdc98eff791875d24516 
+-100644 blob 9f46fe6a0984b864253c500f559e8d3a4b3228b9	.agents/hooks.json
+-100644 blob 54342d153428b0e5a51488eb710fc416425ef399	.agents/rules/ai-log-hook.md
+-100644 blob 4b98267f2e94cf2667ed4ccb6696ba06da27dffd	.agents/workflows/log.md
+-100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	.ai-log/.gitkeep
+-100644 blob 29c2afc102f2d1c7dfd70d0796a04345c971b989	.claude/settings.json
+-100644 blob 06918af0ee8fec79860c5efc472e04a58c06bf4c	.codex/hooks.json
+-100644 blob a7a797bf2a82887e20c2fbda173335f124c9a94b	.cursor/hooks.json
++$ git -C /home/lehieu/Projects/P-019/../P-019-chatgpt ls-tree -r 4f1477e84ac818549a69a74eb00e4b827fae230e 
+ 100644 blob 8cb91c9e38b1c11f4e468935806f67409b5b76bd	.dockerignore
+ 100644 blob a96d656b68da0a1cf296ba586d92a72ac555cd79	.env.example
+-100644 blob 4b479d8f3ff5a6b2d112f97bead8d3976ef207a8	.gemini/settings.json
+-100644 blob adb42a3cccd8767da2423a5814f5307a514c4ec0	.github/CODEOWNERS
+-100644 blob 39d1b8042794c2000e6e1aa2fe06c0a2f3d62023	.github/PULL_REQUEST_TEMPLATE.md
+-100644 blob ba99b6a6e8b6246f48e3222c02ae794e2a0cd2f8	.github/hooks/hooks.json
+-100644 blob 2b098d236adc741180cd5446bfe7e5e5c536ddd1	.github/workflows/ci.yml
+ 100644 blob 3c75652c579614cd938a1de4e8f6a83d4f875b99	.gitignore
+ 100644 blob e4fba2183587225f216eeada4c78dfab6b2e65f5	.python-version
+ 100644 blob 4d76e27d8ed2b95bbe155e1523f52ce8267f7d04	ARCHITECTURE.md

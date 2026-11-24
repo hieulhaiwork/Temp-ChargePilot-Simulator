@@ -1,0 +1,35 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/historical
+$ isolated python scripts/refactor/run_sim_kpi_gate.py run /tmp/chargepilot-p0.AxGpr2/golden-reference 
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 51.11 min | peak grid: 105.263 kW
+Report: /tmp/chargepilot-p0.AxGpr2/golden-reference/mvp1/20261124T125559167605Z-973fec6d42-99924cd9/report.json
+2D replay: /tmp/chargepilot-p0.AxGpr2/golden-reference/mvp1/20261124T125559167605Z-973fec6d42-99924cd9/viewer.html
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 50.67 min | peak grid: 105.263 kW
+Report: /tmp/chargepilot-p0.AxGpr2/golden-reference/mvp1_m3/20261124T125601570087Z-973fec6d42-4325853a/report.json
+2D replay: /tmp/chargepilot-p0.AxGpr2/golden-reference/mvp1_m3/20261124T125601570087Z-973fec6d42-4325853a/viewer.html
+vinfast_dc_2port_120kw | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 8/9 | mean wait (started only): 44.78 min | peak grid: 149.474 kW
+Report: /tmp/chargepilot-p0.AxGpr2/golden-reference/vf/20261124T125602394382Z-383a0c5589-28ef28f9/report.json
+2D replay: /tmp/chargepilot-p0.AxGpr2/golden-reference/vf/20261124T125602394382Z-383a0c5589-28ef28f9/viewer.html
+evening_9cars_hybrid_v1 | EV2Gym-based hybrid/DC extension, EV2Gym 2.0.0
+18:00: 4 connected, 2 AC / 3 DC waiting
+On time: 9/9 | mean wait (started only): 51.11 min | peak grid: 105.263 kW
+Report: /tmp/chargepilot-p0.AxGpr2/golden-reference/script/20261124T125603158496Z-973fec6d42-dc6d4797/report.json
+2D replay: /tmp/chargepilot-p0.AxGpr2/golden-reference/script/20261124T125603158496Z-973fec6d42-dc6d4797/viewer.html
+                      B0 | DC  74/180 | decision p95 0.195 ms
+                     M2a | DC  93/180 | decision p95 0.198 ms
+                     M2b | DC 100/180 | decision p95 3.271 ms
+                     M2c | DC  79/180 | decision p95 0.198 ms
+       M2b_no_sla_weight | DC 100/180 | decision p95 3.475 ms
+     M2b_no_queue_weight | DC  97/180 | decision p95 3.380 ms
+    M2b_10x_queue_weight | DC 100/180 | decision p95 3.354 ms
+/tmp/chargepilot-p0.AxGpr2/golden-reference/mvp2/mvp2-benchmark-hj4sdlmk
+B0 | AC 45/55 | DC 58/215 | TOU 916.15 USD | decision p95 0.285 ms
+M2b | AC 45/55 | DC 82/215 | TOU 917.88 USD | decision p95 3.751 ms
+M3a | AC 45/55 | DC 82/215 | TOU 896.13 USD | decision p95 8.944 ms
+M3b | AC 35/55 | DC 89/215 | TOU 953.20 USD | decision p95 8.643 ms
+/tmp/chargepilot-p0.AxGpr2/golden-reference/mvp3/mvp3-benchmark-glcyyyxj

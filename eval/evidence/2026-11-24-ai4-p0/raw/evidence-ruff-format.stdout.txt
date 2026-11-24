@@ -1,0 +1,3 @@
+cwd=/home/lehieu/Projects/P-019
+$ ruff format --check eval/evidence/2026-11-24-ai4-p0 
+2 files already formatted

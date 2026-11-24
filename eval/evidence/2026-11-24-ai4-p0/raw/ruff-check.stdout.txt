@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ isolated ruff check src tests scripts/refactor eval 
+All checks passed!

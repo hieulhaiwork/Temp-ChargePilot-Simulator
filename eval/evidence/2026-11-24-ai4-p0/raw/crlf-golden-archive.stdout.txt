@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ tar -czf /tmp/chargepilot-p0.AxGpr2/evidence/golden-crlf-outputs.tar.gz -C /tmp/chargepilot-p0.AxGpr2 crlf-golden-reference crlf-golden-candidate 

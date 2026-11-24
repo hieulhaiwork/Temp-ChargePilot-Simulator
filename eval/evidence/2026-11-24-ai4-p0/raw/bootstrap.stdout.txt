@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git clone --no-hardlinks --quiet --no-checkout /home/lehieu/Projects/P-019 /tmp/chargepilot-p0.AxGpr2/checkout 

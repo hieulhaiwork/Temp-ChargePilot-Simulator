@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git diff --exit-code HEAD -- 

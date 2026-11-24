@@ -1,0 +1,13 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ isolated python eval/run_agent_eval.py --offline --out /tmp/chargepilot-p0.AxGpr2/evidence/agent-offline 
+Dataset: charging_requests.jsonl — 55 câu hợp lệ (mục tiêu PRD §8: ≥ 50)
+  extract       22
+  missing       10
+  ambiguous     5
+  invalid       4
+  infeasible    4
+  out_of_scope  3
+  injection     4
+  followup      3
+==> Đã ghi /tmp/chargepilot-p0.AxGpr2/evidence/agent-offline/summary.json
+OK — dataset và ngưỡng hợp lệ.

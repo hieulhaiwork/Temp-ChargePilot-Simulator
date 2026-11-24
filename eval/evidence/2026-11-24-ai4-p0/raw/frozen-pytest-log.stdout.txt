@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ tail -n 1 docs/refactor/raw/final-acceptance-merged/pytest_tests.txt 
+602 passed, 8 skipped in 58.54s

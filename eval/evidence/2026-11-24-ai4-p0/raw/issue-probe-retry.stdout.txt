@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ isolated timeout 45s python /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/probe_issues.py 

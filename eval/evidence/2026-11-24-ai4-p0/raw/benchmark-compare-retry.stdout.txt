@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ isolated python scripts/refactor/compare_backend_benchmark.py eval/evidence/2026-11-24-unified-core-frozen-baseline/benchmark.json /tmp/chargepilot-p0.AxGpr2/evidence/backend-benchmark/benchmark.json 
+backend benchmark: OK - 100 baseline runs, 100 candidate runs, 0 problems

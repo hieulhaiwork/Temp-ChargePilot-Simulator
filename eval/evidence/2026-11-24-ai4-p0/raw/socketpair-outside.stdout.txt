@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ isolated python -c import\ socket\;\ a\,b=socket.socketpair\(\)\;\ print\(a.send\(b\"x\"\)\,\ b.recv\(1\)\) 
+1 b'x'

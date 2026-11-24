@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ git diff --exit-code a9def2f HEAD -- config src/optimizer src/guard src/simulator/core 

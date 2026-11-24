@@ -1,0 +1,5 @@
+cwd=/home/lehieu/Projects/P-019
+$ git status --short --branch 
+## feature/ai-4
+?? docs/ai4/
+?? eval/evidence/2026-11-24-ai4-p0/

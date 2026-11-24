@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-p0.AxGpr2/crlf-candidate-checkout -c core.autocrlf=true checkout --quiet --detach ce23136d50ad08abb7c9fdc98eff791875d24516 

@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ git -C /home/lehieu/Projects/P-019-chatgpt rev-parse 4f1477e84ac818549a69a74eb00e4b827fae230e\^\{tree\} 
+7b68bb5118f1a94364f7a0ee36bc04bb726d1619

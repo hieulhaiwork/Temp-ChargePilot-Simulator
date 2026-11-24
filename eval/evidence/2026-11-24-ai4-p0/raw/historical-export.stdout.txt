@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ bash -o pipefail -c git\ archive\ \"\$1\"\ \|\ tar\ -x\ -C\ \"\$2\" _ 70d0eaf /tmp/chargepilot-p0.AxGpr2/historical 

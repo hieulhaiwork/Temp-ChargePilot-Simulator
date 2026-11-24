@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ git checkout --quiet --detach ce23136d50ad08abb7c9fdc98eff791875d24516 

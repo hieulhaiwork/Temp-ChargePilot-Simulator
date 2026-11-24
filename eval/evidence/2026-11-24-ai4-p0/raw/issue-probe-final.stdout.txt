@@ -1,0 +1,8 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 TZ=UTC PYTHONPATH=. timeout 45s python /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/probe_issues.py 
+{"applied_minutes": 2, "hard_violation_kinds": ["charging_model"], "issue": "R03", "nested_guard_status": "pass"}
+{"approval_labeled_booking_ids": ["dc-a"], "issue": "R04", "pending_approvals": 0, "safety_hold_booking_ids": ["dc-a"]}
+{"fork_holds": [], "fork_output_kw": 33.0, "issue": "R01", "live_holds": ["dc-a"], "live_output_kw": 0.0}
+{"applied_minutes": 0, "decision_interval_minutes": 15, "issue": "R03", "nested_guard_status": "pass"}
+{"applied_minutes": 0, "approved_output_kw": 11.0, "issue": "R05", "nested_actual_output_kw": 0.0, "nested_requested_output_kw": 11.0}
+{"artifact_present": false, "full_decision_fields_available": false, "issue": "R02", "sqlite_summary_after_reopen": true, "trace_dir_configured": false}

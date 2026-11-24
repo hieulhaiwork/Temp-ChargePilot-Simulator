@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-p0.AxGpr2/crlf-reference-checkout -c core.autocrlf=true diff --exit-code HEAD -- 

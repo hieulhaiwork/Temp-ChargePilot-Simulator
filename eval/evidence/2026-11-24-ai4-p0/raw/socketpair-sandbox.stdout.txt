@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin python -c import\ socket\;\ a\,b=socket.socketpair\(\)\;\ print\(a.send\(b\"x\"\)\,\ b.recv\(1\)\) 

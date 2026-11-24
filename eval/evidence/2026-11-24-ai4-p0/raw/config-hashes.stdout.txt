@@ -1,0 +1,16 @@
+cwd=/tmp/chargepilot-p0.AxGpr2/checkout
+$ bash -c sha256sum\ config/\*.yaml\ config/scenarios/\*.yaml\ requirements\*.txt\ scripts/refactor/run_sim_kpi_gate.py\ docs/refactor/raw/phase4-final/module_map.txt\ eval/evidence/2026-11-24-unified-core-frozen-baseline/\{manifest\,benchmark\}.json 
+1c2b66122359d164ca3bf5f20d57f42dfb02611f529ffd61e3bd2bd82d24fdd1  config/station.yaml
+7e1a03963f0f04eadc93cf038205fab95732b773075af91288fdb93753ebfc80  config/tariff.yaml
+3dc69da7af10637cf203dd9a024dae537f85f37b5388c714c147b76670e706b0  config/vehicles.yaml
+913d294e7a55f3a3bbbd3d14221aa20b4c8b080c5241c3b028e515d638c0b1b1  config/scenarios/connector_failure.yaml
+ce173cd7e3e7f324e8729563d9e3af9d0dcb5c6762fc0032461beba9338e39de  config/scenarios/hybrid_evening.yaml
+87114a4a4463f97676b08b8d3baab576f3f038d682c4d938c0d19edd8bae561b  config/scenarios/hybrid_power_drop.yaml
+e4c0365334335b435a0eca76b5d555abf85b7ea9f826e0f4c126562e79a98d59  config/scenarios/peak_evening.yaml
+82a82b6f25c698b66935d269755270ccd4705bd9cc114e34480a78b72c0d1ce3  config/scenarios/power_drop.yaml
+798fa681ff6c3c608ec0b8f4fcc80e4a031e94918fb409e8b34896cd08631125  requirements-runtime.txt
+e2262f6cafc0eb56bea33f402b12ccef19170d5a9cfa36e2944a6f24a0202796  requirements.txt
+c64e1c2fe1f906a8a6bca538e844a6a527ba3fef5c17885a58042a6102c4cd66  scripts/refactor/run_sim_kpi_gate.py
+c8465d000fc38423337df9d13298a43510d42e33dffb0b052f7ef4c0a768dbc3  docs/refactor/raw/phase4-final/module_map.txt
+70b94c0cd21657554c846d1a80e626e97d58612ad7997ffe4249cc74a3d8dc07  eval/evidence/2026-11-24-unified-core-frozen-baseline/manifest.json
+fb92bba0768b85a5ae8f4c912c1dfd199e7b13fa7a6da358b6e913cc95824314  eval/evidence/2026-11-24-unified-core-frozen-baseline/benchmark.json
