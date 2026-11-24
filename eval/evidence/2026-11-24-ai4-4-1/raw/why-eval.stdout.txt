@@ -1,0 +1,9 @@
+cwd=/tmp/ai4-g2-gate/code
+$ isolated timeout 90s python eval/evidence/2026-11-24-ai4-4-1/run_why_eval.py /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1/raw/why-eval 
+Deterministic WHY Eval (LLM judge = False)
+Cases: 20/20 passed
+1. Fact correctness:               11/11 (100.0%)
+2. Causal correctness:             11/11 (100.0%)
+3. Evidence ref validity:          154/154 (100.0%)
+4. Answer coverage & abstention:   19/19 (100.0%)
+5. Auth & privacy violations:      0

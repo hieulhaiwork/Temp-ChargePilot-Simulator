@@ -1,0 +1,315 @@
+{
+  "suite": "ai4_4_1_deterministic_why_eval",
+  "llm_judge_used": false,
+  "cases_total": 20,
+  "cases_passed": 20,
+  "metrics": {
+    "fact_correctness": {
+      "passed": 11,
+      "total": 11,
+      "rate": 1.0
+    },
+    "causal_correctness": {
+      "passed": 11,
+      "total": 11,
+      "rate": 1.0
+    },
+    "evidence_ref_validity": {
+      "valid": 154,
+      "total": 154,
+      "rate": 1.0
+    },
+    "answer_coverage_and_abstention": {
+      "passed": 19,
+      "total": 19,
+      "rate": 1.0
+    },
+    "authorization_and_privacy_violations": 0
+  },
+  "cases": [
+    {
+      "id": "res_power_closed_m3a",
+      "status": "ok",
+      "facts_count": 18,
+      "reasons": [
+        "CONSENT_MINIMUM_START_ADJUSTMENT",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "COORDINATOR_FIXED_SHARE"
+      ],
+      "evidence_refs_count": 16,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "res_power_active_no_measured_fabrication",
+      "status": "partial",
+      "facts_count": 14,
+      "reasons": [
+        "CONSENT_MINIMUM_START_ADJUSTMENT",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "COORDINATOR_FIXED_SHARE"
+      ],
+      "evidence_refs_count": 14,
+      "missing_evidence": [
+        "active_trace_no_measured_data"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_b0_no_tou_attribution",
+      "status": "ok",
+      "facts_count": 6,
+      "reasons": [
+        "POLICY_PROVENANCE",
+        "COORDINATOR_FIXED_SHARE"
+      ],
+      "evidence_refs_count": 6,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_m3a_ac_lp_tou_policy",
+      "status": "ok",
+      "facts_count": 7,
+      "reasons": [
+        "POLICY_PROVENANCE",
+        "COORDINATOR_FIXED_SHARE",
+        "AC_LP_TOU_OPTIMIZED"
+      ],
+      "evidence_refs_count": 7,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "res_queue_all_ports_occupied",
+      "status": "ok",
+      "facts_count": 8,
+      "reasons": [
+        "NO_FREE_COMPATIBLE_PORT"
+      ],
+      "evidence_refs_count": 8,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_incident_fault_and_site_cap_taper",
+      "status": "ok",
+      "facts_count": 29,
+      "reasons": [
+        "COORDINATOR_FIXED_SHARE",
+        "COORDINATOR_SOURCE_LIMITED",
+        "AC_LP_TOU_OPTIMIZED",
+        "COORDINATOR_FIXED_SHARE",
+        "COORDINATOR_SOURCE_LIMITED",
+        "BINDING_ZONE_BUDGET",
+        "BINDING_ZONE_BUDGET",
+        "BINDING_SITE_GRID_INPUT",
+        "PROJECTED_SHORTFALL_UNDER_PERSISTENCE",
+        "CONNECTOR_FAULT_ACTIVE"
+      ],
+      "evidence_refs_count": 28,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_power_dc_taper_and_source_limited",
+      "status": "ok",
+      "facts_count": 20,
+      "reasons": [
+        "CONSENT_MINIMUM_START_ADJUSTMENT",
+        "VEHICLE_ACCEPTANCE_TAPER_LIMIT",
+        "BINDING_ZONE_BUDGET",
+        "BINDING_SITE_GRID_INPUT",
+        "COORDINATOR_FIXED_SHARE",
+        "COORDINATOR_SOURCE_LIMITED"
+      ],
+      "evidence_refs_count": 18,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_independent_supply_m3b",
+      "status": "ok",
+      "facts_count": 19,
+      "reasons": [
+        "CONSENT_MINIMUM_START_ADJUSTMENT",
+        "INDEPENDENT_SUPPLY_MODE",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "BINDING_ZONE_BUDGET",
+        "COORDINATOR_INDEPENDENT_SUPPLY"
+      ],
+      "evidence_refs_count": 17,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "res_deadline_risk_hardware_bound_inference",
+      "status": "ok",
+      "facts_count": 5,
+      "reasons": [
+        "PROJECTED_SHORTFALL_UNDER_PERSISTENCE",
+        "OPTIMISTIC_LAXITY_NEGATIVE",
+        "SINGLE_VEHICLE_HARDWARE_BOUND_EXCEEDED"
+      ],
+      "evidence_refs_count": 5,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_unknown_coordinator_code_no_hallucination",
+      "status": "ok",
+      "facts_count": 7,
+      "reasons": [
+        "POLICY_PROVENANCE",
+        "COORDINATOR_INDEPENDENT_SUPPLY",
+        "UNKNOWN_POLICY_REASON_CODE"
+      ],
+      "evidence_refs_count": 7,
+      "missing_evidence": [],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_violation_with_incomplete_coverage",
+      "status": "partial",
+      "facts_count": 1,
+      "reasons": [
+        "POST_APPLY_HARD_VIOLATION"
+      ],
+      "evidence_refs_count": 1,
+      "missing_evidence": [
+        "incomplete_measured_coverage"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_stale_active_trace_after_restart_bounded",
+      "status": "no_data",
+      "facts_count": 0,
+      "reasons": [],
+      "evidence_refs_count": 0,
+      "missing_evidence": [
+        "stale_active_trace_unclosed_after_restart",
+        "query_exceeds_available_evidence",
+        "no_matching_decision_trace"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_stale_active_trace_within_planned_window_partial",
+      "status": "partial",
+      "facts_count": 17,
+      "reasons": [
+        "COORDINATOR_FIXED_SHARE",
+        "AC_LP_TOU_OPTIMIZED",
+        "COORDINATOR_FIXED_SHARE",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "BINDING_INDIVIDUAL_ALLOWED_OUTPUT",
+        "BINDING_PORT_OUTPUT",
+        "BINDING_CABINET_OUTPUT"
+      ],
+      "evidence_refs_count": 17,
+      "missing_evidence": [
+        "stale_active_trace_unclosed_after_restart",
+        "active_trace_no_measured_data"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "res_safety_hold_not_connected",
+      "status": "partial",
+      "facts_count": 10,
+      "reasons": [
+        "PLANNED_ASSIGNMENT_EXCLUDED_SAFETY_HOLD"
+      ],
+      "evidence_refs_count": 10,
+      "missing_evidence": [
+        "active_trace_no_measured_data"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_unsupported_topic_abstention",
+      "status": "unsupported",
+      "facts_count": 0,
+      "reasons": [],
+      "evidence_refs_count": 0,
+      "missing_evidence": [
+        "unsupported_topic:future_what_if_scenario"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "op_no_data_beyond_trace_window",
+      "status": "no_data",
+      "facts_count": 0,
+      "reasons": [],
+      "evidence_refs_count": 0,
+      "missing_evidence": [
+        "query_exceeds_available_evidence",
+        "no_matching_decision_trace"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "auth_res_forbidden_station_scope",
+      "status": "forbidden",
+      "facts_count": 0,
+      "reasons": [],
+      "evidence_refs_count": 0,
+      "missing_evidence": [
+        "station_scope_forbidden"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "auth_res_forbidden_other_booking",
+      "status": "forbidden",
+      "facts_count": 0,
+      "reasons": [],
+      "evidence_refs_count": 0,
+      "missing_evidence": [
+        "booking_not_accessible"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "auth_res_forbidden_nonexistent_non_enumerating",
+      "status": "forbidden",
+      "facts_count": 0,
+      "reasons": [],
+      "evidence_refs_count": 0,
+      "missing_evidence": [
+        "booking_not_accessible"
+      ],
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "auth_non_enumeration_equivalence",
+      "passed": true,
+      "issues": []
+    }
+  ]
+}

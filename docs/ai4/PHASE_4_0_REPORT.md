@@ -1,8 +1,8 @@
 # PHASE AI-4.0 — Foundation Hardening (G1)
 
-**Phase AI-4.0 | Status READY_FOR_REVIEW — GATE 1 RE-REVIEW**  
-**Branch** `feature/ai-4` · **Local base / workspace HEAD** `d2b5d4869bff35ad9e417bee504c6dbf652258b1`  
-**Mirror baseline** `4f1477e84ac818549a69a74eb00e4b827fae230e` · **P0 evidence được duyệt** `d520ffb28b32b94099277c48af9b8f38ec656ac0`  
+**Phase AI-4.0 | Status APPROVED — GATE 1 APPROVED (mirror `fed2c5e395c3a6ac3e1798ce52d0e4b4e4abd009`)**  
+**Branch** `feature/ai-4` · **Local base (G1 ban đầu)** `d2b5d4869bff35ad9e417bee504c6dbf652258b1` · **Local HEAD sau G1** `490f43300afb05ef7e809099a77e0c7174e272fb`  
+**Mirror baseline** `4f1477e84ac818549a69a74eb00e4b827fae230e` · **P0 evidence được duyệt** `d520ffb28b32b94099277c48af9b8f38ec656ac0` · **G1 remediation được duyệt** `fed2c5e395c3a6ac3e1798ce52d0e4b4e4abd009`  
 **Code chạy trong lượt G1 ban đầu** Local base + candidate patch SHA-256 `986fd42e0d00e57e8bbad2a085bba1df9508e2b2b34786e967d7105062644873`. Code và evidence G1 đang ở working tree.  
 **Evidence commit G1** Chưa tạo. Không có merge/push từ lượt này. [Baseline mapping](BASELINE.md) · [Candidate patch](../../eval/evidence/2026-11-24-ai4-4-0/raw/candidate.patch)
 
@@ -103,7 +103,7 @@ Nếu retry hết mà readback chưa đủ điều kiện, clock tiếp tục d�
 | Standalone golden | **38/38**, exit 0. CRLF theo P0, gồm CSV byte-identical. |
 | Full frozen benchmark và fingerprint parity | **100/100**, 0 sai khác KPI ngoài timing, 0 hard violations/rejected allocations/phút vượt lấy mẫu, exit 0. Cùng scenarios, seeds, policy và experiment fingerprints. |
 | PostgreSQL runtime | **PENDING** như review. Probe không tìm server local, Docker daemon không khả dụng. |
-| G1 re-review | **PENDING**. G1-F05 và F06 đã ghi vào backlog G2. |
+| G1 re-review | **APPROVED** tại mirror `fed2c5e395c3a6ac3e1798ce52d0e4b4e4abd009`. Tech Lead mở pha AI-4.1 (Gate 2). G1-F05 và F06 được xử lý tại AI-4.1. |
 
 Topology 4 cổng, seeds 1–5, physics step 1 phút và decision interval 15 phút giữ theo manifest. P95 replan tính theo
 từng run có min/median/max **2,3 / 11,3 / 19,8 ms**. Gate chạy cùng các suite trên WSL2. So timing với frozen Windows
@@ -113,4 +113,4 @@ mang tính mô tả. Frozen policies, hard constraints, OpenAPI và golden stand
 dùng lại migration 0004. Operator cần Tech Lead review trước khi dùng cây rollback trong môi trường vận hành vì các
 lỗi F01–F04 có thể tái xuất hiện.
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 1 RE-REVIEW)**
+**Trạng thái cuối Gate 1:** APPROVED tại mirror `fed2c5e395c3a6ac3e1798ce52d0e4b4e4abd009` (G2 AI-4.1 chưa nghiệm thu; xem [báo cáo G2](PHASE_4_1_REPORT.md)).

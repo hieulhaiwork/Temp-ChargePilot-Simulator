@@ -1,0 +1,2 @@
+cwd=/tmp/ai4-g2-gate/code
+$ git -C /tmp/ai4-g2-gate/crlf -c core.autocrlf=true apply /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1/raw/candidate.patch 

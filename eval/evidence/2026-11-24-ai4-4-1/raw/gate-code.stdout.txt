@@ -1,0 +1,11 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/ai4-g2-gate/code status --short --branch 
+## HEAD (no branch)
+ M src/services/decision_trace.py
+ M src/services/repository.py
+ M src/simulator/hybrid_station.py
+?? eval/evidence/2026-11-24-ai4-4-1/
+?? src/models/copilot.py
+?? src/services/copilot/
+?? tests/test_services/test_why_engine.py
+?? tests/test_services/test_why_temporal_and_auth.py

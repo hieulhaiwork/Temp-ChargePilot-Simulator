@@ -41,5 +41,10 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 | G1-F02 | **Confirmed** qua fault-injection. Dispatch blocked, pending, partial hoặc không sinh command khi vẫn unsafe từng mở interlock sai. Lỗi sink sau apply từng giữ interlock dù trạm đã an toàn. Dùng readback, tách delivery/dispatch/resolution, retry tối đa ba lần và log khi unresolved. | Runtime / Guard |
 | G1-F03 | **Confirmed inherited** cho tăng công suất trên local `d2b5d48`. G1 review cũng tái hiện assignment đã duyệt trước fault. Dispatcher recheck hiện tại khóa cả hai theo Safety Hold/occupant và giữ audit executed=false. | Guard / Approval |
 | G1-F04 | **Confirmed** qua sample eviction, lỗi dựng facts và non-finite serialization tại close. Coverage phát hiện dữ liệu thiếu, eviction không xóa violation counter, fallback giữ applied evidence và fail-safe chạy trước trace. | Trace / Runtime |
-| G1-F05 | **Deferred to G2**. Active WHY evidence cần planned observation, queue, constraints và policy reasons tách khỏi measured results. | WHY Evidence Resolver |
-| G1-F06 | **Deferred to G2**. Thiết kế interval-overlap/as-of, bounded pagination và role/subject authorization. G1 repository vẫn lookup theo `decided_at`. | WHY Evidence Resolver / Persistence |
+| G1-F05 | **Implemented in AI-4.1 (pending Gate 2 review)**. Mở rộng additive `planned`, `safety.by_booking` và mốc ISO trên `chargepilot.backend_decision_trace/2` trong `hybrid_station.py` và `decision_trace.py`, tách bạch observed/planned/approved/dispatched/effective/measured và giữ nguyên standalone serializer. | WHY Evidence Resolver |
+| G1-F06 | **Implemented in AI-4.1 (pending Gate 2 review)**. `repository.py` + `src/services/copilot/{trace_reader,evidence,why}.py` hỗ trợ as-of, half-open `[start, end)` overlap, cắt replan sớm, giới hạn active trace sau restart, bounded pagination, phân quyền non-enumerating và privacy projection. | WHY Evidence Resolver / Persistence |
+
+## Backlog theo dõi sau AI-4.1 (G3+)
+
+- **Pending safety registry & admission readiness (G3)**: `fork_runtime` hiện chưa kế thừa pending safety registry của live runtime, và kiểm tra admission readiness dưới trạng thái pending safety là yêu cầu thuộc G3 (AI-4.2A WHAT-IF), không nằm trong phạm vi AI-4.1.
+- **Doc drift ngoài phạm vi AI-4**: Các tài liệu lịch sử cũ ngoài `docs/ai4/` (nếu có lệch với code hiện tại) được giữ nguyên theo chỉ đạo Tech Lead trong AI-4.1 và đưa vào backlog dọn tài liệu sau.

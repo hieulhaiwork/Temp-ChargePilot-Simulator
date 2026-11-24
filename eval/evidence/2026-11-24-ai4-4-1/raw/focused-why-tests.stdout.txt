@@ -1,0 +1,5 @@
+cwd=/tmp/ai4-g2-gate/code
+$ isolated timeout 120s python -m pytest tests/test_services/test_why_engine.py tests/test_services/test_why_temporal_and_auth.py tests/test_services/test_decision_trace.py tests/test_services/test_safety_event_delivery.py tests/test_services/test_fork_isolation.py tests/test_db/test_migrations.py tests/test_architecture.py -q 
+........................................................................ [ 52%]
+.................................................................        [100%]
+137 passed in 19.77s

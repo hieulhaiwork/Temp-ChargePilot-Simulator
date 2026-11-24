@@ -35,7 +35,7 @@ import logging
 import math
 import threading
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta
 from types import MappingProxyType
@@ -46,7 +46,7 @@ from src.models.control import Command, CommandType
 from src.models.decision_trace import BackendAppliedSample
 from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
 from src.models.events import EventType, StationEvent
-from src.models.physical_constraints import ConstraintViolationError
+from src.models.physical_constraints import TOL, ConstraintViolationError
 from src.models.physical_limits import EffectiveLimits
 from src.models.scheduling.observations import ObservationModel, SchedulingObservation
 from src.models.simulation import Incident, IncidentType, SessionOutcome
@@ -54,6 +54,7 @@ from src.models.simulation import Scenario as BackendScenario
 from src.models.simulation_core import Cabinet, Scenario, Vehicle
 from src.models.station import ConnectorState, ConnectorStatus, SessionProgress, StationConfig, StationState
 from src.models.station_protocols import VehicleVisit
+from src.optimizer.dispatch.least_laxity import optimistic_laxity
 from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms, station_dc_model
 from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
 from src.simulator.core.ev2gym_adapter import EV2GymAdapter
@@ -263,6 +264,10 @@ class HybridStation:
 
     def _at(self, minute: int) -> datetime:
         return self._start + timedelta(minutes=minute)
+
+    def time_at(self, minute: int) -> str:
+        """ISO-8601 station-local timestamp for a simulation minute."""
+        return self._at(minute).isoformat()
 
     def minute_of(self, when: datetime) -> int:
         return _ceil_minutes(when - self._start)
@@ -549,6 +554,225 @@ class HybridStation:
     @_locked
     def decision_labels(self) -> dict:
         return algorithm_labels(self.kernel.algorithms)
+
+    @_locked
+    def planned_decision_facts(self, approved: ApprovedDecision, *, labels: dict) -> dict:
+        """Decision-time observed & planned facts for G1-F05 WHY evidence (no measured values).
+
+        Uses `proposal.dispatch` (captured BEFORE planned assignments and BEFORE dispatcher.submit)
+        for observed pre-dispatch state so planned assignments are never conflated with connected state.
+        """
+        proposal = approved.proposal
+        observation = proposal.observation
+        cfg = observation.scenario
+        limits = proposal.effective_limits
+        now = proposal.minute
+
+        pre_vehicles: dict = {}
+        for dispatch_obs in proposal.dispatch.values():
+            for vid, item in dispatch_obs.vehicles.items():
+                pre_vehicles.setdefault(vid, item)
+
+        occupied_before = {item.connector: vid for vid, item in pre_vehicles.items() if item.connector is not None}
+        empty_before = {port for dispatch_obs in proposal.dispatch.values() for port in dispatch_obs.empty_ports}
+        ports_observed = {}
+        faulted_connectors: list[str] = []
+        for port, (cab, _) in self.queue.connectors.items():
+            cid = self.connector_of(port)
+            occupant = occupied_before.get(port)
+            faulted = occupant is None and port not in empty_before
+            if faulted:
+                faulted_connectors.append(cid)
+            ports_observed[cid] = {
+                "port": port,
+                "cabinet_id": cab.id,
+                "zone": cab.zone,
+                "port_limit_kw": cab.port_kw,
+                "faulted": faulted,
+                "occupied_booking_id": occupant,
+            }
+
+        waiting_all = {vid for dispatch_obs in proposal.dispatch.values() for vid in dispatch_obs.waiting}
+        waiting_pos = {
+            vid: idx + 1 for dispatch_obs in proposal.dispatch.values() for idx, vid in enumerate(dispatch_obs.waiting)
+        }
+        planned_connector_by_vid = {
+            vid: self.connector_of(port)
+            for port, vid in proposal.assignments.items()
+            if port in self._port_to_connector
+        }
+        zone_summary = {}
+        for zone in cfg.zone_kw:
+            zone_ports = [p for p in ports_observed.values() if p["zone"] == zone]
+            zone_dispatch = proposal.dispatch.get(zone)
+            zone_summary[zone] = {
+                "total_ports": len(zone_ports),
+                "occupied_ports": sum(1 for p in zone_ports if p["occupied_booking_id"] is not None),
+                "empty_ports": len(zone_dispatch.empty_ports) if zone_dispatch is not None else 0,
+                "faulted_ports": sum(1 for p in zone_ports if p["faulted"]),
+                "waiting_count": len(zone_dispatch.waiting) if zone_dispatch is not None else 0,
+            }
+        vehicles_observed = {}
+        for vid, item in pre_vehicles.items():
+            if item.state == "DEPARTED" and vid not in waiting_all and vid not in proposal.candidates:
+                continue
+            v = item.vehicle
+            cand = proposal.candidates.get(vid)
+            vehicles_observed[vid] = {
+                "zone": v.zone,
+                "state": item.state,
+                "connector_id": self.connector_of(item.connector) if item.connector else None,
+                "queue_position": waiting_pos.get(vid),
+                "planned_assigned_connector": planned_connector_by_vid.get(vid),
+                "soc": item.soc,
+                "target_soc": v.target,
+                "deadline_minute": v.departure,
+                "deadline_at": self._at(v.departure).isoformat(),
+                "remaining_kwh": item.remaining_kwh,
+                "vehicle_max_output_kw": v.max_kw,
+                "allowed_output_kw": cand.allowed_kw if cand is not None else None,
+                "completed_at_minute": item.completed_at,
+                "completed_at": self._at(item.completed_at).isoformat() if item.completed_at is not None else None,
+            }
+
+        dc_waiting_laxity = {}
+        dc_dispatch = proposal.dispatch.get("DC")
+        if dc_dispatch is not None:
+            ports = dc_dispatch.empty_ports or tuple(dc_dispatch.port_output_kw)
+            cap = max((dc_dispatch.port_output_kw[p] for p in ports), default=0.0)
+            for vid in dc_dispatch.waiting:
+                item = dc_dispatch.vehicles[vid]
+                laxity = optimistic_laxity(item, now, cap, cfg.efficiency)
+                dc_waiting_laxity[vid] = {
+                    "optimistic_laxity_minutes": laxity,
+                    "at_risk_under_optimistic_bound": laxity is None or laxity < 0,
+                    "estimate_max_output_kw": min(item.vehicle.max_kw, cap),
+                    "estimate_basis": "free_ports" if dc_dispatch.empty_ports else "installed_ports",
+                }
+
+        planned_bindings = self._planned_binding_constraints(proposal, approved)
+        budget_diag = proposal.budgets.diagnostics or {}
+        grid_unbounded = limits.grid_input_kw == math.inf
+        return {
+            "minute": now,
+            "end_minute": proposal.interval_end,
+            "interval_minutes": proposal.interval_minutes,
+            "planning_interval_minutes": proposal.planning_interval_minutes,
+            "interval_start_at": self._at(now).isoformat(),
+            "interval_end_at": self._at(proposal.interval_end).isoformat(),
+            "algorithms": labels,
+            "observed": {
+                "ports": ports_observed,
+                "zone_summary": zone_summary,
+                "queues_by_zone": {zone: list(d.waiting) for zone, d in proposal.dispatch.items()},
+                "empty_connectors_by_zone": {
+                    zone: [self.connector_of(p) for p in d.empty_ports] for zone, d in proposal.dispatch.items()
+                },
+                "faulted_connectors": sorted(faulted_connectors),
+                "vehicles": vehicles_observed,
+            },
+            "dispatch": {
+                zone: {
+                    "policy": labels["dispatch"].get(zone),
+                    "waiting_before": list(d.waiting),
+                    "empty_connectors_before": [self.connector_of(p) for p in d.empty_ports],
+                    "planned_assignments": {
+                        self.connector_of(port): vid
+                        for port, vid in proposal.assignments.items()
+                        if port in d.empty_ports
+                    },
+                    "waiting_after_plan": list(observation.queues.get(zone, ())),
+                }
+                for zone, d in proposal.dispatch.items()
+            },
+            "dc_waiting_laxity": dc_waiting_laxity,
+            "demand_output_kw": dict(proposal.demand),
+            "physical_limits": {
+                "grid_input_kw": None if grid_unbounded else limits.grid_input_kw,
+                "grid_input_unbounded": grid_unbounded,
+                "supply_mode": "shared" if limits.shared_supply else "independent",
+                "independent_grid_input_kw": None if limits.shared_supply else dict(limits.independent_grid_input_kw),
+                "zone_output_kw": dict(limits.zone_output_kw),
+                "cabinet_output_kw": dict(limits.cabinet_output_kw),
+                "port_output_kw": {
+                    self.connector_of(port): cab.port_kw for port, (cab, _) in self.queue.connectors.items()
+                },
+                "conversion_efficiency": limits.conversion,
+                "charging_efficiency": cfg.efficiency,
+            },
+            "coordinator": {
+                "policy": labels["coordinator"],
+                "assigned_output_kw": dict(proposal.budgets.output_kw),
+                "default_zone_budget_kw": dict(cfg.default_zone_budget_kw),
+                "requested_output_kw": dict(proposal.demand),
+                "reason_codes": {str(z): list(codes) for z, codes in (budget_diag.get("reason_codes") or {}).items()},
+                "fallback_reason": budget_diag.get("fallback_reason"),
+                "diagnostics": {
+                    str(k): v for k, v in budget_diag.items() if k not in ("reason_codes", "fallback_reason")
+                },
+            },
+            "optimizers": {
+                zone: {
+                    "policy": labels["optimizers"].get(zone),
+                    **(
+                        dict(proposal.diagnostics[zone])
+                        if isinstance(proposal.diagnostics.get(zone), Mapping)
+                        else {"solver_status": "not_applicable", "fallback_reason": None}
+                    ),
+                }
+                for zone in cfg.zone_kw
+            },
+            "binding_constraints": planned_bindings,
+            "tariff": (
+                {"currency": cfg.tariff.currency, "price_per_grid_kwh": cfg.tariff.price_at(now)}
+                if cfg.tariff is not None
+                else None
+            ),
+        }
+
+    def _planned_binding_constraints(self, proposal, approved: ApprovedDecision) -> list[dict]:
+        """Binding constraints at planned stages ('proposed', 'approved') — never measured."""
+        observation = proposal.observation
+        cfg = observation.scenario
+        limits = proposal.effective_limits
+        budgets = proposal.budgets.output_kw
+        bindings: list[dict] = []
+        for stage, setpoints in (("proposed", proposal.setpoints_kw), ("approved", approved.setpoints_kw)):
+            cabinet_power: dict[str, float] = {}
+            zone_power: dict[str, float] = {}
+            for vid, candidate in proposal.candidates.items():
+                kw = float(setpoints.get(vid, 0.0))
+                cab = candidate.cabinet
+                cabinet_power[cab.id] = cabinet_power.get(cab.id, 0.0) + kw
+                zone_power[cab.zone] = zone_power.get(cab.zone, 0.0) + kw
+                if abs(kw - candidate.allowed_kw) <= TOL:
+                    bindings.append(
+                        {"stage": stage, "limit": "individual_allowed_output", "id": vid, "kw": candidate.allowed_kw}
+                    )
+                if abs(kw - cab.port_kw) <= TOL:
+                    port = observation.vehicles[vid].connector
+                    port_id = self.connector_of(port) if port in self._port_to_connector else port
+                    bindings.append({"stage": stage, "limit": "port_output", "id": port_id, "kw": cab.port_kw})
+            for cab in cfg.cabinets:
+                cap = limits.cabinet_output_kw[cab.id]
+                if cab.id in cabinet_power and abs(cabinet_power[cab.id] - cap) <= TOL:
+                    bindings.append({"stage": stage, "limit": "cabinet_output", "id": cab.id, "kw": cap})
+            for zone, total in zone_power.items():
+                for label, cap in (("zone_budget", budgets[zone]), ("zone_limit", limits.zone_output_kw[zone])):
+                    if abs(total - cap) <= TOL:
+                        bindings.append({"stage": stage, "limit": label, "id": zone, "kw": cap})
+                if not limits.shared_supply:
+                    cap = limits.independent_grid_input_kw[zone]
+                    if abs(total / cfg.conversion - cap) <= TOL:
+                        bindings.append({"stage": stage, "limit": "independent_grid_input", "id": zone, "kw": cap})
+            if (
+                limits.shared_supply
+                and limits.grid_input_kw != math.inf
+                and zone_power
+                and abs(sum(zone_power.values()) / cfg.conversion - limits.grid_input_kw) <= TOL
+            ):
+                bindings.append({"stage": stage, "limit": "site_grid_input", "id": "site", "kw": limits.grid_input_kw})
+        return bindings
 
     @_locked
     def decision_facts(

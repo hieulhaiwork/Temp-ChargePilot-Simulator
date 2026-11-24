@@ -1,0 +1,2 @@
+cwd=/tmp/ai4-g2-gate/code
+$ bash -c $'\n        for exe in postgres pg_isready initdb; do command -v "$exe" || :; done\n        if [[ -n ${TEST_DATABASE_URL:-} ]]; then printf "TEST_DATABASE_URL is set\\n"; fi\n        if command -v docker >/dev/null; then timeout 20s docker info --format "{{.ServerVersion}}"; else exit 127; fi\n    ' 

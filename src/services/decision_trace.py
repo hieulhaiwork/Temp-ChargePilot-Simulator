@@ -94,9 +94,33 @@ def open_trace(
         _mark_unbounded_grid(guard_inputs["limits"])
     proposal = approved.proposal if approved is not None else None
     time = getattr(station, "time", None)
+    time_at = getattr(station, "time_at", None)
+    labels = station.decision_labels() if approved is not None and hasattr(station, "decision_labels") else None
+    planned = None
+    if approved is not None and labels is not None and hasattr(station, "planned_decision_facts"):
+        try:
+            planned_candidate = station.planned_decision_facts(approved, labels=labels)
+            json.dumps(planned_candidate, allow_nan=False)
+            planned = planned_candidate
+        except Exception as exc:
+            _log_build_failure(correlation_id, "planned", exc)
     codes = list(approved.reason_codes) if approved is not None else list(diagnostics.get("reason_codes", []))
     if any(e.note.startswith(SAFETY_REDUCTION_NOTE) for e in (*entries, *emergency)):
         codes.append(ReasonCode.LOAD_REDUCTION_PRIORITY)
+    interval_block = (
+        None
+        if proposal is None
+        else {
+            "start_minute": proposal.minute,
+            "end_minute": proposal.interval_end,
+            "planning_interval_minutes": proposal.planning_interval_minutes,
+            **(
+                {"start_at": time_at(proposal.minute), "end_at": time_at(proposal.interval_end)}
+                if callable(time_at)
+                else {}
+            ),
+        }
+    )
     trace = {
         "trace_schema": TRACE_SCHEMA,
         "correlation_id": correlation_id,
@@ -117,13 +141,7 @@ def open_trace(
         "experiment": experiment.model_dump(mode="json") if experiment is not None else None,
         "schedule_version": plan.version,
         "time_config": time.as_dict() if time is not None else None,
-        "interval": None
-        if proposal is None
-        else {
-            "start_minute": proposal.minute,
-            "end_minute": proposal.interval_end,
-            "planning_interval_minutes": proposal.planning_interval_minutes,
-        },
+        "interval": interval_block,
         "reason_codes": codes,
         "budgets_kw": _plain(proposal.budgets.output_kw) if proposal else {},
         "proposed_setpoints_kw": _plain(proposal.setpoints_kw) if proposal else {},
@@ -164,7 +182,11 @@ def open_trace(
                 for e in safety_events
             ],
             "held_booking_ids": sorted(getattr(rt, "safety_hold_booking_ids", ()) or ()),
+            "by_booking": {
+                vid: {"safety_hold": True} for vid in sorted(getattr(rt, "safety_hold_booking_ids", ()) or ())
+            },
         },
+        "planned": planned,
         "decision": None,
         "applied": None,
         "closed": False,
@@ -181,12 +203,14 @@ def open_trace(
         "actual_output": None,
     }
     subjects = set(proposal.observation.vehicles) if proposal else set()
+    if planned is not None:
+        subjects.update(planned["observed"]["vehicles"])
     subjects.update(row["booking_id"] for row in trace["commands"] + trace["emergency_commands"] + exclusions)
     subjects.update(e.booking_id for e in (*batch, event))
     subjects.update(vid for e in safety_events for vid in e.violation_booking_ids)
     trace["booking_ids"] = sorted(vid for vid in subjects if vid)
     _set_evidence_refs(trace)
-    rt.open_trace = {"trace": trace, "approved": approved, "labels": station.decision_labels() if approved else None}
+    rt.open_trace = {"trace": trace, "approved": approved, "labels": labels}
     rt.store.save_trace(trace, False)
     return trace
 
@@ -206,9 +230,23 @@ def _set_evidence_refs(trace: dict) -> None:
         "/interval",
         "/validation",
         "/safety",
+        "/planned",
         "/applied",
         "/decision",
     ]
+    if isinstance(trace.get("planned"), dict):
+        paths.extend(
+            [
+                "/planned/physical_limits",
+                "/planned/coordinator",
+                "/planned/optimizers",
+                "/planned/dispatch",
+                "/planned/binding_constraints",
+            ]
+        )
+        for vid in (trace["planned"].get("observed") or {}).get("vehicles") or {}:
+            segment = vid.replace("~", "~0").replace("/", "~1")
+            paths.append(f"/planned/observed/vehicles/{segment}")
     paths.extend(f"/power/{stage}" for stage in trace["power"])
     for stage in ("proposed", "approved"):
         for vid in trace["power"][stage]["by_booking_kw"]:
@@ -224,7 +262,7 @@ def _set_evidence_refs(trace: dict) -> None:
     trace["evidence_refs"] = {path: f"{trace['correlation_id']}:{trace['trace_schema']}#{path}" for path in paths}
 
 
-def _record_power_samples(trace, samples, applied):
+def _record_power_samples(trace, samples, applied, time_at=None):
     if not samples:
         return
     held, measured = [], []
@@ -232,6 +270,9 @@ def _record_power_samples(trace, samples, applied):
     for sample in samples:
         result = sample.result
         interval = {"start_minute": result.minute, "end_minute": result.end}
+        if callable(time_at):
+            interval["start_at"] = time_at(result.minute)
+            interval["end_at"] = time_at(result.end)
         held.append({**interval, "by_booking_kw": dict(sample.held_setpoints_kw)})
         measured.append({**interval, "by_booking_kw": dict(result.actual_kw)})
         for vid in result.actual_kw:
@@ -300,7 +341,12 @@ def close_open(rt) -> dict | None:
         return None
     trace, approved = holder["trace"], holder["approved"]
     conversion = approved.proposal.effective_limits.conversion if approved else rt.config.power_conversion_efficiency
+    time_at = getattr(station, "time_at", None)
     applied = _applied(results, conversion)
+    applied["closed_at"] = (getattr(station, "now", None) or rt.clock()).isoformat()
+    if callable(time_at):
+        applied["from_at"] = time_at(applied["from_minute"]) if applied["from_minute"] is not None else None
+        applied["to_at"] = time_at(applied["to_minute"]) if applied["to_minute"] is not None else None
     trace["applied"] = applied
     start, end = trace["minute"], getattr(station, "minute", None)
     expected = end - start if start is not None and end is not None else None
@@ -314,12 +360,20 @@ def close_open(rt) -> dict | None:
         "status": "incomplete" if incomplete else "complete" if retained else "no_samples",
         "expected_from_minute": start,
         "expected_to_minute": end,
+        **(
+            {
+                "expected_from_at": time_at(start) if start is not None else None,
+                "expected_to_at": time_at(end) if end is not None else None,
+            }
+            if callable(time_at)
+            else {}
+        ),
         "expected_minutes": expected,
         "retained_minutes": retained,
         "dropped_minutes": dropped_minutes,
         "dropped_hard_violations": dropped_violations,
     }
-    _record_power_samples(trace, samples, applied)
+    _record_power_samples(trace, samples, applied, time_at=time_at)
     violation = bool(applied["hard_violations"] or dropped_violations)
     if violation:
         status = "violation"

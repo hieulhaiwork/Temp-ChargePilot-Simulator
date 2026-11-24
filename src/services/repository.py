@@ -389,6 +389,154 @@ def list_decision_traces(limit: int = 100) -> list[DecisionTraceSummary]:
         return [mappers.row_to_trace(r) for r in s.scalars(q)]
 
 
+def list_decision_traces_for_temporal_lookup(
+    start: datetime,
+    end: datetime,
+    *,
+    booking_id: str | None = None,
+    inclusive_end: bool = False,
+    lookback: timedelta = timedelta(days=1),
+    limit: int = 100,
+) -> dict:
+    """Indexed candidate fetch for G1-F06 temporal overlap / as-of resolution (no schema migration).
+
+    Fetches:
+      - rows in [start - lookback, end] (or < end) using existing decided_at / (booking_id, decided_at) indexes,
+        with limit + 1 to detect truncation accurately;
+      - the single latest row strictly before `start - lookback` to cover long-lived traces;
+      - counts of legacy summary-only rows (full_payload IS NULL) in the fetched window;
+      - station-wide latest trace metadata and the next trace after `end` to detect superseded/stale active traces.
+    """
+    if start.utcoffset() is None or end.utcoffset() is None:
+        raise ValueError("Trace lookup boundaries must be timezone-aware")
+    if end < start or end - start > timedelta(days=31):
+        raise ValueError("Trace lookup window must satisfy 0 <= end - start <= 31 days")
+    if lookback < timedelta(0):
+        raise ValueError("lookback must be non-negative")
+    if not 1 <= limit <= 100:
+        raise ValueError("Trace limit must be between 1 and 100")
+
+    _ensure()
+    fetch_start = start - lookback
+
+    def _base_query():
+        if booking_id is not None:
+            return (
+                select(
+                    DecisionTraceRow.correlation_id,
+                    DecisionTraceRow.decided_at,
+                    DecisionTraceRow.schedule_version,
+                    DecisionTraceRow.closed,
+                    DecisionTraceRow.full_payload,
+                )
+                .join(
+                    DecisionTraceBookingRow,
+                    DecisionTraceBookingRow.correlation_id == DecisionTraceRow.correlation_id,
+                )
+                .where(DecisionTraceBookingRow.booking_id == booking_id),
+                DecisionTraceBookingRow.decided_at,
+            )
+        return (
+            select(
+                DecisionTraceRow.correlation_id,
+                DecisionTraceRow.decided_at,
+                DecisionTraceRow.schedule_version,
+                DecisionTraceRow.closed,
+                DecisionTraceRow.full_payload,
+            ),
+            DecisionTraceRow.decided_at,
+        )
+
+    with db_session.session_scope() as s:
+        q, time_col = _base_query()
+        upper = time_col <= end if inclusive_end else time_col < end
+        window_q = (
+            q.where(time_col >= fetch_start, upper)
+            .order_by(time_col.desc(), DecisionTraceRow.schedule_version.desc(), DecisionTraceRow.correlation_id.desc())
+            .limit(limit + 1)
+        )
+        rows = list(s.execute(window_q).all())
+        truncated = len(rows) > limit
+        if truncated:
+            rows = rows[:limit]
+
+        prior_q, prior_col = _base_query()
+        prior = s.execute(
+            prior_q.where(prior_col < fetch_start)
+            .order_by(
+                prior_col.desc(), DecisionTraceRow.schedule_version.desc(), DecisionTraceRow.correlation_id.desc()
+            )
+            .limit(1)
+        ).first()
+
+        # Station-wide superseding signals (uses ix_decision_traces_decided)
+        after_cond = DecisionTraceRow.decided_at > end if inclusive_end else DecisionTraceRow.decided_at >= end
+        next_row = s.execute(
+            select(
+                DecisionTraceRow.correlation_id,
+                DecisionTraceRow.decided_at,
+                DecisionTraceRow.schedule_version,
+            )
+            .where(after_cond)
+            .order_by(
+                DecisionTraceRow.decided_at.asc(),
+                DecisionTraceRow.schedule_version.asc(),
+                DecisionTraceRow.correlation_id.asc(),
+            )
+            .limit(1)
+        ).first()
+        latest_row = s.execute(
+            select(
+                DecisionTraceRow.correlation_id,
+                DecisionTraceRow.decided_at,
+                DecisionTraceRow.schedule_version,
+            )
+            .order_by(
+                DecisionTraceRow.decided_at.desc(),
+                DecisionTraceRow.schedule_version.desc(),
+                DecisionTraceRow.correlation_id.desc(),
+            )
+            .limit(1)
+        ).first()
+
+    combined = list(rows)
+    seen_ids = {r.correlation_id for r in combined}
+    if prior is not None and prior.correlation_id not in seen_ids:
+        combined.append(prior)
+
+    traces: list[dict] = []
+    legacy_summary_only_ids: list[str] = []
+    for row in combined:
+        if row.full_payload is None:
+            legacy_summary_only_ids.append(row.correlation_id)
+        else:
+            traces.append(row.full_payload)
+
+    return {
+        "traces": traces,
+        "legacy_summary_only_ids": legacy_summary_only_ids,
+        "truncated": truncated,
+        "next_trace": (
+            {
+                "correlation_id": next_row.correlation_id,
+                "decided_at": next_row.decided_at,
+                "schedule_version": next_row.schedule_version,
+            }
+            if next_row is not None
+            else None
+        ),
+        "latest_trace": (
+            {
+                "correlation_id": latest_row.correlation_id,
+                "decided_at": latest_row.decided_at,
+                "schedule_version": latest_row.schedule_version,
+            }
+            if latest_row is not None
+            else None
+        ),
+    }
+
+
 # ---- Thông báo (FR15) -------------------------------------------------------------------
 
 
