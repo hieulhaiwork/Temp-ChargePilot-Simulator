@@ -25,7 +25,16 @@ from dataclasses import dataclass, replace
 from src.guard import approval as approval_rules
 from src.guard.checker import check, check_batch
 from src.guard.rules import POWER_COMMANDS, GuardContext, check_total_power, is_load_reduction, is_safety_reduction
-from src.models.control import Approval, ApprovalKind, Command, DecisionLogEntry, GuardVerdict
+from src.models.control import (
+    Approval,
+    ApprovalKind,
+    Command,
+    CommandType,
+    DecisionLogEntry,
+    GuardRule,
+    GuardVerdict,
+    Violation,
+)
 from src.models.events import WsMessage, WsMessageType
 from src.models.station_protocols import StationActuator
 
@@ -153,7 +162,13 @@ def _without_unsafe_increases(
 
 
 async def execute_approved(
-    approval: Approval, ctx: GuardContext, actuator: StationActuator, sinks: DispatchSinks
+    approval: Approval,
+    ctx: GuardContext,
+    actuator: StationActuator,
+    sinks: DispatchSinks,
+    *,
+    safety_holds: frozenset[str] = frozenset(),
+    safety_pending: bool = False,
 ) -> DecisionLogEntry:
     """Thực thi lệnh đã được duyệt — re-check Guard trên trạng thái MỚI NHẤT trước khi apply.
 
@@ -168,6 +183,19 @@ async def execute_approved(
         }
     )
     verdict = check(cmd, replace(ctx, batch=(cmd,)))
+    stops_power = cmd.type == CommandType.STOP or (cmd.type == CommandType.SET_POWER and cmd.power_kw == 0)
+    occupant = next((c.booking_id for c in ctx.state.connectors if c.connector_id == cmd.connector_id), None)
+    if not stops_power and (safety_pending or cmd.booking_id in safety_holds or occupant in safety_holds):
+        verdict = GuardVerdict(
+            command_id=cmd.command_id,
+            passed=False,
+            checked_at=ctx.now,
+            violations=[
+                *verdict.violations,
+                Violation(rule=GuardRule.PERMISSION, detail="Safety Hold hoặc sự kiện an toàn chưa xử lý"),
+            ],
+        )
+
     if not verdict.passed:
         entry = DecisionLogEntry(
             timestamp=ctx.now,

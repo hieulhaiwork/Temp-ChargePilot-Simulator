@@ -1,0 +1,2296 @@
+diff --git a/src/db/mappers.py b/src/db/mappers.py
+index f1ff93d..5d2841f 100644
+--- a/src/db/mappers.py
++++ b/src/db/mappers.py
+@@ -197,17 +197,17 @@ def row_to_load_point(row: LoadPointRow) -> LoadPoint:
+     return LoadPoint(timestamp=row.ts, total_power_kw=row.total_power_kw, power_limit_kw=row.power_limit_kw)
+ 
+ 
+-def trace_to_row(summary: DecisionTraceSummary) -> DecisionTraceRow:
+-    return DecisionTraceRow(
+-        correlation_id=summary.correlation_id,
+-        decided_at=summary.decided_at,
+-        policy_id=summary.policy_id,
+-        schedule_version=summary.schedule_version,
+-        budget_deviation_kw_max=summary.budget_deviation_kw_max,
+-        hard_violations=summary.hard_violations,
+-        closed=summary.closed,
+-        payload=summary.model_dump(mode="json"),
+-    )
++def trace_columns(summary: DecisionTraceSummary) -> dict:
++    return {
++        "correlation_id": summary.correlation_id,
++        "decided_at": summary.decided_at,
++        "policy_id": summary.policy_id,
++        "schedule_version": summary.schedule_version,
++        "budget_deviation_kw_max": summary.budget_deviation_kw_max,
++        "hard_violations": summary.hard_violations,
++        "closed": summary.closed,
++        "payload": summary.model_dump(mode="json"),
++    }
+ 
+ 
+ def row_to_trace(row: DecisionTraceRow) -> DecisionTraceSummary:
+diff --git a/src/db/tables.py b/src/db/tables.py
+index aa3b922..e8f2849 100644
+--- a/src/db/tables.py
++++ b/src/db/tables.py
+@@ -184,11 +184,7 @@ class LoadPointRow(Base):
+ 
+ 
+ class DecisionTraceRow(Base):
+-    """ADR-019 Phase 4 (quyết định 6) — tóm tắt DecisionTrace backend. payload = DecisionTraceSummary.
+-
+-    Ghi khi mở (sau dispatch) và ghi đè khi đóng (lần tính lại kế tiếp, có số đo thật). Trace chi tiết là artifact
+-    JSONL (DECISION_TRACE_DIR), nối với decision_log qua `correlation_id` của Command.
+-    """
++    """Backend trace summary and optional versioned evidence; legacy summary rows have no full payload."""
+ 
+     __tablename__ = "decision_traces"
+     __table_args__ = (Index("ix_decision_traces_decided", "decided_at"),)
+@@ -201,3 +197,17 @@ class DecisionTraceRow(Base):
+     hard_violations: Mapped[int] = mapped_column(Integer)
+     closed: Mapped[bool] = mapped_column(Boolean)
+     payload: Mapped[dict] = mapped_column(JsonDoc)
++    full_payload: Mapped[dict | None] = mapped_column(JsonDoc, nullable=True)
++
++
++class DecisionTraceBookingRow(Base):
++    """Lookup by booking ID and time without indexing the full JSON document."""
++
++    __tablename__ = "decision_trace_bookings"
++    __table_args__ = (Index("ix_decision_trace_bookings_window", "booking_id", "decided_at"),)
++
++    booking_id: Mapped[str] = mapped_column(String(32), primary_key=True)
++    correlation_id: Mapped[str] = mapped_column(
++        String(32), ForeignKey("decision_traces.correlation_id", ondelete="CASCADE"), primary_key=True
++    )
++    decided_at: Mapped[datetime] = mapped_column(UtcDateTime)
+diff --git a/src/guard/dispatcher.py b/src/guard/dispatcher.py
+index e445c59..2110c8f 100644
+--- a/src/guard/dispatcher.py
++++ b/src/guard/dispatcher.py
+@@ -25,7 +25,16 @@ from dataclasses import dataclass, replace
+ from src.guard import approval as approval_rules
+ from src.guard.checker import check, check_batch
+ from src.guard.rules import POWER_COMMANDS, GuardContext, check_total_power, is_load_reduction, is_safety_reduction
+-from src.models.control import Approval, ApprovalKind, Command, DecisionLogEntry, GuardVerdict
++from src.models.control import (
++    Approval,
++    ApprovalKind,
++    Command,
++    CommandType,
++    DecisionLogEntry,
++    GuardRule,
++    GuardVerdict,
++    Violation,
++)
+ from src.models.events import WsMessage, WsMessageType
+ from src.models.station_protocols import StationActuator
+ 
+@@ -153,7 +162,13 @@ def _without_unsafe_increases(
+ 
+ 
+ async def execute_approved(
+-    approval: Approval, ctx: GuardContext, actuator: StationActuator, sinks: DispatchSinks
++    approval: Approval,
++    ctx: GuardContext,
++    actuator: StationActuator,
++    sinks: DispatchSinks,
++    *,
++    safety_holds: frozenset[str] = frozenset(),
++    safety_pending: bool = False,
+ ) -> DecisionLogEntry:
+     """Thực thi lệnh đã được duyệt — re-check Guard trên trạng thái MỚI NHẤT trước khi apply.
+ 
+@@ -168,6 +183,19 @@ async def execute_approved(
+         }
+     )
+     verdict = check(cmd, replace(ctx, batch=(cmd,)))
++    stops_power = cmd.type == CommandType.STOP or (cmd.type == CommandType.SET_POWER and cmd.power_kw == 0)
++    occupant = next((c.booking_id for c in ctx.state.connectors if c.connector_id == cmd.connector_id), None)
++    if not stops_power and (safety_pending or cmd.booking_id in safety_holds or occupant in safety_holds):
++        verdict = GuardVerdict(
++            command_id=cmd.command_id,
++            passed=False,
++            checked_at=ctx.now,
++            violations=[
++                *verdict.violations,
++                Violation(rule=GuardRule.PERMISSION, detail="Safety Hold hoặc sự kiện an toàn chưa xử lý"),
++            ],
++        )
++
+     if not verdict.passed:
+         entry = DecisionLogEntry(
+             timestamp=ctx.now,
+diff --git a/src/models/decision_trace.py b/src/models/decision_trace.py
+index cd4a6a5..64e2d0a 100644
+--- a/src/models/decision_trace.py
++++ b/src/models/decision_trace.py
+@@ -1,15 +1,18 @@
+-"""Tóm tắt vận hành của một DecisionTrace backend (ADR-019 Phase 4, quyết định 6).
++"""Backend trace summary, schema version and per-step evidence."""
+ 
+-Vì sao tồn tại: trace chi tiết (facts cùng schema `evaluation/trace.decision_record` của simulator + Guard / HITL +
+-kết quả áp thật) là artifact JSON, lớn và chỉ dùng khi replay / debug / benchmark / AI-4 WHY. DB chỉ giữ bản tóm tắt
+-này để tra nhanh và nối với `decision_log` qua `correlation_id` (`Command.correlation_id`).
+-
+-Không chứa secret, token hay dữ liệu cá nhân: chỉ mã booking nội bộ (trong artifact), số đo và mã lý do.
+-"""
++from dataclasses import dataclass
+ 
+ from pydantic import AwareDatetime, BaseModel, Field
+ 
+-TRACE_SCHEMA = "chargepilot.backend_decision_trace/1"
++from src.models.decisions import AppliedResult
++
++TRACE_SCHEMA = "chargepilot.backend_decision_trace/2"
++
++
++@dataclass(frozen=True)
++class BackendAppliedSample:
++    result: AppliedResult
++    held_setpoints_kw: dict[str, float]
+ 
+ 
+ class DecisionTraceSummary(BaseModel):
+diff --git a/src/services/charging_service.py b/src/services/charging_service.py
+index 0fd2a3c..a232cbf 100644
+--- a/src/services/charging_service.py
++++ b/src/services/charging_service.py
+@@ -294,7 +294,7 @@ async def book(
+             repository.save_booking(booking, idempotency_key=idempotency_key, request_hash=request_hash)
+             rt.booking_version += 1
+             async with rt.lock:
+-                rt.outbox.extend(rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)))
++                rt.queue_events(rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)))
+         break
+     if booking is None:
+         raise DomainError(
+@@ -322,7 +322,7 @@ async def cancel(booking_id: str, resident_id: str) -> Booking:
+         rt.booking_version += 1
+         async with rt.lock:
+             rt.sync_clock()
+-            rt.outbox.extend(rt.simulator.remove_vehicle(booking_id))  # sự kiện trạm không bị bỏ (§1.2)
++            rt.queue_events(rt.simulator.remove_vehicle(booking_id))  # sự kiện trạm không bị bỏ (§1.2)
+     await event_bus.publish(
+         StationEvent(type=EventType.BOOKING_CANCELLED, occurred_at=rt.clock(), booking_id=booking_id)
+     )
+@@ -380,7 +380,7 @@ async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str)
+             repository.save_booking(updated)
+             rt.booking_version += 1
+             async with rt.lock:
+-                rt.outbox.extend(rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)))
++                rt.queue_events(rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)))
+         break
+     if updated is None:
+         raise DomainError(
+diff --git a/src/services/control_loop.py b/src/services/control_loop.py
+index e5bf1cb..8b857e5 100644
+--- a/src/services/control_loop.py
++++ b/src/services/control_loop.py
+@@ -34,6 +34,7 @@ from uuid import uuid4
+ 
+ from src.guard import approval as approval_rules
+ from src.guard import dispatcher, emergency
++from src.guard.physical import adapter as physical
+ from src.guard.rules import GuardContext
+ from src.models.api import ErrorCode, Notification, NotificationKind
+ from src.models.charging import BookingStatus, SchedulePlan
+@@ -47,12 +48,13 @@ from src.models.control import (
+     Role,
+     quantize_kw,
+ )
+-from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
++from src.models.events import EventType, StationEvent, ViolationKind, WsMessage, WsMessageType
++from src.models.physical_constraints import TOL
+ from src.models.planning import PlanningContext
+ from src.models.station import LoadPoint, StationState
+ from src.services import decision_trace, solver
+ from src.services.errors import DomainError
+-from src.services.runtime import StationRuntime
++from src.services.runtime import SAFETY_ATTEMPT_LIMIT, StationRuntime
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -70,71 +72,78 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
+     tính lại thay vì replan trùng (ADR-019 Phase 3). Việc nặng (solver) chạy trên thread solver duy nhất
+     (services/solver.py) để không chặn WebSocket.
+     """
+-    async with rt.lock:
+-        started = time.perf_counter()
+-        _remember_loop(rt)
+-        correlation_id = uuid4().hex  # DecisionTrace của lần tính lại này; gắn vào mọi Command nó sinh ra
+-        emergency_entries: list[DecisionLogEntry] = []
+-        # Final Acceptance §1.3: vi phạm cứng đã báo (sự kiện / lô truyền vào, hoặc còn trong outbox) được xử lý an toàn
+-        # TRƯỚC khi tiến đồng hồ — không tích phân thêm phút nào với setpoint đang vi phạm.
+-        incoming = _merge_pending(rt, (*batch, event))
+-        violated = [e for e in incoming if e.type == EventType.HARD_LIMIT_VIOLATED]
+-        if violated:
+-            emergency_entries += await _failsafe(rt, violated, correlation_id)
+-        rt.advance_clock()
+-        # Final Acceptance §1.2: mọi sự kiện chưa giao (của lần tiến đồng hồ này hoặc của consumer khác) vào lô này.
+-        fresh = _merge_pending(rt, ())
+-        side_events = (*[e for e in incoming if e is not event], *fresh)
+-        # Quyết định trước kết thúc tại đây: đóng trace của nó bằng số đo vật lý thật tới thời điểm này.
+-        decision_trace.close_open(rt)
+-        for e in (*side_events, event):
+-            rt.store.record_event(e)
+-            await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
+-        if event.type == EventType.POWER_LIMIT_CHANGED and event.new_power_limit_kw is not None:
+-            emergency_entries += await _emergency(rt, event.new_power_limit_kw, correlation_id)
+-        violated_now = [e for e in fresh if e.type == EventType.HARD_LIMIT_VIOLATED]
+-        if violated_now:
+-            emergency_entries += await _failsafe(rt, violated_now, correlation_id)
+-        _sync_booking_status(rt, (*side_events, event))
+-
+-        ctx = build_planning_context(rt)
+-        plan = await solver.run_async(rt.scheduler.plan, ctx)
+-        version = max(rt.plan.version if rt.plan else 0, ctx.state.schedule_version) + 1
+-        plan = plan.model_copy(update={"version": version})
+-        wanted = [
+-            c.model_copy(update={"correlation_id": correlation_id}) for c in diff_commands(rt.plan, plan, ctx.state)
+-        ]
+-        commands = _filter_held(rt, wanted)
+-        entries = []
+-        if commands:
+-            entries = await dispatcher.submit(
+-                commands,
+-                build_guard_context(rt, None),
+-                rt.simulator,
+-                rt.sinks,
+-                approval_ttl_minutes=rt.config.guard.approval_ttl_minutes,
+-            )
+-        decision_trace.open_trace(
+-            rt,
+-            correlation_id=correlation_id,
+-            event=event,
+-            batch=side_events,
+-            plan=plan,
+-            entries=entries,
+-            emergency=emergency_entries,
+-            held_for_approval={c.booking_id for c in wanted if c not in commands and c.booking_id},
++    rt.retain_safety_events((*batch, event))
++    async with rt.decision_lock():
++        return await _on_event_locked(event, rt, batch)
++
++
++async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple[StationEvent, ...]) -> SchedulePlan:
++    started = time.perf_counter()
++    _remember_loop(rt)
++    correlation_id = uuid4().hex  # DecisionTrace của lần tính lại này; gắn vào mọi Command nó sinh ra
++    emergency_entries: list[DecisionLogEntry] = []
++    safety_deliveries: list[SafetyDelivery] = []
++    incoming = _merge_pending(rt, (*batch, event))
++    violated = [e for e in incoming if e.type == EventType.HARD_LIMIT_VIOLATED]
++    if violated:
++        safety_deliveries.append(await _deliver_safety(rt, violated, correlation_id))
++    rt.advance_clock()
++    incoming_ids = {e.event_id for e in incoming}
++    fresh = tuple(e for e in _merge_pending(rt, ()) if e.event_id not in incoming_ids)
++    violated_now = [e for e in fresh if e.type == EventType.HARD_LIMIT_VIOLATED]
++    if violated_now:
++        safety_deliveries.append(await _deliver_safety(rt, violated_now, correlation_id))
++    for delivery in safety_deliveries:
++        emergency_entries.extend(delivery.entries)
++    side_events = (*[e for e in incoming if e.event_id != event.event_id], *fresh)
++    decision_trace.close_open_safely(rt)
++    for e in (*side_events, event):
++        rt.store.record_event(e)
++        await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
++    for e in (*side_events, event):
++        if e.type == EventType.POWER_LIMIT_CHANGED and e.new_power_limit_kw is not None:
++            emergency_entries += await _emergency(rt, e.new_power_limit_kw, correlation_id)
++    _sync_booking_status(rt, (*side_events, event))
++
++    ctx = build_planning_context(rt)
++    plan = await solver.run_async(rt.scheduler.plan, ctx)
++    version = max(rt.plan.version if rt.plan else 0, ctx.state.schedule_version) + 1
++    plan = plan.model_copy(update={"version": version})
++    wanted = [c.model_copy(update={"correlation_id": correlation_id}) for c in diff_commands(rt.plan, plan, ctx.state)]
++    exclusions: list[dict] = []
++    commands = _filter_held(rt, wanted, exclusions) if not rt.has_pending_safety() else []
++    entries = []
++    if commands:
++        entries = await dispatcher.submit(
++            commands,
++            build_guard_context(rt, None),
++            rt.simulator,
++            rt.sinks,
++            approval_ttl_minutes=rt.config.guard.approval_ttl_minutes,
+         )
+-        rt.plan = plan
+-        rt.store.save_plan(plan)
+-        _sync_booking_status(rt, ())
+-        _record_load(rt)
+-        rt.recorder.replan_durations_s.append(time.perf_counter() - started)
+-        await rt.sinks.notify(_ws(WsMessageType.SCHEDULE_CHANGED, plan, rt), None)
+-        if rt.live:
+-            from src.services import station_service  # tránh vòng import lúc nạp module
+-
+-            await rt.sinks.notify(_ws(WsMessageType.STATION_SNAPSHOT, station_service.build_overview(rt), rt), None)
+-        return plan
++    decision_trace.open_trace_safely(
++        rt,
++        correlation_id=correlation_id,
++        event=event,
++        batch=side_events,
++        plan=plan,
++        entries=entries,
++        emergency=emergency_entries,
++        command_exclusions=exclusions,
++        failsafe=[entry for delivery in safety_deliveries for entry in delivery.entries],
++        safety_outcomes=[delivery.evidence for delivery in safety_deliveries],
++    )
++    rt.plan = plan
++    rt.store.save_plan(plan)
++    _sync_booking_status(rt, ())
++    _record_load(rt)
++    rt.recorder.replan_durations_s.append(time.perf_counter() - started)
++    await rt.sinks.notify(_ws(WsMessageType.SCHEDULE_CHANGED, plan, rt), None)
++    if rt.live:
++        from src.services import station_service  # tránh vòng import lúc nạp module
++
++        await rt.sinks.notify(_ws(WsMessageType.STATION_SNAPSHOT, station_service.build_overview(rt), rt), None)
++    return plan
+ 
+ 
+ def decision_due(simulator, now) -> bool:
+@@ -149,6 +158,8 @@ async def on_minute(rt: StationRuntime, events: list[StationEvent]) -> ScheduleP
+     Không có sự kiện mà tới mốc quyết định → TICK. Sự cố nguồn đi trước để bảo vệ khẩn cấp chạy ngay (AC5).
+     """
+     events = list(events)
++    if any(e.type == EventType.HARD_LIMIT_VIOLATED for e in events):
++        return await on_event(events[-1], rt, batch=tuple(events[:-1]))
+     if not events and decision_due(rt.simulator, rt.clock()):
+         events.append(StationEvent(type=EventType.TICK, occurred_at=rt.clock()))
+     plan = None
+@@ -174,16 +185,12 @@ async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:
+             async with rt.lock:
+                 _remember_loop(rt)
+                 rt.advance_clock()
+-                events = rt.take_events()  # gồm sự kiện consumer khác để lại (Final Acceptance §1.2)
+-            if events:
+-                # Mọi sự kiện trạm của lượt này (xe đến / rời, sạc xong, vượt budget…) → MỘT lần tính lại, không
+-                # replan trùng cùng thời điểm (ADR-019 Phase 4, quyết định 2). Sự cố nguồn vẫn chạy trước (AC5).
+-                await on_minute(rt, events)
++            plan = await deliver_pending(rt)
+             now = rt.clock()
+-            if not events and (now - last_tick >= tick_every or decision_due(rt.simulator, now)):
+-                await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))
++            if plan is not None:
+                 last_tick = now
+-            elif events:
++            elif now - last_tick >= tick_every or decision_due(rt.simulator, now):
++                await event_bus.publish(StationEvent(type=EventType.TICK, occurred_at=now))
+                 last_tick = now
+             expire_overdue_approvals(rt)
+         except Exception:
+@@ -247,9 +254,16 @@ async def resolve_approval(
+     decided = approval_rules.decide(pending, decision, actor_id, actor_role, rt.clock())
+     repository.save_approval(decided)
+     if decided.status == ApprovalStatus.APPROVED:
+-        async with rt.lock:
+-            rt.advance_clock()  # sự kiện ở lại outbox → on_event(REPLAN_REQUESTED) ngay dưới đây nhận
+-            await dispatcher.execute_approved(decided, build_guard_context(rt, None), rt.simulator, rt.sinks)
++        async with rt.decision_lock():
++            rt.advance_clock()
++            await dispatcher.execute_approved(
++                decided,
++                build_guard_context(rt, None),
++                rt.simulator,
++                rt.sinks,
++                safety_holds=frozenset(rt.safety_hold_booking_ids),
++                safety_pending=rt.has_pending_safety(),
++            )
+     else:
+         repository.append_decision(
+             DecisionLogEntry(
+@@ -358,14 +372,15 @@ async def deliver_pending(rt: StationRuntime) -> SchedulePlan | None:
+     """Final Acceptance §1.2: giao sự kiện còn trong `rt.outbox` (do consumer bất kỳ gọi `sync_clock`) cho control_loop —
+     MỘT lần tính lại như `on_minute` (fail-safe chạy trước khi tiến đồng hồ). Outbox rỗng (đã có người nhận) ⇒ không làm gì.
+     """
+-    events = rt.take_events()
+-    if not events:
+-        return None
+-    try:
+-        return await on_minute(rt, events)
+-    except Exception:
+-        logger.exception("control_loop.deliver_pending: lỗi khi giao %d sự kiện trạm", len(events))
+-        return None
++    async with rt.decision_lock():
++        events = rt.take_events()
++        if not events:
++            return None
++        try:
++            return await _on_event_locked(events[-1], rt, tuple(events[:-1]))
++        except Exception:
++            logger.exception("control_loop.deliver_pending: lỗi khi giao %d sự kiện trạm", len(events))
++            return None
+ 
+ 
+ def _remember_loop(rt: StationRuntime) -> None:
+@@ -380,6 +395,100 @@ def _merge_pending(rt: StationRuntime, given: tuple[StationEvent, ...]) -> tuple
+     return (*[e for e in rt.take_events() if e.event_id not in ids], *given)
+ 
+ 
++@dataclasses.dataclass(frozen=True)
++class SafetyDelivery:
++    entries: list[DecisionLogEntry]
++    evidence: dict
++
++
++def _safety_requirements(events: list[StationEvent]) -> tuple[set[str], bool]:
++    faults: set[str] = set()
++    known = True
++    for event in events:
++        vehicle_fault = any(kind != ViolationKind.AGGREGATE_POWER for kind in event.violation_kinds)
++        if vehicle_fault:
++            faults.update(event.violation_booking_ids)
++        if not event.violation_kinds or (vehicle_fault and not event.violation_booking_ids):
++            known = False
++    return faults, known
++
++
++def _safety_resolved(rt: StationRuntime, events: list[StationEvent]) -> bool:
++    faults, known = _safety_requirements(events)
++    if not known or not faults <= rt.safety_hold_booking_ids:
++        return False
++    state = rt.simulator.safety_state()
++    if any(c.booking_id in rt.safety_hold_booking_ids and c.power_kw > 0 for c in state.connectors):
++        return False
++    power = {c.connector_id: c.power_kw for c in state.connectors}
++    occupants = {c.connector_id: c.booking_id for c in state.connectors}
++    return physical.check_site_allocation(rt.config, state, power, occupants) is None and all(
++        c.power_kw <= c.max_power_kw + TOL for c in state.connectors
++    )
++
++
++def _dispatch_status(entries: list[DecisionLogEntry]) -> str:
++    if not entries:
++        return "no_commands"
++    executed = sum(entry.executed for entry in entries)
++    if executed == len(entries):
++        return "executed"
++    if executed:
++        return "partially_executed"
++    return "pending" if any(entry.approval_id for entry in entries) else "blocked"
++
++
++async def _deliver_safety(rt: StationRuntime, events: list[StationEvent], correlation_id: str) -> SafetyDelivery:
++    entries: list[DecisionLogEntry] = []
++    attempt = None
++    delivery = "not_needed"
++    dispatch = "not_attempted"
++    resolved = _safety_resolved(rt, events)
++    if not resolved:
++        attempt = rt.begin_safety_attempt()
++        delivery = "retry_exhausted"
++        if attempt is not None:
++            try:
++                entries = await _failsafe(rt, events, correlation_id)
++                delivery, dispatch = "completed", _dispatch_status(entries)
++            except (Exception, asyncio.CancelledError) as exc:
++                resolved = _safety_resolved(rt, events)
++                if resolved:
++                    rt.acknowledge_safety(events)
++                logger.error(
++                    "safety_delivery_failed correlation_id=%s attempt=%d resolved=%s error_type=%s",
++                    correlation_id,
++                    attempt,
++                    resolved,
++                    type(exc).__name__,
++                )
++                if not resolved or isinstance(exc, asyncio.CancelledError):
++                    raise
++                delivery, dispatch = "failed", "unknown"
++            else:
++                resolved = _safety_resolved(rt, events)
++        if not resolved and attempt is not None:
++            logger.error(
++                "safety_unresolved clock_paused=true correlation_id=%s attempt=%d retry_limit=%d dispatch=%s",
++                correlation_id,
++                attempt,
++                SAFETY_ATTEMPT_LIMIT,
++                dispatch,
++            )
++    if resolved:
++        rt.acknowledge_safety(events)
++    return SafetyDelivery(
++        entries,
++        {
++            "event_ids": [event.event_id for event in events],
++            "attempt": attempt,
++            "delivery": delivery,
++            "dispatch": dispatch,
++            "resolution": "resolved" if resolved else "unresolved",
++        },
++    )
++
++
+ async def _failsafe(
+     rt: StationRuntime, events: list[StationEvent], correlation_id: str | None = None
+ ) -> list[DecisionLogEntry]:
+@@ -392,19 +501,13 @@ async def _failsafe(
+     - aggregate_power (tủ / vùng / lưới) hoặc chưa phân loại: co đều về trong mọi trần (`curtail_to_hard_limits`).
+     Trả nhật ký lệnh (DecisionTrace: emergency).
+     """
+-    from src.models.events import ViolationKind
+-
+-    state = rt.simulator.state()
++    state = rt.simulator.safety_state()
+     # Thời điểm của TRẠM (= rt.clock() khi trạm đã bắt kịp): fail-safe có thể chạy khi catch-up đang dừng ở phút vi
+     # phạm (§1.3) — lệnh dựa trên đúng trạng thái đó, không bị luật stale_state coi là cũ so với đồng hồ runtime.
+     now = state.timestamp
+     detail = events[-1].detail
+-    faulty: set[str] = set()
+-    kinds: list[ViolationKind] = []
+-    for e in events:
+-        kinds += [k for k in e.violation_kinds if k not in kinds]
+-        if any(k != ViolationKind.AGGREGATE_POWER for k in e.violation_kinds):
+-            faulty.update(e.violation_booking_ids)
++    faulty, _ = _safety_requirements(events)
++    kinds = list(dict.fromkeys(k for e in events for k in e.violation_kinds))
+     commands: list[Command] = []
+     if faulty:
+         new_holds = faulty - rt.safety_hold_booking_ids
+@@ -418,11 +521,10 @@ async def _failsafe(
+                 ", ".join(sorted(new_holds)),
+                 correlation_id,
+             )
+-    if not kinds or ViolationKind.AGGREGATE_POWER in kinds or not faulty:
+-        stopped = {c.connector_id for c in commands}
+-        commands += [
+-            c for c in emergency.curtail_to_hard_limits(state, rt.config, now, detail) if c.connector_id not in stopped
+-        ]
++    stopped = {c.connector_id for c in commands}
++    commands += [
++        c for c in emergency.curtail_to_hard_limits(state, rt.config, now, detail) if c.connector_id not in stopped
++    ]
+     logger.warning(
+         "fail-safe sau khi áp: %s — %d lệnh an toàn (correlation_id=%s)", detail, len(commands), correlation_id
+     )
+@@ -455,23 +557,38 @@ async def _notify_curtailed(
+         await rt.sinks.notify(_ws(WsMessageType.NOTIFICATION, note, rt), booking.resident_id)
+ 
+ 
+-def _filter_held(rt: StationRuntime, commands: list[Command]) -> list[Command]:
+-    """Bỏ lệnh của booking đang chờ phê duyệt (không hỏi lại liên tục) và lệnh cần duyệt của booking đã từ chối."""
++def _filter_held(rt: StationRuntime, commands: list[Command], exclusions: list[dict] | None = None) -> list[Command]:
++    """Keep existing dispatch behavior and record every applicable reason in precedence order."""
+     if not commands:
+         return commands
+     held = {a.command.booking_id for a in rt.store.pending_approvals() if a.command.booking_id}
+     bookings = {b.booking_id: b for b in rt.store.active_bookings()}
+     kept = []
+     for cmd in commands:
++        reasons = []
+         if cmd.booking_id in held:
+-            continue
++            reasons.append("PENDING_APPROVAL")
+         if cmd.booking_id in rt.safety_hold_booking_ids and not _stops_power(cmd):
+-            continue  # Final Acceptance §1.4: xe lỗi charging model / acceptance — chỉ cho lệnh ngắt, chờ vận hành
++            reasons.append("SAFETY_HOLD")
+         if cmd.booking_id in rt.rejected_booking_ids and approval_rules.requires_approval(
+             cmd, bookings.get(cmd.booking_id)
+         ):
+-            continue
+-        kept.append(cmd)
++            reasons.append("REJECTED_CONSENT")
++        if not reasons:
++            kept.append(cmd)
++        elif exclusions is not None:
++            exclusions.append(
++                {
++                    "command_id": cmd.command_id,
++                    "correlation_id": cmd.correlation_id,
++                    "booking_id": cmd.booking_id,
++                    "connector_id": cmd.connector_id,
++                    "type": cmd.type.value,
++                    "requested_output_kw": cmd.power_kw,
++                    "primary_reason": reasons[0],
++                    "reasons": reasons,
++                }
++            )
+     return kept
+ 
+ 
+diff --git a/src/services/decision_trace.py b/src/services/decision_trace.py
+index 2dd647c..5493c11 100644
+--- a/src/services/decision_trace.py
++++ b/src/services/decision_trace.py
+@@ -1,17 +1,7 @@
+-"""DecisionTrace backend (ADR-019 Phase 4, quyết định 6) — facts cùng schema với simulator, có correlation ID.
++"""Versioned backend DecisionTrace for deterministic evidence and replay.
+ 
+-Một lần tính lại (`control_loop.on_event`) = một trace:
+-
+-    mở   (sau dispatch)   trigger + policy / version + state_version + TimeConfig + interval
+-                          proposed / approved setpoint, consent, đầu vào Physical Guard, budget Coordinator
+-                          lệnh + phán quyết Guard (7 luật) / HITL / giảm tải ưu tiên, lệnh giữ vì chờ duyệt
+-    đóng (lần tính lại kế) `decision` = `evaluation/trace.decision_record` của simulator (ĐÚNG schema / facts / binding
+-                          constraints) dựng từ số đo thật của các bước vật lý đã chạy; `applied` = năng lượng,
+-                          sạc xong, budget deviation, command deadband, setpoint cũ còn giữ, vi phạm cứng
+-
+-Không có LLM, không suy diễn: mọi trường là dữ kiện do code tính (AI-4 WHY / WHAT-IF chỉ được đọc). Không ghi
+-secret, token, resident_id hay dữ liệu cá nhân; chỉ mã booking nội bộ. Live: tóm tắt vào DB (repository, ADR-005),
+-trace chi tiết là JSONL trong DECISION_TRACE_DIR (nếu đặt). Benchmark / admission: giữ trong bộ nhớ.
++The decision opens after dispatch and closes when the next decision starts. Postgres/SQLite hold the full
++backend payload. Optional JSONL is a debug export. Simulation uses its in-memory recorder.
+ """
+ 
+ import json
+@@ -30,6 +20,7 @@ from src.models.physical_constraints import ConstraintViolationError
+ from src.models.physical_limits import EffectiveLimits
+ from src.models.scheduling.observations import Candidate
+ from src.models.simulation_core import Cabinet
++from src.services.experiment import try_resolve_experiment
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -42,6 +33,7 @@ def _command_row(entry: DecisionLogEntry) -> dict:
+     cmd, verdict = entry.command, entry.verdict
+     return {
+         "command_id": cmd.command_id,
++        "recorded_at": entry.timestamp.isoformat(),
+         "type": cmd.type.value,
+         "source": cmd.source.value,
+         "connector_id": cmd.connector_id,
+@@ -66,7 +58,9 @@ def open_trace(
+     plan,
+     entries: Iterable[DecisionLogEntry],
+     emergency: Iterable[DecisionLogEntry] = (),
+-    held_for_approval: Iterable[str] = (),
++    command_exclusions: Iterable[dict] = (),
++    failsafe: Iterable[DecisionLogEntry] = (),
++    safety_outcomes: Iterable[dict] = (),
+ ) -> dict:
+     """Ghi trace của quyết định vừa ra (chưa có số đo thực thi). Quyết định trước phải được `close_open` trước đó."""
+     station = rt.simulator
+@@ -74,6 +68,30 @@ def open_trace(
+     approved = getattr(scheduler, "last_approved", None)
+     diagnostics = getattr(scheduler, "last_diagnostics", {}) or {}
+     entries, emergency, batch = list(entries), list(emergency), tuple(batch)
++    exclusions = list(command_exclusions)
++    experiment = try_resolve_experiment(rt)
++    safety_events = [e for e in (*batch, event) if e.type == EventType.HARD_LIMIT_VIOLATED]
++    failsafe = list(failsafe)
++    executed = sum(entry.executed for entry in failsafe)
++    if not safety_events:
++        response = "not_triggered"
++    elif not failsafe:
++        response = "no_commands"
++    elif executed == len(failsafe):
++        response = "executed"
++    elif executed:
++        response = "partially_executed"
++    else:
++        response = "blocked"
++    if approved is not None:
++        pre_apply = "pass"
++    elif ReasonCode.REJECTED_BEFORE_APPLY in diagnostics.get("reason_codes", ()):
++        pre_apply = "rejected"
++    else:
++        pre_apply = "not_evaluated"
++    guard_inputs = station.guard_inputs(approved) if approved is not None else None
++    if guard_inputs is not None:
++        _mark_unbounded_grid(guard_inputs["limits"])
+     proposal = approved.proposal if approved is not None else None
+     time = getattr(station, "time", None)
+     codes = list(approved.reason_codes) if approved is not None else list(diagnostics.get("reason_codes", []))
+@@ -83,18 +101,20 @@ def open_trace(
+         "trace_schema": TRACE_SCHEMA,
+         "correlation_id": correlation_id,
+         "station_id": rt.config.station_id,
+-        "decided_at": rt.clock().isoformat(),
++        "decided_at": (getattr(station, "now", None) or rt.clock()).isoformat(),
+         "minute": getattr(station, "minute", None),
+         "trigger": {
+             "type": event.type.value,
+             "event_id": event.event_id,
++            "booking_id": event.booking_id,
+             "batched": [{"type": e.type.value, "event_id": e.event_id} for e in batch],
+         },
+         "policy": {
+-            "id": proposal.policy_id if proposal else getattr(getattr(scheduler, "name", None), "value", None),
+-            "version": proposal.policy_version if proposal else None,
++            "id": proposal.policy_id if proposal else getattr(scheduler, "policy_id", None),
++            "version": proposal.policy_version if proposal else getattr(scheduler, "policy_version", None),
+         },
+         "state_version": proposal.state_version if proposal else None,
++        "experiment": experiment.model_dump(mode="json") if experiment is not None else None,
+         "schedule_version": plan.version,
+         "time_config": time.as_dict() if time is not None else None,
+         "interval": None
+@@ -111,10 +131,26 @@ def open_trace(
+         "consent": None
+         if approved is None
+         else {"adjustments_kw": _plain(approved.adjustments_kw), "rechecked_by_physical_guard": approved.rechecked},
+-        "guard_inputs": station.guard_inputs(approved) if approved is not None else None,
++        "guard_inputs": guard_inputs,
+         "commands": [_command_row(e) for e in entries],
+         "emergency_commands": [_command_row(e) for e in emergency],
+-        "held_for_pending_approval": sorted(set(held_for_approval)),
++        "held_for_pending_approval": sorted(
++            {row["booking_id"] for row in exclusions if "PENDING_APPROVAL" in row["reasons"] and row["booking_id"]}
++        ),
++        "command_exclusions": exclusions,
++        "validation": {
++            "pre_apply_physical": pre_apply,
++            "business_guard": {
++                "status": "evaluated" if entries or emergency else "not_evaluated",
++                "source": "commands, emergency_commands",
++            },
++            "post_apply": "not_evaluated",
++            "fail_safe": {
++                "status": response,
++                "command_ids": [e.command.command_id for e in failsafe],
++                "outcomes": list(safety_outcomes),
++            },
++        },
+         # Final Acceptance §1.4: vi phạm cứng sau khi áp đã kích hoạt fail-safe trong lần tính lại này (loại + xe), và
+         # booking đang bị giữ an toàn (ngắt công suất vì lỗi charging model / acceptance, chờ vận hành)
+         "safety": {
+@@ -125,8 +161,7 @@ def open_trace(
+                     "booking_ids": list(e.violation_booking_ids),
+                     "detail": e.detail,
+                 }
+-                for e in (*batch, event)
+-                if e.type == EventType.HARD_LIMIT_VIOLATED
++                for e in safety_events
+             ],
+             "held_booking_ids": sorted(getattr(rt, "safety_hold_booking_ids", ()) or ()),
+         },
+@@ -134,18 +169,96 @@ def open_trace(
+         "applied": None,
+         "closed": False,
+     }
+-    rt.open_trace = {"trace": trace, "approved": approved}
++    trace["power"] = {
++        "proposed": {"unit": "kW", "source": "kernel.proposal", "by_booking_kw": trace["proposed_setpoints_kw"]},
++        "approved": {"unit": "kW", "source": "kernel.approval", "by_booking_kw": trace["approved_setpoints_kw"]},
++        "dispatched": {
++            "unit": "kW",
++            "source": "dispatcher",
++            "command_ids": [e.command.command_id for e in (*emergency, *entries) if e.executed],
++        },
++        "effective_setpoint": None,
++        "actual_output": None,
++    }
++    subjects = set(proposal.observation.vehicles) if proposal else set()
++    subjects.update(row["booking_id"] for row in trace["commands"] + trace["emergency_commands"] + exclusions)
++    subjects.update(e.booking_id for e in (*batch, event))
++    subjects.update(vid for e in safety_events for vid in e.violation_booking_ids)
++    trace["booking_ids"] = sorted(vid for vid in subjects if vid)
++    _set_evidence_refs(trace)
++    rt.open_trace = {"trace": trace, "approved": approved, "labels": station.decision_labels() if approved else None}
+     rt.store.save_trace(trace, False)
+     return trace
+ 
+ 
+-def _applied(results) -> dict:
+-    deviation, deadband, stale, energy = {}, {}, {}, {}
++def _mark_unbounded_grid(limits: dict) -> None:
++    if limits["grid_input_kw"] == inf:
++        limits["grid_input_kw"] = None
++        limits["grid_input_unbounded"] = True
++
++
++def _set_evidence_refs(trace: dict) -> None:
++    paths = [
++        "/policy",
++        "/experiment",
++        "/state_version",
++        "/schedule_version",
++        "/interval",
++        "/validation",
++        "/safety",
++        "/applied",
++        "/decision",
++    ]
++    paths.extend(f"/power/{stage}" for stage in trace["power"])
++    for stage in ("proposed", "approved"):
++        for vid in trace["power"][stage]["by_booking_kw"]:
++            segment = vid.replace("~", "~0").replace("/", "~1")
++            paths.append(f"/power/{stage}/by_booking_kw/{segment}")
++    for key in ("commands", "emergency_commands", "command_exclusions"):
++        paths.extend(f"/{key}/{i}" for i in range(len(trace[key])))
++    actual = trace["power"]["actual_output"]
++    if actual is not None:
++        for vid in actual["average_by_booking_kw"]:
++            segment = vid.replace("~", "~0").replace("/", "~1")
++            paths.append(f"/power/actual_output/average_by_booking_kw/{segment}")
++    trace["evidence_refs"] = {path: f"{trace['correlation_id']}:{trace['trace_schema']}#{path}" for path in paths}
++
++
++def _record_power_samples(trace, samples, applied):
++    if not samples:
++        return
++    held, measured = [], []
++    minutes_by_booking: dict[str, int] = {}
++    for sample in samples:
++        result = sample.result
++        interval = {"start_minute": result.minute, "end_minute": result.end}
++        held.append({**interval, "by_booking_kw": dict(sample.held_setpoints_kw)})
++        measured.append({**interval, "by_booking_kw": dict(result.actual_kw)})
++        for vid in result.actual_kw:
++            minutes_by_booking[vid] = minutes_by_booking.get(vid, 0) + result.end - result.minute
++    trace["power"]["effective_setpoint"] = {"unit": "kW", "source": "kernel.held_setpoints", "samples": held}
++    if not minutes_by_booking:
++        return
++    trace["power"]["actual_output"] = {
++        "unit": "kW",
++        "source": "physics.applied_result.actual_kw",
++        "samples": measured,
++        "sample_minutes_by_booking": minutes_by_booking,
++        "average_by_booking_kw": {
++            vid: kwh * 60 / minutes_by_booking[vid] for vid, kwh in applied["output_kwh"].items()
++        },
++    }
++
++
++def _applied(results, conversion: float) -> dict:
++    deviation, deadband, stale, energy, battery = {}, {}, {}, {}, {}
+     completed, violations, details = [], [], []
+     for result in results:
+         minutes = result.end - result.minute
+         for vid, kw in result.actual_kw.items():
+             energy[vid] = energy.get(vid, 0.0) + kw * minutes / 60
++        for vid, kwh in result.stored_kwh.items():
++            battery[vid] = battery.get(vid, 0.0) + kwh
+         for target, source in ((deviation, result.budget_deviation_kw), (deadband, result.command_deadband_kw)):
+             for zone, kw in source.items():
+                 target[zone] = max(target.get(zone, 0.0), kw)
+@@ -162,6 +275,8 @@ def _applied(results) -> dict:
+         "to_minute": results[-1].end if results else None,
+         "minutes": sum(r.end - r.minute for r in results),
+         "output_kwh": energy,
++        "battery_stored_kwh": battery,
++        "grid_input_kwh": {vid: kwh / conversion for vid, kwh in energy.items()},
+         "completed": completed,
+         "hard_violations": violations,
+         # Final Acceptance §1.4: loại (aggregate_power / charging_model / acceptance) + xe của từng vi phạm cứng
+@@ -175,21 +290,59 @@ def _applied(results) -> dict:
+ 
+ 
+ def close_open(rt) -> dict | None:
+-    """Đóng trace đang mở bằng số đo thật của các bước vật lý đã chạy dưới quyết định đó."""
++    """Close with recorded samples and explicit coverage, including evicted violations."""
+     station = rt.simulator
+-    drain = getattr(station, "drain_applied", None)
+-    results = drain() if drain is not None else []
++    drain = getattr(station, "drain_decision_evidence", None)
++    samples, dropped_minutes, dropped_violations = drain() if drain is not None else ([], 0, 0)
++    results = [sample.result for sample in samples]
+     holder, rt.open_trace = rt.open_trace, None
+     if holder is None:
+         return None
+     trace, approved = holder["trace"], holder["approved"]
+-    applied = _applied(results)
++    conversion = approved.proposal.effective_limits.conversion if approved else rt.config.power_conversion_efficiency
++    applied = _applied(results, conversion)
+     trace["applied"] = applied
++    start, end = trace["minute"], getattr(station, "minute", None)
++    expected = end - start if start is not None and end is not None else None
++    retained = applied["minutes"]
++    contiguous = all(a.end == b.minute for a, b in zip(results, results[1:]))
++    aligned = not results or expected is None or (results[0].minute == start and results[-1].end == end)
++    incomplete = (
++        bool(dropped_minutes) or not contiguous or not aligned or (expected is not None and expected != retained)
++    )
++    applied["coverage"] = {
++        "status": "incomplete" if incomplete else "complete" if retained else "no_samples",
++        "expected_from_minute": start,
++        "expected_to_minute": end,
++        "expected_minutes": expected,
++        "retained_minutes": retained,
++        "dropped_minutes": dropped_minutes,
++        "dropped_hard_violations": dropped_violations,
++    }
++    _record_power_samples(trace, samples, applied)
++    violation = bool(applied["hard_violations"] or dropped_violations)
++    if violation:
++        status = "violation"
++    elif incomplete:
++        status = "incomplete"
++    else:
++        status = "pass" if trace["power"]["actual_output"] else "no_samples"
++    trace["validation"]["post_apply"] = status
++    additional_subjects = set(applied["output_kwh"]) | set(applied["completed"])
++    additional_subjects.update(vid for detail in applied["hard_violation_details"] for vid in detail["vehicle_ids"])
++    trace["booking_ids"] = sorted(set(trace["booking_ids"]) | additional_subjects)
+     if approved is not None:
+-        trace["decision"] = station.decision_facts(approved, results)
++        try:
++            facts = station.decision_facts(approved, results, labels=holder["labels"], post_apply=status)
++            _mark_unbounded_grid(facts["physical_limits"])
++            json.dumps(facts, allow_nan=False)
++            trace["decision"] = facts
++        except Exception as exc:
++            _log_build_failure(trace["correlation_id"], "decision_facts", exc)
++            trace["validation"]["decision_facts"] = "unavailable"
+     codes = trace["reason_codes"]
+     for flag, code in (
+-        (applied["hard_violations"], ReasonCode.VIOLATION_AFTER_APPLY),
++        (violation, ReasonCode.VIOLATION_AFTER_APPLY),
+         (applied["budget_deviation_kw"], ReasonCode.BUDGET_DEVIATION),
+         (applied["command_deadband_kw"], ReasonCode.COMMAND_DEADBAND),
+         (applied["completed"], ReasonCode.CHARGE_COMPLETED),
+@@ -197,10 +350,43 @@ def close_open(rt) -> dict | None:
+         if flag and code not in codes:
+             codes.append(code)
+     trace["closed"] = True
++    _set_evidence_refs(trace)
+     rt.store.save_trace(trace, True)
+     return trace
+ 
+ 
++def _log_build_failure(correlation_id: str | None, stage: str, exc: Exception) -> None:
++    logger.error(
++        "decision_trace_build_failed correlation_id=%s stage=%s error_type=%s",
++        correlation_id,
++        stage,
++        type(exc).__name__,
++    )
++
++
++def open_trace_safely(rt, **kwargs) -> None:
++    try:
++        open_trace(rt, **kwargs)
++    except Exception as exc:
++        rt.open_trace = None
++        _log_build_failure(kwargs["correlation_id"], "open", exc)
++
++
++def close_open_safely(rt) -> None:
++    holder = rt.open_trace
++    try:
++        close_open(rt)
++    except Exception as exc:
++        rt.open_trace = None
++        _log_build_failure(holder["trace"]["correlation_id"] if holder else None, "close", exc)
++        drain = getattr(rt.simulator, "drain_decision_evidence", None)
++        if drain is not None:
++            try:
++                drain()
++            except Exception as drain_exc:
++                _log_build_failure(None, "discard", drain_exc)
++
++
+ def summary(trace: dict) -> DecisionTraceSummary:
+     commands = trace["commands"] + trace["emergency_commands"]
+     applied = trace.get("applied") or {}
+@@ -223,32 +409,47 @@ def summary(trace: dict) -> DecisionTraceSummary:
+         load_reduction_priority=sum(1 for c in commands if c["note"].startswith(SAFETY_REDUCTION_NOTE)),
+         budget_deviation_kw_max=max((applied.get("budget_deviation_kw") or {}).values(), default=0.0),
+         command_deadband_kw_max=max((applied.get("command_deadband_kw") or {}).values(), default=0.0),
+-        hard_violations=len(applied.get("hard_violations") or []),
++        hard_violations=(
++            len(applied.get("hard_violations") or [])
++            + (applied.get("coverage") or {}).get("dropped_hard_violations", 0)
++        ),
+         closed=trace["closed"],
+         artifact=trace.get("artifact"),
+     )
+ 
+ 
+ def persist(trace: dict, closed: bool) -> None:
+-    """Live: tóm tắt vào DB (mở rồi ghi đè khi đóng); trace đầy đủ thêm vào JSONL ngày khi đã đóng và có thư mục.
+-
+-    Lỗi ghi trace không được làm hỏng vòng điều khiển: log và bỏ qua.
+-    """
++    """Write evidence and its summary. Storage failure is observable and cannot stop the control loop."""
+     from src.config import get_settings
+     from src.services import repository
+ 
+     try:
++        if trace["closed"] is not closed:
++            raise ValueError("DecisionTrace persistence stage mismatch")
++        payload = json.loads(json.dumps(trace, ensure_ascii=False, allow_nan=False))
+         directory = get_settings().decision_trace_dir
+         if closed and directory:
+-            name = f"decision-trace-{trace['decided_at'][:10]}.jsonl"
+-            trace["artifact"] = name
+-            path = Path(directory)
+-            path.mkdir(parents=True, exist_ok=True)
+-            with (path / name).open("a", encoding="utf-8") as stream:
+-                stream.write(json.dumps(trace, ensure_ascii=False, allow_nan=False) + "\n")
+-        repository.save_decision_trace(summary(trace))
+-    except Exception:
+-        logger.exception("decision_trace: không ghi được trace %s", trace.get("correlation_id"))
++            _export_debug(payload, Path(directory))
++        repository.save_decision_trace(summary(payload), payload)
++        if "artifact" in payload:
++            trace["artifact"] = payload["artifact"]
++    except Exception as exc:
++        logger.error(
++            "decision_trace_write_failed correlation_id=%s error_type=%s",
++            trace.get("correlation_id"),
++            type(exc).__name__,
++        )
++
++
++def _export_debug(payload: dict, directory: Path) -> None:
++    try:
++        name = f"decision-trace-{payload['decided_at'][:10]}.jsonl"
++        directory.mkdir(parents=True, exist_ok=True)
++        with (directory / name).open("a", encoding="utf-8") as stream:
++            stream.write(json.dumps({**payload, "artifact": name}, ensure_ascii=False, allow_nan=False) + "\n")
++        payload["artifact"] = name
++    except OSError:
++        logger.warning("decision_trace_export_failed correlation_id=%s", payload["correlation_id"], exc_info=True)
+ 
+ 
+ # ---- replay / debug từ trace (không cần trạm, không cần DB) -------------------------------
+diff --git a/src/services/repository.py b/src/services/repository.py
+index b5dc5b8..7a12789 100644
+--- a/src/services/repository.py
++++ b/src/services/repository.py
+@@ -19,6 +19,8 @@ Owner: TV3. Task: T1.6.
+ from datetime import UTC, datetime, timedelta
+ 
+ from sqlalchemy import delete, select, text
++from sqlalchemy.dialects.postgresql import insert as postgres_insert
++from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+ from sqlalchemy.exc import IntegrityError
+ 
+ from src.config import get_settings
+@@ -28,6 +30,7 @@ from src.db.tables import (
+     ApprovalRow,
+     BookingRow,
+     DecisionLogRow,
++    DecisionTraceBookingRow,
+     DecisionTraceRow,
+     IdempotencyKeyRow,
+     LoadPointRow,
+@@ -40,7 +43,7 @@ from src.models.api import ErrorCode, Notification
+ from src.models.charging import Booking, BookingStatus, SchedulePlan
+ from src.models.control import Approval, ApprovalStatus, DecisionLogEntry
+ from src.models.decision_trace import DecisionTraceSummary
+-from src.models.events import StationEvent
++from src.models.events import EventType, StationEvent
+ from src.models.identity import UserRecord
+ from src.models.station import LoadPoint
+ from src.services.errors import DomainError
+@@ -309,11 +312,37 @@ def list_decisions(
+ # ---- DecisionTrace backend (ADR-019 Phase 4, quyết định 6) ------------------------------
+ 
+ 
+-def save_decision_trace(summary: DecisionTraceSummary) -> None:
+-    """Ghi tóm tắt (mở) rồi ghi đè cùng correlation_id khi quyết định được đóng bằng số đo thật."""
++def save_decision_trace(summary: DecisionTraceSummary, full_payload: dict | None = None) -> None:
++    """Upsert evidence and its subject index together; a closed trace stays closed on retries."""
+     _ensure()
++    values = mappers.trace_columns(summary)
++    condition = DecisionTraceRow.closed.is_(False)
++    if full_payload is None:
++        condition &= DecisionTraceRow.full_payload.is_(None)
++    else:
++        values["full_payload"] = full_payload
+     with db_session.session_scope() as s:
+-        s.merge(mappers.trace_to_row(summary))
++        insert = postgres_insert if s.get_bind().dialect.name == "postgresql" else sqlite_insert
++        stmt = insert(DecisionTraceRow.__table__).values(**values)
++        written = s.execute(
++            stmt.on_conflict_do_update(
++                index_elements=[DecisionTraceRow.correlation_id],
++                set_={key: stmt.excluded[key] for key in values if key != "correlation_id"},
++                where=condition,
++            ).returning(DecisionTraceRow.correlation_id)
++        ).scalar_one_or_none()
++        booking_ids = full_payload.get("booking_ids", []) if full_payload else []
++        if written and booking_ids:
++            s.execute(
++                insert(DecisionTraceBookingRow.__table__)
++                .values(
++                    [
++                        {"booking_id": booking_id, "correlation_id": written, "decided_at": summary.decided_at}
++                        for booking_id in booking_ids
++                    ]
++                )
++                .on_conflict_do_nothing()
++            )
+ 
+ 
+ def get_decision_trace(correlation_id: str) -> DecisionTraceSummary | None:
+@@ -323,6 +352,35 @@ def get_decision_trace(correlation_id: str) -> DecisionTraceSummary | None:
+         return mappers.row_to_trace(row) if row else None
+ 
+ 
++def get_full_decision_trace(correlation_id: str) -> dict | None:
++    """Return versioned evidence, or None for missing and historical summary-only records."""
++    _ensure()
++    with db_session.session_scope() as s:
++        return s.scalar(select(DecisionTraceRow.full_payload).where(DecisionTraceRow.correlation_id == correlation_id))
++
++
++def list_full_decision_traces(
++    start: datetime, end: datetime, *, booking_id: str | None = None, closed: bool | None = None, limit: int = 50
++) -> list[dict]:
++    """Internal lookup over a bounded, half-open interval. Caller handles authorization."""
++    if start.utcoffset() is None or end.utcoffset() is None or not timedelta(0) < end - start <= timedelta(days=31):
++        raise ValueError("Trace window must be timezone-aware, positive and at most 31 days")
++    if not 1 <= limit <= 100:
++        raise ValueError("Trace limit must be between 1 and 100")
++    _ensure()
++    time_column = DecisionTraceRow.decided_at
++    q = select(DecisionTraceRow.full_payload).where(DecisionTraceRow.full_payload.is_not(None))
++    if booking_id is not None:
++        time_column = DecisionTraceBookingRow.decided_at
++        q = q.join(DecisionTraceBookingRow, DecisionTraceBookingRow.correlation_id == DecisionTraceRow.correlation_id)
++        q = q.where(DecisionTraceBookingRow.booking_id == booking_id)
++    if closed is not None:
++        q = q.where(DecisionTraceRow.closed.is_(closed))
++    q = q.where(time_column >= start, time_column < end)
++    with db_session.session_scope() as s:
++        return list(s.scalars(q.order_by(time_column.desc(), DecisionTraceRow.correlation_id.desc()).limit(limit)))
++
++
+ def list_decision_traces(limit: int = 100) -> list[DecisionTraceSummary]:
+     """Mới nhất trước."""
+     _ensure()
+@@ -370,7 +428,17 @@ def mark_notification_read(notification_id: str, resident_id: str) -> Notificati
+ def append_event(event: StationEvent) -> None:
+     _ensure()
+     with db_session.session_scope() as s:
+-        s.add(mappers.event_to_row(event))
++        row = mappers.event_to_row(event)
++        if event.type != EventType.HARD_LIMIT_VIOLATED:
++            s.add(row)
++            return
++        insert = postgres_insert if s.get_bind().dialect.name == "postgresql" else sqlite_insert
++        values = {
++            column.key: getattr(row, column.key) for column in StationEventRow.__table__.columns if column.key != "seq"
++        }
++        s.execute(
++            insert(StationEventRow.__table__).values(**values).on_conflict_do_nothing(index_elements=["event_id"])
++        )
+ 
+ 
+ def list_events(limit: int = 50, before: int | None = None) -> list[StationEvent]:
+diff --git a/src/services/runtime.py b/src/services/runtime.py
+index 6a7ff9c..adf9b1d 100644
+--- a/src/services/runtime.py
++++ b/src/services/runtime.py
+@@ -18,9 +18,12 @@ Owner: TV3. Task: T2.6 (live), T1.5 (benchmark).
+ import asyncio
+ import logging
+ from collections import deque
+-from collections.abc import Awaitable, Callable
++from collections.abc import Awaitable, Callable, Iterable
++from contextlib import asynccontextmanager
++from copy import deepcopy
+ from dataclasses import dataclass, field
+ from datetime import UTC, datetime
++from threading import RLock
+ from zoneinfo import ZoneInfo
+ 
+ from src.config import get_settings
+@@ -29,7 +32,7 @@ from src.guard.dispatcher import DispatchSinks
+ from src.models.api import ErrorCode, Notification, NotificationKind
+ from src.models.charging import Booking, BookingStatus, SchedulePlan, StrategyName
+ from src.models.control import Approval, ApprovalStatus, Command, DecisionLogEntry, Role
+-from src.models.events import StationEvent, WsMessage, WsMessageType
++from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
+ from src.models.planning import Scheduler
+ from src.models.simulation import Scenario
+ from src.models.station import ConnectorStatus, LoadPoint, StationConfig, Tariff
+@@ -40,6 +43,7 @@ logger = logging.getLogger(__name__)
+ 
+ ACTIVE = (BookingStatus.CONFIRMED, BookingStatus.QUEUED, BookingStatus.CHARGING)
+ RECENT_COMMANDS = 200  # đủ cho cửa sổ anti_flapping (10 phút × 4 cổng)
++SAFETY_ATTEMPT_LIMIT = 3
+ OUTBOX_MAX = 10_000  # sự kiện chưa giao tối đa (chặn tràn bộ nhớ nếu không vòng nào nhận)
+ _APP_LOOP: asyncio.AbstractEventLoop | None = None  # vòng sự kiện của app (lifespan) — giao outbox khi rt.loop chưa có
+ 
+@@ -103,7 +107,12 @@ class StationRuntime:
+     live: bool = True
+     # Final Acceptance §1.2 — sự kiện trạm phát sinh khi tiến đồng hồ (bất kỳ consumer nào gọi sync_clock) nằm ở đây tới
+     # khi control_loop nhận (on_event / run_forever / deliver_pending) — không consumer nào được bỏ sự kiện.
+-    outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
++    _outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
++    _clock_lock: RLock = field(default_factory=RLock, repr=False)
++    _read_clock_paused: bool = False
++    _pending_safety: dict[str, StationEvent] = field(default_factory=dict, repr=False)
++    _acknowledged_safety: deque[str] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX), repr=False)
++    _safety_attempts: int = 0
+     # Vòng sự kiện sở hữu `lock` (ghi lại ở on_event / get_runtime): đường đọc đồng bộ (threadpool) đẩy giao sự kiện về đây.
+     loop: asyncio.AbstractEventLoop | None = None
+     # coroutine factory giao outbox cho control_loop (live: control_loop.deliver_pending); None = chờ on_event kế tiếp
+@@ -137,16 +146,67 @@ class StationRuntime:
+ 
+     def advance_clock(self) -> list[StationEvent]:
+         """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
+-        minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
+-        events = self.simulator.step(minutes) if minutes > 0 else []
+-        self.outbox.extend(events)
+-        return events
++        with self._clock_lock:
++            if self._pending_safety:
++                return []
++            minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
++            events = self.simulator.step(minutes) if minutes > 0 else []
++            self.queue_events(events)
++            return events
++
++    @property
++    def outbox(self) -> tuple[StationEvent, ...]:
++        with self._clock_lock:
++            return (*self._outbox, *self._pending_safety.values())
++
++    def retain_safety_events(self, events: Iterable[StationEvent]) -> None:
++        with self._clock_lock:
++            for event in events:
++                if event.type == EventType.HARD_LIMIT_VIOLATED and event.event_id not in self._acknowledged_safety:
++                    self._pending_safety.setdefault(event.event_id, event)
++
++    def queue_events(self, events: list[StationEvent]) -> None:
++        with self._clock_lock:
++            self.retain_safety_events(events)
++            self._outbox.extend(event for event in events if event.type != EventType.HARD_LIMIT_VIOLATED)
+ 
+     def take_events(self) -> list[StationEvent]:
+-        """Lấy (và xoá) mọi sự kiện chưa giao — control_loop gọi dưới `lock` trước khi tính lại."""
+-        events = list(self.outbox)
+-        self.outbox.clear()
+-        return events
++        """Drain ordinary events. Hard events remain owned here until safety is verified."""
++        with self._clock_lock:
++            events = list(self.outbox)
++            self._outbox.clear()
++            return events
++
++    def has_pending_safety(self) -> bool:
++        with self._clock_lock:
++            return bool(self._pending_safety)
++
++    def begin_safety_attempt(self) -> int | None:
++        with self._clock_lock:
++            if self._safety_attempts >= SAFETY_ATTEMPT_LIMIT:
++                return None
++            self._safety_attempts += 1
++            return self._safety_attempts
++
++    def acknowledge_safety(self, events: list[StationEvent]) -> None:
++        with self._clock_lock:
++            for event in events:
++                if self._pending_safety.pop(event.event_id, None) is not None:
++                    self._acknowledged_safety.append(event.event_id)
++            if not self._pending_safety:
++                self._safety_attempts = 0
++
++    @asynccontextmanager
++    async def decision_lock(self):
++        """Serialize replanning and defer read-driven physics until its trace boundary is established."""
++        async with self.lock:
++            with self._clock_lock:
++                self._read_clock_paused = True
++            try:
++                yield
++            finally:
++                with self._clock_lock:
++                    self._read_clock_paused = False
+ 
+     def sync_clock(self) -> list[StationEvent]:
+         """Đường dùng chung cho MỌI consumer (quote, book, change, session_view, queue_status, overview…): tiến simulator
+@@ -156,8 +216,12 @@ class StationRuntime:
+         ngay trên vòng sự kiện của runtime nếu biết (`deliver_pending`), không thì lần on_event / run_forever kế tiếp
+         lấy. Giá trị trả về giữ cho tương thích (đã nằm trong outbox — người gọi KHÔNG cần tự phát lại).
+         """
+-        events = self.advance_clock()
+-        if self.outbox:
++        with self._clock_lock:
++            if self._read_clock_paused:
++                return []
++            events = self.advance_clock()
++            pending = bool(self.outbox)
++        if pending:
+             self.request_delivery()
+         return events
+ 
+@@ -451,16 +515,23 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
+         rt.scheduler.name,
+         lambda: fork,
+         algorithms,
+-        parameters=getattr(rt.scheduler, "parameters", None) or None,
++        parameters=deepcopy(getattr(rt.scheduler, "parameters", None)) or None,
+     )
+     # Provenance (Final Acceptance §3.2): bản fork chạy CÙNG thành phần đã resolve của live ⇒ cùng metadata.
+-    scheduler.metadata = dict(getattr(rt.scheduler, "metadata", None) or {})
++    scheduler.metadata = deepcopy(getattr(rt.scheduler, "metadata", None) or {})
++    config = fork.config if getattr(rt.simulator, "config", None) is rt.config else rt.config.model_copy(deep=True)
+     frt = _memory_runtime(
+-        fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
++        fork,
++        scheduler,
++        config,
++        rt.tariff.model_copy(deep=True),
++        bookings=[b.model_copy(deep=True) for b in bookings],
++        approvals=[a.model_copy(deep=True) for a in rt.store.pending_approvals()],
+     )
+-    frt.plan = rt.plan
+-    frt.recent_commands.extend(rt.recent_commands)
++    frt.plan = rt.plan.model_copy(deep=True) if rt.plan is not None else None
++    frt.recent_commands.extend(c.model_copy(deep=True) for c in rt.recent_commands)
+     frt.rejected_booking_ids.update(rt.rejected_booking_ids)
++    frt.safety_hold_booking_ids.update(rt.safety_hold_booking_ids)
+     return frt
+ 
+ 
+diff --git a/src/simulator/hybrid_station.py b/src/simulator/hybrid_station.py
+index c9d9d45..c2e64c3 100644
+--- a/src/simulator/hybrid_station.py
++++ b/src/simulator/hybrid_station.py
+@@ -43,6 +43,7 @@ from zoneinfo import ZoneInfo
+ 
+ from src.models.charging_physics import DCChargingModel
+ from src.models.control import Command, CommandType
++from src.models.decision_trace import BackendAppliedSample
+ from src.models.decisions import AppliedResult, ApprovedDecision, TimeConfig
+ from src.models.events import EventType, StationEvent
+ from src.models.physical_constraints import ConstraintViolationError
+@@ -213,7 +214,9 @@ class HybridStation:
+         self._events: list[StationEvent] = []
+         self._halted_on: tuple | None = None  # vi phạm mà step() đã dừng catch-up ở phút gần nhất (§1.3)
+         # Kết quả từng bước vật lý từ lần drain trước — DecisionTrace backend đóng quyết định bằng số đo thật.
+-        self._applied: deque[AppliedResult] = deque(maxlen=APPLIED_BUFFER_STEPS)
++        self._applied: deque[BackendAppliedSample] = deque(maxlen=APPLIED_BUFFER_STEPS)
++        self._dropped_applied_minutes = 0
++        self._dropped_hard_violations = 0
+ 
+     def configure(self, algorithms: Algorithms, policy_id: str, policy_version: str = "1") -> None:
+         """Chọn policy (thuật toán) cho Planning Core của kernel — composition root gọi một lần."""
+@@ -313,6 +316,19 @@ class HybridStation:
+             schedule_version=self.schedule_version,
+         )
+ 
++    @_locked
++    def safety_state(self) -> StationState:
++        """Occupied-port held commands, before acceptance clipping or display rounding."""
++        state = self.state()
++        return state.model_copy(
++            update={
++                "connectors": [
++                    port.model_copy(update={"power_kw": self.kernel.setpoints.get(port.booking_id, 0.0)})
++                    for port in state.connectors
++                ]
++            }
++        )
++
+     @_locked
+     def step(self, minutes: int) -> list[StationEvent]:
+         """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC.
+@@ -327,8 +343,13 @@ class HybridStation:
+         failsafe = self.config.guard.after_apply_failsafe
+         signalled = False
+         for _ in range(max(minutes, 0)):
++            held = {vid: kernel.setpoints.get(vid, 0.0) for vid in self.queue.occupied.values()}
+             result = kernel.advance(kernel.now + 1)
+-            self._applied.append(result)
++            if self._applied and len(self._applied) == self._applied.maxlen:
++                evicted = self._applied[0].result
++                self._dropped_applied_minutes += evicted.end - evicted.minute
++                self._dropped_hard_violations += len(evicted.violations)
++            self._applied.append(BackendAppliedSample(result, held))
+             halt = False
+             if failsafe and result.violations:
+                 if not signalled:
+@@ -483,9 +504,14 @@ class HybridStation:
+         twin = copy.copy(self)
+         twin.lock = threading.RLock()
+         twin.is_fork = True
++        twin.config = self.config.model_copy(deep=True)
++        twin._connector_to_port = dict(self._connector_to_port)
++        twin._port_to_connector = dict(self._port_to_connector)
+         twin._visits = dict(self._visits)
+         twin._events = []
+         twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
++        twin._dropped_applied_minutes = 0
++        twin._dropped_hard_violations = 0
+         twin.kernel = self.kernel.fork(emit=twin._emit)
+         # Thành phần có trạng thái đã được cô lập trong kernel.fork (Final Review §4.4): bản fork giữ bản của nó.
+         if self._algorithms is not None:
+@@ -506,19 +532,33 @@ class HybridStation:
+ 
+     # ---- DecisionTrace (ADR-019 Phase 4, quyết định 6) ----------------------------------
+ 
+-    @_locked
+     def drain_applied(self) -> list[AppliedResult]:
+-        """Kết quả các bước vật lý từ lần gọi trước (rồi xoá) — để đóng DecisionTrace của quyết định đang hiệu lực."""
+-        results, self._applied = list(self._applied), deque(maxlen=APPLIED_BUFFER_STEPS)
+-        return results
++        return [sample.result for sample in self.drain_decision_samples()]
++
++    def drain_decision_samples(self) -> list[BackendAppliedSample]:
++        return self.drain_decision_evidence()[0]
+ 
+     @_locked
+-    def decision_facts(self, approved: ApprovedDecision, results: Sequence[AppliedResult]) -> dict:
++    def drain_decision_evidence(self) -> tuple[list[BackendAppliedSample], int, int]:
++        """Drain retained samples and counters covering evicted physics steps together."""
++        evidence = (list(self._applied), self._dropped_applied_minutes, self._dropped_hard_violations)
++        self._applied.clear()
++        self._dropped_applied_minutes = self._dropped_hard_violations = 0
++        return evidence
++
++    @_locked
++    def decision_labels(self) -> dict:
++        return algorithm_labels(self.kernel.algorithms)
++
++    @_locked
++    def decision_facts(
++        self, approved: ApprovedDecision, results: Sequence[AppliedResult], *, labels: dict, post_apply: str
++    ) -> dict:
+         """Facts của một quyết định theo ĐÚNG schema DecisionTrace của simulator (`evaluation/trace.decision_record`).
+ 
+         `results`: các bước vật lý đã chạy dưới quyết định này. Công suất thực = trung bình theo thời gian, năng lượng
+-        nạp = tổng; khoảng = số phút thực sự chạy (quyết định có thể bị thay sớm bởi sự kiện). Chưa chạy phút nào thì
+-        giữ khoảng đã lập kế hoạch và công suất thực 0.
++        nạp = tổng; khoảng = số phút thực sự chạy (quyết định có thể bị thay sớm bởi sự kiện).
++        Nếu chưa có mẫu, giữ khoảng lập kế hoạch và để số đo là null.
+         """
+         proposal = approved.proposal
+         minutes = sum(r.end - r.minute for r in results)
+@@ -540,17 +580,37 @@ class HybridStation:
+             }
+             for vid, candidate in proposal.candidates.items()
+         }
+-        return decision_record(
++        facts = decision_record(
+             observation,
+             proposal.dispatch,
+             proposal.assignments,
+             proposal.demand,
+             proposal.budgets,
+-            algorithm_labels(self.kernel.algorithms),
++            labels,
+             power_by_vehicle,
+             {vid: stored.get(vid, 0.0) for vid in proposal.candidates},
+             proposal.diagnostics,
+         )
++        facts["guard"]["status"] = post_apply
++        if not kw_minutes:
++            facts["guard"]["checks"] = ["dispatch", "budgets", "requested"]
++        for vid, row in facts["vehicles"].items():
++            if vid not in kw_minutes:
++                for key in (
++                    "actual_output_kw",
++                    "battery_kwh",
++                    "grid_input_kw",
++                    "grid_kwh",
++                    "actual_minus_predicted_output_kw",
++                    "actual_minus_predicted_battery_kwh",
++                ):
++                    if key in row:
++                        row[key] = None
++        if post_apply != "pass" or not all(r.actual_kw.keys() >= proposal.candidates.keys() for r in results):
++            facts["guard"]["binding_constraints"] = [
++                binding for binding in facts["guard"]["binding_constraints"] if binding["stage"] != "actual"
++            ]
++        return facts
+ 
+     def guard_inputs(self, approved: ApprovedDecision) -> dict:
+         """Đúng đầu vào Physical Guard đã dùng cho quyết định (để replay / debug lại phán quyết từ trace)."""
+diff --git a/tests/test_db/test_migrations.py b/tests/test_db/test_migrations.py
+index 213cdeb..0df9bd1 100644
+--- a/tests/test_db/test_migrations.py
++++ b/tests/test_db/test_migrations.py
+@@ -178,3 +178,35 @@ def test_revision_0003_drops_plans_of_removed_lp_strategies(tmp_path):
+         assert kept == ["B0", "M3a"]
+     finally:
+         engine.dispose()
++
++
++def test_revision_0004_preserves_legacy_trace_summary_on_upgrade_and_downgrade(tmp_path):
++    from sqlalchemy import text
++
++    url = f"sqlite:///{(tmp_path / 'legacy-trace.db').as_posix()}"
++    cfg = _alembic_config(url)
++    command.upgrade(cfg, "0003")
++    engine = make_engine(url)
++    try:
++        with engine.begin() as connection:
++            connection.execute(
++                text(
++                    "INSERT INTO decision_traces (correlation_id, decided_at, policy_id, schedule_version, "
++                    "budget_deviation_kw_max, hard_violations, closed, payload) "
++                    "VALUES ('legacy', '2026-11-24 10:00:00', 'M3a', 1, 0, 0, true, :summary)"
++                ),
++                {"summary": '{"correlation_id":"legacy","closed":true}'},
++            )
++        command.upgrade(cfg, "head")
++        with engine.connect() as connection:
++            summary, full = connection.execute(
++                text("SELECT payload, full_payload FROM decision_traces WHERE correlation_id='legacy'")
++            ).one()
++            assert summary == '{"correlation_id":"legacy","closed":true}' and full is None
++            assert connection.execute(text("SELECT COUNT(*) FROM decision_trace_bookings")).scalar_one() == 0
++        command.downgrade(cfg, "0003")
++        with engine.connect() as connection:
++            assert connection.execute(text("SELECT payload FROM decision_traces")).scalar_one() == summary
++            assert "full_payload" not in {col["name"] for col in inspect(connection).get_columns("decision_traces")}
++    finally:
++        engine.dispose()
+diff --git a/tests/test_services/test_decision_trace.py b/tests/test_services/test_decision_trace.py
+index ca2c71e..ff5626a 100644
+--- a/tests/test_services/test_decision_trace.py
++++ b/tests/test_services/test_decision_trace.py
+@@ -139,3 +139,149 @@ async def test_live_persist_writes_db_summary_and_jsonl_artifact(clean_db, tmp_p
+     assert json.loads(line)["correlation_id"] == trace["correlation_id"]
+     assert repository.list_decision_traces()[0].correlation_id == trace["correlation_id"]
+     assert stored.decided_at - datetime.fromisoformat(trace["decided_at"]) == timedelta(0)
++
++
++def test_foundation_full_trace_is_retrievable_with_default_config(clean_db, monkeypatch, run):
++    from src.config import get_settings
++    from src.services import repository
++
++    monkeypatch.setattr(get_settings(), "decision_trace_dir", "")
++    trace = json.loads(json.dumps(run.recorder.decision_traces[-1]))
++    cid = trace["correlation_id"]
++    decision_trace.persist(trace, True)
++    repository.dispose()
++    stored = repository.get_full_decision_trace(cid)
++    assert stored == trace
++    assert repository.get_decision_trace(cid).artifact is None
++
++
++def test_foundation_trace_lifecycle_index_and_old_summary(clean_db, run):
++    from src.models.decision_trace import TRACE_SCHEMA
++    from src.services import repository
++
++    trace = next(t for t in run.recorder.decision_traces if t["booking_ids"] and t["closed"])
++    cid, booking_id = trace["correlation_id"], trace["booking_ids"][0]
++    decided_at = datetime.fromisoformat(trace["decided_at"])
++    end = decided_at + timedelta(minutes=1)
++    active = {**trace, "closed": False, "decision": None, "applied": None}
++    decision_trace.persist(active, False)
++    assert repository.get_full_decision_trace(cid)["trace_schema"] == TRACE_SCHEMA
++    assert repository.list_full_decision_traces(decided_at, end, booking_id=booking_id, closed=False) == [active]
++    decision_trace.persist(trace, True)
++    decision_trace.persist(active, False)
++    decision_trace.persist(trace, True)
++    repository.dispose()
++    assert repository.get_full_decision_trace(cid) == trace
++    assert repository.list_full_decision_traces(decided_at, end, booking_id=booking_id, closed=True) == [trace]
++    assert repository.list_full_decision_traces(decided_at - timedelta(minutes=1), decided_at) == []
++    assert repository.list_full_decision_traces(decided_at, end, booking_id="unknown") == []
++    with pytest.raises(ValueError, match="limit"):
++        repository.list_full_decision_traces(decided_at, end, limit=101)
++
++    legacy = decision_trace.summary(trace).model_copy(update={"correlation_id": "legacy"})
++    repository.save_decision_trace(legacy)
++    assert repository.get_decision_trace("legacy") == legacy
++    assert repository.get_full_decision_trace("legacy") is None
++    assert repository.get_full_decision_trace("missing") is None
++    assert repository.list_full_decision_traces(decided_at, end) == [trace]
++
++
++def test_foundation_trace_write_and_export_errors_are_isolated(clean_db, monkeypatch, tmp_path, caplog, run):
++    from src.config import get_settings
++    from src.services import repository
++
++    trace = run.recorder.decision_traces[-1]
++    invalid = {**trace, "correlation_id": "invalid", "applied": {**trace["applied"], "extra": float("nan")}}
++    decision_trace.persist(invalid, True)
++    assert repository.get_full_decision_trace("invalid") is None
++    assert "decision_trace_write_failed correlation_id=invalid" in caplog.text
++
++    not_a_dir = tmp_path / "regular-file"
++    not_a_dir.touch()
++    monkeypatch.setattr(get_settings(), "decision_trace_dir", str(not_a_dir))
++    decision_trace.persist(trace, True)
++    assert "decision_trace_export_failed" in caplog.text
++    assert repository.get_full_decision_trace(trace["correlation_id"]) == trace
++
++    def fail(*_):
++        raise RuntimeError("synthetic write failure")
++
++    with monkeypatch.context() as patch:
++        patch.setattr(repository, "save_decision_trace", fail)
++        decision_trace.persist({**trace, "correlation_id": "db-failure"}, True)
++    assert "decision_trace_write_failed correlation_id=db-failure" in caplog.text
++    assert repository.get_full_decision_trace("db-failure") is None
++
++
++def test_foundation_power_stages_and_energy_use_measured_intervals(run):
++    traces = [t for t in run.recorder.decision_traces if t["power"]["actual_output"]]
++    assert traces
++    for trace in traces:
++        power = trace["power"]
++        assert power["proposed"]["by_booking_kw"] == trace["proposed_setpoints_kw"]
++        assert power["approved"]["by_booking_kw"] == trace["approved_setpoints_kw"]
++        assert power["dispatched"]["command_ids"] == [
++            c["command_id"] for c in trace["emergency_commands"] + trace["commands"] if c["executed"]
++        ]
++        assert power["effective_setpoint"]["source"] == "kernel.held_setpoints"
++        measured = power["actual_output"]
++        assert measured["source"] == "physics.applied_result.actual_kw"
++        combined = {}
++        for sample in measured["samples"]:
++            duration = sample["end_minute"] - sample["start_minute"]
++            for vid, kw in sample["by_booking_kw"].items():
++                combined[vid] = combined.get(vid, 0.0) + kw * duration / 60
++        assert combined == pytest.approx(trace["applied"]["output_kwh"])
++        assert set(measured["average_by_booking_kw"]) == combined.keys()
++        for vid, output in combined.items():
++            assert measured["average_by_booking_kw"][vid] == pytest.approx(
++                output * 60 / measured["sample_minutes_by_booking"][vid]
++            )
++            assert trace["applied"]["grid_input_kwh"][vid] == pytest.approx(
++                output / run.config.power_conversion_efficiency
++            )
++        assert trace["experiment"]["fingerprint"]
++        assert trace["evidence_refs"]["/power/actual_output"].endswith("#/power/actual_output")
++
++
++async def test_foundation_trace_keeps_decision_time_policy_after_reconfiguration():
++    from src.models.events import EventType, StationEvent
++    from src.services.experiment import resolve_experiment
++    from src.services.runtime import make_scheduler
++
++    config, tariff = catalog.load_station_config(), catalog.load_tariff()
++    scenario = catalog.load_scenario("hybrid_evening")
++    start = datetime.combine(NOW.date(), scenario.start_time, tzinfo=NOW.tzinfo)
++    rt = build_sim_runtime(scenario, StrategyName.SIM_M3A, config, tariff, start)
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=start), rt)
++    held = rt.open_trace
++    assert held["trace"]["validation"]["post_apply"] == "not_evaluated"
++    assert held["trace"]["power"]["actual_output"] is None
++    assert held["trace"]["experiment"]["fingerprint"] == resolve_experiment(rt).fingerprint
++    rt.scheduler = make_scheduler(StrategyName.SIM_B0, lambda: rt.simulator)
++    closed = decision_trace.close_open(rt)
++    assert closed["policy"] == {"id": "M3a", "version": "1"}
++    assert closed["decision"]["algorithms"] == held["labels"]
++    assert closed["experiment"]["fingerprint"] != resolve_experiment(rt).fingerprint
++    assert closed["validation"]["post_apply"] == "no_samples"
++    assert closed["power"]["actual_output"] is None
++
++
++async def test_foundation_trace_with_independent_supply_and_no_readings_is_json_safe():
++    from src.models.events import EventType, StationEvent
++
++    config = catalog.load_station_config().model_dump()
++    config["supply_mode"] = "independent"
++    config["independent_grid_input_limit_kw"] = {"AC": 25, "DC": 90}
++    config = type(catalog.load_station_config()).model_validate(config)
++    scenario = catalog.load_scenario("hybrid_evening")
++    start = datetime.combine(NOW.date(), scenario.start_time, tzinfo=NOW.tzinfo)
++    rt = build_sim_runtime(scenario, StrategyName.SIM_M3A, config, catalog.load_tariff(), start)
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=start), rt)
++    rt.simulator.step(1)
++    closed = decision_trace.close_open(rt)
++    assert closed["applied"]["minutes"] == 1
++    assert closed["decision"]["physical_limits"]["supply_mode"] == "independent"
++    assert closed["validation"]["post_apply"] == "no_samples"
++    assert closed["power"]["actual_output"] is None
++    json.dumps(closed, allow_nan=False)
+diff --git a/tests/test_services/test_fork_isolation.py b/tests/test_services/test_fork_isolation.py
+index 0d02559..41ffd13 100644
+--- a/tests/test_services/test_fork_isolation.py
++++ b/tests/test_services/test_fork_isolation.py
+@@ -71,3 +71,90 @@ async def test_stateless_policy_is_still_shared_by_the_fork():
+     frt = fork_runtime(rt, [])
+     assert frt.simulator.kernel.algorithms is rt.simulator.kernel.algorithms
+     assert frt.simulator.adapter.dc_model is rt.simulator.adapter.dc_model
++
++
++async def test_foundation_fork_copies_nested_runtime_dtos_and_keeps_sinks_isolated():
++    from src.models.control import Approval, ApprovalKind, Command, CommandSource, CommandType, GuardVerdict
++
++    rt, _ = await _runtime_with_stateful_optimizer()
++    (live_booking,) = rt.store.active_bookings()
++    now = rt.clock()
++    cmd = Command(
++        type=CommandType.SET_POWER,
++        connector_id="DC-01-1",
++        power_kw=10,
++        booking_id=live_booking.booking_id,
++        source=CommandSource.OPTIMIZER,
++        issued_by="test",
++        based_on_schedule_version=rt.plan.version,
++        based_on_state_at=now,
++        created_at=now,
++    )
++    pending = Approval(
++        kind=ApprovalKind.RESIDENT_CONSENT,
++        command=cmd,
++        verdict=GuardVerdict(command_id=cmd.command_id, passed=True, checked_at=now),
++        requested_from=live_booking.resident_id,
++        impact_summary="Synthetic approval",
++        created_at=now,
++    )
++    rt.sinks.save_approval(pending)
++    rt.recent_commands.append(cmd)
++    rt.rejected_booking_ids.add("rejected")
++    live_trace_count = len(rt.recorder.decision_traces)
++    live_bookings = [b.model_dump() for b in rt.store.active_bookings()]
++    live_plan = rt.plan.model_dump()
++    live_config = rt.config.model_dump()
++    live_tariff = rt.tariff.model_dump()
++
++    fork = fork_runtime(rt, rt.store.active_bookings())
++    assert fork.config is fork.simulator.config
++    assert fork.config.model_dump() == live_config and fork.plan.model_dump() == live_plan
++    assert fork.tariff.model_dump() == live_tariff and fork.rejected_booking_ids == rt.rejected_booking_ids
++    assert fork.store.pending_approvals()[0].model_dump() == pending.model_dump()
++    assert fork.sinks is not rt.sinks and fork.store is not rt.store
++    assert fork.lock is not rt.lock and fork.booking_lock is not rt.booking_lock and fork.loop is None
++    assert fork.open_trace is None and not fork.recorder.decision_traces and not fork.outbox
++
++    fork.store.get_booking(live_booking.booking_id).request.soc_target = 50
++    fork.store.pending_approvals()[0].command.power_kw = 7
++    fork.recent_commands[-1].power_kw = 4
++    fork.plan.sessions[0].slots[0].power_kw = 2
++    fork.config.connectors[0].max_power_kw = 3
++    fork.tariff.periods[0].price_per_kwh = 123
++    fork.rejected_booking_ids.clear()
++    fork.scheduler.metadata["dispatch"]["AC"]["name"] = "fixture-override"
++    assert [b.model_dump() for b in rt.store.active_bookings()] == live_bookings
++    assert rt.store.pending_approvals()[0].command.power_kw == 10 and rt.recent_commands[-1].power_kw == 10
++    assert rt.plan.model_dump() == live_plan and rt.config.model_dump() == live_config
++    assert rt.tariff.model_dump() == live_tariff and rt.rejected_booking_ids == {"rejected"}
++    assert rt.scheduler.metadata["dispatch"]["AC"]["name"] != "fixture-override"
++    assert len(rt.recorder.decision_traces) == live_trace_count
++
++
++class StatefulDC:
++    def __init__(self, delegate):
++        self.delegate = delegate
++        self.calls = 0
++
++    def acceptance_kw(self, *args):
++        self.calls += 1
++        return self.delegate.acceptance_kw(*args)
++
++    def stored_kwh(self, *args):
++        self.calls += 1
++        return self.delegate.stored_kwh(*args)
++
++
++async def test_foundation_runtime_fork_keeps_one_independent_dc_model():
++    rt, _ = await _runtime_with_stateful_optimizer()
++    dc = StatefulDC(rt.simulator.adapter.dc_model)
++    rt.simulator.adapter.dc_model = dc
++    rt.scheduler._algorithms = replace(rt.scheduler.algorithms(), dc_charging_model=dc)
++    rt.scheduler.configure(rt.simulator)
++    fork = fork_runtime(rt, rt.store.active_bookings())
++    copied = fork.simulator.adapter.dc_model
++    assert copied is fork.scheduler.algorithms().dc_charging_model and copied is not dc
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=fork.clock()), fork)
++    fork.simulator.step(1)
++    assert copied.calls > 0 and dc.calls == 0
+diff --git a/tests/test_services/test_safety_event_delivery.py b/tests/test_services/test_safety_event_delivery.py
+index 3381455..d9aa5a4 100644
+--- a/tests/test_services/test_safety_event_delivery.py
++++ b/tests/test_services/test_safety_event_delivery.py
+@@ -353,3 +353,470 @@ async def test_charging_model_fault_is_isolated_not_curtailed():
+     assert next(c.power_kw for c in sim.state().connectors if c.booking_id == "dc-a") == 0.0
+     closed = rt.recorder.decision_traces
+     assert any(d["kind"] == "charging_model" for t in closed for d in t["applied"]["hard_violation_details"])
++
++
++async def _trip_charging_model(rt):
++    sim = rt.simulator
++    original = sim.adapter.step
++
++    def broken(vid, cabinet, kw, minutes):
++        delivery = original(vid, cabinet, kw, minutes)
++        return dataclasses.replace(delivery, battery_kwh=delivery.battery_kwh * 3) if vid == "dc-a" and kw else delivery
++
++    sim.adapter.step = broken
++    try:
++        events = sim.step(5)
++    finally:
++        sim.adapter.step = original
++    assert any(e.type == EventType.HARD_LIMIT_VIOLATED for e in events)
++    await control_loop.on_minute(rt, events)
++    return rt
++
++
++async def test_foundation_fork_keeps_the_hold_after_a_real_trip():
++    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
++    fork = runtime.fork_runtime(rt, rt.store.active_bookings())
++    assert fork.safety_hold_booking_ids == rt.safety_hold_booking_ids == {"dc-a"}
++    assert fork.safety_hold_booking_ids is not rt.safety_hold_booking_ids
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=fork.clock()), fork)
++    assert next(c.power_kw for c in fork.simulator.state().connectors if c.booking_id == "dc-a") == 0
++    fork.safety_hold_booking_ids.clear()
++    assert rt.safety_hold_booking_ids == {"dc-a"}
++
++
++async def test_foundation_trace_distinguishes_hard_violation_and_no_samples():
++    from src.services import decision_trace
++
++    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
++    violated = rt.recorder.decision_traces[-1]
++    assert violated["applied"]["hard_violation_details"]
++    assert violated["decision"]["guard"]["status"] == "violation"
++    assert violated["validation"]["post_apply"] == "violation"
++    zero = decision_trace.close_open(rt)
++    assert zero["validation"]["post_apply"] == "no_samples"
++    assert zero["decision"]["guard"]["status"] == "no_samples"
++    assert zero["validation"]["fail_safe"]["status"] == "executed"
++    assert zero["safety"]["hard_limit_violations"]
++
++
++async def test_foundation_safety_hold_has_its_own_command_exclusion():
++    rt = await _trip_charging_model(await _sim_runtime(failsafe=True))
++    trace = rt.open_trace["trace"]
++    assert not rt.store.pending_approvals()
++    assert "dc-a" not in trace["held_for_pending_approval"]
++    (row,) = [row for row in trace["command_exclusions"] if row["booking_id"] == "dc-a"]
++    assert row["primary_reason"] == "SAFETY_HOLD"
++    assert row["command_id"] and row["correlation_id"] == trace["correlation_id"]
++
++
++async def test_threadpool_clock_cannot_step_past_pending_hard_violation(live):
++    from threading import Barrier
++
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None  # hold delivery until both read consumers have completed
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    before = sim.minute
++    clock["now"] += timedelta(minutes=6)
++    phase = Barrier(2, timeout=5)
++
++    def first_read():
++        saw_violation = any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.sync_clock())
++        phase.wait()
++        return saw_violation
++
++    def second_read():
++        phase.wait()
++        return rt.sync_clock()
++
++    first, second = await asyncio.gather(asyncio.to_thread(first_read), asyncio.to_thread(second_read))
++    assert first
++    assert sim.minute == before + 1
++    assert not second
++    await control_loop.deliver_pending(rt)
++    assert sim.state().total_power_kw / rt.config.power_conversion_efficiency <= SILENT_LIMIT_KW + 1e-7
++
++
++async def test_threadpool_clock_cannot_move_a_trace_boundary_while_solver_waits(live, monkeypatch):
++    from threading import Barrier
++
++    from src.services import solver
++
++    rt, clock = live
++    await _charging_live(rt)
++    before = rt.simulator.minute
++    phase = Barrier(2, timeout=5)
++    original = solver.run_async
++
++    async def pause(fn, *args):
++        await asyncio.to_thread(phase.wait)
++        await asyncio.to_thread(phase.wait)
++        return await original(fn, *args)
++
++    monkeypatch.setattr(solver, "run_async", pause)
++
++    def read():
++        phase.wait()
++        clock["now"] += timedelta(minutes=2)
++        rt.sync_clock()
++        observed = rt.simulator.minute
++        phase.wait()
++        return observed
++
++    _, observed = await asyncio.gather(
++        control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt),
++        asyncio.to_thread(read),
++    )
++    assert observed == before
++    assert rt.simulator.minute == before
++    rt.sync_clock()
++    assert rt.simulator.minute == before + 2
++
++
++async def test_foundation_records_hold_precedence_and_keeps_emergency_reductions():
++    from src.models.control import Approval, ApprovalKind, Command, GuardVerdict
++
++    rt = await _sim_runtime(failsafe=True)
++    command = Command(
++        type=CommandType.SET_POWER,
++        connector_id="DC-01-1",
++        power_kw=9,
++        booking_id="dc-a",
++        source=CommandSource.AGENT,
++        issued_by="synthetic",
++        based_on_schedule_version=rt.plan.version,
++        based_on_state_at=rt.clock(),
++        created_at=rt.clock(),
++        correlation_id="synthetic-decision",
++    )
++    rt.rejected_booking_ids.add("dc-a")
++    rows = []
++    assert control_loop._filter_held(rt, [command], rows) == []
++    assert rows[0]["reasons"] == ["REJECTED_CONSENT"]
++    rt.safety_hold_booking_ids.add("dc-a")
++    rt.sinks.save_approval(
++        Approval(
++            kind=ApprovalKind.OPERATOR_REVIEW,
++            command=command,
++            verdict=GuardVerdict(command_id=command.command_id, passed=True, checked_at=rt.clock()),
++            requested_from="operator",
++            impact_summary="synthetic",
++            created_at=rt.clock(),
++        )
++    )
++    rows = []
++    assert control_loop._filter_held(rt, [command], rows) == []
++    assert rows[0]["primary_reason"] == "PENDING_APPROVAL"
++    assert rows[0]["reasons"] == ["PENDING_APPROVAL", "SAFETY_HOLD", "REJECTED_CONSENT"]
++    await _trip_charging_model(rt)
++    assert any(
++        entry["executed"] and entry["power_kw"] == 0 and entry["booking_id"] == "dc-a"
++        for entry in rt.open_trace["trace"]["emergency_commands"]
++    )
++
++
++async def test_foundation_failed_safety_delivery_retries_before_clock_advances(live, monkeypatch):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    rt.sync_clock()
++    minute = sim.minute
++
++    async def interrupted(*_):
++        raise RuntimeError("synthetic interruption")
++
++    with monkeypatch.context() as patch:
++        patch.setattr(control_loop, "_failsafe", interrupted)
++        assert await control_loop.deliver_pending(rt) is None
++    assert any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
++    assert rt.sync_clock() == [] and sim.minute == minute
++    assert await control_loop.deliver_pending(rt) is not None
++    assert sim.minute > minute
++    assert sim.state().total_power_kw / rt.config.power_conversion_efficiency <= SILENT_LIMIT_KW + 1e-7
++
++
++@pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
++async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    event = StationEvent(
++        type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
++        occurred_at=rt.clock(),
++        new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
++    )
++
++    def fail(*_):
++        raise RuntimeError("synthetic failure window")
++
++    async def fail_async(*_):
++        if window == "cancel":
++            raise asyncio.CancelledError()
++        fail()
++
++    from src.services import decision_trace
++
++    with monkeypatch.context() as patch:
++        if window == "trace":
++            patch.setattr(decision_trace, "close_open", fail)
++        elif window == "record":
++            patch.setattr(rt.store, "record_event", fail)
++        elif window == "power_emergency":
++            patch.setattr(control_loop, "_emergency", fail_async)
++        else:
++            patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
++        try:
++            await control_loop.on_event(event, rt)
++        except (RuntimeError, asyncio.CancelledError):
++            pass
++
++    assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
++    await control_loop.deliver_pending(rt)
++    rt.sync_clock()
++    assert sim.minute == 4
++    assert _emergency_decisions()
++
++
++async def test_remediation_mixed_batch_keeps_hard_event_on_power_handler_failure(live, monkeypatch):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    power = StationEvent(type=EventType.POWER_LIMIT_CHANGED, occurred_at=rt.clock(), new_power_limit_kw=SILENT_LIMIT_KW)
++    rt.queue_events([power])
++
++    async def fail(*_):
++        raise RuntimeError("synthetic power handling failure")
++
++    with monkeypatch.context() as patch:
++        patch.setattr(control_loop, "_emergency", fail)
++        await control_loop.deliver_pending(rt)
++    assert _emergency_decisions() or hard in rt.outbox
++    await control_loop.deliver_pending(rt)
++    rt.sync_clock()
++    assert rt.simulator.minute == 4
++
++
++async def test_remediation_ordinary_outbox_overflow_cannot_evict_hard_event(live):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    rt.queue_events([StationEvent(type=EventType.TICK, occurred_at=rt.clock()) for _ in range(runtime.OUTBOX_MAX + 1)])
++    assert hard in rt.outbox
++
++
++@pytest.mark.parametrize("response", ["blocked", "partial", "pending", "no_commands"])
++async def test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge(live, monkeypatch, response):
++    from src.guard import dispatcher
++    from src.models.control import DecisionLogEntry, GuardRule, GuardVerdict, Violation
++
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    minute = sim.minute
++    original = dispatcher.submit
++    attempts = 0
++
++    async def submit(commands, ctx, actuator, sinks, **kwargs):
++        nonlocal attempts
++        if not commands or commands[0].source != CommandSource.EMERGENCY:
++            return await original(commands, ctx, actuator, sinks, **kwargs)
++        attempts += 1
++        applied = await original(commands[:1], ctx, actuator, sinks, **kwargs) if response == "partial" else []
++        remaining = commands[1:] if response == "partial" else commands
++        return [
++            *applied,
++            *[
++                DecisionLogEntry(
++                    timestamp=ctx.now,
++                    command=cmd,
++                    verdict=GuardVerdict(
++                        command_id=cmd.command_id,
++                        checked_at=ctx.now,
++                        passed=response == "pending",
++                        violations=[]
++                        if response == "pending"
++                        else [Violation(rule=GuardRule.PERMISSION, detail="synthetic block")],
++                    ),
++                    approval_id="synthetic-pending" if response == "pending" else None,
++                    executed=False,
++                )
++                for cmd in remaining
++            ],
++        ]
++
++    with monkeypatch.context() as patch:
++        if response == "no_commands":
++            patch.setattr(emergency, "curtail_to_hard_limits", lambda *_: [])
++        else:
++            patch.setattr(dispatcher, "submit", submit)
++        for _ in range(5):
++            await control_loop.deliver_pending(rt)
++            assert hard in rt.outbox
++            assert rt.sync_clock() == [] and sim.minute == minute
++        if response != "no_commands":
++            assert attempts == 3
++    sim.available_power_kw = rt.config.grid_input_limit_kw
++    await control_loop.deliver_pending(rt)
++    assert hard not in rt.outbox
++    assert sim.minute == 4
++
++
++@pytest.mark.parametrize("sink", ["audit", "notification"])
++async def test_remediation_rechecks_safety_when_sink_fails_after_apply(live, monkeypatch, sink):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++
++    def fail(*_):
++        raise RuntimeError("synthetic post-apply sink failure")
++
++    async def fail_async(*_):
++        fail()
++
++    changes = {"log_decision": fail} if sink == "audit" else {"add_notification": fail}
++    with monkeypatch.context() as patch:
++        if sink == "audit":
++            patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, **changes))
++        else:
++            patch.setattr(control_loop, "_notify_curtailed", fail_async)
++        await control_loop.deliver_pending(rt)
++    assert hard not in rt.outbox
++    rt.sync_clock()
++    assert rt.simulator.minute == 4
++
++
++@pytest.mark.parametrize("operation", ["set_power", "assign_connector"])
++async def test_remediation_held_booking_cannot_use_older_power_approval(live, operation):
++    from src.models.control import Approval, ApprovalKind, Command, GuardVerdict
++
++    rt, _ = live
++    await _charging_live(rt)
++    sim = rt.simulator
++    connector = next(c for c in sim.state().connectors if c.booking_id == "dc-a")
++    command = Command(
++        type=CommandType(operation),
++        connector_id=connector.connector_id,
++        power_kw=40 if operation == "set_power" else None,
++        booking_id="dc-a",
++        source=CommandSource.AGENT,
++        issued_by="synthetic",
++        based_on_schedule_version=rt.plan.version,
++        based_on_state_at=rt.clock(),
++        created_at=rt.clock(),
++    )
++    approval = Approval(
++        kind=ApprovalKind.OPERATOR_REVIEW,
++        command=command,
++        verdict=GuardVerdict(command_id=command.command_id, passed=True, checked_at=rt.clock()),
++        requested_from="operator",
++        impact_summary="synthetic approval",
++        created_at=rt.clock(),
++    )
++    repository.save_approval(approval)
++    await _trip_charging_model(rt)
++    assert "dc-a" in rt.safety_hold_booking_ids
++    if operation == "assign_connector":
++        from src.models.simulation import Incident, IncidentType
++
++        sim.inject_incident(Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=connector.connector_id))
++        sim.inject_incident(Incident(type=IncidentType.CONNECTOR_RESTORED, connector_id=connector.connector_id))
++        assert "dc-a" in sim.state().queue
++    await control_loop.resolve_approval(approval.approval_id, "approve", "operator", rt, Role.OPERATOR)
++    decisions = [d for d in repository.list_decisions() if d.approval_id == approval.approval_id]
++    assert len(decisions) == 1 and not decisions[0].executed
++    assert sim.kernel.setpoints.get("dc-a", 0) == 0
++
++
++@pytest.mark.parametrize("has_violation", [False, True])
++async def test_remediation_sample_eviction_does_not_report_complete_pass(has_violation):
++    from collections import deque
++
++    from src.services import decision_trace
++
++    rt = await _sim_runtime(failsafe=True)
++    sim = rt.simulator
++    sim._applied = deque(maxlen=1)
++    if has_violation:
++        sim.available_power_kw = SILENT_LIMIT_KW
++    sim.step(1)
++    sim.available_power_kw = rt.config.grid_input_limit_kw
++    sim.step(1)
++    trace = decision_trace.close_open(rt)
++    assert trace["applied"]["coverage"]["dropped_minutes"] == 1
++    assert trace["applied"]["coverage"]["status"] == "incomplete"
++    assert trace["validation"]["post_apply"] == ("violation" if has_violation else "incomplete")
++
++
++@pytest.mark.parametrize("failure", ["construction", "serialization"])
++async def test_remediation_trace_construction_failure_keeps_failsafe_and_violation(live, monkeypatch, caplog, failure):
++    from src.services import decision_trace
++
++    rt, clock = live
++    await _charging_live(rt)
++    cid = rt.open_trace["trace"]["correlation_id"]
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++
++    original = rt.simulator.decision_facts
++
++    def fail(*args, **kwargs):
++        if failure == "construction":
++            raise ValueError("synthetic evidence construction failure")
++        return {**original(*args, **kwargs), "invalid": float("nan")}
++
++    monkeypatch.setattr(rt.simulator, "decision_facts", fail)
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++    assert _emergency_decisions()
++    trace = repository.get_full_decision_trace(cid)
++    assert trace["validation"]["post_apply"] == "violation"
++    assert trace["decision"] is None
++    assert trace["applied"]["hard_violations"]
++    assert "decision_trace_build_failed" in caplog.text
++    decision_trace.close_open(rt)
++
++
++async def test_remediation_cancellation_during_dispatch_preserves_hard_event(live, monkeypatch):
++    from src.guard import dispatcher
++
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    entered = asyncio.Event()
++
++    async def pause(*_, **__):
++        entered.set()
++        await asyncio.Future()
++
++    with monkeypatch.context() as patch:
++        patch.setattr(dispatcher, "submit", pause)
++        task = asyncio.create_task(control_loop.deliver_pending(rt))
++        await asyncio.wait_for(entered.wait(), 2)
++        task.cancel()
++        with pytest.raises(asyncio.CancelledError):
++            await task
++    assert hard in rt.outbox and rt.simulator.minute == 1
++    await control_loop.deliver_pending(rt)
++    assert rt.simulator.minute == 4 and hard not in rt.outbox
+diff --git a/migrations/versions/0004_full_decision_traces.py b/migrations/versions/0004_full_decision_traces.py
+new file mode 100644
+index 0000000..327a69d
+--- /dev/null
++++ b/migrations/versions/0004_full_decision_traces.py
+@@ -0,0 +1,33 @@
++"""Versioned backend DecisionTrace evidence and booking lookup.
++
++Revision ID: 0004
++Revises: 0003
++"""
++
++import sqlalchemy as sa
++from alembic import op
++from sqlalchemy.dialects.postgresql import JSONB
++
++revision = "0004"
++down_revision = "0003"
++branch_labels = None
++depends_on = None
++
++
++def upgrade() -> None:
++    op.add_column("decision_traces", sa.Column("full_payload", sa.JSON().with_variant(JSONB(), "postgresql")))
++    op.create_table(
++        "decision_trace_bookings",
++        sa.Column("booking_id", sa.String(32), nullable=False),
++        sa.Column("correlation_id", sa.String(32), nullable=False),
++        sa.Column("decided_at", sa.DateTime(timezone=True), nullable=False),
++        sa.PrimaryKeyConstraint("booking_id", "correlation_id"),
++        sa.ForeignKeyConstraint(["correlation_id"], ["decision_traces.correlation_id"], ondelete="CASCADE"),
++    )
++    op.create_index("ix_decision_trace_bookings_window", "decision_trace_bookings", ["booking_id", "decided_at"])
++
++
++def downgrade() -> None:
++    op.drop_table("decision_trace_bookings")
++    with op.batch_alter_table("decision_traces") as batch_op:
++        batch_op.drop_column("full_payload")

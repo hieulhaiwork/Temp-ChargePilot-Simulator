@@ -215,6 +215,8 @@ class HybridStation:
         self._halted_on: tuple | None = None  # vi phạm mà step() đã dừng catch-up ở phút gần nhất (§1.3)
         # Kết quả từng bước vật lý từ lần drain trước — DecisionTrace backend đóng quyết định bằng số đo thật.
         self._applied: deque[BackendAppliedSample] = deque(maxlen=APPLIED_BUFFER_STEPS)
+        self._dropped_applied_minutes = 0
+        self._dropped_hard_violations = 0
 
     def configure(self, algorithms: Algorithms, policy_id: str, policy_version: str = "1") -> None:
         """Chọn policy (thuật toán) cho Planning Core của kernel — composition root gọi một lần."""
@@ -315,6 +317,19 @@ class HybridStation:
         )
 
     @_locked
+    def safety_state(self) -> StationState:
+        """Occupied-port held commands, before acceptance clipping or display rounding."""
+        state = self.state()
+        return state.model_copy(
+            update={
+                "connectors": [
+                    port.model_copy(update={"power_kw": self.kernel.setpoints.get(port.booking_id, 0.0)})
+                    for port in state.connectors
+                ]
+            }
+        )
+
+    @_locked
     def step(self, minutes: int) -> list[StationEvent]:
         """Physical Core của kernel, từng bước vật lý 1'; sau mỗi bước xử lý xe đến / rời / rút DC.
 
@@ -330,6 +345,10 @@ class HybridStation:
         for _ in range(max(minutes, 0)):
             held = {vid: kernel.setpoints.get(vid, 0.0) for vid in self.queue.occupied.values()}
             result = kernel.advance(kernel.now + 1)
+            if self._applied and len(self._applied) == self._applied.maxlen:
+                evicted = self._applied[0].result
+                self._dropped_applied_minutes += evicted.end - evicted.minute
+                self._dropped_hard_violations += len(evicted.violations)
             self._applied.append(BackendAppliedSample(result, held))
             halt = False
             if failsafe and result.violations:
@@ -491,6 +510,8 @@ class HybridStation:
         twin._visits = dict(self._visits)
         twin._events = []
         twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
+        twin._dropped_applied_minutes = 0
+        twin._dropped_hard_violations = 0
         twin.kernel = self.kernel.fork(emit=twin._emit)
         # Thành phần có trạng thái đã được cô lập trong kernel.fork (Final Review §4.4): bản fork giữ bản của nó.
         if self._algorithms is not None:
@@ -514,11 +535,16 @@ class HybridStation:
     def drain_applied(self) -> list[AppliedResult]:
         return [sample.result for sample in self.drain_decision_samples()]
 
-    @_locked
     def drain_decision_samples(self) -> list[BackendAppliedSample]:
-        """Kết quả các bước vật lý từ lần gọi trước (rồi xoá) — để đóng DecisionTrace của quyết định đang hiệu lực."""
-        results, self._applied = list(self._applied), deque(maxlen=APPLIED_BUFFER_STEPS)
-        return results
+        return self.drain_decision_evidence()[0]
+
+    @_locked
+    def drain_decision_evidence(self) -> tuple[list[BackendAppliedSample], int, int]:
+        """Drain retained samples and counters covering evicted physics steps together."""
+        evidence = (list(self._applied), self._dropped_applied_minutes, self._dropped_hard_violations)
+        self._applied.clear()
+        self._dropped_applied_minutes = self._dropped_hard_violations = 0
+        return evidence
 
     @_locked
     def decision_labels(self) -> dict:

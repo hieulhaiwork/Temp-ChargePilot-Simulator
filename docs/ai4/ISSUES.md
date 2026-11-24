@@ -32,3 +32,14 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 | Event knowledge | Observation lọc limit events theo announced minute, có standalone test chống nhìn trước. Fork giữ scenario và copy queue, nên observation filtering chưa đủ làm bằng chứng cho rollout `known_at(T)`. Kiểm riêng future bookings, announcements, recovery và incident manifest của hai nhánh. [Fork](../../src/simulator/core/kernel.py#L121) · [Observation](../../src/simulator/core/kernel.py#L353) · [Test](../../src/simulator/tests/test_mvp3.py#L169) |
 | Solver thread | Backend dùng `ThreadPoolExecutor(max_workers=1)`. Repo ghi nhận sự cố HiGHS đa thread trên Windows. P0 chạy lại luồng hiện hữu. Tải job, fairness và cancellation đối với live replans chưa đo, thuộc G3/G4. [Solver](../../src/services/solver.py) |
 | Dữ liệu trace | Đã xác nhận thiếu evidence refs và config fingerprint trong outer trace. Kiểm JSON số hữu hạn, independent/unbounded representations và policy tại decision time trước khi dùng cho WHY. P0 probe mới bao phủ zero sample và charge-model fault. [Open trace](../../src/services/decision_trace.py#L82) · [JSONL](../../src/services/decision_trace.py#L232) |
+
+## G1 remediation ledger
+
+| ID | Phân loại và kết quả | Owner |
+|---|---|---|
+| G1-F01 | **Confirmed** qua fault-injection. Destructive drain làm mất hard event trước trace close, event store, notification/cancellation và power emergency. Batch mixed và overflow tái hiện mất event. Sửa bằng pending registry không eviction, acknowledge theo safety, hard-first và idempotent timeline. | Runtime / Safety |
+| G1-F02 | **Confirmed** qua fault-injection. Dispatch blocked, pending, partial hoặc không sinh command khi vẫn unsafe từng mở interlock sai. Lỗi sink sau apply từng giữ interlock dù trạm đã an toàn. Dùng readback, tách delivery/dispatch/resolution, retry tối đa ba lần và log khi unresolved. | Runtime / Guard |
+| G1-F03 | **Confirmed inherited** cho tăng công suất trên local `d2b5d48`. G1 review cũng tái hiện assignment đã duyệt trước fault. Dispatcher recheck hiện tại khóa cả hai theo Safety Hold/occupant và giữ audit executed=false. | Guard / Approval |
+| G1-F04 | **Confirmed** qua sample eviction, lỗi dựng facts và non-finite serialization tại close. Coverage phát hiện dữ liệu thiếu, eviction không xóa violation counter, fallback giữ applied evidence và fail-safe chạy trước trace. | Trace / Runtime |
+| G1-F05 | **Deferred to G2**. Active WHY evidence cần planned observation, queue, constraints và policy reasons tách khỏi measured results. | WHY Evidence Resolver |
+| G1-F06 | **Deferred to G2**. Thiết kế interval-overlap/as-of, bounded pagination và role/subject authorization. G1 repository vẫn lookup theo `decided_at`. | WHY Evidence Resolver / Persistence |

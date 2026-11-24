@@ -13,7 +13,7 @@ GitHub connector xác nhận SHA tại repository được chỉ định. Clone 
 
 ## G0 review và nguồn G1
 
-Tech Lead duyệt P0 trên mirror `d520ffb28b32b94099277c48af9b8f38ec656ac0` (tree `777fcb80ca1713117d42cbbfaaf88e6741848e3c`). Đây là commit evidence P0 được review. Diff từ mirror `4f1477e` trong source, config, migrations, tests và frontend rỗng. Nhánh local `feature/ai-4` bắt đầu G1 tại `d2b5d4869bff35ad9e417bee504c6dbf652258b1`. Các path product của `d2b5d48` khớp baseline local `ce23136`. Mirror `origin/main` sau đó trỏ tới `e5cbbed` với các path đã bị xóa. Mapping G1 pin theo SHA `d520ffb` đã được duyệt. [Báo cáo G1](PHASE_4_0_REPORT.md)
+Tech Lead duyệt P0 trên mirror `d520ffb28b32b94099277c48af9b8f38ec656ac0` (tree `777fcb80ca1713117d42cbbfaaf88e6741848e3c`). Đây là commit evidence P0 được review. Diff từ mirror `4f1477e` trong source, config, migrations, tests và frontend rỗng. Nhánh local `feature/ai-4` bắt đầu G1 tại `d2b5d4869bff35ad9e417bee504c6dbf652258b1`. Các path product của `d2b5d48` khớp baseline local `ce23136`. Mirror có các root files bị loại do thay đổi `.rsync-exclude` theo Tech Lead. Commit review G1 `6667dead49d047c4971f73a95ff47229dc8dc4e9` khớp 337 blob scope chung với snapshot local `d2b5d48` + patch G1 ban đầu. [Đối chiếu G1](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/mirror-product-mapping.stdout.txt) [Báo cáo G1](PHASE_4_0_REPORT.md)
 
 ## Module map Unified Core
 

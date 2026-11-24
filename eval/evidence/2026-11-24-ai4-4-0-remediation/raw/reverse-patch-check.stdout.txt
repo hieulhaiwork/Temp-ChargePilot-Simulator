@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git apply --reverse --check /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-0-remediation/raw/candidate.patch 

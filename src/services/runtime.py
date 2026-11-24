@@ -18,7 +18,7 @@ Owner: TV3. Task: T2.6 (live), T1.5 (benchmark).
 import asyncio
 import logging
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 ACTIVE = (BookingStatus.CONFIRMED, BookingStatus.QUEUED, BookingStatus.CHARGING)
 RECENT_COMMANDS = 200  # đủ cho cửa sổ anti_flapping (10 phút × 4 cổng)
+SAFETY_ATTEMPT_LIMIT = 3
 OUTBOX_MAX = 10_000  # sự kiện chưa giao tối đa (chặn tràn bộ nhớ nếu không vòng nào nhận)
 _APP_LOOP: asyncio.AbstractEventLoop | None = None  # vòng sự kiện của app (lifespan) — giao outbox khi rt.loop chưa có
 
@@ -106,10 +107,12 @@ class StationRuntime:
     live: bool = True
     # Final Acceptance §1.2 — sự kiện trạm phát sinh khi tiến đồng hồ (bất kỳ consumer nào gọi sync_clock) nằm ở đây tới
     # khi control_loop nhận (on_event / run_forever / deliver_pending) — không consumer nào được bỏ sự kiện.
-    outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
+    _outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
     _clock_lock: RLock = field(default_factory=RLock, repr=False)
     _read_clock_paused: bool = False
-    _pending_safety_ids: set[str] = field(default_factory=set, repr=False)
+    _pending_safety: dict[str, StationEvent] = field(default_factory=dict, repr=False)
+    _acknowledged_safety: deque[str] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX), repr=False)
+    _safety_attempts: int = 0
     # Vòng sự kiện sở hữu `lock` (ghi lại ở on_event / get_runtime): đường đọc đồng bộ (threadpool) đẩy giao sự kiện về đây.
     loop: asyncio.AbstractEventLoop | None = None
     # coroutine factory giao outbox cho control_loop (live: control_loop.deliver_pending); None = chờ on_event kế tiếp
@@ -144,32 +147,54 @@ class StationRuntime:
     def advance_clock(self) -> list[StationEvent]:
         """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
         with self._clock_lock:
-            if self._pending_safety_ids:
+            if self._pending_safety:
                 return []
             minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
             events = self.simulator.step(minutes) if minutes > 0 else []
             self.queue_events(events)
             return events
 
+    @property
+    def outbox(self) -> tuple[StationEvent, ...]:
+        with self._clock_lock:
+            return (*self._outbox, *self._pending_safety.values())
+
+    def retain_safety_events(self, events: Iterable[StationEvent]) -> None:
+        with self._clock_lock:
+            for event in events:
+                if event.type == EventType.HARD_LIMIT_VIOLATED and event.event_id not in self._acknowledged_safety:
+                    self._pending_safety.setdefault(event.event_id, event)
+
     def queue_events(self, events: list[StationEvent]) -> None:
         with self._clock_lock:
-            self.outbox.extend(events)
-            self._pending_safety_ids.update(e.event_id for e in events if e.type == EventType.HARD_LIMIT_VIOLATED)
+            self.retain_safety_events(events)
+            self._outbox.extend(event for event in events if event.type != EventType.HARD_LIMIT_VIOLATED)
 
     def take_events(self) -> list[StationEvent]:
-        """Lấy (và xoá) mọi sự kiện chưa giao — control_loop gọi dưới `lock` trước khi tính lại."""
+        """Drain ordinary events. Hard events remain owned here until safety is verified."""
         with self._clock_lock:
             events = list(self.outbox)
-            self.outbox.clear()
+            self._outbox.clear()
             return events
 
-    def finish_safety_delivery(self, events: list[StationEvent], *, retry: bool = False) -> None:
+    def has_pending_safety(self) -> bool:
         with self._clock_lock:
-            if retry:
-                self._pending_safety_ids.update(e.event_id for e in events)
-                self.outbox.extendleft(reversed(events))
-            else:
-                self._pending_safety_ids.difference_update(e.event_id for e in events)
+            return bool(self._pending_safety)
+
+    def begin_safety_attempt(self) -> int | None:
+        with self._clock_lock:
+            if self._safety_attempts >= SAFETY_ATTEMPT_LIMIT:
+                return None
+            self._safety_attempts += 1
+            return self._safety_attempts
+
+    def acknowledge_safety(self, events: list[StationEvent]) -> None:
+        with self._clock_lock:
+            for event in events:
+                if self._pending_safety.pop(event.event_id, None) is not None:
+                    self._acknowledged_safety.append(event.event_id)
+            if not self._pending_safety:
+                self._safety_attempts = 0
 
     @asynccontextmanager
     async def decision_lock(self):

@@ -60,6 +60,7 @@ def open_trace(
     emergency: Iterable[DecisionLogEntry] = (),
     command_exclusions: Iterable[dict] = (),
     failsafe: Iterable[DecisionLogEntry] = (),
+    safety_outcomes: Iterable[dict] = (),
 ) -> dict:
     """Ghi trace của quyết định vừa ra (chưa có số đo thực thi). Quyết định trước phải được `close_open` trước đó."""
     station = rt.simulator
@@ -144,7 +145,11 @@ def open_trace(
                 "source": "commands, emergency_commands",
             },
             "post_apply": "not_evaluated",
-            "fail_safe": {"status": response, "command_ids": [e.command.command_id for e in failsafe]},
+            "fail_safe": {
+                "status": response,
+                "command_ids": [e.command.command_id for e in failsafe],
+                "outcomes": list(safety_outcomes),
+            },
         },
         # Final Acceptance §1.4: vi phạm cứng sau khi áp đã kích hoạt fail-safe trong lần tính lại này (loại + xe), và
         # booking đang bị giữ an toàn (ngắt công suất vì lỗi charging model / acceptance, chờ vận hành)
@@ -285,10 +290,10 @@ def _applied(results, conversion: float) -> dict:
 
 
 def close_open(rt) -> dict | None:
-    """Đóng trace đang mở bằng số đo thật của các bước vật lý đã chạy dưới quyết định đó."""
+    """Close with recorded samples and explicit coverage, including evicted violations."""
     station = rt.simulator
-    drain = getattr(station, "drain_decision_samples", None)
-    samples = drain() if drain is not None else []
+    drain = getattr(station, "drain_decision_evidence", None)
+    samples, dropped_minutes, dropped_violations = drain() if drain is not None else ([], 0, 0)
     results = [sample.result for sample in samples]
     holder, rt.open_trace = rt.open_trace, None
     if holder is None:
@@ -297,18 +302,47 @@ def close_open(rt) -> dict | None:
     conversion = approved.proposal.effective_limits.conversion if approved else rt.config.power_conversion_efficiency
     applied = _applied(results, conversion)
     trace["applied"] = applied
+    start, end = trace["minute"], getattr(station, "minute", None)
+    expected = end - start if start is not None and end is not None else None
+    retained = applied["minutes"]
+    contiguous = all(a.end == b.minute for a, b in zip(results, results[1:]))
+    aligned = not results or expected is None or (results[0].minute == start and results[-1].end == end)
+    incomplete = (
+        bool(dropped_minutes) or not contiguous or not aligned or (expected is not None and expected != retained)
+    )
+    applied["coverage"] = {
+        "status": "incomplete" if incomplete else "complete" if retained else "no_samples",
+        "expected_from_minute": start,
+        "expected_to_minute": end,
+        "expected_minutes": expected,
+        "retained_minutes": retained,
+        "dropped_minutes": dropped_minutes,
+        "dropped_hard_violations": dropped_violations,
+    }
     _record_power_samples(trace, samples, applied)
-    status = "violation" if applied["hard_violations"] else "pass" if trace["power"]["actual_output"] else "no_samples"
+    violation = bool(applied["hard_violations"] or dropped_violations)
+    if violation:
+        status = "violation"
+    elif incomplete:
+        status = "incomplete"
+    else:
+        status = "pass" if trace["power"]["actual_output"] else "no_samples"
     trace["validation"]["post_apply"] = status
     additional_subjects = set(applied["output_kwh"]) | set(applied["completed"])
     additional_subjects.update(vid for detail in applied["hard_violation_details"] for vid in detail["vehicle_ids"])
     trace["booking_ids"] = sorted(set(trace["booking_ids"]) | additional_subjects)
     if approved is not None:
-        trace["decision"] = station.decision_facts(approved, results, labels=holder["labels"], post_apply=status)
-        _mark_unbounded_grid(trace["decision"]["physical_limits"])
+        try:
+            facts = station.decision_facts(approved, results, labels=holder["labels"], post_apply=status)
+            _mark_unbounded_grid(facts["physical_limits"])
+            json.dumps(facts, allow_nan=False)
+            trace["decision"] = facts
+        except Exception as exc:
+            _log_build_failure(trace["correlation_id"], "decision_facts", exc)
+            trace["validation"]["decision_facts"] = "unavailable"
     codes = trace["reason_codes"]
     for flag, code in (
-        (applied["hard_violations"], ReasonCode.VIOLATION_AFTER_APPLY),
+        (violation, ReasonCode.VIOLATION_AFTER_APPLY),
         (applied["budget_deviation_kw"], ReasonCode.BUDGET_DEVIATION),
         (applied["command_deadband_kw"], ReasonCode.COMMAND_DEADBAND),
         (applied["completed"], ReasonCode.CHARGE_COMPLETED),
@@ -319,6 +353,38 @@ def close_open(rt) -> dict | None:
     _set_evidence_refs(trace)
     rt.store.save_trace(trace, True)
     return trace
+
+
+def _log_build_failure(correlation_id: str | None, stage: str, exc: Exception) -> None:
+    logger.error(
+        "decision_trace_build_failed correlation_id=%s stage=%s error_type=%s",
+        correlation_id,
+        stage,
+        type(exc).__name__,
+    )
+
+
+def open_trace_safely(rt, **kwargs) -> None:
+    try:
+        open_trace(rt, **kwargs)
+    except Exception as exc:
+        rt.open_trace = None
+        _log_build_failure(kwargs["correlation_id"], "open", exc)
+
+
+def close_open_safely(rt) -> None:
+    holder = rt.open_trace
+    try:
+        close_open(rt)
+    except Exception as exc:
+        rt.open_trace = None
+        _log_build_failure(holder["trace"]["correlation_id"] if holder else None, "close", exc)
+        drain = getattr(rt.simulator, "drain_decision_evidence", None)
+        if drain is not None:
+            try:
+                drain()
+            except Exception as drain_exc:
+                _log_build_failure(None, "discard", drain_exc)
 
 
 def summary(trace: dict) -> DecisionTraceSummary:
@@ -343,7 +409,10 @@ def summary(trace: dict) -> DecisionTraceSummary:
         load_reduction_priority=sum(1 for c in commands if c["note"].startswith(SAFETY_REDUCTION_NOTE)),
         budget_deviation_kw_max=max((applied.get("budget_deviation_kw") or {}).values(), default=0.0),
         command_deadband_kw_max=max((applied.get("command_deadband_kw") or {}).values(), default=0.0),
-        hard_violations=len(applied.get("hard_violations") or []),
+        hard_violations=(
+            len(applied.get("hard_violations") or [])
+            + (applied.get("coverage") or {}).get("dropped_hard_violations", 0)
+        ),
         closed=trace["closed"],
         artifact=trace.get("artifact"),
     )

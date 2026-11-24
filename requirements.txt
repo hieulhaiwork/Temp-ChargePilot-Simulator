@@ -1,0 +1,21 @@
+# Môi trường PHÁT TRIỂN + CI: `pip install -r requirements.txt` (lệnh không đổi so với trước).
+# = dependency lúc chạy (requirements-runtime.txt — file image Docker cài) + công cụ dev/test.
+# Thêm dependency lúc chạy thì sửa requirements-runtime.txt, không sửa ở đây.
+-r requirements-runtime.txt
+# Sau file này còn một bước: `pip install --no-deps ev2gym==2.0.0` (hoặc `make install` làm cả hai) — lý do ở
+# requirements-runtime.txt, khối "Duyệt 2026-11-23".
+
+# Dev tools
+ruff>=0.8.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+httpx>=0.28.0
+
+# Database (đã chuyển sang requirements-runtime.txt: sqlalchemy, alembic, psycopg)
+
+# Vector Store (uncomment as needed)
+# chromadb>=0.5.0
+
+# ---- ChargePilot — chỉ cần lúc TRAIN / phân tích, không vào image deploy ----
+# pandas>=2.2       # T1.3 — đọc dữ liệu Na Uy / ACN, EDA
+# jupyter           # T1.3 — notebooks/

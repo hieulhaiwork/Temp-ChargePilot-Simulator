@@ -1,0 +1,1091 @@
+cwd=/tmp/chargepilot-g1-remediation.k35JxW/before
+$ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 TZ=UTC timeout 90s python -m pytest tests/test_services/test_safety_event_delivery.py -q -k remediation
+FFFFFFFFFFFFFFFFFFF.                                                     [100%]
+=================================== FAILURES ===================================
+__________ test_remediation_hard_event_survives_failure_window[trace] __________
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77407261e870>
+window = 'trace'
+
+    @pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
+    async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        event = StationEvent(
+            type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
+            occurred_at=rt.clock(),
+            new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
+        )
+    
+        def fail(*_):
+            raise RuntimeError("synthetic failure window")
+    
+        async def fail_async(*_):
+            if window == "cancel":
+                raise asyncio.CancelledError()
+            fail()
+    
+        from src.services import decision_trace
+    
+        with monkeypatch.context() as patch:
+            if window == "trace":
+                patch.setattr(decision_trace, "close_open", fail)
+            elif window == "record":
+                patch.setattr(rt.store, "record_event", fail)
+            elif window == "power_emergency":
+                patch.setattr(control_loop, "_emergency", fail_async)
+            else:
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
+            try:
+                await control_loop.on_event(event, rt)
+            except (RuntimeError, asyncio.CancelledError):
+                pass
+    
+>       assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
+E       assert ([] or False)
+E        +  where [] = _emergency_decisions()
+E        +  and   False = any(<generator object test_remediation_hard_event_survives_failure_window.<locals>.<genexpr> at 0x7740722d7c60>)
+
+tests/test_services/test_safety_event_delivery.py:580: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+_________ test_remediation_hard_event_survives_failure_window[record] __________
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x774072639d90>
+window = 'record'
+
+    @pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
+    async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        event = StationEvent(
+            type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
+            occurred_at=rt.clock(),
+            new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
+        )
+    
+        def fail(*_):
+            raise RuntimeError("synthetic failure window")
+    
+        async def fail_async(*_):
+            if window == "cancel":
+                raise asyncio.CancelledError()
+            fail()
+    
+        from src.services import decision_trace
+    
+        with monkeypatch.context() as patch:
+            if window == "trace":
+                patch.setattr(decision_trace, "close_open", fail)
+            elif window == "record":
+                patch.setattr(rt.store, "record_event", fail)
+            elif window == "power_emergency":
+                patch.setattr(control_loop, "_emergency", fail_async)
+            else:
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
+            try:
+                await control_loop.on_event(event, rt)
+            except (RuntimeError, asyncio.CancelledError):
+                pass
+    
+>       assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
+E       assert ([] or False)
+E        +  where [] = _emergency_decisions()
+E        +  and   False = any(<generator object test_remediation_hard_event_survives_failure_window.<locals>.<genexpr> at 0x774072633920>)
+
+tests/test_services/test_safety_event_delivery.py:580: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+_________ test_remediation_hard_event_survives_failure_window[notify] __________
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7740728076b0>
+window = 'notify'
+
+    @pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
+    async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        event = StationEvent(
+            type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
+            occurred_at=rt.clock(),
+            new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
+        )
+    
+        def fail(*_):
+            raise RuntimeError("synthetic failure window")
+    
+        async def fail_async(*_):
+            if window == "cancel":
+                raise asyncio.CancelledError()
+            fail()
+    
+        from src.services import decision_trace
+    
+        with monkeypatch.context() as patch:
+            if window == "trace":
+                patch.setattr(decision_trace, "close_open", fail)
+            elif window == "record":
+                patch.setattr(rt.store, "record_event", fail)
+            elif window == "power_emergency":
+                patch.setattr(control_loop, "_emergency", fail_async)
+            else:
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
+            try:
+                await control_loop.on_event(event, rt)
+            except (RuntimeError, asyncio.CancelledError):
+                pass
+    
+>       assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
+E       assert ([] or False)
+E        +  where [] = _emergency_decisions()
+E        +  and   False = any(<generator object test_remediation_hard_event_survives_failure_window.<locals>.<genexpr> at 0x7740701d3440>)
+
+tests/test_services/test_safety_event_delivery.py:580: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+_________ test_remediation_hard_event_survives_failure_window[cancel] __________
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7740702923f0>
+window = 'cancel'
+
+    @pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
+    async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        event = StationEvent(
+            type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
+            occurred_at=rt.clock(),
+            new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
+        )
+    
+        def fail(*_):
+            raise RuntimeError("synthetic failure window")
+    
+        async def fail_async(*_):
+            if window == "cancel":
+                raise asyncio.CancelledError()
+            fail()
+    
+        from src.services import decision_trace
+    
+        with monkeypatch.context() as patch:
+            if window == "trace":
+                patch.setattr(decision_trace, "close_open", fail)
+            elif window == "record":
+                patch.setattr(rt.store, "record_event", fail)
+            elif window == "power_emergency":
+                patch.setattr(control_loop, "_emergency", fail_async)
+            else:
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
+            try:
+                await control_loop.on_event(event, rt)
+            except (RuntimeError, asyncio.CancelledError):
+                pass
+    
+>       assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
+E       assert ([] or False)
+E        +  where [] = _emergency_decisions()
+E        +  and   False = any(<generator object test_remediation_hard_event_survives_failure_window.<locals>.<genexpr> at 0x7740702a6400>)
+
+tests/test_services/test_safety_event_delivery.py:580: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+_____ test_remediation_hard_event_survives_failure_window[power_emergency] _____
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x774070188c50>
+window = 'power_emergency'
+
+    @pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
+    async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        event = StationEvent(
+            type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
+            occurred_at=rt.clock(),
+            new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
+        )
+    
+        def fail(*_):
+            raise RuntimeError("synthetic failure window")
+    
+        async def fail_async(*_):
+            if window == "cancel":
+                raise asyncio.CancelledError()
+            fail()
+    
+        from src.services import decision_trace
+    
+        with monkeypatch.context() as patch:
+            if window == "trace":
+                patch.setattr(decision_trace, "close_open", fail)
+            elif window == "record":
+                patch.setattr(rt.store, "record_event", fail)
+            elif window == "power_emergency":
+                patch.setattr(control_loop, "_emergency", fail_async)
+            else:
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
+            try:
+                await control_loop.on_event(event, rt)
+            except (RuntimeError, asyncio.CancelledError):
+                pass
+    
+>       assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
+E       assert ([] or False)
+E        +  where [] = _emergency_decisions()
+E        +  and   False = any(<generator object test_remediation_hard_event_survives_failure_window.<locals>.<genexpr> at 0x774070167b90>)
+
+tests/test_services/test_safety_event_delivery.py:580: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+____ test_remediation_mixed_batch_keeps_hard_event_on_power_handler_failure ____
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77407016f020>
+
+    async def test_remediation_mixed_batch_keeps_hard_event_on_power_handler_failure(live, monkeypatch):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        rt.simulator.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+        power = StationEvent(type=EventType.POWER_LIMIT_CHANGED, occurred_at=rt.clock(), new_power_limit_kw=SILENT_LIMIT_KW)
+        rt.queue_events([power])
+    
+        async def fail(*_):
+            raise RuntimeError("synthetic power handling failure")
+    
+        with monkeypatch.context() as patch:
+            patch.setattr(control_loop, "_emergency", fail)
+            await control_loop.deliver_pending(rt)
+>       assert _emergency_decisions() or hard in rt.outbox
+E       AssertionError: assert ([] or StationEvent(event_id='79186be5380546459be57fcd5d9e17c3', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) in deque([]))
+E        +  where [] = _emergency_decisions()
+E        +  and   deque([]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:603: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.services.control_loop] control_loop.deliver_pending: lỗi khi giao 2 sự kiện trạm
+Traceback (most recent call last):
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 371, in deliver_pending
+    await _on_event_locked(event, rt, ())
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 100, in _on_event_locked
+    emergency_entries += await _emergency(rt, event.new_power_limit_kw, correlation_id)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 598, in fail
+    raise RuntimeError("synthetic power handling failure")
+RuntimeError: synthetic power handling failure
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.services.control_loop:control_loop.py:375 control_loop.deliver_pending: lỗi khi giao 2 sự kiện trạm
+Traceback (most recent call last):
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 371, in deliver_pending
+    await _on_event_locked(event, rt, ())
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 100, in _on_event_locked
+    emergency_entries += await _emergency(rt, event.new_power_limit_kw, correlation_id)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 598, in fail
+    raise RuntimeError("synthetic power handling failure")
+RuntimeError: synthetic power handling failure
+______ test_remediation_ordinary_outbox_overflow_cannot_evict_hard_event _______
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+
+    async def test_remediation_ordinary_outbox_overflow_cannot_evict_hard_event(live):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        rt.simulator.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+        rt.queue_events([StationEvent(type=EventType.TICK, occurred_at=rt.clock()) for _ in range(runtime.OUTBOX_MAX + 1)])
+>       assert hard in rt.outbox
+E       AssertionError: assert StationEvent(event_id='81acf2a5f8654a76aa31e145149d43ea', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) in deque([StationEvent(event_id='ba87139555094f429dfbbf87114bf052', type=<EventType.TICK: 'tick'>, occurred_at=datetime.d...ctor_id=None, booking_id=None, new_power_limit_kw=None, detail='', violation_kinds=[], violation_booking_ids=[]), ...])
+E        +  where deque([StationEvent(event_id='ba87139555094f429dfbbf87114bf052', type=<EventType.TICK: 'tick'>, occurred_at=datetime.d...ctor_id=None, booking_id=None, new_power_limit_kw=None, detail='', violation_kinds=[], violation_booking_ids=[]), ...]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:617: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+___ test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[blocked] ____
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7740701ae6c0>
+response = 'blocked'
+
+    @pytest.mark.parametrize("response", ["blocked", "partial", "pending", "no_commands"])
+    async def test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge(live, monkeypatch, response):
+        from src.guard import dispatcher
+        from src.models.control import DecisionLogEntry, GuardRule, GuardVerdict, Violation
+    
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+        minute = sim.minute
+        original = dispatcher.submit
+        attempts = 0
+    
+        async def submit(commands, ctx, actuator, sinks, **kwargs):
+            nonlocal attempts
+            if not commands or commands[0].source != CommandSource.EMERGENCY:
+                return await original(commands, ctx, actuator, sinks, **kwargs)
+            attempts += 1
+            applied = await original(commands[:1], ctx, actuator, sinks, **kwargs) if response == "partial" else []
+            remaining = commands[1:] if response == "partial" else commands
+            return [
+                *applied,
+                *[
+                    DecisionLogEntry(
+                        timestamp=ctx.now,
+                        command=cmd,
+                        verdict=GuardVerdict(
+                            command_id=cmd.command_id,
+                            checked_at=ctx.now,
+                            passed=response == "pending",
+                            violations=[]
+                            if response == "pending"
+                            else [Violation(rule=GuardRule.PERMISSION, detail="synthetic block")],
+                        ),
+                        approval_id="synthetic-pending" if response == "pending" else None,
+                        executed=False,
+                    )
+                    for cmd in remaining
+                ],
+            ]
+    
+        with monkeypatch.context() as patch:
+            if response == "no_commands":
+                patch.setattr(emergency, "curtail_to_hard_limits", lambda *_: [])
+            else:
+                patch.setattr(dispatcher, "submit", submit)
+            for _ in range(5):
+                await control_loop.deliver_pending(rt)
+>               assert hard in rt.outbox
+E               AssertionError: assert StationEvent(event_id='b3f7989339a84bf8bf14e400b0396cd5', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) in deque([])
+E                +  where deque([]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:671: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=0f91233ee57145b6b348e49e19f0a58a)
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=0f91233ee57145b6b348e49e19f0a58a)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=0f91233ee57145b6b348e49e19f0a58a)
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=0f91233ee57145b6b348e49e19f0a58a)
+___ test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[partial] ____
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77407412f350>
+response = 'partial'
+
+    @pytest.mark.parametrize("response", ["blocked", "partial", "pending", "no_commands"])
+    async def test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge(live, monkeypatch, response):
+        from src.guard import dispatcher
+        from src.models.control import DecisionLogEntry, GuardRule, GuardVerdict, Violation
+    
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+        minute = sim.minute
+        original = dispatcher.submit
+        attempts = 0
+    
+        async def submit(commands, ctx, actuator, sinks, **kwargs):
+            nonlocal attempts
+            if not commands or commands[0].source != CommandSource.EMERGENCY:
+                return await original(commands, ctx, actuator, sinks, **kwargs)
+            attempts += 1
+            applied = await original(commands[:1], ctx, actuator, sinks, **kwargs) if response == "partial" else []
+            remaining = commands[1:] if response == "partial" else commands
+            return [
+                *applied,
+                *[
+                    DecisionLogEntry(
+                        timestamp=ctx.now,
+                        command=cmd,
+                        verdict=GuardVerdict(
+                            command_id=cmd.command_id,
+                            checked_at=ctx.now,
+                            passed=response == "pending",
+                            violations=[]
+                            if response == "pending"
+                            else [Violation(rule=GuardRule.PERMISSION, detail="synthetic block")],
+                        ),
+                        approval_id="synthetic-pending" if response == "pending" else None,
+                        executed=False,
+                    )
+                    for cmd in remaining
+                ],
+            ]
+    
+        with monkeypatch.context() as patch:
+            if response == "no_commands":
+                patch.setattr(emergency, "curtail_to_hard_limits", lambda *_: [])
+            else:
+                patch.setattr(dispatcher, "submit", submit)
+            for _ in range(5):
+                await control_loop.deliver_pending(rt)
+>               assert hard in rt.outbox
+E               AssertionError: assert StationEvent(event_id='05f347731ba744fe8fb008f3ca91692a', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) in deque([])
+E                +  where deque([]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:671: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=becaef198bbf47e59ca9c29899893f22)
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=becaef198bbf47e59ca9c29899893f22)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=becaef198bbf47e59ca9c29899893f22)
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=becaef198bbf47e59ca9c29899893f22)
+___ test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[pending] ____
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7740722ee900>
+response = 'pending'
+
+    @pytest.mark.parametrize("response", ["blocked", "partial", "pending", "no_commands"])
+    async def test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge(live, monkeypatch, response):
+        from src.guard import dispatcher
+        from src.models.control import DecisionLogEntry, GuardRule, GuardVerdict, Violation
+    
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+        minute = sim.minute
+        original = dispatcher.submit
+        attempts = 0
+    
+        async def submit(commands, ctx, actuator, sinks, **kwargs):
+            nonlocal attempts
+            if not commands or commands[0].source != CommandSource.EMERGENCY:
+                return await original(commands, ctx, actuator, sinks, **kwargs)
+            attempts += 1
+            applied = await original(commands[:1], ctx, actuator, sinks, **kwargs) if response == "partial" else []
+            remaining = commands[1:] if response == "partial" else commands
+            return [
+                *applied,
+                *[
+                    DecisionLogEntry(
+                        timestamp=ctx.now,
+                        command=cmd,
+                        verdict=GuardVerdict(
+                            command_id=cmd.command_id,
+                            checked_at=ctx.now,
+                            passed=response == "pending",
+                            violations=[]
+                            if response == "pending"
+                            else [Violation(rule=GuardRule.PERMISSION, detail="synthetic block")],
+                        ),
+                        approval_id="synthetic-pending" if response == "pending" else None,
+                        executed=False,
+                    )
+                    for cmd in remaining
+                ],
+            ]
+    
+        with monkeypatch.context() as patch:
+            if response == "no_commands":
+                patch.setattr(emergency, "curtail_to_hard_limits", lambda *_: [])
+            else:
+                patch.setattr(dispatcher, "submit", submit)
+            for _ in range(5):
+                await control_loop.deliver_pending(rt)
+>               assert hard in rt.outbox
+E               AssertionError: assert StationEvent(event_id='f86ecef9c88e4ae7879a75f4b6ddfd73', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) in deque([])
+E                +  where deque([]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:671: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=bf261c5d29ee4d8f8ef60ea60a32f1fb)
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=bf261c5d29ee4d8f8ef60ea60a32f1fb)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=bf261c5d29ee4d8f8ef60ea60a32f1fb)
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=bf261c5d29ee4d8f8ef60ea60a32f1fb)
+_ test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[no_commands] __
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77407010fb30>
+response = 'no_commands'
+
+    @pytest.mark.parametrize("response", ["blocked", "partial", "pending", "no_commands"])
+    async def test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge(live, monkeypatch, response):
+        from src.guard import dispatcher
+        from src.models.control import DecisionLogEntry, GuardRule, GuardVerdict, Violation
+    
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        sim = rt.simulator
+        sim.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+        minute = sim.minute
+        original = dispatcher.submit
+        attempts = 0
+    
+        async def submit(commands, ctx, actuator, sinks, **kwargs):
+            nonlocal attempts
+            if not commands or commands[0].source != CommandSource.EMERGENCY:
+                return await original(commands, ctx, actuator, sinks, **kwargs)
+            attempts += 1
+            applied = await original(commands[:1], ctx, actuator, sinks, **kwargs) if response == "partial" else []
+            remaining = commands[1:] if response == "partial" else commands
+            return [
+                *applied,
+                *[
+                    DecisionLogEntry(
+                        timestamp=ctx.now,
+                        command=cmd,
+                        verdict=GuardVerdict(
+                            command_id=cmd.command_id,
+                            checked_at=ctx.now,
+                            passed=response == "pending",
+                            violations=[]
+                            if response == "pending"
+                            else [Violation(rule=GuardRule.PERMISSION, detail="synthetic block")],
+                        ),
+                        approval_id="synthetic-pending" if response == "pending" else None,
+                        executed=False,
+                    )
+                    for cmd in remaining
+                ],
+            ]
+    
+        with monkeypatch.context() as patch:
+            if response == "no_commands":
+                patch.setattr(emergency, "curtail_to_hard_limits", lambda *_: [])
+            else:
+                patch.setattr(dispatcher, "submit", submit)
+            for _ in range(5):
+                await control_loop.deliver_pending(rt)
+>               assert hard in rt.outbox
+E               AssertionError: assert StationEvent(event_id='bff111b3bcf7466486a111eed5b37301', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) in deque([])
+E                +  where deque([]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:671: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 0 lệnh an toàn (correlation_id=f7f5ac66f17548cb96613efb54cc1541)
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.simulator.core.kernel] minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 0 lệnh an toàn (correlation_id=f7f5ac66f17548cb96613efb54cc1541)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 0 lệnh an toàn (correlation_id=f7f5ac66f17548cb96613efb54cc1541)
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=2 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=3 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 0 lệnh an toàn (correlation_id=f7f5ac66f17548cb96613efb54cc1541)
+_____ test_remediation_rechecks_safety_when_sink_fails_after_apply[audit] ______
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x774061eba1b0>
+sink = 'audit'
+
+    @pytest.mark.parametrize("sink", ["audit", "notification"])
+    async def test_remediation_rechecks_safety_when_sink_fails_after_apply(live, monkeypatch, sink):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        rt.simulator.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+    
+        def fail(*_):
+            raise RuntimeError("synthetic post-apply sink failure")
+    
+        async def fail_async(*_):
+            fail()
+    
+        changes = {"log_decision": fail} if sink == "audit" else {"add_notification": fail}
+        with monkeypatch.context() as patch:
+            if sink == "audit":
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, **changes))
+            else:
+                patch.setattr(control_loop, "_notify_curtailed", fail_async)
+            await control_loop.deliver_pending(rt)
+>       assert hard not in rt.outbox
+E       AssertionError: assert StationEvent(event_id='506b68c85bff4613827077f88a9d49d9', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) not in deque([StationEvent(event_id='506b68c85bff4613827077f88a9d49d9', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_viol...te grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[])])
+E        +  where deque([StationEvent(event_id='506b68c85bff4613827077f88a9d49d9', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_viol...te grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[])]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:703: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=968bd8726f4d4a8f86d7e232ef769d2b)
+ERROR [src.services.control_loop] control_loop.deliver_pending: lỗi khi giao 1 sự kiện trạm
+Traceback (most recent call last):
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 373, in deliver_pending
+    return await _on_event_locked(rest[-1], rt, rest[:-1]) if rest else rt.plan
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 88, in _on_event_locked
+    failsafe_entries = await _deliver_safety(rt, violated, correlation_id)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 395, in _deliver_safety
+    entries = await _failsafe(rt, events, correlation_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 453, in _failsafe
+    entries = await dispatcher.submit(commands, ctx, rt.simulator, rt.sinks)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/guard/dispatcher.py", line 130, in submit
+    sinks.log_decision(entry)
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 691, in fail
+    raise RuntimeError("synthetic post-apply sink failure")
+RuntimeError: synthetic post-apply sink failure
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=968bd8726f4d4a8f86d7e232ef769d2b)
+ERROR    src.services.control_loop:control_loop.py:375 control_loop.deliver_pending: lỗi khi giao 1 sự kiện trạm
+Traceback (most recent call last):
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 373, in deliver_pending
+    return await _on_event_locked(rest[-1], rt, rest[:-1]) if rest else rt.plan
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 88, in _on_event_locked
+    failsafe_entries = await _deliver_safety(rt, violated, correlation_id)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 395, in _deliver_safety
+    entries = await _failsafe(rt, events, correlation_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 453, in _failsafe
+    entries = await dispatcher.submit(commands, ctx, rt.simulator, rt.sinks)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/guard/dispatcher.py", line 130, in submit
+    sinks.log_decision(entry)
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 691, in fail
+    raise RuntimeError("synthetic post-apply sink failure")
+RuntimeError: synthetic post-apply sink failure
+__ test_remediation_rechecks_safety_when_sink_fails_after_apply[notification] __
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x774061ebb0e0>
+sink = 'notification'
+
+    @pytest.mark.parametrize("sink", ["audit", "notification"])
+    async def test_remediation_rechecks_safety_when_sink_fails_after_apply(live, monkeypatch, sink):
+        rt, clock = live
+        await _charging_live(rt)
+        rt.deliver = None
+        rt.simulator.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+        (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
+    
+        def fail(*_):
+            raise RuntimeError("synthetic post-apply sink failure")
+    
+        async def fail_async(*_):
+            fail()
+    
+        changes = {"log_decision": fail} if sink == "audit" else {"add_notification": fail}
+        with monkeypatch.context() as patch:
+            if sink == "audit":
+                patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, **changes))
+            else:
+                patch.setattr(control_loop, "_notify_curtailed", fail_async)
+            await control_loop.deliver_pending(rt)
+>       assert hard not in rt.outbox
+E       AssertionError: assert StationEvent(event_id='f7aa4be0a5b94d8295b472e13b5f815e', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_violated'>,...site grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[]) not in deque([StationEvent(event_id='f7aa4be0a5b94d8295b472e13b5f815e', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_viol...te grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[])])
+E        +  where deque([StationEvent(event_id='f7aa4be0a5b94d8295b472e13b5f815e', type=<EventType.HARD_LIMIT_VIOLATED: 'hard_limit_viol...te grid input limit', violation_kinds=[<ViolationKind.AGGREGATE_POWER: 'aggregate_power'>], violation_booking_ids=[])]) = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=True closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set()).outbox
+
+tests/test_services/test_safety_event_delivery.py:703: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=13348568e3304f93a29ab5f0706b1062)
+ERROR [src.services.control_loop] control_loop.deliver_pending: lỗi khi giao 1 sự kiện trạm
+Traceback (most recent call last):
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 373, in deliver_pending
+    return await _on_event_locked(rest[-1], rt, rest[:-1]) if rest else rt.plan
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 88, in _on_event_locked
+    failsafe_entries = await _deliver_safety(rt, violated, correlation_id)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 395, in _deliver_safety
+    entries = await _failsafe(rt, events, correlation_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 454, in _failsafe
+    await _notify_curtailed(rt, entries, "Đã giảm công suất sạc để trạm về trong giới hạn an toàn")
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 694, in fail_async
+    fail()
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 691, in fail
+    raise RuntimeError("synthetic post-apply sink failure")
+RuntimeError: synthetic post-apply sink failure
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=13348568e3304f93a29ab5f0706b1062)
+ERROR    src.services.control_loop:control_loop.py:375 control_loop.deliver_pending: lỗi khi giao 1 sự kiện trạm
+Traceback (most recent call last):
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 373, in deliver_pending
+    return await _on_event_locked(rest[-1], rt, rest[:-1]) if rest else rt.plan
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 88, in _on_event_locked
+    failsafe_entries = await _deliver_safety(rt, violated, correlation_id)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 395, in _deliver_safety
+    entries = await _failsafe(rt, events, correlation_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/src/services/control_loop.py", line 454, in _failsafe
+    await _notify_curtailed(rt, entries, "Đã giảm công suất sạc để trạm về trong giới hạn an toàn")
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 694, in fail_async
+    fail()
+  File "/tmp/chargepilot-g1-remediation.k35JxW/before/tests/test_services/test_safety_event_delivery.py", line 691, in fail
+    raise RuntimeError("synthetic post-apply sink failure")
+RuntimeError: synthetic post-apply sink failure
+___ test_remediation_held_booking_cannot_use_older_power_approval[set_power] ___
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...'dc-a'}), {'now': datetime.datetime(2026, 11, 23, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+operation = 'set_power'
+
+    @pytest.mark.parametrize("operation", ["set_power", "assign_connector"])
+    async def test_remediation_held_booking_cannot_use_older_power_approval(live, operation):
+        from src.models.control import Approval, ApprovalKind, Command, GuardVerdict
+    
+        rt, _ = live
+        await _charging_live(rt)
+        sim = rt.simulator
+        connector = next(c for c in sim.state().connectors if c.booking_id == "dc-a")
+        command = Command(
+            type=CommandType(operation),
+            connector_id=connector.connector_id,
+            power_kw=40 if operation == "set_power" else None,
+            booking_id="dc-a",
+            source=CommandSource.AGENT,
+            issued_by="synthetic",
+            based_on_schedule_version=rt.plan.version,
+            based_on_state_at=rt.clock(),
+            created_at=rt.clock(),
+        )
+        approval = Approval(
+            kind=ApprovalKind.OPERATOR_REVIEW,
+            command=command,
+            verdict=GuardVerdict(command_id=command.command_id, passed=True, checked_at=rt.clock()),
+            requested_from="operator",
+            impact_summary="synthetic approval",
+            created_at=rt.clock(),
+        )
+        repository.save_approval(approval)
+        await _trip_charging_model(rt)
+        assert "dc-a" in rt.safety_hold_booking_ids
+        if operation == "assign_connector":
+            from src.models.simulation import Incident, IncidentType
+    
+            sim.inject_incident(Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=connector.connector_id))
+            sim.inject_incident(Incident(type=IncidentType.CONNECTOR_RESTORED, connector_id=connector.connector_id))
+            assert "dc-a" in sim.state().queue
+        await control_loop.resolve_approval(approval.approval_id, "approve", "operator", rt, Role.OPERATOR)
+        decisions = [d for d in repository.list_decisions() if d.approval_id == approval.approval_id]
+>       assert len(decisions) == 1 and not decisions[0].executed
+E       AssertionError: assert (1 == 1 and not True)
+E        +  where 1 = len([DecisionLogEntry(entry_id='73acdde67b424105a667555850136151', timestamp=datetime.datetime(2026, 11, 23, 18, 0, tzinfo...zinfo=TzInfo(25200))), approval_id='0b19626600c74498bd9b254949e5de6a', approved_by='operator', executed=True, note='')])
+E        +  and   True = DecisionLogEntry(entry_id='73acdde67b424105a667555850136151', timestamp=datetime.datetime(2026, 11, 23, 18, 0, tzinfo=...tzinfo=TzInfo(25200))), approval_id='0b19626600c74498bd9b254949e5de6a', approved_by='operator', executed=True, note='').executed
+
+tests/test_services/test_safety_event_delivery.py:746: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=b88044f10cda4f2a80853a1d81d8b219)
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=b88044f10cda4f2a80853a1d81d8b219)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR    src.services.control_loop:control_loop.py:434 fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=b88044f10cda4f2a80853a1d81d8b219)
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=b88044f10cda4f2a80853a1d81d8b219)
+_ test_remediation_held_booking_cannot_use_older_power_approval[assign_connector] _
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...'dc-a'}), {'now': datetime.datetime(2026, 11, 23, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+operation = 'assign_connector'
+
+    @pytest.mark.parametrize("operation", ["set_power", "assign_connector"])
+    async def test_remediation_held_booking_cannot_use_older_power_approval(live, operation):
+        from src.models.control import Approval, ApprovalKind, Command, GuardVerdict
+    
+        rt, _ = live
+        await _charging_live(rt)
+        sim = rt.simulator
+        connector = next(c for c in sim.state().connectors if c.booking_id == "dc-a")
+        command = Command(
+            type=CommandType(operation),
+            connector_id=connector.connector_id,
+            power_kw=40 if operation == "set_power" else None,
+            booking_id="dc-a",
+            source=CommandSource.AGENT,
+            issued_by="synthetic",
+            based_on_schedule_version=rt.plan.version,
+            based_on_state_at=rt.clock(),
+            created_at=rt.clock(),
+        )
+        approval = Approval(
+            kind=ApprovalKind.OPERATOR_REVIEW,
+            command=command,
+            verdict=GuardVerdict(command_id=command.command_id, passed=True, checked_at=rt.clock()),
+            requested_from="operator",
+            impact_summary="synthetic approval",
+            created_at=rt.clock(),
+        )
+        repository.save_approval(approval)
+        await _trip_charging_model(rt)
+        assert "dc-a" in rt.safety_hold_booking_ids
+        if operation == "assign_connector":
+            from src.models.simulation import Incident, IncidentType
+    
+            sim.inject_incident(Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=connector.connector_id))
+            sim.inject_incident(Incident(type=IncidentType.CONNECTOR_RESTORED, connector_id=connector.connector_id))
+            assert "dc-a" in sim.state().queue
+        await control_loop.resolve_approval(approval.approval_id, "approve", "operator", rt, Role.OPERATOR)
+        decisions = [d for d in repository.list_decisions() if d.approval_id == approval.approval_id]
+>       assert len(decisions) == 1 and not decisions[0].executed
+E       AssertionError: assert (1 == 1 and not True)
+E        +  where 1 = len([DecisionLogEntry(entry_id='e43257d639d848be995439cf5c07d59e', timestamp=datetime.datetime(2026, 11, 23, 18, 0, tzinfo...zinfo=TzInfo(25200))), approval_id='ea515b59ffac40cebee57f9611da118c', approved_by='operator', executed=True, note='')])
+E        +  and   True = DecisionLogEntry(entry_id='e43257d639d848be995439cf5c07d59e', timestamp=datetime.datetime(2026, 11, 23, 18, 0, tzinfo=...tzinfo=TzInfo(25200))), approval_id='ea515b59ffac40cebee57f9611da118c', approved_by='operator', executed=True, note='').executed
+
+tests/test_services/test_safety_event_delivery.py:746: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=10d7a449077d4880aaeaa72ed777f1e5)
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=10d7a449077d4880aaeaa72ed777f1e5)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Invalid battery response for dc-a
+ERROR    src.services.control_loop:control_loop.py:434 fail-safe sau khi áp: lỗi charging_model của xe dc-a — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=10d7a449077d4880aaeaa72ed777f1e5)
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (charging_model): Invalid battery response for dc-a — 1 lệnh an toàn (correlation_id=10d7a449077d4880aaeaa72ed777f1e5)
+____ test_remediation_sample_eviction_does_not_report_complete_pass[False] _____
+
+has_violation = False
+
+    @pytest.mark.parametrize("has_violation", [False, True])
+    async def test_remediation_sample_eviction_does_not_report_complete_pass(has_violation):
+        from collections import deque
+    
+        from src.services import decision_trace
+    
+        rt = await _sim_runtime(failsafe=True)
+        sim = rt.simulator
+        sim._applied = deque(maxlen=1)
+        if has_violation:
+            sim.available_power_kw = SILENT_LIMIT_KW
+        sim.step(1)
+        sim.available_power_kw = rt.config.grid_input_limit_kw
+        sim.step(1)
+        trace = decision_trace.close_open(rt)
+>       assert trace["applied"]["coverage"]["dropped_minutes"] == 1
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'coverage'
+
+tests/test_services/test_safety_event_delivery.py:765: KeyError
+_____ test_remediation_sample_eviction_does_not_report_complete_pass[True] _____
+
+has_violation = True
+
+    @pytest.mark.parametrize("has_violation", [False, True])
+    async def test_remediation_sample_eviction_does_not_report_complete_pass(has_violation):
+        from collections import deque
+    
+        from src.services import decision_trace
+    
+        rt = await _sim_runtime(failsafe=True)
+        sim = rt.simulator
+        sim._applied = deque(maxlen=1)
+        if has_violation:
+            sim.available_power_kw = SILENT_LIMIT_KW
+        sim.step(1)
+        sim.available_power_kw = rt.config.grid_input_limit_kw
+        sim.step(1)
+        trace = decision_trace.close_open(rt)
+>       assert trace["applied"]["coverage"]["dropped_minutes"] == 1
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'coverage'
+
+tests/test_services/test_safety_event_delivery.py:765: KeyError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=1 physical constraint violated after apply: Allocation exceeds site grid input limit
+_ test_remediation_trace_construction_failure_keeps_failsafe_and_violation[construction] _
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7740615b8830>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x7740615bbf80>
+failure = 'construction'
+
+    @pytest.mark.parametrize("failure", ["construction", "serialization"])
+    async def test_remediation_trace_construction_failure_keeps_failsafe_and_violation(live, monkeypatch, caplog, failure):
+        from src.services import decision_trace
+    
+        rt, clock = live
+        await _charging_live(rt)
+        cid = rt.open_trace["trace"]["correlation_id"]
+        rt.simulator.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+    
+        original = rt.simulator.decision_facts
+    
+        def fail(*args, **kwargs):
+            if failure == "construction":
+                raise ValueError("synthetic evidence construction failure")
+            return {**original(*args, **kwargs), "invalid": float("nan")}
+    
+        monkeypatch.setattr(rt.simulator, "decision_facts", fail)
+>       await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+
+tests/test_services/test_safety_event_delivery.py:788: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/services/control_loop.py:74: in on_event
+    return await _on_event_locked(event, rt, batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/services/control_loop.py:95: in _on_event_locked
+    decision_trace.close_open(rt)
+src/services/decision_trace.py:307: in close_open
+    trace["decision"] = station.decision_facts(approved, results, labels=holder["labels"], post_apply=status)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (ApprovedDecision(proposal=ProposedDecision(policy_id='M3a', policy_version='1', state_version=6, minute=0, interval_e...lations=(HardViolation(kind='aggregate_power', message='Allocation exceeds site grid input limit', vehicle_ids=()),))])
+kwargs = {'labels': {'dispatch': {'AC': 'fifo', 'DC': 'llf'}, 'optimizers': {'AC': 'ac_rolling_lp', 'DC': 'rolling_lp'}, 'coordinator': 'fixed_share'}, 'post_apply': 'violation'}
+
+    def fail(*args, **kwargs):
+        if failure == "construction":
+>           raise ValueError("synthetic evidence construction failure")
+E           ValueError: synthetic evidence construction failure
+
+tests/test_services/test_safety_event_delivery.py:784: ValueError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+_ test_remediation_trace_construction_failure_keeps_failsafe_and_violation[serialization] _
+
+live = (StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mv...s=set()), {'now': datetime.datetime(2026, 11, 23, 18, 4, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7740615b9610>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x774061492c30>
+failure = 'serialization'
+
+    @pytest.mark.parametrize("failure", ["construction", "serialization"])
+    async def test_remediation_trace_construction_failure_keeps_failsafe_and_violation(live, monkeypatch, caplog, failure):
+        from src.services import decision_trace
+    
+        rt, clock = live
+        await _charging_live(rt)
+        cid = rt.open_trace["trace"]["correlation_id"]
+        rt.simulator.available_power_kw = SILENT_LIMIT_KW
+        clock["now"] += timedelta(minutes=4)
+    
+        original = rt.simulator.decision_facts
+    
+        def fail(*args, **kwargs):
+            if failure == "construction":
+                raise ValueError("synthetic evidence construction failure")
+            return {**original(*args, **kwargs), "invalid": float("nan")}
+    
+        monkeypatch.setattr(rt.simulator, "decision_facts", fail)
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        assert _emergency_decisions()
+        trace = repository.get_full_decision_trace(cid)
+>       assert trace["validation"]["post_apply"] == "violation"
+E       AssertionError: assert 'not_evaluated' == 'violation'
+E         
+E         - violation
+E         + not_evaluated
+
+tests/test_services/test_safety_event_delivery.py:791: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.simulator.core.kernel] minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR [src.services.decision_trace] decision_trace_write_failed correlation_id=f1000419b67c432a976430025b9f404f error_type=ValueError
+WARNI [src.services.control_loop] fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=58bc8c27ab624d498ea3a799e7c96f11)
+------------------------------ Captured log call -------------------------------
+ERROR    src.simulator.core.kernel:kernel.py:538 minute=0 physical constraint violated after apply: Allocation exceeds site grid input limit
+ERROR    src.services.decision_trace:decision_trace.py:368 decision_trace_write_failed correlation_id=f1000419b67c432a976430025b9f404f error_type=ValueError
+WARNING  src.services.control_loop:control_loop.py:446 fail-safe sau khi áp: Vi phạm trần cứng sau khi áp (aggregate_power): Allocation exceeds site grid input limit — 3 lệnh an toàn (correlation_id=58bc8c27ab624d498ea3a799e7c96f11)
+=========================== short test summary info ============================
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_hard_event_survives_failure_window[trace]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_hard_event_survives_failure_window[record]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_hard_event_survives_failure_window[notify]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_hard_event_survives_failure_window[cancel]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_hard_event_survives_failure_window[power_emergency]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_mixed_batch_keeps_hard_event_on_power_handler_failure
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_ordinary_outbox_overflow_cannot_evict_hard_event
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[blocked]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[partial]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[pending]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge[no_commands]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_rechecks_safety_when_sink_fails_after_apply[audit]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_rechecks_safety_when_sink_fails_after_apply[notification]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_held_booking_cannot_use_older_power_approval[set_power]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_held_booking_cannot_use_older_power_approval[assign_connector]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_sample_eviction_does_not_report_complete_pass[False]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_sample_eviction_does_not_report_complete_pass[True]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_trace_construction_failure_keeps_failsafe_and_violation[construction]
+FAILED tests/test_services/test_safety_event_delivery.py::test_remediation_trace_construction_failure_keeps_failsafe_and_violation[serialization]
+19 failed, 1 passed, 21 deselected in 5.09s

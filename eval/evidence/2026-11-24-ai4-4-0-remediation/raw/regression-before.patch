@@ -1,0 +1,291 @@
+diff --git a/tests/test_services/test_safety_event_delivery.py b/tests/test_services/test_safety_event_delivery.py
+index 8ce0198..d9aa5a4 100644
+--- a/tests/test_services/test_safety_event_delivery.py
++++ b/tests/test_services/test_safety_event_delivery.py
+@@ -537,3 +537,286 @@ async def test_foundation_failed_safety_delivery_retries_before_clock_advances(l
+     assert await control_loop.deliver_pending(rt) is not None
+     assert sim.minute > minute
+     assert sim.state().total_power_kw / rt.config.power_conversion_efficiency <= SILENT_LIMIT_KW + 1e-7
++
++
++@pytest.mark.parametrize("window", ["trace", "record", "notify", "cancel", "power_emergency"])
++async def test_remediation_hard_event_survives_failure_window(live, monkeypatch, window):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    event = StationEvent(
++        type=EventType.POWER_LIMIT_CHANGED if window == "power_emergency" else EventType.TICK,
++        occurred_at=rt.clock(),
++        new_power_limit_kw=SILENT_LIMIT_KW if window == "power_emergency" else None,
++    )
++
++    def fail(*_):
++        raise RuntimeError("synthetic failure window")
++
++    async def fail_async(*_):
++        if window == "cancel":
++            raise asyncio.CancelledError()
++        fail()
++
++    from src.services import decision_trace
++
++    with monkeypatch.context() as patch:
++        if window == "trace":
++            patch.setattr(decision_trace, "close_open", fail)
++        elif window == "record":
++            patch.setattr(rt.store, "record_event", fail)
++        elif window == "power_emergency":
++            patch.setattr(control_loop, "_emergency", fail_async)
++        else:
++            patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, notify=fail_async))
++        try:
++            await control_loop.on_event(event, rt)
++        except (RuntimeError, asyncio.CancelledError):
++            pass
++
++    assert _emergency_decisions() or any(e.type == EventType.HARD_LIMIT_VIOLATED for e in rt.outbox)
++    await control_loop.deliver_pending(rt)
++    rt.sync_clock()
++    assert sim.minute == 4
++    assert _emergency_decisions()
++
++
++async def test_remediation_mixed_batch_keeps_hard_event_on_power_handler_failure(live, monkeypatch):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    power = StationEvent(type=EventType.POWER_LIMIT_CHANGED, occurred_at=rt.clock(), new_power_limit_kw=SILENT_LIMIT_KW)
++    rt.queue_events([power])
++
++    async def fail(*_):
++        raise RuntimeError("synthetic power handling failure")
++
++    with monkeypatch.context() as patch:
++        patch.setattr(control_loop, "_emergency", fail)
++        await control_loop.deliver_pending(rt)
++    assert _emergency_decisions() or hard in rt.outbox
++    await control_loop.deliver_pending(rt)
++    rt.sync_clock()
++    assert rt.simulator.minute == 4
++
++
++async def test_remediation_ordinary_outbox_overflow_cannot_evict_hard_event(live):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    rt.queue_events([StationEvent(type=EventType.TICK, occurred_at=rt.clock()) for _ in range(runtime.OUTBOX_MAX + 1)])
++    assert hard in rt.outbox
++
++
++@pytest.mark.parametrize("response", ["blocked", "partial", "pending", "no_commands"])
++async def test_remediation_unsafe_failsafe_dispatch_does_not_acknowledge(live, monkeypatch, response):
++    from src.guard import dispatcher
++    from src.models.control import DecisionLogEntry, GuardRule, GuardVerdict, Violation
++
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    sim = rt.simulator
++    sim.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    minute = sim.minute
++    original = dispatcher.submit
++    attempts = 0
++
++    async def submit(commands, ctx, actuator, sinks, **kwargs):
++        nonlocal attempts
++        if not commands or commands[0].source != CommandSource.EMERGENCY:
++            return await original(commands, ctx, actuator, sinks, **kwargs)
++        attempts += 1
++        applied = await original(commands[:1], ctx, actuator, sinks, **kwargs) if response == "partial" else []
++        remaining = commands[1:] if response == "partial" else commands
++        return [
++            *applied,
++            *[
++                DecisionLogEntry(
++                    timestamp=ctx.now,
++                    command=cmd,
++                    verdict=GuardVerdict(
++                        command_id=cmd.command_id,
++                        checked_at=ctx.now,
++                        passed=response == "pending",
++                        violations=[]
++                        if response == "pending"
++                        else [Violation(rule=GuardRule.PERMISSION, detail="synthetic block")],
++                    ),
++                    approval_id="synthetic-pending" if response == "pending" else None,
++                    executed=False,
++                )
++                for cmd in remaining
++            ],
++        ]
++
++    with monkeypatch.context() as patch:
++        if response == "no_commands":
++            patch.setattr(emergency, "curtail_to_hard_limits", lambda *_: [])
++        else:
++            patch.setattr(dispatcher, "submit", submit)
++        for _ in range(5):
++            await control_loop.deliver_pending(rt)
++            assert hard in rt.outbox
++            assert rt.sync_clock() == [] and sim.minute == minute
++        if response != "no_commands":
++            assert attempts == 3
++    sim.available_power_kw = rt.config.grid_input_limit_kw
++    await control_loop.deliver_pending(rt)
++    assert hard not in rt.outbox
++    assert sim.minute == 4
++
++
++@pytest.mark.parametrize("sink", ["audit", "notification"])
++async def test_remediation_rechecks_safety_when_sink_fails_after_apply(live, monkeypatch, sink):
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++
++    def fail(*_):
++        raise RuntimeError("synthetic post-apply sink failure")
++
++    async def fail_async(*_):
++        fail()
++
++    changes = {"log_decision": fail} if sink == "audit" else {"add_notification": fail}
++    with monkeypatch.context() as patch:
++        if sink == "audit":
++            patch.setattr(rt, "sinks", dataclasses.replace(rt.sinks, **changes))
++        else:
++            patch.setattr(control_loop, "_notify_curtailed", fail_async)
++        await control_loop.deliver_pending(rt)
++    assert hard not in rt.outbox
++    rt.sync_clock()
++    assert rt.simulator.minute == 4
++
++
++@pytest.mark.parametrize("operation", ["set_power", "assign_connector"])
++async def test_remediation_held_booking_cannot_use_older_power_approval(live, operation):
++    from src.models.control import Approval, ApprovalKind, Command, GuardVerdict
++
++    rt, _ = live
++    await _charging_live(rt)
++    sim = rt.simulator
++    connector = next(c for c in sim.state().connectors if c.booking_id == "dc-a")
++    command = Command(
++        type=CommandType(operation),
++        connector_id=connector.connector_id,
++        power_kw=40 if operation == "set_power" else None,
++        booking_id="dc-a",
++        source=CommandSource.AGENT,
++        issued_by="synthetic",
++        based_on_schedule_version=rt.plan.version,
++        based_on_state_at=rt.clock(),
++        created_at=rt.clock(),
++    )
++    approval = Approval(
++        kind=ApprovalKind.OPERATOR_REVIEW,
++        command=command,
++        verdict=GuardVerdict(command_id=command.command_id, passed=True, checked_at=rt.clock()),
++        requested_from="operator",
++        impact_summary="synthetic approval",
++        created_at=rt.clock(),
++    )
++    repository.save_approval(approval)
++    await _trip_charging_model(rt)
++    assert "dc-a" in rt.safety_hold_booking_ids
++    if operation == "assign_connector":
++        from src.models.simulation import Incident, IncidentType
++
++        sim.inject_incident(Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=connector.connector_id))
++        sim.inject_incident(Incident(type=IncidentType.CONNECTOR_RESTORED, connector_id=connector.connector_id))
++        assert "dc-a" in sim.state().queue
++    await control_loop.resolve_approval(approval.approval_id, "approve", "operator", rt, Role.OPERATOR)
++    decisions = [d for d in repository.list_decisions() if d.approval_id == approval.approval_id]
++    assert len(decisions) == 1 and not decisions[0].executed
++    assert sim.kernel.setpoints.get("dc-a", 0) == 0
++
++
++@pytest.mark.parametrize("has_violation", [False, True])
++async def test_remediation_sample_eviction_does_not_report_complete_pass(has_violation):
++    from collections import deque
++
++    from src.services import decision_trace
++
++    rt = await _sim_runtime(failsafe=True)
++    sim = rt.simulator
++    sim._applied = deque(maxlen=1)
++    if has_violation:
++        sim.available_power_kw = SILENT_LIMIT_KW
++    sim.step(1)
++    sim.available_power_kw = rt.config.grid_input_limit_kw
++    sim.step(1)
++    trace = decision_trace.close_open(rt)
++    assert trace["applied"]["coverage"]["dropped_minutes"] == 1
++    assert trace["applied"]["coverage"]["status"] == "incomplete"
++    assert trace["validation"]["post_apply"] == ("violation" if has_violation else "incomplete")
++
++
++@pytest.mark.parametrize("failure", ["construction", "serialization"])
++async def test_remediation_trace_construction_failure_keeps_failsafe_and_violation(live, monkeypatch, caplog, failure):
++    from src.services import decision_trace
++
++    rt, clock = live
++    await _charging_live(rt)
++    cid = rt.open_trace["trace"]["correlation_id"]
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++
++    original = rt.simulator.decision_facts
++
++    def fail(*args, **kwargs):
++        if failure == "construction":
++            raise ValueError("synthetic evidence construction failure")
++        return {**original(*args, **kwargs), "invalid": float("nan")}
++
++    monkeypatch.setattr(rt.simulator, "decision_facts", fail)
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++    assert _emergency_decisions()
++    trace = repository.get_full_decision_trace(cid)
++    assert trace["validation"]["post_apply"] == "violation"
++    assert trace["decision"] is None
++    assert trace["applied"]["hard_violations"]
++    assert "decision_trace_build_failed" in caplog.text
++    decision_trace.close_open(rt)
++
++
++async def test_remediation_cancellation_during_dispatch_preserves_hard_event(live, monkeypatch):
++    from src.guard import dispatcher
++
++    rt, clock = live
++    await _charging_live(rt)
++    rt.deliver = None
++    rt.simulator.available_power_kw = SILENT_LIMIT_KW
++    clock["now"] += timedelta(minutes=4)
++    (hard,) = [e for e in rt.sync_clock() if e.type == EventType.HARD_LIMIT_VIOLATED]
++    entered = asyncio.Event()
++
++    async def pause(*_, **__):
++        entered.set()
++        await asyncio.Future()
++
++    with monkeypatch.context() as patch:
++        patch.setattr(dispatcher, "submit", pause)
++        task = asyncio.create_task(control_loop.deliver_pending(rt))
++        await asyncio.wait_for(entered.wait(), 2)
++        task.cancel()
++        with pytest.raises(asyncio.CancelledError):
++            await task
++    assert hard in rt.outbox and rt.simulator.minute == 1
++    await control_loop.deliver_pending(rt)
++    assert rt.simulator.minute == 4 and hard not in rt.outbox

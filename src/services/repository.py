@@ -43,7 +43,7 @@ from src.models.api import ErrorCode, Notification
 from src.models.charging import Booking, BookingStatus, SchedulePlan
 from src.models.control import Approval, ApprovalStatus, DecisionLogEntry
 from src.models.decision_trace import DecisionTraceSummary
-from src.models.events import StationEvent
+from src.models.events import EventType, StationEvent
 from src.models.identity import UserRecord
 from src.models.station import LoadPoint
 from src.services.errors import DomainError
@@ -428,7 +428,17 @@ def mark_notification_read(notification_id: str, resident_id: str) -> Notificati
 def append_event(event: StationEvent) -> None:
     _ensure()
     with db_session.session_scope() as s:
-        s.add(mappers.event_to_row(event))
+        row = mappers.event_to_row(event)
+        if event.type != EventType.HARD_LIMIT_VIOLATED:
+            s.add(row)
+            return
+        insert = postgres_insert if s.get_bind().dialect.name == "postgresql" else sqlite_insert
+        values = {
+            column.key: getattr(row, column.key) for column in StationEventRow.__table__.columns if column.key != "seq"
+        }
+        s.execute(
+            insert(StationEventRow.__table__).values(**values).on_conflict_do_nothing(index_elements=["event_id"])
+        )
 
 
 def list_events(limit: int = 50, before: int | None = None) -> list[StationEvent]:

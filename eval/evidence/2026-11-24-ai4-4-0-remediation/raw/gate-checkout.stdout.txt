@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-g1-remediation.k35JxW/gate/code checkout --quiet --detach d2b5d4869bff35ad9e417bee504c6dbf652258b1 

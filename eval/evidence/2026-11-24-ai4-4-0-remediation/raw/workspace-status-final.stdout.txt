@@ -1,0 +1,37 @@
+cwd=/home/lehieu/Projects/P-019
+$ git status --short --branch 
+## feature/ai-4...origin/feature/ai-4
+ M CLAUDE.md
+ M docs/plan/40-database.md
+ M eval/evidence/2026-11-24-ai4-p0/run.sh
+ M src/db/mappers.py
+ M src/db/tables.py
+ M src/guard/dispatcher.py
+ M src/models/decision_trace.py
+ M src/services/charging_service.py
+ M src/services/control_loop.py
+ M src/services/decision_trace.py
+ M src/services/repository.py
+ M src/services/runtime.py
+ M src/simulator/hybrid_station.py
+ M tests/test_db/test_migrations.py
+ M tests/test_services/test_decision_trace.py
+ M tests/test_services/test_fork_isolation.py
+ M tests/test_services/test_safety_event_delivery.py
+?? docs/ai4/ADR_AI4_SCOPE.md
+?? docs/ai4/BASELINE.md
+?? docs/ai4/FOUNDATION_CONTRACT.md
+?? docs/ai4/ISSUES.md
+?? docs/ai4/PHASE_4_0_REPORT.md
+?? docs/ai4/PHASE_P0_REPORT.md
+?? docs/ai4/PROJECT_STATE.md
+?? eval/evidence/2026-11-24-ai4-4-0-remediation/
+?? eval/evidence/2026-11-24-ai4-4-0/
+?? eval/evidence/2026-11-24-ai4-p0/CHECKSUMS.sha256
+?? eval/evidence/2026-11-24-ai4-p0/README.md
+?? eval/evidence/2026-11-24-ai4-p0/check_benchmark_provenance.py
+?? eval/evidence/2026-11-24-ai4-p0/probe_issues.py
+?? eval/evidence/2026-11-24-ai4-p0/raw/
+?? eval/evidence/2026-11-24-ai4-p0/run_async_checks.sh
+?? eval/evidence/2026-11-24-ai4-p0/run_golden_crlf.sh
+?? migrations/versions/0004_full_decision_traces.py

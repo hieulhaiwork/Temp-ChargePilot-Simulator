@@ -1,0 +1,7 @@
+cwd=/home/lehieu/Projects/P-019
+$ python verify reviewed mirror product blobs against local reviewed G1 snapshot
+mirror 6667dead49d047c4971f73a95ff47229dc8dc4e9
+local base d2b5d4869bff35ad9e417bee504c6dbf652258b1
+common scope ['src', 'config', 'tests', 'frontend', 'migrations', 'scripts']
+mirror paths checked 337
+differences []

@@ -34,6 +34,7 @@ from uuid import uuid4
 
 from src.guard import approval as approval_rules
 from src.guard import dispatcher, emergency
+from src.guard.physical import adapter as physical
 from src.guard.rules import GuardContext
 from src.models.api import ErrorCode, Notification, NotificationKind
 from src.models.charging import BookingStatus, SchedulePlan
@@ -47,12 +48,13 @@ from src.models.control import (
     Role,
     quantize_kw,
 )
-from src.models.events import EventType, StationEvent, WsMessage, WsMessageType
+from src.models.events import EventType, StationEvent, ViolationKind, WsMessage, WsMessageType
+from src.models.physical_constraints import TOL
 from src.models.planning import PlanningContext
 from src.models.station import LoadPoint, StationState
 from src.services import decision_trace, solver
 from src.services.errors import DomainError
-from src.services.runtime import StationRuntime
+from src.services.runtime import SAFETY_ATTEMPT_LIMIT, StationRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,7 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
     tính lại thay vì replan trùng (ADR-019 Phase 3). Việc nặng (solver) chạy trên thread solver duy nhất
     (services/solver.py) để không chặn WebSocket.
     """
+    rt.retain_safety_events((*batch, event))
     async with rt.decision_lock():
         return await _on_event_locked(event, rt, batch)
 
@@ -79,30 +82,27 @@ async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple
     _remember_loop(rt)
     correlation_id = uuid4().hex  # DecisionTrace của lần tính lại này; gắn vào mọi Command nó sinh ra
     emergency_entries: list[DecisionLogEntry] = []
-    failsafe_entries: list[DecisionLogEntry] = []
-    # Final Acceptance §1.3: vi phạm cứng đã báo (sự kiện / lô truyền vào, hoặc còn trong outbox) được xử lý an toàn
-    # TRƯỚC khi tiến đồng hồ — không tích phân thêm phút nào với setpoint đang vi phạm.
+    safety_deliveries: list[SafetyDelivery] = []
     incoming = _merge_pending(rt, (*batch, event))
     violated = [e for e in incoming if e.type == EventType.HARD_LIMIT_VIOLATED]
     if violated:
-        failsafe_entries = await _deliver_safety(rt, violated, correlation_id)
-        emergency_entries.extend(failsafe_entries)
+        safety_deliveries.append(await _deliver_safety(rt, violated, correlation_id))
     rt.advance_clock()
-    # Final Acceptance §1.2: mọi sự kiện chưa giao (của lần tiến đồng hồ này hoặc của consumer khác) vào lô này.
-    fresh = _merge_pending(rt, ())
-    side_events = (*[e for e in incoming if e is not event], *fresh)
-    # Quyết định trước kết thúc tại đây: đóng trace của nó bằng số đo vật lý thật tới thời điểm này.
-    decision_trace.close_open(rt)
+    incoming_ids = {e.event_id for e in incoming}
+    fresh = tuple(e for e in _merge_pending(rt, ()) if e.event_id not in incoming_ids)
+    violated_now = [e for e in fresh if e.type == EventType.HARD_LIMIT_VIOLATED]
+    if violated_now:
+        safety_deliveries.append(await _deliver_safety(rt, violated_now, correlation_id))
+    for delivery in safety_deliveries:
+        emergency_entries.extend(delivery.entries)
+    side_events = (*[e for e in incoming if e.event_id != event.event_id], *fresh)
+    decision_trace.close_open_safely(rt)
     for e in (*side_events, event):
         rt.store.record_event(e)
         await rt.sinks.notify(_ws(WsMessageType.EVENT, e, rt), None)
-    if event.type == EventType.POWER_LIMIT_CHANGED and event.new_power_limit_kw is not None:
-        emergency_entries += await _emergency(rt, event.new_power_limit_kw, correlation_id)
-    violated_now = [e for e in fresh if e.type == EventType.HARD_LIMIT_VIOLATED]
-    if violated_now:
-        fresh_entries = await _deliver_safety(rt, violated_now, correlation_id)
-        emergency_entries.extend(fresh_entries)
-        failsafe_entries.extend(fresh_entries)
+    for e in (*side_events, event):
+        if e.type == EventType.POWER_LIMIT_CHANGED and e.new_power_limit_kw is not None:
+            emergency_entries += await _emergency(rt, e.new_power_limit_kw, correlation_id)
     _sync_booking_status(rt, (*side_events, event))
 
     ctx = build_planning_context(rt)
@@ -111,7 +111,7 @@ async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple
     plan = plan.model_copy(update={"version": version})
     wanted = [c.model_copy(update={"correlation_id": correlation_id}) for c in diff_commands(rt.plan, plan, ctx.state)]
     exclusions: list[dict] = []
-    commands = _filter_held(rt, wanted, exclusions)
+    commands = _filter_held(rt, wanted, exclusions) if not rt.has_pending_safety() else []
     entries = []
     if commands:
         entries = await dispatcher.submit(
@@ -121,7 +121,7 @@ async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple
             rt.sinks,
             approval_ttl_minutes=rt.config.guard.approval_ttl_minutes,
         )
-    decision_trace.open_trace(
+    decision_trace.open_trace_safely(
         rt,
         correlation_id=correlation_id,
         event=event,
@@ -130,7 +130,8 @@ async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple
         entries=entries,
         emergency=emergency_entries,
         command_exclusions=exclusions,
-        failsafe=failsafe_entries,
+        failsafe=[entry for delivery in safety_deliveries for entry in delivery.entries],
+        safety_outcomes=[delivery.evidence for delivery in safety_deliveries],
     )
     rt.plan = plan
     rt.store.save_plan(plan)
@@ -157,6 +158,8 @@ async def on_minute(rt: StationRuntime, events: list[StationEvent]) -> ScheduleP
     Không có sự kiện mà tới mốc quyết định → TICK. Sự cố nguồn đi trước để bảo vệ khẩn cấp chạy ngay (AC5).
     """
     events = list(events)
+    if any(e.type == EventType.HARD_LIMIT_VIOLATED for e in events):
+        return await on_event(events[-1], rt, batch=tuple(events[:-1]))
     if not events and decision_due(rt.simulator, rt.clock()):
         events.append(StationEvent(type=EventType.TICK, occurred_at=rt.clock()))
     plan = None
@@ -251,9 +254,16 @@ async def resolve_approval(
     decided = approval_rules.decide(pending, decision, actor_id, actor_role, rt.clock())
     repository.save_approval(decided)
     if decided.status == ApprovalStatus.APPROVED:
-        async with rt.lock:
-            rt.advance_clock()  # sự kiện ở lại outbox → on_event(REPLAN_REQUESTED) ngay dưới đây nhận
-            await dispatcher.execute_approved(decided, build_guard_context(rt, None), rt.simulator, rt.sinks)
+        async with rt.decision_lock():
+            rt.advance_clock()
+            await dispatcher.execute_approved(
+                decided,
+                build_guard_context(rt, None),
+                rt.simulator,
+                rt.sinks,
+                safety_holds=frozenset(rt.safety_hold_booking_ids),
+                safety_pending=rt.has_pending_safety(),
+            )
     else:
         repository.append_decision(
             DecisionLogEntry(
@@ -367,10 +377,7 @@ async def deliver_pending(rt: StationRuntime) -> SchedulePlan | None:
         if not events:
             return None
         try:
-            for event in (e for e in events if e.type == EventType.POWER_LIMIT_CHANGED):
-                await _on_event_locked(event, rt, ())
-            rest = tuple(e for e in events if e.type != EventType.POWER_LIMIT_CHANGED)
-            return await _on_event_locked(rest[-1], rt, rest[:-1]) if rest else rt.plan
+            return await _on_event_locked(events[-1], rt, tuple(events[:-1]))
         except Exception:
             logger.exception("control_loop.deliver_pending: lỗi khi giao %d sự kiện trạm", len(events))
             return None
@@ -388,16 +395,98 @@ def _merge_pending(rt: StationRuntime, given: tuple[StationEvent, ...]) -> tuple
     return (*[e for e in rt.take_events() if e.event_id not in ids], *given)
 
 
-async def _deliver_safety(
-    rt: StationRuntime, events: list[StationEvent], correlation_id: str
-) -> list[DecisionLogEntry]:
-    try:
-        entries = await _failsafe(rt, events, correlation_id)
-    except (Exception, asyncio.CancelledError):
-        rt.finish_safety_delivery(events, retry=True)
-        raise
-    rt.finish_safety_delivery(events)
-    return entries
+@dataclasses.dataclass(frozen=True)
+class SafetyDelivery:
+    entries: list[DecisionLogEntry]
+    evidence: dict
+
+
+def _safety_requirements(events: list[StationEvent]) -> tuple[set[str], bool]:
+    faults: set[str] = set()
+    known = True
+    for event in events:
+        vehicle_fault = any(kind != ViolationKind.AGGREGATE_POWER for kind in event.violation_kinds)
+        if vehicle_fault:
+            faults.update(event.violation_booking_ids)
+        if not event.violation_kinds or (vehicle_fault and not event.violation_booking_ids):
+            known = False
+    return faults, known
+
+
+def _safety_resolved(rt: StationRuntime, events: list[StationEvent]) -> bool:
+    faults, known = _safety_requirements(events)
+    if not known or not faults <= rt.safety_hold_booking_ids:
+        return False
+    state = rt.simulator.safety_state()
+    if any(c.booking_id in rt.safety_hold_booking_ids and c.power_kw > 0 for c in state.connectors):
+        return False
+    power = {c.connector_id: c.power_kw for c in state.connectors}
+    occupants = {c.connector_id: c.booking_id for c in state.connectors}
+    return physical.check_site_allocation(rt.config, state, power, occupants) is None and all(
+        c.power_kw <= c.max_power_kw + TOL for c in state.connectors
+    )
+
+
+def _dispatch_status(entries: list[DecisionLogEntry]) -> str:
+    if not entries:
+        return "no_commands"
+    executed = sum(entry.executed for entry in entries)
+    if executed == len(entries):
+        return "executed"
+    if executed:
+        return "partially_executed"
+    return "pending" if any(entry.approval_id for entry in entries) else "blocked"
+
+
+async def _deliver_safety(rt: StationRuntime, events: list[StationEvent], correlation_id: str) -> SafetyDelivery:
+    entries: list[DecisionLogEntry] = []
+    attempt = None
+    delivery = "not_needed"
+    dispatch = "not_attempted"
+    resolved = _safety_resolved(rt, events)
+    if not resolved:
+        attempt = rt.begin_safety_attempt()
+        delivery = "retry_exhausted"
+        if attempt is not None:
+            try:
+                entries = await _failsafe(rt, events, correlation_id)
+                delivery, dispatch = "completed", _dispatch_status(entries)
+            except (Exception, asyncio.CancelledError) as exc:
+                resolved = _safety_resolved(rt, events)
+                if resolved:
+                    rt.acknowledge_safety(events)
+                logger.error(
+                    "safety_delivery_failed correlation_id=%s attempt=%d resolved=%s error_type=%s",
+                    correlation_id,
+                    attempt,
+                    resolved,
+                    type(exc).__name__,
+                )
+                if not resolved or isinstance(exc, asyncio.CancelledError):
+                    raise
+                delivery, dispatch = "failed", "unknown"
+            else:
+                resolved = _safety_resolved(rt, events)
+        if not resolved and attempt is not None:
+            logger.error(
+                "safety_unresolved clock_paused=true correlation_id=%s attempt=%d retry_limit=%d dispatch=%s",
+                correlation_id,
+                attempt,
+                SAFETY_ATTEMPT_LIMIT,
+                dispatch,
+            )
+    if resolved:
+        rt.acknowledge_safety(events)
+    return SafetyDelivery(
+        entries,
+        {
+            "event_ids": [event.event_id for event in events],
+            "attempt": attempt,
+            "delivery": delivery,
+            "dispatch": dispatch,
+            "resolution": "resolved" if resolved else "unresolved",
+        },
+    )
 
 
 async def _failsafe(
@@ -412,19 +501,13 @@ async def _failsafe(
     - aggregate_power (tủ / vùng / lưới) hoặc chưa phân loại: co đều về trong mọi trần (`curtail_to_hard_limits`).
     Trả nhật ký lệnh (DecisionTrace: emergency).
     """
-    from src.models.events import ViolationKind
-
-    state = rt.simulator.state()
+    state = rt.simulator.safety_state()
     # Thời điểm của TRẠM (= rt.clock() khi trạm đã bắt kịp): fail-safe có thể chạy khi catch-up đang dừng ở phút vi
     # phạm (§1.3) — lệnh dựa trên đúng trạng thái đó, không bị luật stale_state coi là cũ so với đồng hồ runtime.
     now = state.timestamp
     detail = events[-1].detail
-    faulty: set[str] = set()
-    kinds: list[ViolationKind] = []
-    for e in events:
-        kinds += [k for k in e.violation_kinds if k not in kinds]
-        if any(k != ViolationKind.AGGREGATE_POWER for k in e.violation_kinds):
-            faulty.update(e.violation_booking_ids)
+    faulty, _ = _safety_requirements(events)
+    kinds = list(dict.fromkeys(k for e in events for k in e.violation_kinds))
     commands: list[Command] = []
     if faulty:
         new_holds = faulty - rt.safety_hold_booking_ids
@@ -438,11 +521,10 @@ async def _failsafe(
                 ", ".join(sorted(new_holds)),
                 correlation_id,
             )
-    if not kinds or ViolationKind.AGGREGATE_POWER in kinds or not faulty:
-        stopped = {c.connector_id for c in commands}
-        commands += [
-            c for c in emergency.curtail_to_hard_limits(state, rt.config, now, detail) if c.connector_id not in stopped
-        ]
+    stopped = {c.connector_id for c in commands}
+    commands += [
+        c for c in emergency.curtail_to_hard_limits(state, rt.config, now, detail) if c.connector_id not in stopped
+    ]
     logger.warning(
         "fail-safe sau khi áp: %s — %d lệnh an toàn (correlation_id=%s)", detail, len(commands), correlation_id
     )

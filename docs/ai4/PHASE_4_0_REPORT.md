@@ -1,12 +1,15 @@
 # PHASE AI-4.0 — Foundation Hardening (G1)
 
-**Phase AI-4.0 | Status READY_FOR_REVIEW**  
+**Phase AI-4.0 | Status READY_FOR_REVIEW — GATE 1 RE-REVIEW**  
 **Branch** `feature/ai-4` · **Local base / workspace HEAD** `d2b5d4869bff35ad9e417bee504c6dbf652258b1`  
 **Mirror baseline** `4f1477e84ac818549a69a74eb00e4b827fae230e` · **P0 evidence được duyệt** `d520ffb28b32b94099277c48af9b8f38ec656ac0`  
-**Code thực chạy** Local base + candidate patch SHA-256 `986fd42e0d00e57e8bbad2a085bba1df9508e2b2b34786e967d7105062644873`. Code và evidence G1 đang ở working tree.  
+**Code chạy trong lượt G1 ban đầu** Local base + candidate patch SHA-256 `986fd42e0d00e57e8bbad2a085bba1df9508e2b2b34786e967d7105062644873`. Code và evidence G1 đang ở working tree.  
 **Evidence commit G1** Chưa tạo. Không có merge/push từ lượt này. [Baseline mapping](BASELINE.md) · [Candidate patch](../../eval/evidence/2026-11-24-ai4-4-0/raw/candidate.patch)
 
-## Scope và code changes
+**Review G1 ban đầu** `6667dead49d047c4971f73a95ff47229dc8dc4e9` (CHANGES REQUIRED). Candidate remediation và kết quả
+rerun nằm ở phần cuối. P0 tiếp tục ở trạng thái APPROVED. Các kết quả ban đầu bên dưới được giữ để truy provenance.
+
+## Scope và code changes của G1 ban đầu
 
 | Hạng mục | File và thay đổi |
 |---|---|
@@ -70,4 +73,44 @@ Lệnh chính xác, mã thoát, OS/CPU/Python/deps, code patch hash, test logs, 
 
 **Rollback** Hoàn tác G1 product patch cùng test changes. Với môi trường đã migrate thật, downgrade `0004 → 0003` giữ summary và bỏ full payload/index của G1. Export hoặc sao lưu detail cần giữ trước khi downgrade. Gate này chỉ dùng DB tạm.
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 1)**
+## Gate 1 remediation
+
+**Candidate thực chạy** local `d2b5d4869bff35ad9e417bee504c6dbf652258b1` + patch SHA-256
+`fac4ab9de1477b63f6171bfb0c7782663a49fc3af247e3add8fefc09be2f5def`. Local trước remediation khớp **337 product blob**
+trong scope chung của reviewed mirror `6667dea`. Root files loại bởi `.rsync-exclude` theo Tech Lead. Evidence và code
+remediation ở working tree. [Mapping raw](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/mirror-product-mapping.stdout.txt) · [Patch thực chạy](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/candidate.patch) · [Delta so với review](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/reviewed-to-remediation.patch)
+
+| Issue | Evidence và thay đổi |
+|---|---|
+| **G1-F01 confirmed** | Cửa sổ lỗi khi đóng trace, ghi event, notify, cancellation, emergency handler và mixed power/hard batch đều tái hiện mất hard event trên tree review. Overflow deque thường cũng làm mất event. `runtime.py` giữ hard event tới acknowledge độc lập với deque thường. `control_loop.py` xử lý hard event trước phần có thể lỗi, kể cả trong batch mixed. Retry timeline dùng event ID trong `repository.py`. Cancellation giữa dispatch là control case đã giữ event trước sửa và vẫn đạt. |
+| **G1-F02 confirmed** | Fault-injection mô phỏng Guard blocked, pending, áp một phần hoặc không sinh lệnh trong khi trạm vẫn unsafe. Cả bốn từng acknowledge sai. Lỗi audit/notification sau apply từng giữ clock dù trạm đã an toàn. Retain tới khi readback held setpoint qua hard caps hiện tại và vehicle fault đã có hold với power 0. Giới hạn ba lần dispatch cho episode, có log cảnh báo và readback khi có lượt xử lý mới. Backend trace ghi `delivery`, `dispatch` và `resolution` riêng. Các ca này xác minh phản ứng với lỗi có kiểm soát. Tần suất lỗi ngoài fixture chưa đo. |
+| **G1-F03 confirmed inherited** | Approval tăng công suất cũ thực thi trên `d2b5d48` dù booking đã hold. Trên tree review, test tái hiện cả lệnh tăng và assignment. `dispatcher.py` kiểm hold của booking/occupant trước apply. Approval bị chặn giữ audit executed=false. Interlock pending chỉ cho approval STOP hoặc SET_POWER 0 đi vào Guard. |
+| **G1-F04 confirmed** | Truncation từng trả PASS từ phần sample còn giữ hoặc làm mất dấu vi phạm bị eviction. `hybrid_station.py` ghi số phút và số vi phạm bị eviction. `decision_trace.py` ghi coverage, dùng trạng thái incomplete/violation và giữ applied evidence khi facts không dựng hoặc không serialize hữu hạn được. Fail-safe chạy trước trace. |
+
+19/20 ca mới fail trước sửa trên reviewed tree. Ca thứ 20 là cancellation đang chờ dispatch, đạt trước và sau. Cả
+20 đạt trong focused và full regression sau sửa. Các giới hạn ngoài fixture gồm process crash, persistence across
+restart của pending safety và fault không có định danh đủ để xác minh an toàn. Pending safety vẫn process-local.
+Nếu retry hết mà readback chưa đủ điều kiện, clock tiếp tục dừng. [Fail-before](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/remediation-before-final.stdout.txt) · [Inherited approval](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/inherited-approval-before.stdout.txt) · [Pass-after](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/focused-tests.stdout.txt)
+
+### Kết quả rerun
+
+| Kiểm tra | Kết quả |
+|---|---|
+| Full backend | **640 passed, 8 forecast skips**, exit 0 |
+| Focused safety, trace, fork, migration, architecture | **114 passed**, exit 0 |
+| Standalone simulator | **180 passed**, exit 0 |
+| Ruff, format, docs, OpenAPI consistency, F1 offline, AST | **PASS**, exit 0 từng gate. AST 114 định nghĩa giữ nguyên. |
+| Standalone golden | **38/38**, exit 0. CRLF theo P0, gồm CSV byte-identical. |
+| Full frozen benchmark và fingerprint parity | **100/100**, 0 sai khác KPI ngoài timing, 0 hard violations/rejected allocations/phút vượt lấy mẫu, exit 0. Cùng scenarios, seeds, policy và experiment fingerprints. |
+| PostgreSQL runtime | **PENDING** như review. Probe không tìm server local, Docker daemon không khả dụng. |
+| G1 re-review | **PENDING**. G1-F05 và F06 đã ghi vào backlog G2. |
+
+Topology 4 cổng, seeds 1–5, physics step 1 phút và decision interval 15 phút giữ theo manifest. P95 replan tính theo
+từng run có min/median/max **2,3 / 11,3 / 19,8 ms**. Gate chạy cùng các suite trên WSL2. So timing với frozen Windows
+mang tính mô tả. Frozen policies, hard constraints, OpenAPI và golden standalone v2 giữ nguyên. [Benchmark raw](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/benchmark-provenance.stdout.txt) · [Golden raw](../../eval/evidence/2026-11-24-ai4-4-0-remediation/raw/golden-compare.stdout.txt) · [Commands, exit codes và checksums](../../eval/evidence/2026-11-24-ai4-4-0-remediation/README.md)
+
+**Rollback remediation** Áp ngược delta remediation trên cây candidate để trở về snapshot G1 ban đầu. Remediation
+dùng lại migration 0004. Operator cần Tech Lead review trước khi dùng cây rollback trong môi trường vận hành vì các
+lỗi F01–F04 có thể tái xuất hiện.
+
+**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 1 RE-REVIEW)**
