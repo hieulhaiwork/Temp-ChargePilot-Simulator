@@ -1,0 +1,67 @@
+
+> chargepilot-web@0.1.0 lint
+> eslint
+
+
+> chargepilot-web@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+
+> chargepilot-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 D:/VIN/P-019/frontend
+
+
+ Test Files  5 passed (5)
+      Tests  30 passed (30)
+   Start at  12:00:01
+   Duration  3.13s (environment 79%, import 11%, tests 6%, transform 2%)
+
+
+> chargepilot-web@0.1.0 build
+> next build
+
+▲ Next.js 16.4.6 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 31ms
+- Cache Components enabled
+- Partial Prefetching enabled
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1151ms
+  Running TypeScript ...
+  Finished TypeScript in 4.2s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/17) ...
+  Generating static pages using 11 workers (4/17) 
+  Generating static pages using 11 workers (8/17) 
+  Generating static pages using 11 workers (12/17) 
+✓ Generating static pages using 11 workers (17/17) in 948ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /login
+├ ○ /operator
+├ ○ /operator/approvals
+├ ○ /operator/map
+├ ○ /operator/schedule
+├ ○ /operator/simulation
+├ ○ /resident
+├ ○ /resident/book
+├ ○ /resident/map
+├ ○ /resident/notifications
+├   /resident/notifications/[approvalId]
+│ └ ◐ /resident/notifications/[approvalId]
+├ ○ /resident/plan
+└ ○ /resident/profile
+
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+

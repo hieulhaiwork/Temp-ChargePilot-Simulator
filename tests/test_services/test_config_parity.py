@@ -333,9 +333,12 @@ def test_hard_violation_counter_comes_from_the_kernel_not_from_samples():
     assert counts.applied_constraint_violation_count == sim.applied_constraint_violation_count >= 1
 
 
-def test_old_baseline_without_experiments_still_loads():
+def test_old_baseline_without_experiments_still_loads(monkeypatch):
     from src.services import simulation_service
 
+    # API nay trả baseline đóng băng (có provenance); baseline final cũ không có khoá này vẫn phải đọc được.
+    old = simulation_service.REPO_ROOT / "eval" / "evidence" / "2026-11-24-unified-core-final-baseline"
+    monkeypatch.setattr(simulation_service, "BENCHMARK_BASELINE_DIR", old)
     report = simulation_service.latest_benchmark()
     assert report.source.experiments == {}  # baseline 2026-11-24 không có khoá này — evidence cũ không sửa
     assert all(run.experiment is None for run in report.runs)

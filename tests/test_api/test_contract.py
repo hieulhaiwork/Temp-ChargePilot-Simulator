@@ -137,12 +137,12 @@ async def test_benchmark_returns_versioned_baseline_without_removed_strategies(c
     assert {r["strategy"] for r in data["runs"]} == {"B0", "M2b", "M3a", "M3b"}
     source = data["source"]
     assert source["kind"] == "versioned_baseline"
-    assert (source["baseline_id"], source["version"]) == ("backend-unified-core-final", "2026-11-24-final")
-    assert source["path"] == "eval/evidence/2026-11-24-unified-core-final-baseline/benchmark.json"
+    assert (source["baseline_id"], source["version"]) == ("backend-unified-core-frozen", "2026-11-24-frozen")
+    assert source["path"] == "eval/evidence/2026-11-24-unified-core-frozen-baseline/benchmark.json"
     assert source["seeds"] == [1, 2, 3, 4, 5]
     assert source["time_config"]["physics_step_minutes"] == 1
     assert source["time_config"]["decision_interval_minutes"] == 15
-    assert data["notes"][0].startswith("Nguồn: baseline backend-unified-core-final version 2026-11-24-final")
+    assert data["notes"][0].startswith("Nguồn: baseline backend-unified-core-frozen version 2026-11-24-frozen")
 
 
 def test_websocket_without_auth_message_is_closed_4401():
