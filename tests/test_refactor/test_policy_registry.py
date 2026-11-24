@@ -184,6 +184,19 @@ def test_planning_block_selects_policy_version_and_parameters(new_policy):
         PlanningPolicyConfig(parameters={"khong_co": {}})
 
 
+def test_planning_parameters_reach_the_optimizer():
+    from src.services import catalog
+    from src.services.runtime import make_scheduler, make_station
+    from tests.factories import NOW
+
+    station = make_station(catalog.load_station_config(), NOW)
+    tuned = make_scheduler("M2b", lambda: station, parameters={"optimizer_dc": {"horizon_minutes": 60}})
+    assert tuned.metadata["optimizers"]["DC"]["parameters"]["horizon_minutes"] == 60
+    assert tuned.algorithms().optimizers["DC"].config.horizon_minutes == 60
+    default = make_scheduler("M2b", lambda: make_station(catalog.load_station_config(), NOW))
+    assert default.metadata["optimizers"]["DC"]["parameters"]["horizon_minutes"] == 120
+
+
 # ---- hợp đồng (tương thích ngược) ---------------------------------------------------------------------------------------
 
 
