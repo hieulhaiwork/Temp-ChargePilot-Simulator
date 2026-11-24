@@ -1,0 +1,7 @@
+  "experiment_fingerprints": {
+    "B0": "5d5e1b60ea458bddc47aa1e219ac435ecabe3b8bcd2e0710611f0ec83cffb605",
+    "M2b": "8593bc448e9048fff1cad401ffb3e3d6fb5b9957b452d48ecbea1e5b0b3ac56c",
+    "M3a": "d6f4f7b2fb52e38c740b4c4743862589a76237533f64b3a0f6bc2a996406a585",
+    "M3b": "2d5439b8d142e9406eb360a4eec7028ddf9947d609ac28d31faa56bee80fd590"
+  }
+}

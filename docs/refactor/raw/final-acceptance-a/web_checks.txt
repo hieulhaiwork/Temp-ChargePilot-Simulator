@@ -1,0 +1,27 @@
+# Frontend — nhánh feature/unified-core-accept-a, HEAD 540d458 (chạy trong frontend/, 2026-11-24)
+# Ghi tay từ output: quyền của phiên không cho redirect sau `cd frontend &&`.
+
+$ npm ci
+found 0 vulnerabilities
+
+$ npm run gen:api   (chạy sau mỗi lần export_openapi.py ở commit 6c2fb6a, 249ec14)
+✨ openapi-typescript 7.13.0
+🚀 ./openapi.json → src/lib/api/schema.d.ts
+
+$ npm run lint
+> eslint
+(không lỗi) — exit 0
+
+$ npm run typecheck
+> next typegen && tsc --noEmit
+✓ Types generated successfully — exit 0
+
+$ npm test
+ Test Files  5 passed (5)
+      Tests  30 passed (30)        (trước: 28; thêm src/test/simulation-policies.test.tsx: 2)
+
+$ npm run build
+✓ Generating static pages using 11 workers (17/17)
+Route (app): / · /login · /operator · /operator/approvals · /operator/map · /operator/schedule ·
+/operator/simulation · /resident · /resident/book · /resident/map · /resident/notifications ·
+/resident/notifications/[approvalId] · /resident/plan · /resident/profile — exit 0
