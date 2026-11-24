@@ -284,6 +284,55 @@ def _execute_to_deadline(rt, candidate) -> dict:
     return run_sync(run())
 
 
+# ---- §3.5 KPI lấy mẫu ≠ vi phạm cứng của kernel --------------------------------------------------------------------------
+
+
+def test_run_reports_sampled_and_hard_violations_separately():
+    from src.services import simulation_service
+
+    result = simulation_service.run_scenario(_scenario(duration_hours=3, n_vehicles=4), "M3a")
+    v = result.violations
+    assert v is not None
+    assert v.sampled_power_over_limit_minutes == result.kpis.power_limit_violations == 0
+    assert v.applied_constraint_violation_count == 0
+
+
+def test_hard_violation_counter_comes_from_the_kernel_not_from_samples():
+    """Vi phạm cứng sau khi áp (nguồn tụt im lặng) được đếm ở kernel; mẫu tổng công suất không thấy ⇒ hai số khác nhau."""
+    from src.models.events import EventType, StationEvent
+    from src.services import control_loop, simulation_service
+    from src.services.admission import run_sync
+    from src.services.runtime import visit_of
+    from tests.factories import booking
+
+    config = catalog.load_station_config()
+    scenario = catalog.load_scenario("hybrid_evening")
+    rt = build_sim_runtime(scenario, "M3a", config, catalog.load_tariff(), _start(scenario))
+    sim = rt.simulator
+
+    async def charge() -> None:
+        for b in (
+            booking("dc-a", zone="DC", kwh=40, hours=1.5, now=rt.clock()),
+            booking("dc-b", zone="DC", kwh=40, hours=1.5, now=rt.clock()),
+        ):
+            rt.store.save_booking(b)
+            sim.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        await control_loop.on_minute(rt, sim.step(1))
+
+    run_sync(charge())
+    full = sim.available_power_kw
+    sample = (sim.now, sim.state().total_power_kw, full)  # mẫu cuối phút: trong giới hạn
+    sim.available_power_kw = 30.0  # tụt nguồn không qua incident ⇒ setpoint cũ vượt trần trong bước kế
+    sim.step(1)
+    sim.available_power_kw = full  # nguồn hồi trước lần lấy mẫu kế ⇒ mẫu không thấy vi phạm
+    minute_load = [sample, (sim.now, sim.state().total_power_kw, full)]
+    kpis = simulation_service.compute_kpis([], minute_load, rt.tariff, config, [], 0)
+    counts = simulation_service.violation_counts(kpis, sim)
+    assert counts.sampled_power_over_limit_minutes == kpis.power_limit_violations == 0
+    assert counts.applied_constraint_violation_count == sim.applied_constraint_violation_count >= 1
+
+
 def test_old_baseline_without_experiments_still_loads():
     from src.services import simulation_service
 

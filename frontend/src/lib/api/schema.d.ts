@@ -1541,7 +1541,7 @@ export interface components {
             peak_load_kw: number;
             /**
              * Power Limit Violations
-             * @description MT4 — mục tiêu 0
+             * @description MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count
              */
             power_limit_violations: number;
             /**
@@ -2157,6 +2157,8 @@ export interface components {
             started_at: string;
             /** @description Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id */
             strategy?: components["schemas"]["StrategyName"] | null;
+            /** @description Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5) */
+            violations?: components["schemas"]["ViolationCounts"] | null;
         };
         /**
          * StationConfig
@@ -2500,6 +2502,35 @@ export interface components {
             /** Detail */
             detail: string;
             rule: components["schemas"]["GuardRule"];
+        };
+        /**
+         * ViolationCounts
+         * @description Hai loại "vượt giới hạn" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.
+         *
+         *     - `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn
+         *       của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;
+         *     - `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng
+         *       (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế
+         *       (`StationKernel.applied_constraint_violation_count`);
+         *     - `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).
+         */
+        ViolationCounts: {
+            /**
+             * Applied Constraint Violation Count
+             * @description Vi phạm trần cứng sau khi áp (kernel)
+             */
+            applied_constraint_violation_count: number;
+            /**
+             * Rejected Allocation Count
+             * @description Đề xuất bị Physical Guard từ chối trước áp
+             * @default 0
+             */
+            rejected_allocation_count: number;
+            /**
+             * Sampled Power Over Limit Minutes
+             * @description = kpis.power_limit_violations (MT4)
+             */
+            sampled_power_over_limit_minutes: number;
         };
     };
     responses: never;

@@ -45,6 +45,7 @@ from src.models.simulation import (
     Scenario,
     SessionOutcome,
     SimulationRunResult,
+    ViolationCounts,
 )
 from src.models.station import StationConfig, Tariff
 from src.services import catalog, control_loop, event_bus
@@ -260,6 +261,17 @@ async def _run(
             strict=strict_incidents,
         ),
         experiment=try_resolve_experiment(rt),
+        violations=violation_counts(kpis, sim),
+    )
+
+
+def violation_counts(kpis: KpiReport, station) -> ViolationCounts:
+    """KPI lấy mẫu (MT4) và vi phạm cứng của kernel — hai nguồn, hai trường (Final Acceptance §3.5)."""
+    kernel = getattr(station, "kernel", None)
+    return ViolationCounts(
+        sampled_power_over_limit_minutes=kpis.power_limit_violations,
+        applied_constraint_violation_count=getattr(station, "applied_constraint_violation_count", 0),
+        rejected_allocation_count=getattr(kernel, "rejected_allocation_count", 0),
     )
 
 

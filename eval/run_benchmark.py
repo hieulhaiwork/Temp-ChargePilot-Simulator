@@ -47,17 +47,18 @@ def render_markdown(report: BenchmarkReport) -> str:
         f"> Sinh bởi `eval/run_benchmark.py` lúc {report.generated_at:%Y-%m-%d %H:%M %Z}. Chạy lại: `make benchmark`.",
         "",
         "| Kịch bản | Chiến lược | Đúng hạn | Chờ TB / p90 (phút) | Điện thiếu (kWh) | Phục vụ | Chi phí (VND)"
-        " | Tải đỉnh (kW) | Vượt giới hạn | Tính lại p95 (s) |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        " | Tải đỉnh (kW) | Phút vượt giới hạn (lấy mẫu) | Vi phạm cứng (kernel) | Tính lại p95 (s) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for run in report.runs:
         k = run.kpis
         p95 = "—" if k.replan_p95_seconds is None else f"{k.replan_p95_seconds:.2f}"
+        hard = "—" if run.violations is None else str(run.violations.applied_constraint_violation_count)
         lines.append(
             f"| {run.scenario_id} | {run.policy_id} | {k.on_time_rate:.1%} | "
             f"{k.wait_mean_minutes:.1f} / {k.wait_p90_minutes:.1f} | {k.unmet_energy_kwh:.1f} | "
             f"{k.service_rate:.1%} | {k.energy_cost_vnd:,.0f} | {k.peak_load_kw:.1f} | "
-            f"{k.power_limit_violations} | {p95} |"
+            f"{k.power_limit_violations} | {hard} | {p95} |"
         )
     lines += ["", *[f"- {note}" for note in report.notes]]
     if report.source is not None:

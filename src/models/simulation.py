@@ -108,7 +108,11 @@ class KpiReport(BaseModel):
     service_rate: float = Field(ge=0, le=1)
     energy_cost_vnd: float = Field(ge=0, description="MT3")
     peak_load_kw: float = Field(ge=0)
-    power_limit_violations: int = Field(ge=0, description="MT4 — mục tiêu 0")
+    power_limit_violations: int = Field(
+        ge=0,
+        description="MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của "
+        "kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count",
+    )
     replan_p95_seconds: float | None = Field(default=None, ge=0, description="MT5 — mục tiêu ≤ 2 s")
     blocked_commands: int = Field(ge=0, description="MT6 — số lệnh bị Guard chặn")
 
@@ -156,6 +160,22 @@ class ResolvedExperiment(BaseModel):
     fingerprint: str = Field(description="sha256 ổn định của toàn bộ cấu hình đã resolve ở trên")
 
 
+class ViolationCounts(BaseModel):
+    """Hai loại "vượt giới hạn" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.
+
+    - `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn
+      của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;
+    - `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng
+      (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế
+      (`StationKernel.applied_constraint_violation_count`);
+    - `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).
+    """
+
+    sampled_power_over_limit_minutes: int = Field(ge=0, description="= kpis.power_limit_violations (MT4)")
+    applied_constraint_violation_count: int = Field(ge=0, description="Vi phạm trần cứng sau khi áp (kernel)")
+    rejected_allocation_count: int = Field(default=0, ge=0, description="Đề xuất bị Physical Guard từ chối trước áp")
+
+
 class SimulationRunResult(BaseModel):
     run_id: str
     scenario_id: str
@@ -171,6 +191,9 @@ class SimulationRunResult(BaseModel):
     incidents: IncidentCounts | None = Field(default=None, description="Số sự cố dự kiến / thực thi / bỏ qua")
     experiment: ResolvedExperiment | None = Field(
         default=None, description="Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2)"
+    )
+    violations: ViolationCounts | None = Field(
+        default=None, description="Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5)"
     )
 
     @model_validator(mode="after")
