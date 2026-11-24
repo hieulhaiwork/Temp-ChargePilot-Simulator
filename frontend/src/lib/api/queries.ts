@@ -99,4 +99,9 @@ export const queries = {
       queryKey: ["simulation", "benchmark"],
       queryFn: () => unwrap(api.GET("/api/v1/simulation/benchmark")),
     }),
+  policies: () =>
+    queryOptions({
+      queryKey: ["simulation", "policies"],
+      queryFn: () => unwrap(api.GET("/api/v1/simulation/policies")),
+    }),
 };
