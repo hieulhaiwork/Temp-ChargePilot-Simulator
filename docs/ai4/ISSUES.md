@@ -44,6 +44,20 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 | G1-F05 | **Implemented in AI-4.1 (pending Gate 2 review)**. Mở rộng additive `planned`, `safety.by_booking` và mốc ISO trên `chargepilot.backend_decision_trace/2` trong `hybrid_station.py` và `decision_trace.py`, tách bạch observed/planned/approved/dispatched/effective/measured và giữ nguyên standalone serializer. | WHY Evidence Resolver |
 | G1-F06 | **Implemented in AI-4.1 (pending Gate 2 review)**. `repository.py` + `src/services/copilot/{trace_reader,evidence,why}.py` hỗ trợ as-of, half-open `[start, end)` overlap, cắt replan sớm, giới hạn active trace sau restart, bounded pagination, phân quyền non-enumerating và privacy projection. | WHY Evidence Resolver / Persistence |
 
+## Gate 2 remediation ledger (mirror `6ba13b8`)
+
+| ID | Phân loại và kết quả | Owner |
+|---|---|---|
+| G2-F01 | **Confirmed bug → Fixed**. `extract_measured_slice()` từng cộng full sample duration cho sub-minute window, trả năng lượng sample cho `at`, và double-count mẫu trùng. Đã sửa sang exact overlap piecewise-constant, high-water dedup và tách as-of power khỏi interval energy. | WHY Trace Reader |
+| G2-F02 | **Confirmed bug → Fixed**. Derived sub-window facts từng chỉ trỏ `samples/0` và direct fact không kiểm khớp giá trị canonical. Đã thêm `derivation_kind`/`derivation_op`/`input_evidence_refs`, kiểm khớp direct value và kiểm provenance reason. | WHY Evidence / Explainer |
+| G2-F03 | **Confirmed bug → Fixed**. Sub-window measured facts từng dùng interval toàn trace và observed snapshot dùng planned 15-min interval. Đã tách `TemporalBasis` cho cả booking & station. | WHY Explainer |
+| G2-F04 | **Confirmed bug → Fixed**. Đường mặc định `_live_open_trace_state()` khi `_live is None` từng không gắn stale; booking query từng bỏ qua station-level supersede; limit bị lookback chiếm. Đã sửa trên index `0004` + station timeline + keyset `cursor`/`next_cursor` + `query_exceeds_live_physics_clock`. | WHY Trace Reader / Persistence |
+| G2-F05 | **Confirmed bug → Fixed**. Khắc phục future completion leakage (`completed_by_booking`), completion ref trỏ `state="CHARGING"`, station violation gán nhầm vehicle, `NO_INCIDENT_OBSERVED` khi chưa đủ bằng chứng, thiếu verdict/rule/approval_id/hardware inputs. | WHY Explainer |
+| G2-F06 | **Confirmed bug → Fixed**. Loại bỏ hoàn toàn silent fallback `0.95` / `0.98`; trả `PARTIAL` + missing evidence khi thiếu decision-time efficiency. | WHY Trace Reader / Explainer |
+| G2-F07 | **Confirmed bug → Fixed**. `resolve_evidence_ref` bắt buộc `AuthorizedSubject`/verified `Booking`, kiểm đủ ref_id/path/schema/policy/decided_at/subject/interval; thu hẹp allowlist xuống leaf paths; kiểm explicit reason `subject`/`params`/`summary`. | WHY Auth & Privacy |
+| G2-F08 | **Confirmed gap → Fixed**. Mở rộng independent oracle kiểm toán mọi emitted fact/ref, tách 9 chỉ số kèm denominator rõ ràng và 7/7 mutation detection. | WHY Evaluation |
+| G2-F09 | **Confirmed handoff gap → Fixed**. Tạo/xác minh `docs/ai4/PHASE_4_1_REPORT.md` đồng bộ với `PROJECT_STATE.md`, ledger, hashes và raw evidence. | Docs / Handoff |
+
 ## Backlog theo dõi sau AI-4.1 (G3+)
 
 - **Pending safety registry & admission readiness (G3)**: `fork_runtime` hiện chưa kế thừa pending safety registry của live runtime, và kiểm tra admission readiness dưới trạng thái pending safety là yêu cầu thuộc G3 (AI-4.2A WHAT-IF), không nằm trong phạm vi AI-4.1.

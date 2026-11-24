@@ -1,0 +1,15 @@
+cwd=/tmp/ai4-g2-rem-gate/code
+$ isolated timeout 90s python eval/evidence/2026-11-24-ai4-4-1-remediation/run_why_eval.py /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/why-eval 
+Independent WHY Eval (LLM judge = False, Independent Oracle = True)
+Cases: 26/26 passed
+1. Reference existence           232/232 (100.0%)
+2. Reference authorization       232/232 (100.0%)
+3. Direct fact correctness       201/201 (100.0%)
+4. Derived fact correctness      22/22 (100.0%)
+5. Temporal grounding            223/223 (100.0%)
+6. Subject attribution           223/223 (100.0%)
+7. Causal correctness            14/14 (100.0%)
+8. Answer usefulness/coverage    12/12 (100.0%)
+9. Abstention appropriateness    13/13 (100.0%)
+Auth & privacy violations:       0
+Oracle mutation detection:       7/7 (100.0%)

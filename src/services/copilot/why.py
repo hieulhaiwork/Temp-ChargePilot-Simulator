@@ -1,4 +1,4 @@
-"""Deterministic WHY Engine (Phase AI-4.1 — Gate 2).
+"""Deterministic WHY Engine (Phase AI-4.1 — Gate 2 + Remediation G2-F01..G2-F07).
 
 Produces evidence-grounded, authorization-enforced, privacy-projected `WhyAnswer` outputs
 for topics: `queue`, `power`, `deadline_risk`, `incident`, `policy`, `overview`.
@@ -8,20 +8,28 @@ Hard invariants:
 - Zero LLM usage: all facts, reason codes, and summary templates are 100% deterministic.
 - Never conflates observed state, planned assignments, approved power, dispatched commands,
   effective held setpoints, and measured actual output.
-- Never fabricates measured facts from active traces or substitutes 0 for missing readings.
-- Never invents causal explanations for unknown policy/coordinator reason codes.
-- Never attributes TOU optimization to policies whose optimizer does not optimize TOU (e.g. B0).
+- Direct facts strictly match canonical trace values; derived facts declare a finite
+  `DerivationOp` and all contributing `input_evidence_refs`.
+- Never fabricates measured facts from active traces, substitutes 0 for missing readings,
+  leaks future completions into earlier `at` queries, or uses silent efficiency defaults.
+- Never attributes station-level violations to a vehicle without subject-specific evidence,
+  nor emits `NO_INCIDENT_OBSERVED` when evidence is active, incomplete, or un-evaluated.
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime, timedelta
 
 from src.models.charging import Booking
 from src.models.control import Role
 from src.models.copilot import (
     SUPPORTED_WHY_TOPICS,
     ActorContext,
+    DerivationOp,
     EvidenceCategory,
+    FactDerivationKind,
     FactStage,
+    TemporalBasis,
+    TimeWindow,
     WhyAnswer,
     WhyQuery,
     WhyStatus,
@@ -41,6 +49,7 @@ from src.services.copilot.trace_reader import (
     SampleSlice,
     extract_measured_slice,
     fetch_temporal_traces,
+    parse_iso_aware,
     resolve_traces_from_records,
 )
 
@@ -93,23 +102,36 @@ _KNOWN_COORDINATOR_REASONS: dict[tuple[str, str], tuple[str, str]] = {
 }
 
 
-def _live_open_trace_state() -> tuple[str | None, bool]:
-    """Read-only peek at in-memory live runtime's open_trace without constructing or stepping it."""
+def _live_open_trace_state() -> tuple[str | None, bool, datetime | None]:
+    """Read-only peek at in-memory live runtime's open_trace and physics clock without stepping.
+
+    G2-F04: When `runtime._live is None` (e.g., fresh process after restart before runtime init),
+    we KNOW there is no live open trace in this process (`live_known=True, cid=None`), so any
+    unclosed active trace left in DB is immediately classified as `stale_after_restart=True`.
+    """
     from src.services import runtime
 
     live = getattr(runtime, "_live", None)
     if live is None:
-        return None, False
+        return None, True, None
     holder = getattr(live, "open_trace", None)
+    sim = getattr(live, "simulator", None)
+    sim_now = getattr(sim, "now", None) if sim is not None else None
+    if isinstance(sim_now, datetime) and (sim_now.tzinfo is None or sim_now.utcoffset() is None):
+        sim_now = None
     if not isinstance(holder, dict):
-        return None, True
+        return None, True, sim_now if isinstance(sim_now, datetime) else None
     trace = holder.get("trace")
     cid = trace.get("correlation_id") if isinstance(trace, dict) else None
-    return cid, True
+    return cid, True, sim_now if isinstance(sim_now, datetime) else None
 
 
 def _seg(value: str) -> str:
     return encode_pointer_token(value)
+
+
+def _utc(dt: datetime) -> datetime:
+    return dt.astimezone(UTC)
 
 
 def explain_why(
@@ -119,15 +141,12 @@ def explain_why(
     station_id: str | None = None,
     live_open_correlation_id: str | None = None,
     live_open_known: bool | None = None,
+    live_physics_clock: datetime | None = None,
     raw_traces: Sequence[dict] | None = None,
     legacy_summary_only_count: int = 0,
     bookings_override: Mapping[str, Booking] | None = None,
 ) -> WhyAnswer:
-    """Deterministic, read-only WHY Engine entry point.
-
-    Parameters `raw_traces`, `bookings_override`, `live_open_correlation_id`, `live_open_known`
-    support isolated offline testing without touching live runtime or external DB.
-    """
+    """Deterministic, read-only WHY Engine entry point."""
     resolved_station_id = station_id or catalog.load_station_config().station_id
 
     if bookings_override is not None:
@@ -177,12 +196,23 @@ def explain_why(
         )
 
     if live_open_known is None:
-        live_cid, live_known = _live_open_trace_state()
+        live_cid, live_known, detected_clock = _live_open_trace_state()
+        live_clock = live_physics_clock if live_physics_clock is not None else detected_clock
     else:
-        live_cid, live_known = live_open_correlation_id, live_open_known
+        live_cid, live_known, live_clock = live_open_correlation_id, live_open_known, live_physics_clock
 
     booking_filter = auth.subject_id if query.subject_scope != WhySubjectScope.STATION else None
     if raw_traces is not None:
+        # Preserve station-wide timeline metadata even when filtering raw_traces by booking_id (G2-F04)
+        station_timeline = [
+            {
+                "correlation_id": t.get("correlation_id"),
+                "decided_at": t.get("decided_at"),
+                "schedule_version": t.get("schedule_version", 0),
+            }
+            for t in raw_traces
+            if t.get("station_id") == resolved_station_id and t.get("decided_at")
+        ]
         candidates = (
             [t for t in raw_traces if booking_filter in (t.get("booking_ids") or ())]
             if booking_filter is not None
@@ -194,9 +224,12 @@ def explain_why(
             window=query.window,
             station_id=resolved_station_id,
             limit=query.limit,
+            cursor=query.cursor,
             legacy_summary_only_count=legacy_summary_only_count,
+            station_timeline=station_timeline,
             live_open_correlation_id=live_cid,
             live_open_known=live_known,
+            live_physics_clock=live_clock,
         )
     else:
         resolution = fetch_temporal_traces(
@@ -205,8 +238,10 @@ def explain_why(
             booking_id=booking_filter,
             station_id=resolved_station_id,
             limit=query.limit,
+            cursor=query.cursor,
             live_open_correlation_id=live_cid,
             live_open_known=live_known,
+            live_physics_clock=live_clock,
         )
 
     if not resolution.traces:
@@ -222,10 +257,10 @@ def explain_why(
             query_window=query.window,
             missing_evidence=missing,
             truncated=resolution.truncated,
+            next_cursor=resolution.next_cursor,
         )
 
-    own_booking_id = auth.subject_id if actor.role == Role.RESIDENT else None
-    collector = EvidenceCollector(actor, own_booking_id=own_booking_id)
+    collector = EvidenceCollector(actor, authorized_subject=auth.authorized_subject)
     for miss in resolution.missing_evidence:
         collector.add_missing(miss)
 
@@ -239,9 +274,27 @@ def explain_why(
         )
         _annotate_trace_limitations(resolved, sample_slice, collector)
         if is_station:
-            _explain_station_trace(topic, resolved, sample_slice, resolved_station_id, collector)
+            _explain_station_trace(
+                topic,
+                resolved,
+                sample_slice,
+                resolved_station_id,
+                collector,
+                has_temporal_gap=resolution.has_temporal_gap,
+            )
         else:
-            _explain_booking_trace(topic, resolved, sample_slice, subject_id, actor.role, auth.booking, collector)
+            _explain_booking_trace(
+                topic,
+                resolved,
+                sample_slice,
+                subject_id,
+                actor.role,
+                auth.booking,
+                collector,
+                query_at=query.at,
+                query_window=query.window,
+                has_temporal_gap=resolution.has_temporal_gap,
+            )
 
     status = _determine_status(resolution, collector)
     provenances = [r.provenance for r in resolution.traces]
@@ -267,8 +320,9 @@ def explain_why(
         assumptions=collector.assumptions,
         missing_evidence=collector.missing_evidence,
         truncated=resolution.truncated,
+        next_cursor=resolution.next_cursor,
     )
-    verify_privacy_projection(answer, actor, resolution.traces, own_booking_id=own_booking_id)
+    verify_privacy_projection(answer, actor, resolution.traces, authorized_subject=auth.authorized_subject)
     return answer
 
 
@@ -281,6 +335,12 @@ def _annotate_trace_limitations(
         collector.add_missing("active_trace_no_measured_data")
         collector.add_assumption(
             "Trace đang mở (active): chỉ có dữ kiện tại thời điểm quyết định, chưa có số đo thực tế."
+        )
+    if resolved.exceeds_live_physics_clock:
+        collector.add_missing("query_exceeds_live_physics_clock")
+        collector.add_assumption(
+            "Thời điểm truy vấn nằm trong khoảng kế hoạch nhưng vượt quá đồng hồ vật lý hiện tại; "
+            "các dữ kiện tương lai chỉ mang tính kế hoạch (planned), chưa phải quan sát/đo đạc đã xác nhận."
         )
     if prov.stale_after_restart:
         collector.add_missing("stale_active_trace_unclosed_after_restart")
@@ -296,15 +356,20 @@ def _annotate_trace_limitations(
         collector.add_missing("no_measured_samples")
     if trace.get("planned") is None and trace.get("decision") is None:
         collector.add_missing("planned_diagnostics_unavailable")
-    if sample_slice is not None and sample_slice.is_subwindow and not sample_slice.samples and prov.closed:
-        collector.add_missing("no_retained_samples_in_subwindow")
-    if (
-        sample_slice is not None
-        and sample_slice.is_subwindow
-        and sample_slice.samples
-        and not sample_slice.complete_for_window
-    ):
-        collector.add_missing("incomplete_subwindow_sample_coverage")
+    if sample_slice is not None:
+        if sample_slice.has_partial_overlap:
+            collector.add_assumption(
+                "Giả định công suất không đổi từng đoạn (piecewise-constant) trong mỗi mẫu đo khi tích phân theo khoảng giao chính xác."
+            )
+        if sample_slice.overlapping_samples_detected:
+            collector.add_missing("overlapping_measured_samples_deduplicated")
+            collector.add_assumption(
+                "Phát hiện mẫu đo trùng/giao nhau; đã cắt lọc khoảng giao để tránh cộng trùng năng lượng."
+            )
+        if sample_slice.is_subwindow and not sample_slice.samples and prov.closed:
+            collector.add_missing("no_retained_samples_in_subwindow")
+        if sample_slice.is_subwindow and sample_slice.samples and not sample_slice.complete_for_window:
+            collector.add_missing("incomplete_subwindow_sample_coverage")
 
 
 def _determine_status(resolution, collector: EvidenceCollector) -> WhyStatus:
@@ -320,18 +385,24 @@ def _determine_status(resolution, collector: EvidenceCollector) -> WhyStatus:
         "legacy_summary_only_trace",
         "planned_diagnostics_unavailable",
         "query_exceeds_available_evidence",
+        "query_exceeds_live_physics_clock",
         "active_trace_no_measured_data",
+        "missing_conversion_efficiency_evidence",
+        "missing_charging_efficiency_evidence",
+        "completion_timestamp_unknown_for_as_of_query",
+        "insufficient_evidence_to_confirm_no_incident",
     }
     if (
         resolution.truncated
         or resolution.has_temporal_gap
+        or resolution.exceeds_live_physics_clock
         or any(m in partial_triggers for m in collector.missing_evidence)
     ):
         return WhyStatus.PARTIAL
     return WhyStatus.OK
 
 
-# ---- Booking-scoped explainers (Resident or Operator) ------------------------------------
+# ---- Shared helpers ----------------------------------------------------------------------
 
 
 def _planned_vehicle(trace: dict, booking_id: str) -> tuple[dict | None, str]:
@@ -343,6 +414,99 @@ def _planned_vehicle(trace: dict, booking_id: str) -> tuple[dict | None, str]:
     return None, ""
 
 
+def _booking_cabinet(planned: dict, vrow: dict) -> str | None:
+    conn = vrow.get("connector_id") or vrow.get("planned_assigned_connector")
+    if not conn:
+        return None
+    port_row = ((planned.get("observed") or {}).get("ports") or {}).get(conn)
+    return port_row.get("cabinet_id") if isinstance(port_row, dict) else None
+
+
+def _resolve_charging_efficiency(trace: dict) -> tuple[float | None, str | None]:
+    """Return decision-time charging efficiency and canonical pointer, NEVER a silent default (G2-F06)."""
+    planned_limits = (trace.get("planned") or {}).get("physical_limits") or {}
+    val = planned_limits.get("charging_efficiency")
+    if isinstance(val, (int, float)) and val > 0:
+        return float(val), "/planned/physical_limits/charging_efficiency"
+    decision_limits = (trace.get("decision") or {}).get("physical_limits") or {}
+    val = decision_limits.get("charging_efficiency")
+    if isinstance(val, (int, float)) and val > 0:
+        return float(val), "/decision/physical_limits/charging_efficiency"
+    return None, None
+
+
+def _can_confirm_no_incident(resolved: ResolvedTrace, *, has_temporal_gap: bool) -> bool:
+    """G2-F05 #4: Only assert NO_INCIDENT_OBSERVED when evidence is closed, complete, evaluated, and contiguous."""
+    prov = resolved.provenance
+    return (
+        prov.closed
+        and prov.post_apply_status == "pass"
+        and prov.coverage_status == "complete"
+        and not prov.stale_after_restart
+        and not resolved.exceeds_live_physics_clock
+        and resolved.payload.get("planned") is not None
+        and not has_temporal_gap
+    )
+
+
+def _add_command_guard_and_approval_facts(
+    resolved: ResolvedTrace,
+    *,
+    key: str,
+    idx: int,
+    row: dict,
+    booking_id: str,
+    collector: EvidenceCollector,
+) -> tuple[list, list]:
+    """G2-F05 #5/#6: Emit direct verdict/rule/approval facts so blocked/pending reasons are fully grounded."""
+    guard_facts = []
+    approval_facts = []
+    if row.get("guard_passed") is False:
+        f_gp = collector.add_fact(
+            resolved,
+            name="dispatch.command_guard_passed",
+            subject=booking_id,
+            stage=FactStage.DISPATCHED,
+            value=False,
+            unit=None,
+            source_path=f"/{key}/{idx}/guard_passed",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
+        )
+        if f_gp is not None:
+            guard_facts.append(f_gp)
+        for v_idx, viol in enumerate(row.get("violations") or []):
+            if isinstance(viol, dict) and "rule" in viol:
+                f_rule = collector.add_fact(
+                    resolved,
+                    name="dispatch.business_guard_rule",
+                    subject=booking_id,
+                    stage=FactStage.DISPATCHED,
+                    value=viol["rule"],
+                    unit=None,
+                    source_path=f"/{key}/{idx}/violations/{v_idx}/rule",
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                )
+                if f_rule is not None:
+                    guard_facts.append(f_rule)
+    if row.get("approval_id") and not row.get("executed"):
+        f_appr = collector.add_fact(
+            resolved,
+            name="dispatch.command_approval_id",
+            subject=booking_id,
+            stage=FactStage.DISPATCHED,
+            value=row["approval_id"],
+            unit=None,
+            source_path=f"/{key}/{idx}/approval_id",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
+        )
+        if f_appr is not None:
+            approval_facts.append(f_appr)
+    return guard_facts, approval_facts
+
+
+# ---- Booking-scoped explainers (Resident or Operator) ------------------------------------
+
+
 def _explain_booking_trace(
     topic: WhyTopic,
     resolved: ResolvedTrace,
@@ -351,22 +515,32 @@ def _explain_booking_trace(
     role: Role,
     booking: Booking | None,
     collector: EvidenceCollector,
+    *,
+    query_at: datetime | None,
+    query_window: TimeWindow | None,
+    has_temporal_gap: bool,
 ) -> None:
     if topic == WhyTopic.QUEUE:
         _explain_booking_queue(resolved, booking_id, booking, collector)
     elif topic == WhyTopic.POWER:
         _explain_booking_power(resolved, sample_slice, booking_id, collector)
     elif topic == WhyTopic.DEADLINE_RISK:
-        _explain_booking_deadline_risk(resolved, booking_id, booking, collector)
+        _explain_booking_deadline_risk(
+            resolved, booking_id, booking, collector, query_at=query_at, query_window=query_window
+        )
     elif topic == WhyTopic.INCIDENT:
-        _explain_booking_incident(resolved, booking_id, role, collector)
+        _explain_booking_incident(resolved, booking_id, role, collector, has_temporal_gap=has_temporal_gap)
     elif topic == WhyTopic.POLICY:
         _explain_policy(resolved, booking_id, booking, collector, is_station=False)
     elif topic == WhyTopic.OVERVIEW:
         _explain_booking_queue(resolved, booking_id, booking, collector)
         _explain_booking_power(resolved, sample_slice, booking_id, collector)
-        _explain_booking_deadline_risk(resolved, booking_id, booking, collector)
-        _explain_booking_incident(resolved, booking_id, role, collector, emit_no_incident=False)
+        _explain_booking_deadline_risk(
+            resolved, booking_id, booking, collector, query_at=query_at, query_window=query_window
+        )
+        _explain_booking_incident(
+            resolved, booking_id, role, collector, emit_no_incident=False, has_temporal_gap=has_temporal_gap
+        )
 
 
 def _explain_booking_queue(
@@ -381,9 +555,8 @@ def _explain_booking_queue(
     zone = vrow["zone"] if vrow else (str(booking.request.zone) if booking else None)
     p_start, p_end = resolved.planned_start, resolved.planned_end
 
-    state_fact = None
-    conn_fact = None
-    pos_fact = None
+    # G2-F03: Decision-time observation snapshots have time_scope=DECISION_SNAPSHOT (interval=None)
+    state_fact = conn_fact = pos_fact = None
     if vrow is not None:
         state_fact = collector.add_fact(
             resolved,
@@ -393,8 +566,7 @@ def _explain_booking_queue(
             value=vrow.get("state"),
             unit=None,
             source_path=f"{vpath}/state",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         conn_fact = collector.add_fact(
             resolved,
@@ -404,8 +576,7 @@ def _explain_booking_queue(
             value=vrow.get("connector_id"),
             unit=None,
             source_path=f"{vpath}/connector_id",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if vrow.get("queue_position") is not None:
             pos_fact = collector.add_fact(
@@ -416,8 +587,7 @@ def _explain_booking_queue(
                 value=vrow["queue_position"],
                 unit="rank",
                 source_path=f"{vpath}/queue_position",
-                interval_start=p_start,
-                interval_end=p_end,
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
 
     zone_sum = ((planned or {}).get("observed") or {}).get("zone_summary", {}).get(zone) if zone else None
@@ -432,8 +602,7 @@ def _explain_booking_queue(
             value=zone_sum["empty_ports"],
             unit="count",
             source_path=f"{zpath}/empty_ports",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         fault_fact = collector.add_fact(
             resolved,
@@ -443,8 +612,7 @@ def _explain_booking_queue(
             value=zone_sum["faulted_ports"],
             unit="count",
             source_path=f"{zpath}/faulted_ports",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         waiting_fact = collector.add_fact(
             resolved,
@@ -454,8 +622,7 @@ def _explain_booking_queue(
             value=zone_sum["waiting_count"],
             unit="count",
             source_path=f"{zpath}/waiting_count",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         collector.add_fact(
             resolved,
@@ -465,8 +632,7 @@ def _explain_booking_queue(
             value=zone_sum["occupied_ports"],
             unit="count",
             source_path=f"{zpath}/occupied_ports",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         dpolicy = ((planned or {}).get("dispatch") or {}).get(zone, {}).get("policy")
         if dpolicy:
@@ -478,11 +644,9 @@ def _explain_booking_queue(
                 value=dpolicy,
                 unit=None,
                 source_path=f"/planned/dispatch/{_seg(zone)}/policy",
-                interval_start=p_start,
-                interval_end=p_end,
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
 
-    # Distinguish planned assignment vs actual ASSIGN_CONNECTOR command execution
     planned_conn = vrow.get("planned_assigned_connector") if vrow else None
     planned_assign_fact = None
     if vrow is not None and planned_conn is not None:
@@ -494,6 +658,7 @@ def _explain_booking_queue(
             value=planned_conn,
             unit=None,
             source_path=f"{vpath}/planned_assigned_connector",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
             interval_start=p_start,
             interval_end=p_end,
         )
@@ -519,36 +684,50 @@ def _explain_booking_queue(
             value=bool(row.get("executed")),
             unit=None,
             source_path=f"/commands/{idx}/executed",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if row.get("executed"):
             executed_assign = (f_exec, row)
         else:
-            f_refs = [f.fact_id for f in (planned_assign_fact, f_exec) if f is not None]
-            e_refs = [f.evidence_ref for f in (planned_assign_fact, f_exec) if f is not None]
+            guard_facts, approval_facts = _add_command_guard_and_approval_facts(
+                resolved, key="commands", idx=idx, row=row, booking_id=booking_id, collector=collector
+            )
             if row.get("guard_passed") is False:
+                all_f = [f for f in (planned_assign_fact, f_exec, *guard_facts) if f is not None]
                 rules = ", ".join(v.get("rule", "unknown") for v in (row.get("violations") or []))
                 collector.add_reason(
                     resolved,
                     code="PLANNED_ASSIGNMENT_BLOCKED_BY_GUARD",
                     category=EvidenceCategory.OBSERVED,
                     subject=booking_id,
-                    fact_refs=f_refs,
-                    evidence_refs=e_refs,
+                    fact_refs=[f.fact_id for f in all_f],
+                    evidence_refs=[f.evidence_ref for f in all_f],
                     template_key="queue.assign_blocked_guard",
                     params={"connector_id": row.get("connector_id"), "rules": rules},
                     summary=f"Lệnh gán cổng {row.get('connector_id')} đã lập kế hoạch nhưng bị Business Guard chặn ({rules}); xe chưa kết nối.",
                 )
             elif row.get("approval_id"):
+                all_f = [f for f in (planned_assign_fact, f_exec, *approval_facts) if f is not None]
                 collector.add_reason(
                     resolved,
                     code="PLANNED_ASSIGNMENT_PENDING_APPROVAL",
                     category=EvidenceCategory.OBSERVED,
                     subject=booking_id,
-                    fact_refs=f_refs,
-                    evidence_refs=e_refs,
+                    fact_refs=[f.fact_id for f in all_f],
+                    evidence_refs=[f.evidence_ref for f in all_f],
                     template_key="queue.assign_pending_approval",
-                    params={"connector_id": row.get("connector_id"), "approval_id": row.get("approval_id")},
-                    summary=f"Lệnh gán cổng {row.get('connector_id')} đang chờ phê duyệt ({row.get('approval_id')}); xe chưa kết nối.",
+                    params={
+                        "connector_id": row.get("connector_id"),
+                        "approval_id": row.get("approval_id"),
+                        "decision_time_only": True,
+                    },
+                    summary=(
+                        f"Tại thời điểm quyết định, lệnh gán cổng {row.get('connector_id')} chờ phê duyệt "
+                        f"({row.get('approval_id')}); xe chưa kết nối (không phản ánh trạng thái phê duyệt hiện tại)."
+                    ),
+                )
+                collector.add_assumption(
+                    "Trạng thái chờ phê duyệt phản ánh thời điểm quyết định, không khẳng định trạng thái phê duyệt hiện tại."
                 )
 
     for idx, row in assign_exclusions:
@@ -560,6 +739,7 @@ def _explain_booking_queue(
             value=row.get("primary_reason"),
             unit=None,
             source_path=f"/command_exclusions/{idx}/primary_reason",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_excl is not None:
             f_refs = [f.fact_id for f in (planned_assign_fact, f_excl) if f is not None]
@@ -604,7 +784,6 @@ def _explain_booking_queue(
             summary=f"Bộ lập lịch dự kiến gán cổng {planned_conn} nhưng chưa có lệnh gán được thực thi trong trace (không khẳng định xe đã kết nối).",
         )
 
-    # Explain why vehicle was waiting at decision time (if observed QUEUED and not dispatched)
     if vrow is not None and vrow.get("state") == "QUEUED" and executed_assign is None:
         if empty_fact is not None and empty_fact.value == 0:
             f_refs = [f.fact_id for f in (state_fact, pos_fact, empty_fact, fault_fact) if f is not None]
@@ -633,7 +812,6 @@ def _explain_booking_queue(
                     summary=f"Vùng {zone} hiện có {fault_fact.value} đầu nối đang lỗi, làm giảm số cổng khả dụng.",
                 )
         elif empty_fact is not None and int(empty_fact.value or 0) > 0 and planned_assign_fact is None:
-            # Free port existed, another vehicle was selected — report policy & own laxity bound ONLY (no fabricated ranking cause)
             f_refs = [f.fact_id for f in (state_fact, pos_fact, empty_fact, waiting_fact, policy_fact) if f is not None]
             e_refs = [
                 f.evidence_ref for f in (state_fact, pos_fact, empty_fact, waiting_fact, policy_fact) if f is not None
@@ -648,6 +826,7 @@ def _explain_booking_queue(
                     value=lax.get("optimistic_laxity_minutes"),
                     unit="minutes",
                     source_path=f"/planned/dc_waiting_laxity/{_seg(booking_id)}/optimistic_laxity_minutes",
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
                 )
                 if f_lax is not None:
                     f_refs.append(f_lax.fact_id)
@@ -693,9 +872,8 @@ def _explain_booking_power(
     vrow, vpath = _planned_vehicle(trace, booking_id)
     zone = vrow["zone"] if vrow else None
     p_start, p_end = resolved.planned_start, resolved.planned_end
-    eff_start, eff_end = resolved.effective_start, resolved.effective_end
 
-    # 1. Proposed & Approved setpoints
+    # 1. Proposed & Approved setpoints (direct facts with planned interval)
     proposed_map = (power.get("proposed") or {}).get("by_booking_kw") or {}
     approved_map = (power.get("approved") or {}).get("by_booking_kw") or {}
     f_prop = f_appr = None
@@ -708,6 +886,7 @@ def _explain_booking_power(
             value=proposed_map[booking_id],
             unit="kW",
             source_path=f"/power/proposed/by_booking_kw/{_seg(booking_id)}",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
             interval_start=p_start,
             interval_end=p_end,
         )
@@ -720,11 +899,11 @@ def _explain_booking_power(
             value=approved_map[booking_id],
             unit="kW",
             source_path=f"/power/approved/by_booking_kw/{_seg(booking_id)}",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
             interval_start=p_start,
             interval_end=p_end,
         )
 
-    # Consent adjustment
     consent_adj = ((trace.get("consent") or {}).get("adjustments_kw") or {}).get(booking_id)
     if consent_adj is not None:
         f_adj = collector.add_fact(
@@ -735,6 +914,7 @@ def _explain_booking_power(
             value=consent_adj,
             unit="kW",
             source_path=f"/consent/adjustments_kw/{_seg(booking_id)}",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
             interval_start=p_start,
             interval_end=p_end,
         )
@@ -758,15 +938,28 @@ def _explain_booking_power(
                 continue
             if row.get("type") not in ("set_power", "stop"):
                 continue
-            f_cmd = collector.add_fact(
-                resolved,
-                name="power.emergency_dispatched_kw" if is_emergency else "power.dispatched_command_kw",
-                subject=booking_id,
-                stage=FactStage.DISPATCHED,
-                value=0.0 if row.get("type") == "stop" else row.get("power_kw"),
-                unit="kW",
-                source_path=f"/{key}/{idx}/power_kw" if row.get("power_kw") is not None else f"/{key}/{idx}/type",
-            )
+            if row.get("power_kw") is not None:
+                f_cmd = collector.add_fact(
+                    resolved,
+                    name="power.emergency_dispatched_kw" if is_emergency else "power.dispatched_command_kw",
+                    subject=booking_id,
+                    stage=FactStage.DISPATCHED,
+                    value=row["power_kw"],
+                    unit="kW",
+                    source_path=f"/{key}/{idx}/power_kw",
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                )
+            else:
+                f_cmd = collector.add_fact(
+                    resolved,
+                    name="power.emergency_command_type" if is_emergency else "power.dispatched_command_type",
+                    subject=booking_id,
+                    stage=FactStage.DISPATCHED,
+                    value=row["type"],
+                    unit=None,
+                    source_path=f"/{key}/{idx}/type",
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                )
             f_exec = collector.add_fact(
                 resolved,
                 name="power.command_executed",
@@ -775,46 +968,60 @@ def _explain_booking_power(
                 value=bool(row.get("executed")),
                 unit=None,
                 source_path=f"/{key}/{idx}/executed",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
-            f_refs = [f.fact_id for f in (f_cmd, f_exec) if f is not None]
-            e_refs = [f.evidence_ref for f in (f_cmd, f_exec) if f is not None]
-            if row.get("guard_passed") is False and e_refs:
+            guard_facts, approval_facts = _add_command_guard_and_approval_facts(
+                resolved, key=key, idx=idx, row=row, booking_id=booking_id, collector=collector
+            )
+            if row.get("guard_passed") is False:
+                all_f = [f for f in (f_cmd, f_exec, *guard_facts) if f is not None]
                 rules = ", ".join(v.get("rule", "unknown") for v in (row.get("violations") or []))
-                collector.add_reason(
-                    resolved,
-                    code="BUSINESS_GUARD_BLOCKED",
-                    category=EvidenceCategory.OBSERVED,
-                    subject=booking_id,
-                    fact_refs=f_refs,
-                    evidence_refs=e_refs,
-                    template_key="power.guard_blocked",
-                    params={"rules": rules, "command_id": row.get("command_id")},
-                    summary=f"Lệnh công suất bị Business Guard chặn (luật: {rules}).",
-                )
-            elif row.get("approval_id") and not row.get("executed") and e_refs:
-                collector.add_reason(
-                    resolved,
-                    code="COMMAND_PENDING_APPROVAL",
-                    category=EvidenceCategory.OBSERVED,
-                    subject=booking_id,
-                    fact_refs=f_refs,
-                    evidence_refs=e_refs,
-                    template_key="power.pending_approval",
-                    params={"approval_id": row.get("approval_id")},
-                    summary=f"Lệnh công suất đang chờ phê duyệt HITL ({row.get('approval_id')}), chưa được áp.",
-                )
-            elif is_emergency and row.get("executed") and e_refs:
-                collector.add_reason(
-                    resolved,
-                    code="EMERGENCY_POWER_COMMAND_EXECUTED",
-                    category=EvidenceCategory.OBSERVED,
-                    subject=booking_id,
-                    fact_refs=f_refs,
-                    evidence_refs=e_refs,
-                    template_key="power.emergency_executed",
-                    params={"power_kw": row.get("power_kw")},
-                    summary=f"Lệnh khẩn cấp đặt công suất {row.get('power_kw'):g} kW đã thực thi qua dispatcher.",
-                )
+                if all_f:
+                    collector.add_reason(
+                        resolved,
+                        code="BUSINESS_GUARD_BLOCKED",
+                        category=EvidenceCategory.OBSERVED,
+                        subject=booking_id,
+                        fact_refs=[f.fact_id for f in all_f],
+                        evidence_refs=[f.evidence_ref for f in all_f],
+                        template_key="power.guard_blocked",
+                        params={"rules": rules, "command_id": row.get("command_id")},
+                        summary=f"Lệnh công suất bị Business Guard chặn (luật: {rules}).",
+                    )
+            elif row.get("approval_id") and not row.get("executed"):
+                all_f = [f for f in (f_cmd, f_exec, *approval_facts) if f is not None]
+                if all_f:
+                    collector.add_reason(
+                        resolved,
+                        code="COMMAND_PENDING_APPROVAL",
+                        category=EvidenceCategory.OBSERVED,
+                        subject=booking_id,
+                        fact_refs=[f.fact_id for f in all_f],
+                        evidence_refs=[f.evidence_ref for f in all_f],
+                        template_key="power.pending_approval",
+                        params={"approval_id": row.get("approval_id"), "decision_time_only": True},
+                        summary=(
+                            f"Tại thời điểm quyết định, lệnh công suất chờ phê duyệt HITL ({row.get('approval_id')}) "
+                            "và chưa được áp (không phản ánh trạng thái phê duyệt hiện tại)."
+                        ),
+                    )
+                    collector.add_assumption(
+                        "Trạng thái chờ phê duyệt phản ánh thời điểm quyết định, không khẳng định trạng thái phê duyệt hiện tại."
+                    )
+            elif is_emergency and row.get("executed"):
+                all_f = [f for f in (f_cmd, f_exec) if f is not None]
+                if all_f:
+                    collector.add_reason(
+                        resolved,
+                        code="EMERGENCY_POWER_COMMAND_EXECUTED",
+                        category=EvidenceCategory.OBSERVED,
+                        subject=booking_id,
+                        fact_refs=[f.fact_id for f in all_f],
+                        evidence_refs=[f.evidence_ref for f in all_f],
+                        template_key="power.emergency_executed",
+                        params={"power_kw": row.get("power_kw")},
+                        summary=f"Lệnh khẩn cấp đặt công suất {row.get('power_kw'):g} kW đã thực thi qua dispatcher.",
+                    )
 
     for idx, row in enumerate(trace.get("command_exclusions") or []):
         if row.get("booking_id") != booking_id or row.get("type") not in ("set_power", "stop"):
@@ -828,6 +1035,7 @@ def _explain_booking_power(
             value=primary,
             unit=None,
             source_path=f"/command_exclusions/{idx}/primary_reason",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_ex is not None:
             collector.add_reason(
@@ -842,66 +1050,164 @@ def _explain_booking_power(
                 summary=f"Lệnh điều phối bị loại trước khi gửi do {primary} (tất cả lý do: {', '.join(row.get('reasons') or [])}).",
             )
 
-    # 3. Effective held setpoint & Measured actual output (strictly from overlapping retained samples!)
+    # 3. Effective held setpoint & Measured actual output (G2-F01 / G2-F02 / G2-F03 / G2-F06)
     if resolved.provenance.closed and sample_slice is not None:
-        held_samples = sample_slice.held_samples
-        actual_samples = sample_slice.samples
-        m_start = resolved.measured_start or eff_start
-        m_end = resolved.measured_end or eff_end
-        if held_samples and booking_id in sample_slice.held_avg_kw_by_booking:
-            # Point to first matching sample containing booking_id
-            sample_idx = _find_sample_index(
-                (power.get("effective_setpoint") or {}).get("samples") or [], held_samples[0]
-            )
-            if sample_idx is not None:
-                collector.add_fact(
-                    resolved,
-                    name="power.effective_held_setpoint_avg_kw",
-                    subject=booking_id,
-                    stage=FactStage.EFFECTIVE_SETPOINT,
-                    value=round(sample_slice.held_avg_kw_by_booking[booking_id], 6),
-                    unit="kW",
-                    source_path=f"/power/effective_setpoint/samples/{sample_idx}/by_booking_kw/{_seg(booking_id)}",
-                    interval_start=m_start,
-                    interval_end=m_end,
-                )
+        _add_booking_measured_power_facts(resolved, sample_slice, booking_id, collector)
 
-        if actual_samples and booking_id in sample_slice.average_output_kw_by_booking:
-            if sample_slice.is_subwindow:
-                sample_idx = _find_sample_index(
-                    (power.get("actual_output") or {}).get("samples") or [], actual_samples[0]
-                )
-                actual_path = (
-                    f"/power/actual_output/samples/{sample_idx}/by_booking_kw/{_seg(booking_id)}"
-                    if sample_idx is not None
-                    else f"/power/actual_output/average_by_booking_kw/{_seg(booking_id)}"
-                )
-            else:
-                actual_path = f"/power/actual_output/average_by_booking_kw/{_seg(booking_id)}"
+    # 4. Physical limits, Vehicle taper, Binding constraints, Coordinator & Optimizer reasons
+    if planned is not None:
+        _add_limits_and_policy_power_evidence(resolved, planned, booking_id, zone, vrow, vpath, collector)
+
+    # 5. Post-apply violation / incomplete coverage (G2-F05 #3: subject-verified)
+    _add_booking_post_apply_evidence(resolved, booking_id, collector)
+
+
+def _add_booking_measured_power_facts(
+    resolved: ResolvedTrace,
+    sample_slice: SampleSlice,
+    booking_id: str,
+    collector: EvidenceCollector,
+) -> None:
+    trace = resolved.payload
+    seg_bid = _seg(booking_id)
+
+    # Register EVERY contributing held sample ref with exact sample interval
+    held_contribs = [c for c in sample_slice.held_contributions if booking_id in (c.sample.get("by_booking_kw") or {})]
+    held_refs = []
+    for c in held_contribs:
+        ref = collector.add_ref(
+            resolved,
+            f"/power/effective_setpoint/samples/{c.sample_index}/by_booking_kw/{seg_bid}",
+            booking_id,
+            time_scope=TemporalBasis.SAMPLE_INTERVAL,
+            interval_start=c.sample_start,
+            interval_end=c.sample_end,
+        )
+        if ref is not None:
+            held_refs.append((c, ref))
+
+    if held_refs and booking_id in sample_slice.held_avg_kw_by_booking:
+        if sample_slice.is_point_query and len(held_refs) == 1:
+            c0, r0 = held_refs[0]
             collector.add_fact(
                 resolved,
-                name="power.measured_actual_output_avg_kw",
+                name="power.effective_held_setpoint_kw",
                 subject=booking_id,
-                stage=FactStage.MEASURED,
-                value=round(sample_slice.average_output_kw_by_booking[booking_id], 6),
+                stage=FactStage.EFFECTIVE_SETPOINT,
+                value=round(float(c0.sample["by_booking_kw"][booking_id]), 6),
                 unit="kW",
-                source_path=actual_path,
-                interval_start=m_start,
-                interval_end=m_end,
+                source_path=r0.source_path,
+                time_scope=TemporalBasis.SAMPLE_INTERVAL,
+                interval_start=c0.sample_start,
+                interval_end=c0.sample_end,
+                derivation_kind=FactDerivationKind.DIRECT,
             )
+        else:
+            h_start = held_refs[0][0].overlap_start
+            h_end = held_refs[-1][0].overlap_end
             collector.add_fact(
                 resolved,
-                name="energy.measured_output_kwh",
+                name="power.effective_held_setpoint_avg_kw",
                 subject=booking_id,
-                stage=FactStage.MEASURED,
-                value=round(sample_slice.output_kwh_by_booking[booking_id], 6),
-                unit="kWh",
-                source_path=(
-                    f"/applied/output_kwh/{_seg(booking_id)}" if not sample_slice.is_subwindow else actual_path
-                ),
-                interval_start=m_start,
-                interval_end=m_end,
+                stage=FactStage.EFFECTIVE_SETPOINT,
+                value=round(sample_slice.held_avg_kw_by_booking[booking_id], 6),
+                unit="kW",
+                source_path=held_refs[0][1].source_path,
+                time_scope=TemporalBasis.DERIVATION_INTERVAL,
+                interval_start=h_start,
+                interval_end=h_end,
+                derivation_kind=FactDerivationKind.DERIVED,
+                derivation_op=DerivationOp.AVERAGE,
+                input_evidence_refs=[r.ref_id for _, r in held_refs],
+                derivation_params={"sample_count": len(held_refs)},
             )
+
+    # Register EVERY contributing actual sample ref with exact sample interval
+    actual_contribs = [
+        c for c in sample_slice.sample_contributions if booking_id in (c.sample.get("by_booking_kw") or {})
+    ]
+    actual_refs = []
+    for c in actual_contribs:
+        ref = collector.add_ref(
+            resolved,
+            f"/power/actual_output/samples/{c.sample_index}/by_booking_kw/{seg_bid}",
+            booking_id,
+            time_scope=TemporalBasis.SAMPLE_INTERVAL,
+            interval_start=c.sample_start,
+            interval_end=c.sample_end,
+        )
+        if ref is not None:
+            actual_refs.append((c, ref))
+
+    if not actual_refs or booking_id not in sample_slice.average_output_kw_by_booking:
+        return
+
+    # G2-F01: Point query (`at`) exposes sample-interval power ONLY — NEVER accumulated sample energy!
+    if sample_slice.is_point_query and len(actual_refs) == 1:
+        c0, r0 = actual_refs[0]
+        collector.add_fact(
+            resolved,
+            name="power.measured_actual_output_kw",
+            subject=booking_id,
+            stage=FactStage.MEASURED,
+            value=round(float(c0.sample["by_booking_kw"][booking_id]), 6),
+            unit="kW",
+            source_path=r0.source_path,
+            time_scope=TemporalBasis.SAMPLE_INTERVAL,
+            interval_start=c0.sample_start,
+            interval_end=c0.sample_end,
+            derivation_kind=FactDerivationKind.DIRECT,
+        )
+        return
+
+    # Window query: derived average & exact-overlap energy carrying exact derivation_interval & ALL sample refs
+    d_start = actual_refs[0][0].overlap_start
+    d_end = actual_refs[-1][0].overlap_end
+    ov_mins = round(sample_slice.sample_minutes_by_booking[booking_id], 6)
+    input_ids = [r.ref_id for _, r in actual_refs]
+
+    collector.add_fact(
+        resolved,
+        name="power.measured_actual_output_avg_kw",
+        subject=booking_id,
+        stage=FactStage.MEASURED,
+        value=round(sample_slice.average_output_kw_by_booking[booking_id], 6),
+        unit="kW",
+        source_path=actual_refs[0][1].source_path,
+        time_scope=TemporalBasis.DERIVATION_INTERVAL,
+        interval_start=d_start,
+        interval_end=d_end,
+        derivation_kind=FactDerivationKind.DERIVED,
+        derivation_op=DerivationOp.AVERAGE,
+        input_evidence_refs=input_ids,
+        derivation_params={"overlap_minutes": ov_mins, "sample_count": len(actual_refs)},
+    )
+    collector.add_fact(
+        resolved,
+        name="energy.measured_output_kwh",
+        subject=booking_id,
+        stage=FactStage.MEASURED,
+        value=round(sample_slice.output_kwh_by_booking[booking_id], 6),
+        unit="kWh",
+        source_path=actual_refs[0][1].source_path,
+        time_scope=TemporalBasis.DERIVATION_INTERVAL,
+        interval_start=d_start,
+        interval_end=d_end,
+        derivation_kind=FactDerivationKind.DERIVED,
+        derivation_op=DerivationOp.TIME_INTEGRATION,
+        input_evidence_refs=input_ids,
+        derivation_params={"overlap_minutes": ov_mins, "sample_count": len(actual_refs)},
+    )
+
+    # G2-F06: NEVER use silent 0.95 fallback; require decision-time conversion efficiency ref!
+    if sample_slice.conversion_efficiency is not None and sample_slice.conversion_source_path is not None:
+        conv_ref = collector.add_ref(
+            resolved,
+            sample_slice.conversion_source_path,
+            "station",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
+        )
+        if conv_ref is not None and booking_id in sample_slice.grid_input_kwh_by_booking:
             collector.add_fact(
                 resolved,
                 name="energy.measured_grid_input_kwh",
@@ -909,43 +1215,40 @@ def _explain_booking_power(
                 stage=FactStage.MEASURED,
                 value=round(sample_slice.grid_input_kwh_by_booking[booking_id], 6),
                 unit="kWh",
-                source_path=(
-                    f"/applied/grid_input_kwh/{_seg(booking_id)}" if not sample_slice.is_subwindow else actual_path
-                ),
-                interval_start=m_start,
-                interval_end=m_end,
+                source_path=actual_refs[0][1].source_path,
+                time_scope=TemporalBasis.DERIVATION_INTERVAL,
+                interval_start=d_start,
+                interval_end=d_end,
+                derivation_kind=FactDerivationKind.DERIVED,
+                derivation_op=DerivationOp.EFFICIENCY_CONVERSION,
+                input_evidence_refs=[*input_ids, conv_ref.ref_id],
+                derivation_params={
+                    "conversion_efficiency": sample_slice.conversion_efficiency,
+                    "overlap_minutes": ov_mins,
+                },
             )
-            if not sample_slice.is_subwindow and booking_id in (
-                (trace.get("applied") or {}).get("battery_stored_kwh") or {}
-            ):
-                collector.add_fact(
-                    resolved,
-                    name="energy.measured_battery_stored_kwh",
-                    subject=booking_id,
-                    stage=FactStage.MEASURED,
-                    value=round(float(trace["applied"]["battery_stored_kwh"][booking_id]), 6),
-                    unit="kWh",
-                    source_path=f"/applied/battery_stored_kwh/{_seg(booking_id)}",
-                    interval_start=m_start,
-                    interval_end=m_end,
-                )
+    else:
+        collector.add_missing("missing_conversion_efficiency_evidence")
 
-    # 4. Physical limits, Vehicle taper, Binding constraints, Coordinator & Optimizer reasons
-    if planned is not None:
-        _add_limits_and_policy_power_evidence(resolved, planned, booking_id, zone, vrow, vpath, collector)
-
-    # 5. Post-apply violation / incomplete coverage
-    _add_post_apply_status_evidence(resolved, booking_id, collector)
-
-
-def _find_sample_index(all_samples: list[dict], target: dict) -> int | None:
-    for idx, item in enumerate(all_samples):
-        if item is target or (
-            item.get("start_minute") == target.get("start_minute")
-            and item.get("end_minute") == target.get("end_minute")
-        ):
-            return idx
-    return None
+    # Battery stored kWh is only directly known for full unclipped measured coverage
+    if (
+        not sample_slice.is_subwindow
+        and not sample_slice.has_partial_overlap
+        and booking_id in ((trace.get("applied") or {}).get("battery_stored_kwh") or {})
+    ):
+        collector.add_fact(
+            resolved,
+            name="energy.measured_battery_stored_kwh",
+            subject=booking_id,
+            stage=FactStage.MEASURED,
+            value=round(float(trace["applied"]["battery_stored_kwh"][booking_id]), 6),
+            unit="kWh",
+            source_path=f"/applied/battery_stored_kwh/{seg_bid}",
+            time_scope=TemporalBasis.MEASURED_COVERAGE,
+            interval_start=resolved.measured_start or d_start,
+            interval_end=resolved.measured_end or d_end,
+            derivation_kind=FactDerivationKind.DIRECT,
+        )
 
 
 def _add_limits_and_policy_power_evidence(
@@ -961,7 +1264,6 @@ def _add_limits_and_policy_power_evidence(
     limits = planned.get("physical_limits") or {}
     p_start, p_end = resolved.planned_start, resolved.planned_end
 
-    # Supply mode & site/zone limits
     supply_mode = limits.get("supply_mode")
     if supply_mode:
         f_mode = collector.add_fact(
@@ -972,8 +1274,7 @@ def _add_limits_and_policy_power_evidence(
             value=supply_mode,
             unit=None,
             source_path="/planned/physical_limits/supply_mode",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if supply_mode == "shared" and limits.get("grid_input_kw") is not None:
             collector.add_fact(
@@ -984,8 +1285,7 @@ def _add_limits_and_policy_power_evidence(
                 value=limits["grid_input_kw"],
                 unit="kW",
                 source_path="/planned/physical_limits/grid_input_kw",
-                interval_start=p_start,
-                interval_end=p_end,
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
         elif supply_mode == "independent" and zone:
             ind_val = (limits.get("independent_grid_input_kw") or {}).get(zone)
@@ -998,8 +1298,7 @@ def _add_limits_and_policy_power_evidence(
                     value=ind_val,
                     unit="kW",
                     source_path=f"/planned/physical_limits/independent_grid_input_kw/{_seg(zone)}",
-                    interval_start=p_start,
-                    interval_end=p_end,
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
                 )
                 if f_ind is not None and f_mode is not None:
                     collector.add_reason(
@@ -1014,7 +1313,7 @@ def _add_limits_and_policy_power_evidence(
                         summary=f"Trạm chạy nguồn độc lập; vùng {zone} giới hạn nguồn riêng {ind_val:g} kW và không chia sẻ ngân sách xuyên vùng.",
                     )
 
-    # Vehicle acceptance / taper
+    # G2-F03: Observed decision-time vehicle acceptance has time_scope=DECISION_SNAPSHOT (no planned interval!)
     if vrow is not None and vrow.get("allowed_output_kw") is not None:
         allowed_kw = float(vrow["allowed_output_kw"])
         vmax_kw = float(vrow.get("vehicle_max_output_kw") or allowed_kw)
@@ -1026,8 +1325,7 @@ def _add_limits_and_policy_power_evidence(
             value=allowed_kw,
             unit="kW",
             source_path=f"{vpath}/allowed_output_kw",
-            interval_start=p_start,
-            interval_end=p_end,
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         conn_id = vrow.get("connector_id") or vrow.get("planned_assigned_connector")
         port_kw = (limits.get("port_output_kw") or {}).get(conn_id) if conn_id else None
@@ -1044,6 +1342,7 @@ def _add_limits_and_policy_power_evidence(
                     value=dc_model,
                     unit=None,
                     source_path="/experiment/dc_charging_model/name",
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
                 )
             f_refs = [f.fact_id for f in (f_allow, f_model) if f is not None]
             e_refs = [f.evidence_ref for f in (f_allow, f_model) if f is not None]
@@ -1069,7 +1368,7 @@ def _add_limits_and_policy_power_evidence(
                 "Đường giảm công suất theo SOC (taper) là mô hình mô phỏng, chưa hiệu chuẩn BMS thực tế."
             )
 
-    # Binding constraints (planned stage — tagged strictly as BINDING_CONSTRAINT, not global sole cause)
+    # Binding constraints (direct scalar at /planned/binding_constraints/{idx}/kw)
     for idx, binding in enumerate(planned.get("binding_constraints") or []):
         if binding.get("stage") != "approved":
             continue
@@ -1088,7 +1387,6 @@ def _add_limits_and_policy_power_evidence(
         )
         if not relevant:
             continue
-        b_path = f"/planned/binding_constraints/{idx}"
         f_bind = collector.add_fact(
             resolved,
             name=f"binding.{limit_kind}",
@@ -1096,7 +1394,8 @@ def _add_limits_and_policy_power_evidence(
             stage=FactStage.APPROVED,
             value=binding.get("kw"),
             unit="kW",
-            source_path=b_path,
+            source_path=f"/planned/binding_constraints/{idx}/kw",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
             interval_start=p_start,
             interval_end=p_end,
         )
@@ -1113,18 +1412,9 @@ def _add_limits_and_policy_power_evidence(
                 summary=f"Ràng buộc {limit_kind} ({bid_or_id}) chạm ngưỡng {binding.get('kw'):g} kW ở kế hoạch đã duyệt (đây là ràng buộc chạm trần, không suy diễn vượt bằng chứng).",
             )
 
-    # Coordinator budget & reason codes for subject's zone
     if zone:
         _add_coordinator_evidence(resolved, planned, zone, subject=booking_id, collector=collector)
         _add_optimizer_evidence(resolved, planned, zone, subject=booking_id, collector=collector)
-
-
-def _booking_cabinet(planned: dict, vrow: dict) -> str | None:
-    conn = vrow.get("connector_id") or vrow.get("planned_assigned_connector")
-    if not conn:
-        return None
-    port_row = ((planned.get("observed") or {}).get("ports") or {}).get(conn)
-    return port_row.get("cabinet_id") if isinstance(port_row, dict) else None
 
 
 def _add_coordinator_evidence(
@@ -1148,6 +1438,7 @@ def _add_coordinator_evidence(
             value=assigned,
             unit="kW",
             source_path=f"/planned/coordinator/assigned_output_kw/{_seg(zone)}",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
             interval_start=resolved.planned_start,
             interval_end=resolved.planned_end,
         )
@@ -1161,6 +1452,7 @@ def _add_coordinator_evidence(
             value=code,
             unit=None,
             source_path=f"/planned/coordinator/reason_codes/{_seg(zone)}/{idx}",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_code is None:
             continue
@@ -1181,7 +1473,6 @@ def _add_coordinator_evidence(
                 summary=template.format(zone=zone),
             )
         else:
-            # Unknown policy reason code: MUST NOT invent causal template
             collector.add_reason(
                 resolved,
                 code="UNKNOWN_POLICY_REASON_CODE",
@@ -1205,6 +1496,7 @@ def _add_optimizer_evidence(
 ) -> None:
     opt = (planned.get("optimizers") or {}).get(zone) or {}
     opt_policy = opt.get("policy")
+    f_pol = None
     if opt_policy:
         f_pol = collector.add_fact(
             resolved,
@@ -1214,9 +1506,8 @@ def _add_optimizer_evidence(
             value=opt_policy,
             unit=None,
             source_path=f"/planned/optimizers/{_seg(zone)}/policy",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
-    else:
-        f_pol = None
 
     fallback_reason = opt.get("fallback_reason")
     if fallback_reason:
@@ -1228,6 +1519,7 @@ def _add_optimizer_evidence(
             value=fallback_reason,
             unit=None,
             source_path=f"/planned/optimizers/{_seg(zone)}/fallback_reason",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_fb is not None:
             collector.add_reason(
@@ -1247,7 +1539,6 @@ def _add_optimizer_evidence(
         and opt["stage_status"].get("tou") == "optimal"
         and planned.get("tariff") is not None
     ):
-        # ONLY attribute TOU optimization when ac_rolling_lp actually solved stage 2 TOU optimally with tariff!
         f_tou = collector.add_fact(
             resolved,
             name="optimizer.tou_stage_status",
@@ -1256,6 +1547,7 @@ def _add_optimizer_evidence(
             value="optimal",
             unit=None,
             source_path=f"/planned/optimizers/{_seg(zone)}/stage_status/tou",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_tou is not None:
             collector.add_reason(
@@ -1271,7 +1563,22 @@ def _add_optimizer_evidence(
             )
 
 
-def _add_post_apply_status_evidence(resolved: ResolvedTrace, subject: str, collector: EvidenceCollector) -> None:
+def _has_vehicle_specific_violation(trace: dict, booking_id: str) -> bool:
+    safety = trace.get("safety") or {}
+    if booking_id in (safety.get("by_booking") or {}):
+        return True
+    for hv in safety.get("hard_limit_violations") or []:
+        if booking_id in (hv.get("booking_ids") or ()):
+            return True
+    applied = trace.get("applied") or {}
+    for detail in applied.get("hard_violation_details") or []:
+        if booking_id in (detail.get("vehicle_ids") or ()):
+            return True
+    return False
+
+
+def _add_booking_post_apply_evidence(resolved: ResolvedTrace, booking_id: str, collector: EvidenceCollector) -> None:
+    """G2-F05 #3: Never attribute a station-level violation to a vehicle without subject-specific evidence."""
     prov = resolved.provenance
     f_post = collector.add_fact(
         resolved,
@@ -1281,6 +1588,82 @@ def _add_post_apply_status_evidence(resolved: ResolvedTrace, subject: str, colle
         value=prov.post_apply_status,
         unit=None,
         source_path="/validation/post_apply",
+        time_scope=TemporalBasis.MEASURED_COVERAGE if prov.closed else TemporalBasis.DECISION_SNAPSHOT,
+        interval_start=resolved.measured_start
+        if prov.closed and resolved.measured_start and resolved.measured_end
+        else None,
+        interval_end=resolved.measured_end
+        if prov.closed and resolved.measured_start and resolved.measured_end
+        else None,
+    )
+    if f_post is None:
+        return
+    if prov.post_apply_status == "violation":
+        cov = prov.coverage_status
+        vehicle_linked = _has_vehicle_specific_violation(resolved.payload, booking_id)
+        if vehicle_linked:
+            collector.add_reason(
+                resolved,
+                code="POST_APPLY_HARD_VIOLATION",
+                category=EvidenceCategory.OBSERVED,
+                subject=booking_id,
+                fact_refs=[f_post.fact_id],
+                evidence_refs=[f_post.evidence_ref],
+                template_key="validation.post_apply_violation",
+                params={"post_apply": prov.post_apply_status, "coverage": cov, "scope": "booking"},
+                summary=(
+                    "Ghi nhận vi phạm trần cứng liên quan tới phiên sạc sau khi áp (dữ liệu mẫu đo không đầy đủ)."
+                    if cov == "incomplete"
+                    else "Ghi nhận vi phạm trần cứng liên quan tới phiên sạc ở khoảng quyết định này."
+                ),
+            )
+        else:
+            collector.add_reason(
+                resolved,
+                code="STATION_POST_APPLY_HARD_VIOLATION",
+                category=EvidenceCategory.OBSERVED,
+                subject="station",
+                fact_refs=[f_post.fact_id],
+                evidence_refs=[f_post.evidence_ref],
+                template_key="validation.station_post_apply_violation",
+                params={"post_apply": prov.post_apply_status, "coverage": cov, "scope": "station"},
+                summary=(
+                    "Trạm ghi nhận vi phạm trần cứng cấp trạm sau khi áp (chưa có bằng chứng quy kết riêng cho xe này; dữ liệu mẫu đo không đầy đủ)."
+                    if cov == "incomplete"
+                    else "Trạm ghi nhận vi phạm trần cứng cấp trạm sau khi áp (không có bằng chứng quy kết riêng cho xe này)."
+                ),
+            )
+    elif prov.post_apply_status == "incomplete":
+        collector.add_reason(
+            resolved,
+            code="INCOMPLETE_MEASURED_COVERAGE",
+            category=EvidenceCategory.OBSERVED,
+            subject="station",
+            fact_refs=[f_post.fact_id],
+            evidence_refs=[f_post.evidence_ref],
+            template_key="validation.incomplete_coverage",
+            params={"post_apply": prov.post_apply_status, "coverage": prov.coverage_status},
+            summary="Dữ liệu mẫu đo của quyết định không đầy đủ nên không kết luận đạt pass toàn khoảng.",
+        )
+
+
+def _add_station_post_apply_evidence(resolved: ResolvedTrace, station_id: str, collector: EvidenceCollector) -> None:
+    prov = resolved.provenance
+    f_post = collector.add_fact(
+        resolved,
+        name="validation.post_apply_status",
+        subject="station",
+        stage=FactStage.MEASURED if prov.closed else FactStage.PLANNED,
+        value=prov.post_apply_status,
+        unit=None,
+        source_path="/validation/post_apply",
+        time_scope=TemporalBasis.MEASURED_COVERAGE if prov.closed else TemporalBasis.DECISION_SNAPSHOT,
+        interval_start=resolved.measured_start
+        if prov.closed and resolved.measured_start and resolved.measured_end
+        else None,
+        interval_end=resolved.measured_end
+        if prov.closed and resolved.measured_start and resolved.measured_end
+        else None,
     )
     if f_post is None:
         return
@@ -1295,7 +1678,7 @@ def _add_post_apply_status_evidence(resolved: ResolvedTrace, subject: str, colle
             resolved,
             code="POST_APPLY_HARD_VIOLATION",
             category=EvidenceCategory.OBSERVED,
-            subject=subject,
+            subject=station_id,
             fact_refs=[f_post.fact_id],
             evidence_refs=[f_post.evidence_ref],
             template_key="validation.post_apply_violation",
@@ -1307,7 +1690,7 @@ def _add_post_apply_status_evidence(resolved: ResolvedTrace, subject: str, colle
             resolved,
             code="INCOMPLETE_MEASURED_COVERAGE",
             category=EvidenceCategory.OBSERVED,
-            subject=subject,
+            subject=station_id,
             fact_refs=[f_post.fact_id],
             evidence_refs=[f_post.evidence_ref],
             template_key="validation.incomplete_coverage",
@@ -1321,6 +1704,9 @@ def _explain_booking_deadline_risk(
     booking_id: str,
     booking: Booking | None,
     collector: EvidenceCollector,
+    *,
+    query_at: datetime | None,
+    query_window: TimeWindow | None,
 ) -> None:
     trace = resolved.payload
     planned = trace.get("planned") if isinstance(trace.get("planned"), dict) else None
@@ -1338,42 +1724,67 @@ def _explain_booking_deadline_risk(
         value=round(float(vrow["remaining_kwh"]), 6),
         unit="kWh",
         source_path=f"{vpath}/remaining_kwh",
+        time_scope=TemporalBasis.DECISION_SNAPSHOT,
     )
-    f_soc = collector.add_fact(
-        resolved,
-        name="vehicle.observed_soc",
-        subject=booking_id,
-        stage=FactStage.OBSERVED,
-        value=round(float(vrow["soc"]) * 100.0, 2),
-        unit="%",
-        source_path=f"{vpath}/soc",
+    # SOC and target_soc are converted from [0, 1] fraction to % -> explicit DERIVED SOC_CONVERSION (G2-F02)
+    ref_soc = collector.add_ref(resolved, f"{vpath}/soc", booking_id, time_scope=TemporalBasis.DECISION_SNAPSHOT)
+    f_soc = (
+        collector.add_fact(
+            resolved,
+            name="vehicle.observed_soc",
+            subject=booking_id,
+            stage=FactStage.OBSERVED,
+            value=round(float(vrow["soc"]) * 100.0, 2),
+            unit="%",
+            source_path=f"{vpath}/soc",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            derivation_kind=FactDerivationKind.DERIVED,
+            derivation_op=DerivationOp.SOC_CONVERSION,
+            input_evidence_refs=[ref_soc.ref_id],
+            derivation_params={"scale": 100.0},
+        )
+        if ref_soc is not None
+        else None
     )
-    f_tgt = collector.add_fact(
-        resolved,
-        name="vehicle.target_soc",
-        subject=booking_id,
-        stage=FactStage.OBSERVED,
-        value=round(float(vrow["target_soc"]) * 100.0, 2),
-        unit="%",
-        source_path=f"{vpath}/target_soc",
+    ref_tgt = collector.add_ref(resolved, f"{vpath}/target_soc", booking_id, time_scope=TemporalBasis.DECISION_SNAPSHOT)
+    f_tgt = (
+        collector.add_fact(
+            resolved,
+            name="vehicle.target_soc",
+            subject=booking_id,
+            stage=FactStage.OBSERVED,
+            value=round(float(vrow["target_soc"]) * 100.0, 2),
+            unit="%",
+            source_path=f"{vpath}/target_soc",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            derivation_kind=FactDerivationKind.DERIVED,
+            derivation_op=DerivationOp.SOC_CONVERSION,
+            input_evidence_refs=[ref_tgt.ref_id],
+            derivation_params={"scale": 100.0},
+        )
+        if ref_tgt is not None
+        else None
     )
 
     now_min = int((planned or {}).get("minute", trace.get("minute") or 0))
     deadline_min = int(vrow["deadline_minute"])
     rem_kwh = float(vrow["remaining_kwh"])
-    completed_list = (trace.get("applied") or {}).get("completed") or []
+    applied = trace.get("applied") or {}
+    completed_by_booking = applied.get("completed_by_booking") or {}
+    completed_list = applied.get("completed") or []
 
-    # 1. Observed completion or observed missed deadline
-    if vrow.get("completed_at_minute") is not None or booking_id in completed_list:
-        ref_path = f"{vpath}/completed_at_minute" if vrow.get("completed_at_minute") is not None else f"{vpath}/state"
+    # 1. G2-F05 #1 & #2: Observed completion ONLY if already completed at decision time OR at/before query time,
+    #    with direct completion evidence (NEVER pointing to pre-decision state='CHARGING'!).
+    if vrow.get("completed_at_minute") is not None:
         f_done = collector.add_fact(
             resolved,
-            name="deadline.observed_completed",
+            name="deadline.observed_completed_at_minute",
             subject=booking_id,
             stage=FactStage.OBSERVED,
-            value=True,
-            unit=None,
-            source_path=ref_path,
+            value=vrow["completed_at_minute"],
+            unit="minute",
+            source_path=f"{vpath}/completed_at_minute",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_done is not None:
             collector.add_reason(
@@ -1384,10 +1795,88 @@ def _explain_booking_deadline_risk(
                 fact_refs=[f.fact_id for f in (f_done, f_soc, f_tgt) if f is not None],
                 evidence_refs=[f.evidence_ref for f in (f_done, f_soc, f_tgt) if f is not None],
                 template_key="deadline.completed",
-                params={"target_soc_pct": f_tgt.value if f_tgt else None},
-                summary="Xe đã đạt mục tiêu SOC theo dữ kiện quan sát.",
+                params={"completed_at_minute": vrow["completed_at_minute"]},
+                summary="Xe đã hoàn tất sạc trước hoặc tại thời điểm quyết định theo dữ kiện quan sát.",
             )
         return
+
+    if resolved.provenance.closed and booking_id in completed_by_booking:
+        comp_row = completed_by_booking[booking_id]
+        comp_min = comp_row.get("minute")
+        comp_dt = parse_iso_aware(comp_row.get("completed_at"))
+        if comp_dt is None and comp_min is not None and trace.get("minute") is not None:
+            comp_dt = resolved.decided_at + timedelta(minutes=int(comp_min) - int(trace["minute"]))
+        completion_reached = comp_dt is not None and (
+            (query_at is not None and _utc(query_at) >= _utc(comp_dt))
+            or (query_window is not None and _utc(query_window.end) >= _utc(comp_dt))
+        )
+        if completion_reached:
+            f_done = collector.add_fact(
+                resolved,
+                name="deadline.observed_completed_at_minute",
+                subject=booking_id,
+                stage=FactStage.MEASURED,
+                value=comp_min,
+                unit="minute",
+                source_path=f"/applied/completed_by_booking/{_seg(booking_id)}/minute",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            if f_done is not None:
+                collector.add_reason(
+                    resolved,
+                    code="OBSERVED_CHARGE_COMPLETED",
+                    category=EvidenceCategory.OBSERVED,
+                    subject=booking_id,
+                    fact_refs=[f.fact_id for f in (f_done, f_soc, f_tgt) if f is not None],
+                    evidence_refs=[f.evidence_ref for f in (f_done, f_soc, f_tgt) if f is not None],
+                    template_key="deadline.completed",
+                    params={
+                        "completed_at_minute": comp_min,
+                        "completed_at": comp_dt.isoformat() if comp_dt else None,
+                    },
+                    summary=f"Xe đã hoàn tất sạc tại phút mô phỏng {comp_min} trong khoảng thực thi.",
+                )
+            return
+    elif resolved.provenance.closed and booking_id in completed_list:
+        # Legacy closed trace without per-booking completion timestamp:
+        # NEVER leak completion into an `at` query before effective_end!
+        if (
+            query_at is not None
+            and resolved.effective_end is not None
+            and _utc(query_at) < _utc(resolved.effective_end)
+        ):
+            collector.add_missing("completion_timestamp_unknown_for_as_of_query")
+        elif (
+            query_window is not None
+            and resolved.effective_end is not None
+            and _utc(query_window.end) >= _utc(resolved.effective_end)
+        ):
+            comp_idx = completed_list.index(booking_id)
+            f_done = collector.add_fact(
+                resolved,
+                name="deadline.observed_completed_booking_id",
+                subject=booking_id,
+                stage=FactStage.MEASURED,
+                value=booking_id,
+                unit=None,
+                source_path=f"/applied/completed/{comp_idx}",
+                time_scope=TemporalBasis.MEASURED_COVERAGE,
+                interval_start=resolved.measured_start,
+                interval_end=resolved.measured_end,
+            )
+            if f_done is not None:
+                collector.add_reason(
+                    resolved,
+                    code="OBSERVED_CHARGE_COMPLETED",
+                    category=EvidenceCategory.OBSERVED,
+                    subject=booking_id,
+                    fact_refs=[f.fact_id for f in (f_done, f_soc, f_tgt) if f is not None],
+                    evidence_refs=[f.evidence_ref for f in (f_done, f_soc, f_tgt) if f is not None],
+                    template_key="deadline.completed",
+                    params={},
+                    summary="Xe hoàn tất sạc trong khoảng thực thi đã đóng của quyết định này.",
+                )
+            return
 
     if now_min >= deadline_min and rem_kwh > TOL and f_rem is not None:
         collector.add_reason(
@@ -1402,7 +1891,7 @@ def _explain_booking_deadline_risk(
             summary=f"Đã quá hạn lấy xe và vẫn còn thiếu {rem_kwh:.2f} kWh pin theo dữ kiện quan sát.",
         )
 
-    # 2. Optimizer projected shortfall (explicitly distinct from observed missed deadline)
+    # 2. Optimizer projected shortfall
     opt = ((planned or {}).get("optimizers") or {}).get(zone) or {}
     shortfalls = opt.get("projected_shortfall_kwh")
     if isinstance(shortfalls, dict) and booking_id in shortfalls:
@@ -1415,6 +1904,9 @@ def _explain_booking_deadline_risk(
             value=round(sf_val, 6),
             unit="kWh",
             source_path=f"/planned/optimizers/{_seg(zone)}/projected_shortfall_kwh/{_seg(booking_id)}",
+            time_scope=TemporalBasis.PLANNED_INTERVAL,
+            interval_start=resolved.planned_start,
+            interval_end=resolved.planned_end,
         )
         if f_sf is not None and sf_val > TOL:
             collector.add_reason(
@@ -1456,9 +1948,10 @@ def _explain_booking_deadline_risk(
             name="deadline.optimistic_laxity_minutes",
             subject=booking_id,
             stage=FactStage.PLANNED,
-            value=round(float(lax_val), 3) if lax_val is not None else None,
+            value=round(float(lax_val), 6) if lax_val is not None else None,
             unit="minutes",
             source_path=f"/planned/dc_waiting_laxity/{_seg(booking_id)}/optimistic_laxity_minutes",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_lax is not None:
             at_risk = bool(lax_row.get("at_risk_under_optimistic_bound"))
@@ -1482,31 +1975,121 @@ def _explain_booking_deadline_risk(
             )
             collector.add_assumption("optimistic_laxity_minutes là cận lạc quan bỏ qua taper DC và nhu cầu chia sẻ.")
 
-    # 4. Strict single-vehicle hardware upper bound check (ONLY claim hardware bound exceeded when mathematically proven)
-    limits = (planned or {}).get("physical_limits") or {}
-    eta = float(limits.get("charging_efficiency") or 0.98)
-    port_caps = [
-        float(p["port_limit_kw"])
-        for p in ((planned or {}).get("observed") or {}).get("ports", {}).values()
-        if p.get("zone") == zone
-    ]
+    # 4. G2-F05 #7 & G2-F06: Strict single-vehicle hardware upper bound with FULL evidence inputs, NO silent 0.98!
+    eta, eta_path = _resolve_charging_efficiency(trace)
     time_left_min = max(0, deadline_min - now_min)
-    if port_caps and time_left_min > 0 and f_rem is not None:
-        max_rate_kw = min(float(vrow["vehicle_max_output_kw"]), max(port_caps))
+    if time_left_min > 0 and f_rem is not None:
+        if eta is None or eta_path is None:
+            collector.add_missing("missing_charging_efficiency_evidence")
+            return
+        limits = (planned or {}).get("physical_limits") or {}
+        port_output_map = limits.get("port_output_kw") or {}
+        ports_obs = ((planned or {}).get("observed") or {}).get("ports") or {}
+        compat_ports = [
+            (cid, float(port_output_map.get(cid, p["port_limit_kw"])))
+            for cid, p in ports_obs.items()
+            if p.get("zone") == zone
+        ]
+        if not compat_ports:
+            return
+        best_port_id, max_port_kw = max(compat_ports, key=lambda item: item[1])
+        vmax_kw = float(vrow["vehicle_max_output_kw"])
+        max_rate_kw = min(vmax_kw, max_port_kw)
         max_deliverable_battery_kwh = max_rate_kw * eta * (time_left_min / 60.0)
         if rem_kwh > max_deliverable_battery_kwh + TOL:
+            f_dl = collector.add_fact(
+                resolved,
+                name="vehicle.deadline_minute",
+                subject=booking_id,
+                stage=FactStage.OBSERVED,
+                value=deadline_min,
+                unit="minute",
+                source_path=f"{vpath}/deadline_minute",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            f_now = collector.add_fact(
+                resolved,
+                name="decision.minute",
+                subject="station",
+                stage=FactStage.OBSERVED,
+                value=now_min,
+                unit="minute",
+                source_path="/planned/minute" if planned is not None and "minute" in planned else "/minute",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            f_vmax = collector.add_fact(
+                resolved,
+                name="vehicle.max_output_kw",
+                subject=booking_id,
+                stage=FactStage.OBSERVED,
+                value=vmax_kw,
+                unit="kW",
+                source_path=f"{vpath}/vehicle_max_output_kw",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            port_path = (
+                f"/planned/physical_limits/port_output_kw/{_seg(best_port_id)}"
+                if best_port_id in port_output_map
+                else f"/planned/observed/ports/{_seg(best_port_id)}/port_limit_kw"
+            )
+            f_pcap = collector.add_fact(
+                resolved,
+                name="limits.compatible_port_max_output_kw",
+                subject=zone,
+                stage=FactStage.CONFIG,
+                value=max_port_kw,
+                unit="kW",
+                source_path=port_path,
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            f_eta = collector.add_fact(
+                resolved,
+                name="limits.charging_efficiency",
+                subject="station",
+                stage=FactStage.CONFIG,
+                value=eta,
+                unit=None,
+                source_path=eta_path,
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            bound_inputs = [f for f in (f_dl, f_now, f_vmax, f_pcap, f_eta) if f is not None]
+            f_bound = (
+                collector.add_fact(
+                    resolved,
+                    name="deadline.hardware_max_deliverable_kwh",
+                    subject=booking_id,
+                    stage=FactStage.PLANNED,
+                    value=round(max_deliverable_battery_kwh, 6),
+                    unit="kWh",
+                    source_path=f_rem.source_path,
+                    time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                    derivation_kind=FactDerivationKind.DERIVED,
+                    derivation_op=DerivationOp.HARDWARE_BOUND,
+                    input_evidence_refs=[f.evidence_ref for f in bound_inputs],
+                    derivation_params={
+                        "time_left_minutes": time_left_min,
+                        "max_rate_kw": max_rate_kw,
+                        "charging_efficiency": eta,
+                    },
+                )
+                if bound_inputs
+                else None
+            )
+            all_f = [f for f in (f_rem, f_dl, f_now, f_vmax, f_pcap, f_eta, f_bound) if f is not None]
+            all_e = list(dict.fromkeys(f.evidence_ref for f in all_f))
             collector.add_reason(
                 resolved,
                 code="SINGLE_VEHICLE_HARDWARE_BOUND_EXCEEDED",
                 category=EvidenceCategory.INFERENCE_BOUND,
                 subject=booking_id,
-                fact_refs=[f_rem.fact_id],
-                evidence_refs=[f_rem.evidence_ref],
+                fact_refs=[f.fact_id for f in all_f],
+                evidence_refs=all_e,
                 template_key="deadline.hardware_bound_exceeded",
                 params={
                     "remaining_kwh": round(rem_kwh, 3),
                     "max_deliverable_kwh": round(max_deliverable_battery_kwh, 3),
                     "time_left_minutes": time_left_min,
+                    "charging_efficiency": eta,
                 },
                 summary=(
                     f"Cần nạp {rem_kwh:.2f} kWh pin trong {time_left_min} phút còn lại, vượt cận trên phần cứng một xe "
@@ -1522,12 +2105,12 @@ def _explain_booking_incident(
     collector: EvidenceCollector,
     *,
     emit_no_incident: bool = True,
+    has_temporal_gap: bool = False,
 ) -> None:
     trace = resolved.payload
     planned = trace.get("planned") if isinstance(trace.get("planned"), dict) else None
     found_incident = False
 
-    # Own safety hold
     held_by_booking = (trace.get("safety") or {}).get("by_booking") or {}
     if booking_id in held_by_booking:
         f_hold = collector.add_fact(
@@ -1538,6 +2121,7 @@ def _explain_booking_incident(
             value=True,
             unit=None,
             source_path=f"/safety/by_booking/{_seg(booking_id)}/safety_hold",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_hold is not None:
             found_incident = True
@@ -1553,7 +2137,6 @@ def _explain_booking_incident(
                 summary="Phiên sạc đang ở trạng thái Safety Hold do sự cố an toàn; hệ thống không tự cấp lại công suất.",
             )
 
-    # Own emergency commands
     for idx, row in enumerate(trace.get("emergency_commands") or []):
         if row.get("booking_id") != booking_id:
             continue
@@ -1565,6 +2148,7 @@ def _explain_booking_incident(
             value=row.get("power_kw"),
             unit="kW",
             source_path=f"/emergency_commands/{idx}/power_kw",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_em is not None:
             found_incident = True
@@ -1580,17 +2164,27 @@ def _explain_booking_incident(
                 summary=f"Lệnh khẩn cấp đặt {row.get('power_kw'):g} kW (executed={bool(row.get('executed'))}).",
             )
 
-    # Faulted connectors (aggregate / non-identifying)
     faulted = ((planned or {}).get("observed") or {}).get("faulted_connectors") or []
     if faulted:
-        f_flt = collector.add_fact(
-            resolved,
-            name="incident.faulted_connector_count",
-            subject="station",
-            stage=FactStage.OBSERVED,
-            value=len(faulted),
-            unit="count",
-            source_path="/planned/observed/faulted_connectors",
+        ref_flt = collector.add_ref(
+            resolved, "/planned/observed/faulted_connectors", "station", time_scope=TemporalBasis.DECISION_SNAPSHOT
+        )
+        f_flt = (
+            collector.add_fact(
+                resolved,
+                name="incident.faulted_connector_count",
+                subject="station",
+                stage=FactStage.OBSERVED,
+                value=len(faulted),
+                unit="count",
+                source_path="/planned/observed/faulted_connectors",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                derivation_kind=FactDerivationKind.DERIVED,
+                derivation_op=DerivationOp.COUNT,
+                input_evidence_refs=[ref_flt.ref_id],
+            )
+            if ref_flt is not None
+            else None
         )
         if f_flt is not None:
             found_incident = True
@@ -1606,33 +2200,48 @@ def _explain_booking_incident(
                 summary=f"Trạm hiện có {len(faulted)} đầu nối đang lỗi.",
             )
 
-    # Site power drop / post-apply violation
     if resolved.provenance.post_apply_status == "violation":
         found_incident = True
-        _add_post_apply_status_evidence(resolved, booking_id, collector)
+        _add_booking_post_apply_evidence(resolved, booking_id, collector)
 
     if not found_incident and emit_no_incident:
-        f_status = collector.add_fact(
-            resolved,
-            name="validation.post_apply_status",
-            subject="station",
-            stage=FactStage.MEASURED if resolved.provenance.closed else FactStage.PLANNED,
-            value=resolved.provenance.post_apply_status,
-            unit=None,
-            source_path="/validation/post_apply",
-        )
-        if f_status is not None:
-            collector.add_reason(
+        if _can_confirm_no_incident(resolved, has_temporal_gap=has_temporal_gap):
+            f_status = collector.add_fact(
                 resolved,
-                code="NO_INCIDENT_OBSERVED",
-                category=EvidenceCategory.OBSERVED,
-                subject=booking_id,
-                fact_refs=[f_status.fact_id],
-                evidence_refs=[f_status.evidence_ref],
-                template_key="incident.none",
-                params={},
-                summary="Không ghi nhận sự cố, vi phạm trần cứng hay Safety Hold tác động lên phiên sạc trong khoảng truy vấn.",
+                name="validation.post_apply_status",
+                subject="station",
+                stage=FactStage.MEASURED,
+                value=resolved.provenance.post_apply_status,
+                unit=None,
+                source_path="/validation/post_apply",
+                time_scope=TemporalBasis.MEASURED_COVERAGE,
+                interval_start=resolved.measured_start,
+                interval_end=resolved.measured_end,
             )
+            if f_status is not None:
+                collector.add_reason(
+                    resolved,
+                    code="NO_INCIDENT_OBSERVED",
+                    category=EvidenceCategory.OBSERVED,
+                    subject=booking_id,
+                    fact_refs=[f_status.fact_id],
+                    evidence_refs=[f_status.evidence_ref],
+                    template_key="incident.none",
+                    params={},
+                    summary="Không ghi nhận sự cố, vi phạm trần cứng hay Safety Hold tác động lên phiên sạc trong khoảng truy vấn.",
+                )
+        else:
+            collector.add_fact(
+                resolved,
+                name="validation.post_apply_status",
+                subject="station",
+                stage=FactStage.MEASURED if resolved.provenance.closed else FactStage.PLANNED,
+                value=resolved.provenance.post_apply_status,
+                unit=None,
+                source_path="/validation/post_apply",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            collector.add_missing("insufficient_evidence_to_confirm_no_incident")
 
 
 # ---- Station-scoped explainers (Operator only) -------------------------------------------
@@ -1644,6 +2253,8 @@ def _explain_station_trace(
     sample_slice: SampleSlice | None,
     station_id: str,
     collector: EvidenceCollector,
+    *,
+    has_temporal_gap: bool,
 ) -> None:
     if topic == WhyTopic.QUEUE:
         _explain_station_queue(resolved, station_id, collector)
@@ -1652,14 +2263,16 @@ def _explain_station_trace(
     elif topic == WhyTopic.DEADLINE_RISK:
         _explain_station_deadline_risk(resolved, station_id, collector)
     elif topic == WhyTopic.INCIDENT:
-        _explain_station_incident(resolved, station_id, collector)
+        _explain_station_incident(resolved, station_id, collector, has_temporal_gap=has_temporal_gap)
     elif topic == WhyTopic.POLICY:
         _explain_policy(resolved, station_id, None, collector, is_station=True)
     elif topic == WhyTopic.OVERVIEW:
         _explain_station_queue(resolved, station_id, collector)
         _explain_station_power(resolved, sample_slice, station_id, collector)
         _explain_station_deadline_risk(resolved, station_id, collector)
-        _explain_station_incident(resolved, station_id, collector, emit_no_incident=False)
+        _explain_station_incident(
+            resolved, station_id, collector, emit_no_incident=False, has_temporal_gap=has_temporal_gap
+        )
 
 
 def _explain_station_queue(resolved: ResolvedTrace, station_id: str, collector: EvidenceCollector) -> None:
@@ -1677,6 +2290,7 @@ def _explain_station_queue(resolved: ResolvedTrace, station_id: str, collector: 
             value=info["waiting_count"],
             unit="count",
             source_path=f"{zpath}/waiting_count",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         f_emp = collector.add_fact(
             resolved,
@@ -1686,6 +2300,7 @@ def _explain_station_queue(resolved: ResolvedTrace, station_id: str, collector: 
             value=info["empty_ports"],
             unit="count",
             source_path=f"{zpath}/empty_ports",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         f_occ = collector.add_fact(
             resolved,
@@ -1695,6 +2310,7 @@ def _explain_station_queue(resolved: ResolvedTrace, station_id: str, collector: 
             value=info["occupied_ports"],
             unit="count",
             source_path=f"{zpath}/occupied_ports",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         f_flt = collector.add_fact(
             resolved,
@@ -1704,6 +2320,7 @@ def _explain_station_queue(resolved: ResolvedTrace, station_id: str, collector: 
             value=info["faulted_ports"],
             unit="count",
             source_path=f"{zpath}/faulted_ports",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_wait is not None and info["waiting_count"] > 0 and info["empty_ports"] == 0:
             f_refs = [f.fact_id for f in (f_wait, f_emp, f_occ, f_flt) if f is not None]
@@ -1737,60 +2354,135 @@ def _explain_station_power(
     power = trace.get("power") or {}
     p_start, p_end = resolved.planned_start, resolved.planned_end
 
-    # Total proposed & approved output kW
-    proposed_map = (power.get("proposed") or {}).get("by_booking_kw") or {}
-    approved_map = (power.get("approved") or {}).get("by_booking_kw") or {}
-    collector.add_fact(
-        resolved,
-        name="power.station_proposed_total_kw",
-        subject=station_id,
-        stage=FactStage.PLANNED,
-        value=round(sum(float(v) for v in proposed_map.values()), 6),
-        unit="kW",
-        source_path="/power/proposed/by_booking_kw",
-        interval_start=p_start,
-        interval_end=p_end,
-    )
-    collector.add_fact(
-        resolved,
-        name="power.station_approved_total_kw",
-        subject=station_id,
-        stage=FactStage.APPROVED,
-        value=round(sum(float(v) for v in approved_map.values()), 6),
-        unit="kW",
-        source_path="/power/approved/by_booking_kw",
-        interval_start=p_start,
-        interval_end=p_end,
-    )
+    # Total proposed & approved output kW (explicit DERIVED SUM over per-booking inputs)
+    for stage_key, stage_enum, fact_name in (
+        ("proposed", FactStage.PLANNED, "power.station_proposed_total_kw"),
+        ("approved", FactStage.APPROVED, "power.station_approved_total_kw"),
+    ):
+        kw_map = (power.get(stage_key) or {}).get("by_booking_kw") or {}
+        if kw_map:
+            refs = [
+                collector.add_ref(
+                    resolved,
+                    f"/power/{stage_key}/by_booking_kw/{_seg(vid)}",
+                    vid,
+                    time_scope=TemporalBasis.PLANNED_INTERVAL,
+                    interval_start=p_start,
+                    interval_end=p_end,
+                )
+                for vid in sorted(kw_map)
+            ]
+            ref_ids = [r.ref_id for r in refs if r is not None]
+        else:
+            parent_ref = collector.add_ref(
+                resolved,
+                f"/power/{stage_key}/by_booking_kw",
+                station_id,
+                time_scope=TemporalBasis.PLANNED_INTERVAL,
+                interval_start=p_start,
+                interval_end=p_end,
+            )
+            ref_ids = [parent_ref.ref_id] if parent_ref is not None else []
+        if ref_ids:
+            collector.add_fact(
+                resolved,
+                name=fact_name,
+                subject=station_id,
+                stage=stage_enum,
+                value=round(sum(float(v) for v in kw_map.values()), 6),
+                unit="kW",
+                source_path=f"/power/{stage_key}/by_booking_kw",
+                time_scope=TemporalBasis.PLANNED_INTERVAL,
+                interval_start=p_start,
+                interval_end=p_end,
+                derivation_kind=FactDerivationKind.DERIVED,
+                derivation_op=DerivationOp.SUM,
+                input_evidence_refs=ref_ids,
+                derivation_params={"booking_count": len(kw_map)},
+            )
 
-    if resolved.provenance.closed and sample_slice is not None and sample_slice.samples:
-        total_out_kwh = sum(sample_slice.output_kwh_by_booking.values())
-        total_grid_kwh = sum(sample_slice.grid_input_kwh_by_booking.values())
-        m_start = resolved.measured_start or resolved.effective_start
-        m_end = resolved.measured_end or resolved.effective_end
-        path = "/power/actual_output/samples" if sample_slice.is_subwindow else "/applied/output_kwh"
-        collector.add_fact(
-            resolved,
-            name="energy.station_measured_output_kwh",
-            subject=station_id,
-            stage=FactStage.MEASURED,
-            value=round(total_out_kwh, 6),
-            unit="kWh",
-            source_path=path,
-            interval_start=m_start,
-            interval_end=m_end,
-        )
-        collector.add_fact(
-            resolved,
-            name="energy.station_measured_grid_input_kwh",
-            subject=station_id,
-            stage=FactStage.MEASURED,
-            value=round(total_grid_kwh, 6),
-            unit="kWh",
-            source_path="/power/actual_output/samples" if sample_slice.is_subwindow else "/applied/grid_input_kwh",
-            interval_start=m_start,
-            interval_end=m_end,
-        )
+    # Measured station power/energy (G2-F01 / G2-F02 / G2-F03 / G2-F06)
+    if resolved.provenance.closed and sample_slice is not None and sample_slice.sample_contributions:
+        sample_refs = []
+        for c in sample_slice.sample_contributions:
+            for vid in sorted(c.sample.get("by_booking_kw") or {}):
+                ref = collector.add_ref(
+                    resolved,
+                    f"/power/actual_output/samples/{c.sample_index}/by_booking_kw/{_seg(vid)}",
+                    vid,
+                    time_scope=TemporalBasis.SAMPLE_INTERVAL,
+                    interval_start=c.sample_start,
+                    interval_end=c.sample_end,
+                )
+                if ref is not None:
+                    sample_refs.append(ref)
+        if sample_refs:
+            ref_ids = [r.ref_id for r in sample_refs]
+            if sample_slice.is_point_query:
+                c0 = sample_slice.sample_contributions[0]
+                total_kw = sum(float(v) for v in (c0.sample.get("by_booking_kw") or {}).values())
+                collector.add_fact(
+                    resolved,
+                    name="power.station_measured_output_kw",
+                    subject=station_id,
+                    stage=FactStage.MEASURED,
+                    value=round(total_kw, 6),
+                    unit="kW",
+                    source_path=sample_refs[0].source_path,
+                    time_scope=TemporalBasis.SAMPLE_INTERVAL,
+                    interval_start=c0.sample_start,
+                    interval_end=c0.sample_end,
+                    derivation_kind=FactDerivationKind.DERIVED,
+                    derivation_op=DerivationOp.SUM,
+                    input_evidence_refs=ref_ids,
+                )
+            else:
+                d_start = sample_slice.derivation_start
+                d_end = sample_slice.derivation_end
+                total_out_kwh = sum(sample_slice.output_kwh_by_booking.values())
+                collector.add_fact(
+                    resolved,
+                    name="energy.station_measured_output_kwh",
+                    subject=station_id,
+                    stage=FactStage.MEASURED,
+                    value=round(total_out_kwh, 6),
+                    unit="kWh",
+                    source_path=sample_refs[0].source_path,
+                    time_scope=TemporalBasis.DERIVATION_INTERVAL,
+                    interval_start=d_start,
+                    interval_end=d_end,
+                    derivation_kind=FactDerivationKind.DERIVED,
+                    derivation_op=DerivationOp.TIME_INTEGRATION,
+                    input_evidence_refs=ref_ids,
+                    derivation_params={"overlap_minutes": round(sample_slice.covered_minutes, 6)},
+                )
+                if sample_slice.conversion_efficiency is not None and sample_slice.conversion_source_path is not None:
+                    conv_ref = collector.add_ref(
+                        resolved,
+                        sample_slice.conversion_source_path,
+                        "station",
+                        time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                    )
+                    if conv_ref is not None:
+                        total_grid_kwh = sum(sample_slice.grid_input_kwh_by_booking.values())
+                        collector.add_fact(
+                            resolved,
+                            name="energy.station_measured_grid_input_kwh",
+                            subject=station_id,
+                            stage=FactStage.MEASURED,
+                            value=round(total_grid_kwh, 6),
+                            unit="kWh",
+                            source_path=sample_refs[0].source_path,
+                            time_scope=TemporalBasis.DERIVATION_INTERVAL,
+                            interval_start=d_start,
+                            interval_end=d_end,
+                            derivation_kind=FactDerivationKind.DERIVED,
+                            derivation_op=DerivationOp.EFFICIENCY_CONVERSION,
+                            input_evidence_refs=[*ref_ids, conv_ref.ref_id],
+                            derivation_params={"conversion_efficiency": sample_slice.conversion_efficiency},
+                        )
+                else:
+                    collector.add_missing("missing_conversion_efficiency_evidence")
 
     if planned is not None:
         limits = planned.get("physical_limits") or {}
@@ -1803,6 +2495,7 @@ def _explain_station_power(
                 value=limits["supply_mode"],
                 unit=None,
                 source_path="/planned/physical_limits/supply_mode",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
         if limits.get("grid_input_kw") is not None:
             collector.add_fact(
@@ -1813,6 +2506,7 @@ def _explain_station_power(
                 value=limits["grid_input_kw"],
                 unit="kW",
                 source_path="/planned/physical_limits/grid_input_kw",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
         for zone in (planned.get("coordinator") or {}).get("assigned_output_kw") or {}:
             _add_coordinator_evidence(resolved, planned, zone, subject=zone, collector=collector)
@@ -1827,7 +2521,10 @@ def _explain_station_power(
                 stage=FactStage.APPROVED,
                 value=binding.get("kw"),
                 unit="kW",
-                source_path=f"/planned/binding_constraints/{idx}",
+                source_path=f"/planned/binding_constraints/{idx}/kw",
+                time_scope=TemporalBasis.PLANNED_INTERVAL,
+                interval_start=p_start,
+                interval_end=p_end,
             )
             if f_b is not None:
                 collector.add_reason(
@@ -1842,7 +2539,7 @@ def _explain_station_power(
                     summary=f"Ràng buộc {binding.get('limit')} ({binding.get('id')}) chạm trần {binding.get('kw'):g} kW.",
                 )
 
-    _add_post_apply_status_evidence(resolved, station_id, collector)
+    _add_station_post_apply_evidence(resolved, station_id, collector)
 
 
 def _explain_station_deadline_risk(resolved: ResolvedTrace, station_id: str, collector: EvidenceCollector) -> None:
@@ -1866,6 +2563,9 @@ def _explain_station_deadline_risk(resolved: ResolvedTrace, station_id: str, col
                     value=round(sf_val, 6),
                     unit="kWh",
                     source_path=f"/planned/optimizers/{_seg(zone)}/projected_shortfall_kwh/{_seg(vid)}",
+                    time_scope=TemporalBasis.PLANNED_INTERVAL,
+                    interval_start=resolved.planned_start,
+                    interval_end=resolved.planned_end,
                 )
                 if f_sf is not None:
                     collector.add_reason(
@@ -1890,6 +2590,7 @@ def _explain_station_deadline_risk(resolved: ResolvedTrace, station_id: str, col
                 value=lax.get("optimistic_laxity_minutes"),
                 unit="minutes",
                 source_path=f"/planned/dc_waiting_laxity/{_seg(vid)}/optimistic_laxity_minutes",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
             )
             if f_lax is not None:
                 collector.add_reason(
@@ -1915,6 +2616,7 @@ def _explain_station_deadline_risk(resolved: ResolvedTrace, station_id: str, col
             value=resolved.provenance.policy_id,
             unit=None,
             source_path="/policy/id",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_pol is not None:
             collector.add_reason(
@@ -1936,6 +2638,7 @@ def _explain_station_incident(
     collector: EvidenceCollector,
     *,
     emit_no_incident: bool = True,
+    has_temporal_gap: bool = False,
 ) -> None:
     trace = resolved.payload
     planned = trace.get("planned") if isinstance(trace.get("planned"), dict) else None
@@ -1943,39 +2646,56 @@ def _explain_station_incident(
 
     safety = trace.get("safety") or {}
     for idx, hv in enumerate(safety.get("hard_limit_violations") or []):
-        f_hv = collector.add_fact(
-            resolved,
-            name="safety.hard_limit_violation_detail",
-            subject=station_id,
-            stage=FactStage.OBSERVED,
-            value=", ".join(hv.get("kinds") or []),
-            unit=None,
-            source_path=f"/safety/hard_limit_violations/{idx}/kinds",
-        )
-        if f_hv is not None:
+        kind_facts = []
+        for k_idx, kind in enumerate(hv.get("kinds") or []):
+            f_hv = collector.add_fact(
+                resolved,
+                name="safety.hard_limit_violation_kind",
+                subject=station_id,
+                stage=FactStage.OBSERVED,
+                value=str(kind),
+                unit=None,
+                source_path=f"/safety/hard_limit_violations/{idx}/kinds/{k_idx}",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            if f_hv is not None:
+                kind_facts.append(f_hv)
+        if kind_facts:
             found = True
+            kinds_str = ", ".join(str(f.value) for f in kind_facts)
             collector.add_reason(
                 resolved,
                 code="HARD_LIMIT_VIOLATION_TRIGGERED",
                 category=EvidenceCategory.OBSERVED,
                 subject=station_id,
-                fact_refs=[f_hv.fact_id],
-                evidence_refs=[f_hv.evidence_ref],
+                fact_refs=[f.fact_id for f in kind_facts],
+                evidence_refs=[f.evidence_ref for f in kind_facts],
                 template_key="station.hard_violation",
-                params={"kinds": f_hv.value, "booking_ids": ", ".join(hv.get("booking_ids") or [])},
-                summary=f"Sự kiện vi phạm trần cứng ({f_hv.value}) kích hoạt vòng fail-safe.",
+                params={"kinds": kinds_str, "booking_ids": ", ".join(hv.get("booking_ids") or [])},
+                summary=f"Sự kiện vi phạm trần cứng ({kinds_str}) kích hoạt vòng fail-safe.",
             )
 
     held = safety.get("held_booking_ids") or []
     if held:
-        f_held = collector.add_fact(
-            resolved,
-            name="safety.held_booking_count",
-            subject=station_id,
-            stage=FactStage.OBSERVED,
-            value=len(held),
-            unit="count",
-            source_path="/safety/held_booking_ids",
+        ref_held = collector.add_ref(
+            resolved, "/safety/held_booking_ids", station_id, time_scope=TemporalBasis.DECISION_SNAPSHOT
+        )
+        f_held = (
+            collector.add_fact(
+                resolved,
+                name="safety.held_booking_count",
+                subject=station_id,
+                stage=FactStage.OBSERVED,
+                value=len(held),
+                unit="count",
+                source_path="/safety/held_booking_ids",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+                derivation_kind=FactDerivationKind.DERIVED,
+                derivation_op=DerivationOp.COUNT,
+                input_evidence_refs=[ref_held.ref_id],
+            )
+            if ref_held is not None
+            else None
         )
         if f_held is not None:
             found = True
@@ -2001,6 +2721,7 @@ def _explain_station_incident(
             value=fs["status"],
             unit=None,
             source_path="/validation/fail_safe/status",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
         if f_fs is not None:
             found = True
@@ -2020,55 +2741,77 @@ def _explain_station_incident(
 
     faulted = ((planned or {}).get("observed") or {}).get("faulted_connectors") or []
     if faulted:
-        f_flt = collector.add_fact(
-            resolved,
-            name="incident.faulted_connectors",
-            subject=station_id,
-            stage=FactStage.OBSERVED,
-            value=", ".join(faulted),
-            unit=None,
-            source_path="/planned/observed/faulted_connectors",
-        )
-        if f_flt is not None:
+        flt_facts = []
+        for f_idx, cid in enumerate(faulted):
+            f_flt = collector.add_fact(
+                resolved,
+                name="incident.faulted_connectors",
+                subject=station_id,
+                stage=FactStage.OBSERVED,
+                value=str(cid),
+                unit=None,
+                source_path=f"/planned/observed/faulted_connectors/{f_idx}",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            if f_flt is not None:
+                flt_facts.append(f_flt)
+        if flt_facts:
             found = True
+            joined = ", ".join(str(f.value) for f in flt_facts)
             collector.add_reason(
                 resolved,
                 code="CONNECTOR_FAULT_ACTIVE",
                 category=EvidenceCategory.OBSERVED,
                 subject=station_id,
-                fact_refs=[f_flt.fact_id],
-                evidence_refs=[f_flt.evidence_ref],
+                fact_refs=[f.fact_id for f in flt_facts],
+                evidence_refs=[f.evidence_ref for f in flt_facts],
                 template_key="station.connector_fault",
-                params={"connectors": f_flt.value},
-                summary=f"Các đầu nối đang lỗi: {f_flt.value}.",
+                params={"connectors": joined},
+                summary=f"Các đầu nối đang lỗi: {joined}.",
             )
 
     if resolved.provenance.post_apply_status == "violation":
         found = True
-        _add_post_apply_status_evidence(resolved, station_id, collector)
+        _add_station_post_apply_evidence(resolved, station_id, collector)
 
     if not found and emit_no_incident:
-        f_v = collector.add_fact(
-            resolved,
-            name="validation.post_apply_status",
-            subject=station_id,
-            stage=FactStage.MEASURED if resolved.provenance.closed else FactStage.PLANNED,
-            value=resolved.provenance.post_apply_status,
-            unit=None,
-            source_path="/validation/post_apply",
-        )
-        if f_v is not None:
-            collector.add_reason(
+        if _can_confirm_no_incident(resolved, has_temporal_gap=has_temporal_gap):
+            f_v = collector.add_fact(
                 resolved,
-                code="NO_INCIDENT_OBSERVED",
-                category=EvidenceCategory.OBSERVED,
+                name="validation.post_apply_status",
                 subject=station_id,
-                fact_refs=[f_v.fact_id],
-                evidence_refs=[f_v.evidence_ref],
-                template_key="station.no_incident",
-                params={},
-                summary="Không có sự cố, vi phạm trần cứng hay đầu nối lỗi được ghi nhận trong khoảng truy vấn.",
+                stage=FactStage.MEASURED,
+                value=resolved.provenance.post_apply_status,
+                unit=None,
+                source_path="/validation/post_apply",
+                time_scope=TemporalBasis.MEASURED_COVERAGE,
+                interval_start=resolved.measured_start,
+                interval_end=resolved.measured_end,
             )
+            if f_v is not None:
+                collector.add_reason(
+                    resolved,
+                    code="NO_INCIDENT_OBSERVED",
+                    category=EvidenceCategory.OBSERVED,
+                    subject=station_id,
+                    fact_refs=[f_v.fact_id],
+                    evidence_refs=[f_v.evidence_ref],
+                    template_key="station.no_incident",
+                    params={},
+                    summary="Không có sự cố, vi phạm trần cứng hay đầu nối lỗi được ghi nhận trong khoảng truy vấn.",
+                )
+        else:
+            collector.add_fact(
+                resolved,
+                name="validation.post_apply_status",
+                subject="station",
+                stage=FactStage.MEASURED if resolved.provenance.closed else FactStage.PLANNED,
+                value=resolved.provenance.post_apply_status,
+                unit=None,
+                source_path="/validation/post_apply",
+                time_scope=TemporalBasis.DECISION_SNAPSHOT,
+            )
+            collector.add_missing("insufficient_evidence_to_confirm_no_incident")
 
 
 def _explain_policy(
@@ -2089,6 +2832,7 @@ def _explain_policy(
         value=resolved.provenance.policy_id,
         unit=None,
         source_path="/policy/id",
+        time_scope=TemporalBasis.DECISION_SNAPSHOT,
     )
     f_pver = collector.add_fact(
         resolved,
@@ -2098,6 +2842,7 @@ def _explain_policy(
         value=resolved.provenance.policy_version,
         unit=None,
         source_path="/policy/version",
+        time_scope=TemporalBasis.DECISION_SNAPSHOT,
     )
     if (trace.get("experiment") or {}).get("fingerprint"):
         collector.add_fact(
@@ -2108,6 +2853,7 @@ def _explain_policy(
             value=trace["experiment"]["fingerprint"],
             unit=None,
             source_path="/experiment/fingerprint",
+            time_scope=TemporalBasis.DECISION_SNAPSHOT,
         )
     if f_pid is not None:
         collector.add_reason(

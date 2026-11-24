@@ -1,0 +1,2 @@
+cwd=/tmp/ai4-g2-rem-gate/code
+$ tar -xzf /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/raw/golden-crlf-outputs.tar.gz -C /tmp/ai4-g2-rem-gate crlf-golden-reference 

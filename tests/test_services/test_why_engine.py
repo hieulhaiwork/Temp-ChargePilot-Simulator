@@ -169,7 +169,7 @@ async def test_active_trace_provides_planned_evidence_without_fabricating_measur
     assert FactStage.MEASURED not in stages
     assert not any(f.name.startswith("power.measured") or f.name.startswith("energy.measured") for f in ans.facts)
     for ref in ans.evidence_refs:
-        ok, _ = resolve_evidence_ref(ref, active_trace, _resident("res-dc-1"), own_booking_id="dc-1")
+        ok, _ = resolve_evidence_ref(ref, active_trace, _resident("res-dc-1"), booking=b_dc)
         assert ok, f"Failed to dereference {ref.source_path}"
 
 

@@ -60,6 +60,31 @@ class EvidenceCategory(StrEnum):
     INFERENCE_BOUND = "inference_bound"
 
 
+class FactDerivationKind(StrEnum):
+    DIRECT = "direct"
+    DERIVED = "derived"
+
+
+class DerivationOp(StrEnum):
+    SUM = "sum"
+    COUNT = "count"
+    AVERAGE = "average"
+    TIME_INTEGRATION = "time_integration"
+    EFFICIENCY_CONVERSION = "efficiency_conversion"
+    SOC_CONVERSION = "soc_conversion"
+    HARDWARE_BOUND = "hardware_bound"
+
+
+class TemporalBasis(StrEnum):
+    DECISION_SNAPSHOT = "decision_snapshot"
+    PLANNED_INTERVAL = "planned_interval"
+    EFFECTIVE_INTERVAL = "effective_interval"
+    MEASURED_COVERAGE = "measured_coverage"
+    DERIVATION_INTERVAL = "derivation_interval"
+    SAMPLE_INTERVAL = "sample_interval"
+    QUERY_WINDOW = "query_window"
+
+
 def _require_aware(dt: AwareDatetime, field_name: str) -> AwareDatetime:
     if dt.tzinfo is None or dt.utcoffset() is None:
         raise ValueError(f"{field_name} must be timezone-aware")
@@ -121,6 +146,7 @@ class WhyQuery(BaseModel):
     at: AwareDatetime | None = None
     window: TimeWindow | None = None
     limit: int = Field(default=20, ge=1, le=100)
+    cursor: str | None = Field(default=None, min_length=1, max_length=128)
 
     @field_validator("topic")
     @classmethod
@@ -156,8 +182,21 @@ class EvidenceRef(BaseModel):
     decided_at: AwareDatetime
     policy_id: str = Field(min_length=1)
     policy_version: str = Field(min_length=1)
+    time_scope: TemporalBasis | None = None
     interval_start: AwareDatetime | None = None
     interval_end: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def _validate_interval(self) -> "EvidenceRef":
+        if (self.interval_start is None) != (self.interval_end is None):
+            raise ValueError("interval_start and interval_end must both be set or both be None")
+        if (
+            self.interval_start is not None
+            and self.interval_end is not None
+            and self.interval_end < self.interval_start
+        ):
+            raise ValueError("interval_end must not precede interval_start")
+        return self
 
 
 class WhyFact(BaseModel):
@@ -175,15 +214,50 @@ class WhyFact(BaseModel):
     policy_id: str = Field(min_length=1)
     policy_version: str = Field(min_length=1)
     decided_at: AwareDatetime
+    time_scope: TemporalBasis = TemporalBasis.DECISION_SNAPSHOT
     interval_start: AwareDatetime | None = None
     interval_end: AwareDatetime | None = None
     source_path: str = Field(min_length=1)
     evidence_ref: str = Field(min_length=1)
+    derivation_kind: FactDerivationKind = FactDerivationKind.DIRECT
+    derivation_op: DerivationOp | None = None
+    input_evidence_refs: list[str] = Field(default_factory=list)
+    derivation_params: dict[str, float | int | str | bool | None] = Field(default_factory=dict)
 
     @field_validator("value")
     @classmethod
     def _validate_finite_value(cls, value: float | int | str | bool | None) -> float | int | str | bool | None:
         return _check_finite(value)
+
+    @field_validator("derivation_params")
+    @classmethod
+    def _validate_derivation_params(
+        cls, value: dict[str, float | int | str | bool | None]
+    ) -> dict[str, float | int | str | bool | None]:
+        for key, item in value.items():
+            _check_finite(item)
+            if not key:
+                raise ValueError("Derivation param key must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_fact(self) -> "WhyFact":
+        if (self.interval_start is None) != (self.interval_end is None):
+            raise ValueError("interval_start and interval_end must both be set or both be None")
+        if (
+            self.interval_start is not None
+            and self.interval_end is not None
+            and self.interval_end < self.interval_start
+        ):
+            raise ValueError("interval_end must not precede interval_start")
+        if self.derivation_kind == FactDerivationKind.DERIVED:
+            if self.derivation_op is None:
+                raise ValueError("Derived WhyFact must specify derivation_op")
+            if not self.input_evidence_refs:
+                raise ValueError("Derived WhyFact must include input_evidence_refs")
+        elif self.derivation_op is not None:
+            raise ValueError("Direct WhyFact must not specify derivation_op")
+        return self
 
 
 class WhyReason(BaseModel):
@@ -268,3 +342,4 @@ class WhyAnswer(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     missing_evidence: list[str] = Field(default_factory=list)
     truncated: bool = False
+    next_cursor: str | None = None

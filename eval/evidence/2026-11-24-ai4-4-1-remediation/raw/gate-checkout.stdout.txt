@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/ai4-g2-rem-gate/code checkout --quiet --detach 490f43300afb05ef7e809099a77e0c7174e272fb 

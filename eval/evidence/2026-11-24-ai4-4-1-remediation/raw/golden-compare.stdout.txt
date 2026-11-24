@@ -1,0 +1,132 @@
+cwd=/tmp/ai4-g2-rem-gate/code
+$ isolated python scripts/refactor/run_sim_kpi_gate.py compare /tmp/ai4-g2-rem-gate/crlf-golden-reference /tmp/ai4-g2-rem-gate/golden-candidate --evidence eval/evidence/2026-11-22/raw/sim-hardware --module-map docs/refactor/raw/phase4-final/module_map.txt 
+mvp1/decision_trace.json: OK - 0 unexpected, 0 allowed
+mvp1/events.json: OK - 0 unexpected, 0 allowed
+mvp1/replay.json: OK - 0 unexpected, 4 allowed
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1/report.json: OK - 0 unexpected, 4 allowed
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1/report.json vs evidence mvp1_default_report.json: OK - 0 unexpected, 9 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+mvp1_m3/decision_trace.json: OK - 0 unexpected, 0 allowed
+mvp1_m3/events.json: OK - 0 unexpected, 0 allowed
+mvp1_m3/replay.json: OK - 0 unexpected, 8 allowed
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1_m3/report.json: OK - 0 unexpected, 8 allowed
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp1_m3/report.json vs evidence mvp1_mvp3_report.json: OK - 0 unexpected, 13 allowed
+   allowed    /metadata/algorithms/coordinator/config_source
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/config_source
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/config_source
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/config_source
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+mvp1_m3/decision_trace.json vs evidence mvp1_mvp3_decision_trace.json: OK - 0 unexpected, 0 allowed
+vf/events.json: OK - 0 unexpected, 0 allowed
+vf/replay.json: OK - 0 unexpected, 5 allowed
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+vf/report.json: OK - 0 unexpected, 5 allowed
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+vf/report.json vs evidence vinfast_dc_120kw_report.json: OK - 0 unexpected, 10 allowed
+   allowed    /metadata/algorithms/coordinator/implementation
+   allowed    /metadata/algorithms/dc_charging_model/config_source
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/algorithms/dispatch/AC/implementation
+   allowed    /metadata/algorithms/dispatch/DC/implementation
+   allowed    /metadata/algorithms/optimizers/AC/implementation
+   allowed    /metadata/algorithms/optimizers/DC/implementation
+   allowed    /metadata/algorithms/physical_guard/implementation
+   allowed    /metadata/command
+   allowed    /metadata/run_id
+script/events.json: OK - 0 unexpected, 0 allowed
+script/replay.json: OK - 0 unexpected, 3 allowed
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+script/report.json: OK - 0 unexpected, 3 allowed
+   allowed    /metadata/algorithms/dc_charging_model/implementation
+   allowed    /metadata/command[]
+   allowed    /metadata/run_id
+mvp2/benchmark.json: OK - 0 unexpected, 0 allowed
+mvp2/benchmark.json vs evidence mvp2_benchmark.json: OK - 0 unexpected, 0 allowed
+mvp3/benchmark.json: OK - 0 unexpected, 4 allowed
+   allowed    /algorithm_metadata/B0/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M2b/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M3a/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M3b/dc_charging_model/implementation
+mvp3/decision_trace_shared_source_scarcity_B0.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_M2b.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_M3a.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_shared_source_scarcity_M3b.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_B0.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_M2b.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_M3a.json: OK - 0 unexpected, 0 allowed
+mvp3/decision_trace_site_curtailment_M3b.json: OK - 0 unexpected, 0 allowed
+mvp3/benchmark.json vs evidence mvp3_benchmark.json: OK - 0 unexpected, 20 allowed
+   allowed    /algorithm_metadata/B0/dc_charging_model/implementation
+   allowed    /algorithm_metadata/B0/dispatch/AC/implementation
+   allowed    /algorithm_metadata/B0/dispatch/DC/implementation
+   allowed    /algorithm_metadata/B0/optimizers/AC/implementation
+   allowed    /algorithm_metadata/B0/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M2b/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M2b/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M2b/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M2b/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M2b/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M3a/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M3a/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M3a/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M3a/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M3a/optimizers/DC/implementation
+   allowed    /algorithm_metadata/M3b/dc_charging_model/implementation
+   allowed    /algorithm_metadata/M3b/dispatch/AC/implementation
+   allowed    /algorithm_metadata/M3b/dispatch/DC/implementation
+   allowed    /algorithm_metadata/M3b/optimizers/AC/implementation
+   allowed    /algorithm_metadata/M3b/optimizers/DC/implementation
+mvp1/power_trace.csv: OK - byte-identical
+mvp1/vehicles.csv: OK - byte-identical
+mvp1_m3/power_trace.csv: OK - byte-identical
+mvp1_m3/vehicles.csv: OK - byte-identical
+vf/power_trace.csv: OK - byte-identical
+vf/vehicles.csv: OK - byte-identical
+script/power_trace.csv: OK - byte-identical
+script/vehicles.csv: OK - byte-identical
+
+OVERALL: 38/38 OK, rc=0

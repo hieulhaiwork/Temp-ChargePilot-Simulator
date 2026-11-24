@@ -1,0 +1,3 @@
+cwd=/home/lehieu/Projects/P-019
+$ sha256sum /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch 
+fb424d5c87028cc01952757062067c3c302eaa5cef2c0b1332a758e941437832  /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-1-remediation/raw/candidate.patch

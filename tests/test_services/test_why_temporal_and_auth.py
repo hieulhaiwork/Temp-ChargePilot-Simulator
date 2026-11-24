@@ -555,7 +555,7 @@ def test_temporal_gap_zero_sample_incomplete_with_violation_legacy_and_truncatio
     assert ans_gap.status == WhyStatus.PARTIAL
     assert "temporal_gap_in_window" in ans_gap.missing_evidence
     assert "incomplete_measured_coverage" in ans_gap.missing_evidence
-    assert "POST_APPLY_HARD_VIOLATION" in {r.code for r in ans_gap.reasons}
+    assert "STATION_POST_APPLY_HARD_VIOLATION" in {r.code for r in ans_gap.reasons}
 
     # Truncation when limit=1 over 2 overlapping traces
     ans_trunc = explain_why(
@@ -695,18 +695,20 @@ def test_syntactically_valid_evidence_ref_cannot_bypass_resident_authorization()
         "/booking_ids",
         "/planned/observed/vehicles",
     ]
+    b_a = booking("b-a", zone="DC", kwh=35.0, hours=2.0, now=T0).model_copy(update={"resident_id": "res-a"})
     for path in forbidden_paths:
+        implied_subj = "b-b" if "b-b" in path or path == "/commands/1/power_kw" else "station"
         ref = EvidenceRef(
             ref_id=f"t-bypass:{TRACE_SCHEMA}#{path}",
             correlation_id="t-bypass",
             trace_schema=TRACE_SCHEMA,
             source_path=path,
-            subject="b-a",
+            subject=implied_subj,
             decided_at=T0,
             policy_id="M3a",
             policy_version="1",
         )
-        ok, _ = resolve_evidence_ref(ref, t, res_a, own_booking_id="b-a")
+        ok, _ = resolve_evidence_ref(ref, t, res_a, booking=b_a)
         assert not ok, f"Resident A must NOT dereference {path}"
         # Operator in same station CAN dereference the exact same valid pointer
         op_ok, _ = resolve_evidence_ref(ref, t, _operator())

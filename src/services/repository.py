@@ -397,15 +397,13 @@ def list_decision_traces_for_temporal_lookup(
     inclusive_end: bool = False,
     lookback: timedelta = timedelta(days=1),
     limit: int = 100,
+    cursor: tuple[datetime, int, str] | None = None,
 ) -> dict:
-    """Indexed candidate fetch for G1-F06 temporal overlap / as-of resolution (no schema migration).
+    """Indexed candidate fetch for G1-F06 / G2-F04 temporal overlap & as-of resolution (no schema migration).
 
-    Fetches:
-      - rows in [start - lookback, end] (or < end) using existing decided_at / (booking_id, decided_at) indexes,
-        with limit + 1 to detect truncation accurately;
-      - the single latest row strictly before `start - lookback` to cover long-lived traces;
-      - counts of legacy summary-only rows (full_payload IS NULL) in the fetched window;
-      - station-wide latest trace metadata and the next trace after `end` to detect superseded/stale active traces.
+    Separates in-window ascending pagination from prior-boundary lookup so non-overlapping
+    historical traces never starve `limit`. Always returns station-wide superseding timeline
+    metadata so booking-filtered queries see station-level superseding decisions.
     """
     if start.utcoffset() is None or end.utcoffset() is None:
         raise ValueError("Trace lookup boundaries must be timezone-aware")
@@ -417,7 +415,6 @@ def list_decision_traces_for_temporal_lookup(
         raise ValueError("Trace limit must be between 1 and 100")
 
     _ensure()
-    fetch_start = start - lookback
 
     def _base_query():
         if booking_id is not None:
@@ -448,28 +445,95 @@ def list_decision_traces_for_temporal_lookup(
         )
 
     with db_session.session_scope() as s:
+        # 1. In-window query ordered ASC (with optional keyset cursor) so prior traces never consume `limit`
         q, time_col = _base_query()
         upper = time_col <= end if inclusive_end else time_col < end
-        window_q = (
-            q.where(time_col >= fetch_start, upper)
-            .order_by(time_col.desc(), DecisionTraceRow.schedule_version.desc(), DecisionTraceRow.correlation_id.desc())
-            .limit(limit + 1)
-        )
-        rows = list(s.execute(window_q).all())
-        truncated = len(rows) > limit
-        if truncated:
-            rows = rows[:limit]
-
-        prior_q, prior_col = _base_query()
-        prior = s.execute(
-            prior_q.where(prior_col < fetch_start)
-            .order_by(
-                prior_col.desc(), DecisionTraceRow.schedule_version.desc(), DecisionTraceRow.correlation_id.desc()
+        in_window_q = q.where(time_col >= start, upper)
+        if cursor is not None:
+            c_dt, c_ver, c_cid = cursor
+            in_window_q = in_window_q.where(
+                (time_col > c_dt)
+                | ((time_col == c_dt) & (DecisionTraceRow.schedule_version > c_ver))
+                | (
+                    (time_col == c_dt)
+                    & (DecisionTraceRow.schedule_version == c_ver)
+                    & (DecisionTraceRow.correlation_id > c_cid)
+                )
             )
-            .limit(1)
-        ).first()
+        in_window_q = in_window_q.order_by(
+            time_col.asc(), DecisionTraceRow.schedule_version.asc(), DecisionTraceRow.correlation_id.asc()
+        ).limit(limit + 1)
+        window_rows = list(s.execute(in_window_q).all())
+        truncated = len(window_rows) > limit
+        if truncated:
+            window_rows = window_rows[:limit]
 
-        # Station-wide superseding signals (uses ix_decision_traces_decided)
+        # 2. Prior-boundary query (only on first page): latest decided_at strictly before `start`
+        prior_rows = []
+        if cursor is None:
+            prior_q, prior_col = _base_query()
+            latest_prior = s.execute(
+                prior_q.where(prior_col < start)
+                .order_by(
+                    prior_col.desc(),
+                    DecisionTraceRow.schedule_version.desc(),
+                    DecisionTraceRow.correlation_id.desc(),
+                )
+                .limit(1)
+            ).first()
+            if latest_prior is not None:
+                prior_ties_q, prior_ties_col = _base_query()
+                prior_rows = list(
+                    s.execute(
+                        prior_ties_q.where(prior_ties_col == latest_prior.decided_at)
+                        .order_by(DecisionTraceRow.schedule_version.asc(), DecisionTraceRow.correlation_id.asc())
+                        .limit(20)
+                    ).all()
+                )
+
+        seen_cids: set[str] = set()
+        traces: list[dict] = []
+        legacy_summary_only_ids: list[str] = []
+        earliest_dt: datetime | None = None
+        for row in [*prior_rows, *window_rows]:
+            if row.correlation_id in seen_cids:
+                continue
+            seen_cids.add(row.correlation_id)
+            if earliest_dt is None or row.decided_at < earliest_dt:
+                earliest_dt = row.decided_at
+            if row.full_payload is None:
+                legacy_summary_only_ids.append(row.correlation_id)
+            else:
+                traces.append(row.full_payload)
+
+        # 3. Station-wide superseding timeline (uses ix_decision_traces_decided)
+        timeline_start = earliest_dt if earliest_dt is not None else start
+        timeline_upper = DecisionTraceRow.decided_at <= end if inclusive_end else DecisionTraceRow.decided_at < end
+        station_timeline_rows = list(
+            s.execute(
+                select(
+                    DecisionTraceRow.correlation_id,
+                    DecisionTraceRow.decided_at,
+                    DecisionTraceRow.schedule_version,
+                )
+                .where(DecisionTraceRow.decided_at >= timeline_start, timeline_upper)
+                .order_by(
+                    DecisionTraceRow.decided_at.asc(),
+                    DecisionTraceRow.schedule_version.asc(),
+                    DecisionTraceRow.correlation_id.asc(),
+                )
+                .limit(500)
+            ).all()
+        )
+        station_timeline = [
+            {
+                "correlation_id": r.correlation_id,
+                "decided_at": r.decided_at,
+                "schedule_version": r.schedule_version,
+            }
+            for r in station_timeline_rows
+        ]
+
         after_cond = DecisionTraceRow.decided_at > end if inclusive_end else DecisionTraceRow.decided_at >= end
         next_row = s.execute(
             select(
@@ -499,23 +563,11 @@ def list_decision_traces_for_temporal_lookup(
             .limit(1)
         ).first()
 
-    combined = list(rows)
-    seen_ids = {r.correlation_id for r in combined}
-    if prior is not None and prior.correlation_id not in seen_ids:
-        combined.append(prior)
-
-    traces: list[dict] = []
-    legacy_summary_only_ids: list[str] = []
-    for row in combined:
-        if row.full_payload is None:
-            legacy_summary_only_ids.append(row.correlation_id)
-        else:
-            traces.append(row.full_payload)
-
     return {
         "traces": traces,
         "legacy_summary_only_ids": legacy_summary_only_ids,
         "truncated": truncated,
+        "station_timeline": station_timeline,
         "next_trace": (
             {
                 "correlation_id": next_row.correlation_id,

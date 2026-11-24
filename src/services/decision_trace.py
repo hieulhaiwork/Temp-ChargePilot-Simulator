@@ -291,9 +291,10 @@ def _record_power_samples(trace, samples, applied, time_at=None):
     }
 
 
-def _applied(results, conversion: float) -> dict:
+def _applied(results, conversion: float, time_at=None) -> dict:
     deviation, deadband, stale, energy, battery = {}, {}, {}, {}, {}
     completed, violations, details = [], [], []
+    completed_by_booking: dict[str, dict] = {}
     for result in results:
         minutes = result.end - result.minute
         for vid, kw in result.actual_kw.items():
@@ -305,7 +306,15 @@ def _applied(results, conversion: float) -> dict:
                 target[zone] = max(target.get(zone, 0.0), kw)
         for vid, kw in result.stale_setpoint_kw.items():
             stale[vid] = max(stale.get(vid, 0.0), kw)
-        completed += list(result.completed)
+        for vid in result.completed:
+            completed.append(vid)
+            completed_by_booking.setdefault(
+                vid,
+                {
+                    "minute": result.end,
+                    "completed_at": time_at(result.end) if callable(time_at) else None,
+                },
+            )
         violations += list(result.violations)
         details += [
             {"minute": result.minute, "kind": v.kind, "vehicle_ids": list(v.vehicle_ids), "message": v.message}
@@ -319,6 +328,7 @@ def _applied(results, conversion: float) -> dict:
         "battery_stored_kwh": battery,
         "grid_input_kwh": {vid: kwh / conversion for vid, kwh in energy.items()},
         "completed": completed,
+        "completed_by_booking": completed_by_booking,
         "hard_violations": violations,
         # Final Acceptance §1.4: loại (aggregate_power / charging_model / acceptance) + xe của từng vi phạm cứng
         "hard_violation_details": details,
@@ -342,7 +352,7 @@ def close_open(rt) -> dict | None:
     trace, approved = holder["trace"], holder["approved"]
     conversion = approved.proposal.effective_limits.conversion if approved else rt.config.power_conversion_efficiency
     time_at = getattr(station, "time_at", None)
-    applied = _applied(results, conversion)
+    applied = _applied(results, conversion, time_at=time_at)
     applied["closed_at"] = (getattr(station, "now", None) or rt.clock()).isoformat()
     if callable(time_at):
         applied["from_at"] = time_at(applied["from_minute"]) if applied["from_minute"] is not None else None

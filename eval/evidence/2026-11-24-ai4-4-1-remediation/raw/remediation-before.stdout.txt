@@ -1,0 +1,501 @@
+cwd=/home/lehieu/Projects/P-019
+$ .simulator/bin/python -m pytest tests/test_services/test_why_g2_remediation.py -q
+FFFFFFFFFFFFFF                                                           [100%]
+=================================== FAILURES ===================================
+__ test_g2_f01_fractional_window_uses_exact_overlap_not_full_sample_duration ___
+
+    def test_g2_f01_fractional_window_uses_exact_overlap_not_full_sample_duration():
+        # Minute 0 [18:00, 18:01): 60 kW; Minute 1 [18:01, 18:02): 30 kW
+        trace = _synthetic_trace(
+            "t-frac",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=2,
+            booking_kw_samples=[(0, {"b-a": 60.0}), (1, {"b-a": 30.0})],
+        )
+        win = TimeWindow(start=T0 + timedelta(seconds=30), end=T0 + timedelta(seconds=90))
+        ans = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=WhyTopic.POWER, window=win),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+        # Exact overlap: 0.5 min * 60 kW + 0.5 min * 30 kW = 0.75 kWh, avg = 45.0 kW
+        kwh = next(f for f in ans.facts if f.name == "energy.measured_output_kwh")
+        avg = next(f for f in ans.facts if f.name == "power.measured_actual_output_avg_kw")
+>       assert kwh.value == pytest.approx(0.75, abs=1e-5)
+E       assert 1.5 == 0.75 ± 1.0e-05
+E         
+E         comparison failed
+E         Obtained: 1.5
+E         Expected: 0.75 ± 1.0e-05
+
+tests/test_services/test_why_g2_remediation.py:64: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+____ test_g2_f01_as_of_query_exposes_power_never_accumulated_sample_energy _____
+
+    def test_g2_f01_as_of_query_exposes_power_never_accumulated_sample_energy():
+        trace = _synthetic_trace(
+            "t-asof-e",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=2,
+            booking_kw_samples=[(0, {"b-a": 60.0}), (1, {"b-a": 30.0})],
+        )
+        ans = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.POWER,
+                at=T0 + timedelta(seconds=30),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+        # Point-in-time query must NEVER report full-sample energy as accumulated energy at an instant
+>       assert not any(f.name.startswith("energy.measured") for f in ans.facts)
+E       assert not True
+E        +  where True = any(<generator object test_g2_f01_as_of_query_exposes_power_never_accumulated_sample_energy.<locals>.<genexpr> at 0x74255b870930>)
+
+tests/test_services/test_why_g2_remediation.py:92: AssertionError
+________ test_g2_f01_overlapping_duplicate_samples_never_double_counted ________
+
+    def test_g2_f01_overlapping_duplicate_samples_never_double_counted():
+        trace = _synthetic_trace(
+            "t-dup-sample",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=2,
+            booking_kw_samples=[(0, {"b-a": 60.0}), (1, {"b-a": 30.0})],
+        )
+        # Duplicate sample 0 inside actual_output.samples
+        dup = copy.deepcopy(trace["power"]["actual_output"]["samples"][0])
+        trace["power"]["actual_output"]["samples"].insert(1, dup)
+        res = resolve_traces_from_records([trace], window=TimeWindow(start=T0, end=T0 + timedelta(minutes=2)))
+        sl = extract_measured_slice(res.traces[0], window=TimeWindow(start=T0, end=T0 + timedelta(minutes=2)))
+        # Total energy over [18:00, 18:02) must be 60*(1/60) + 30*(1/60) = 1.5 kWh, NOT 2.5 kWh
+>       assert sl.output_kwh_by_booking["b-a"] == pytest.approx(1.5, abs=1e-5)
+E       assert 2.5 == 1.5 ± 1.0e-05
+E         
+E         comparison failed
+E         Obtained: 2.5
+E         Expected: 1.5 ± 1.0e-05
+
+tests/test_services/test_why_g2_remediation.py:113: AssertionError
+_ test_g2_f02_subwindow_derived_facts_list_all_contributing_samples_and_efficiency _
+
+    def test_g2_f02_subwindow_derived_facts_list_all_contributing_samples_and_efficiency():
+        trace = _synthetic_trace(
+            "t-ground",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=5,
+            booking_kw_samples=[(m, {"b-a": 10.0 * (m + 1)}) for m in range(5)],
+        )
+        win = TimeWindow(start=T0 + timedelta(minutes=1), end=T0 + timedelta(minutes=4))
+        ans = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=WhyTopic.POWER, window=win),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+        avg_fact = next(f for f in ans.facts if f.name == "power.measured_actual_output_avg_kw")
+        kwh_fact = next(f for f in ans.facts if f.name == "energy.measured_output_kwh")
+        grid_fact = next(f for f in ans.facts if f.name == "energy.measured_grid_input_kwh")
+        appr_fact = next(f for f in ans.facts if f.name == "power.approved_output_kw")
+    
+>       assert getattr(appr_fact, "derivation_kind", None) == "direct"
+E       AssertionError: assert None == 'direct'
+E        +  where None = getattr(WhyFact(fact_id='f002:t-ground:power.approved_output_kw', name='power.approved_output_kw', subject='b-a', stage=<FactS...ved/by_booking_kw/b-a', evidence_ref='t-ground:chargepilot.backend_decision_trace/2#/power/approved/by_booking_kw/b-a'), 'derivation_kind', None)
+
+tests/test_services/test_why_g2_remediation.py:142: AssertionError
+_ test_g2_f02_direct_fact_rejects_value_mismatch_against_canonical_trace_field _
+
+    def test_g2_f02_direct_fact_rejects_value_mismatch_against_canonical_trace_field():
+        trace = _synthetic_trace("t-direct", T0, minute=0, closed=True, closed_after_minutes=1, booking_kw_samples=[(0, {"b-a": 20.0})])
+        resolved = resolve_traces_from_records([trace], at=T0).traces[0]
+        collector = EvidenceCollector(_operator())
+        # Trace has approved power = 30.0 kW; passing wrong value 999.0 for a direct fact MUST fail!
+>       with pytest.raises(ValueError):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_why_g2_remediation.py:164: Failed
+_ test_g2_f03_subwindow_measured_facts_carry_derivation_interval_and_observed_has_no_planned_span _
+
+    def test_g2_f03_subwindow_measured_facts_carry_derivation_interval_and_observed_has_no_planned_span():
+        trace = _synthetic_trace(
+            "t-meta",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=5,
+            booking_kw_samples=[(m, {"b-a": 20.0}) for m in range(5)],
+        )
+        sub_start = T0 + timedelta(minutes=1)
+        sub_end = T0 + timedelta(minutes=3)
+        win = TimeWindow(start=sub_start, end=sub_end)
+    
+        # Booking-scoped power
+        ans_b = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=WhyTopic.POWER, window=win),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+        avg_b = next(f for f in ans_b.facts if f.name == "power.measured_actual_output_avg_kw")
+>       assert avg_b.interval_start == sub_start
+E       AssertionError: assert datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))) == datetime.datetime(2026, 11, 24, 18, 1, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200)))
+E        +  where datetime.datetime(2026, 11, 24, 18, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=25200))) = WhyFact(fact_id='f006:t-meta:power.measured_actual_output_avg_kw', name='power.measured_actual_output_avg_kw', subject...g_kw/b-a', evidence_ref='t-meta:chargepilot.backend_decision_trace/2#/power/actual_output/samples/1/by_booking_kw/b-a').interval_start
+
+tests/test_services/test_why_g2_remediation.py:202: AssertionError
+_ test_g2_f04_default_path_detects_stale_active_trace_when_runtime_uninitialized _
+
+clean_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74255bbc0e90>
+
+    def test_g2_f04_default_path_detects_stale_active_trace_when_runtime_uninitialized(clean_db, monkeypatch):
+        _seed_user_and_booking("b-a", "res-a")
+        stale = _synthetic_trace("t-uninit-stale", T0, minute=0, planned_minutes=15, closed=False, schedule_version=1)
+        decision_trace.persist(stale, False)
+        # Simulate fresh process restart where runtime._live has NOT been initialized yet
+        monkeypatch.setattr(runtime, "_live", None)
+    
+        # Call explain_why via DEFAULT path (NO injected live_open_known!)
+        ans = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.POWER,
+                at=T0 + timedelta(minutes=3),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+        )
+        assert ans.status == WhyStatus.PARTIAL
+>       assert ans.traces[0].stale_after_restart is True
+E       AssertionError: assert False is True
+E        +  where False = TraceProvenance(correlation_id='t-uninit-stale', trace_schema='chargepilot.backend_decision_trace/2', decided_at=datet...None, measured_end=None, coverage_status='not_evaluated', post_apply_status='not_evaluated', stale_after_restart=False).stale_after_restart
+
+tests/test_services/test_why_g2_remediation.py:253: AssertionError
+______ test_g2_f04_booking_query_respects_station_level_superseding_trace ______
+
+clean_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74255b934740>
+
+    def test_g2_f04_booking_query_respects_station_level_superseding_trace(clean_db, monkeypatch):
+        _seed_user_and_booking("b-a", "res-a")
+        _seed_user_and_booking("b-other", "res-other")
+        # Trace 1 at T0 includes b-a (unclosed active)
+        t1 = _synthetic_trace("t-sup-1", T0, minute=0, planned_minutes=15, closed=False, schedule_version=1, booking_kw_samples=[])
+        # Trace 2 at T0+4m is a station-level decision that does NOT include b-a!
+        t2 = _synthetic_trace(
+            "t-sup-2",
+            T0 + timedelta(minutes=4),
+            minute=4,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=10,
+            schedule_version=2,
+            booking_kw_samples=[(m, {"b-other": 30.0}) for m in range(10)],
+        )
+        decision_trace.persist(t1, False)
+        decision_trace.persist(t2, True)
+        monkeypatch.setattr(runtime, "_live", None)
+    
+        # Query b-a at T0+6m: t1 was superseded at T0+4m by station-level t2 -> MUST NOT match t1!
+        ans = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.POWER,
+                at=T0 + timedelta(minutes=6),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+        )
+>       assert ans.status == WhyStatus.NO_DATA
+E       AssertionError: assert <WhyStatus.PARTIAL: 'partial'> == <WhyStatus.NO_DATA: 'no_data'>
+E         
+E         - no_data
+E         + partial
+
+tests/test_services/test_why_g2_remediation.py:288: AssertionError
+_ test_g2_f04_as_of_beyond_live_physics_clock_flagged_and_candidate_limit_not_starved _
+
+clean_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74255b934440>
+
+    def test_g2_f04_as_of_beyond_live_physics_clock_flagged_and_candidate_limit_not_starved(clean_db, monkeypatch):
+        _seed_user_and_booking("b-a", "res-a")
+        # 25 non-overlapping 1-min closed traces BEFORE window [T0, T0+10m)
+        for i in range(25):
+            ts = T0 - timedelta(minutes=60 - i)
+            tr = _synthetic_trace(
+                f"t-old-{i:02d}",
+                ts,
+                minute=i,
+                planned_minutes=1,
+                closed=True,
+                closed_after_minutes=1,
+                schedule_version=i + 1,
+                booking_kw_samples=[(0, {"b-a": 10.0})],
+            )
+            decision_trace.persist(tr, True)
+        # 3 overlapping traces INSIDE [T0, T0+9m)
+        for j in range(3):
+            ts = T0 + timedelta(minutes=j * 3)
+            tr = _synthetic_trace(
+                f"t-win-{j}",
+                ts,
+                minute=100 + j * 3,
+                planned_minutes=3,
+                closed=True,
+                closed_after_minutes=3,
+                schedule_version=100 + j,
+                booking_kw_samples=[(m, {"b-a": 20.0}) for m in range(3)],
+            )
+            decision_trace.persist(tr, True)
+    
+        win = TimeWindow(start=T0, end=T0 + timedelta(minutes=9))
+        page1 = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=WhyTopic.POWER, window=win, limit=2),
+            _operator(),
+            station_id=STATION_ID,
+        )
+        assert [t.correlation_id for t in page1.traces] == ["t-win-0", "t-win-1"]
+        assert page1.truncated is True
+        next_cursor = getattr(page1, "next_cursor", None)
+>       assert next_cursor is not None
+E       assert None is not None
+
+tests/test_services/test_why_g2_remediation.py:332: AssertionError
+_ test_g2_f05_no_future_completion_leakage_and_completion_ref_not_pre_decision_state _
+
+    def test_g2_f05_no_future_completion_leakage_and_completion_ref_not_pre_decision_state():
+        # Trace [18:00, 18:15): vehicle was CHARGING at 18:00 and completed at 18:12 (minute 12)
+        trace = _synthetic_trace(
+            "t-comp",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=15,
+            booking_kw_samples=[(m, {"b-a": 30.0}) for m in range(12)],
+        )
+        trace["applied"]["completed"] = ["b-a"]
+        trace["applied"]["completed_by_booking"] = {
+            "b-a": {"minute": 12, "completed_at": (T0 + timedelta(minutes=12)).isoformat()}
+        }
+    
+        # Query at T+5 (BEFORE completion at T+12) -> MUST NOT claim completed!
+        ans_t5 = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.DEADLINE_RISK,
+                at=T0 + timedelta(minutes=5),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+>       assert "OBSERVED_CHARGE_COMPLETED" not in {r.code for r in ans_t5.reasons}
+E       AssertionError: assert 'OBSERVED_CHARGE_COMPLETED' not in {'OBSERVED_CHARGE_COMPLETED'}
+
+tests/test_services/test_why_g2_remediation.py:408: AssertionError
+_ test_g2_f05_station_violation_not_misattributed_and_no_incident_abstains_when_incomplete _
+
+    def test_g2_f05_station_violation_not_misattributed_and_no_incident_abstains_when_incomplete():
+        # Station post-apply violation caused by b-other, NOT b-a
+        trace_v = _synthetic_trace(
+            "t-sviol",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=5,
+            booking_kw_samples=[(m, {"b-a": 20.0, "b-other": 60.0}) for m in range(5)],
+            post_apply="violation",
+            hard_violations=["charging_model violation on b-other"],
+        )
+        trace_v["applied"]["hard_violation_details"] = [
+            {"minute": 1, "kind": "charging_model", "vehicle_ids": ["b-other"], "message": "exceeded"}
+        ]
+        ans_v = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.INCIDENT,
+                at=T0 + timedelta(minutes=1),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace_v],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+        viol_reasons = [r for r in ans_v.reasons if "VIOLATION" in r.code]
+        assert viol_reasons
+>       assert all(r.subject != "b-a" for r in viol_reasons)
+E       assert False
+E        +  where False = all(<generator object test_g2_f05_station_violation_not_misattributed_and_no_incident_abstains_when_incomplete.<locals>.<genexpr> at 0x74255bb63ed0>)
+
+tests/test_services/test_why_g2_remediation.py:457: AssertionError
+_ test_g2_f05_guard_block_pending_approval_and_hardware_bound_complete_evidence _
+
+    def test_g2_f05_guard_block_pending_approval_and_hardware_bound_complete_evidence():
+        trace = _synthetic_trace(
+            "t-ev-full",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=2,
+            booking_kw_samples=[(0, {"b-a": 30.0}), (1, {"b-a": 30.0})],
+        )
+        trace["commands"] = [
+            {
+                "command_id": "cmd-guard",
+                "recorded_at": T0.isoformat(),
+                "type": "set_power",
+                "source": "optimizer",
+                "connector_id": "DC-01-1",
+                "booking_id": "b-a",
+                "power_kw": 30.0,
+                "guard_passed": False,
+                "violations": [{"rule": "site_limit_exceeded", "message": "too high"}],
+                "approval_id": None,
+                "executed": False,
+                "note": "",
+            },
+            {
+                "command_id": "cmd-pend",
+                "recorded_at": T0.isoformat(),
+                "type": "set_power",
+                "source": "optimizer",
+                "connector_id": "DC-01-1",
+                "booking_id": "b-a",
+                "power_kw": 25.0,
+                "guard_passed": True,
+                "violations": [],
+                "approval_id": "appr-42",
+                "executed": False,
+                "note": "",
+            },
+        ]
+        ans_p = explain_why(
+            WhyQuery(subject_scope=WhySubjectScope.BOOKING, booking_id="b-a", topic=WhyTopic.POWER, at=T0),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+        blk = next(r for r in ans_p.reasons if r.code == "BUSINESS_GUARD_BLOCKED")
+        blk_paths = [ref.split("#", 1)[1] for ref in blk.evidence_refs]
+>       assert "/commands/0/guard_passed" in blk_paths
+E       AssertionError: assert '/commands/0/guard_passed' in ['/commands/0/power_kw', '/commands/0/executed']
+
+tests/test_services/test_why_g2_remediation.py:542: AssertionError
+_ test_g2_f06_missing_efficiencies_report_missing_evidence_instead_of_silent_defaults _
+
+    def test_g2_f06_missing_efficiencies_report_missing_evidence_instead_of_silent_defaults():
+        trace = _synthetic_trace(
+            "t-no-eff",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=2,
+            booking_kw_samples=[(0, {"b-a": 30.0}), (1, {"b-a": 30.0})],
+        )
+        trace["planned"]["physical_limits"]["conversion_efficiency"] = None
+        trace["planned"]["physical_limits"]["charging_efficiency"] = None
+        trace["planned"]["observed"]["vehicles"]["b-a"]["remaining_kwh"] = 50.0
+        trace["planned"]["observed"]["vehicles"]["b-a"]["deadline_minute"] = 10
+    
+        # Sub-window power must NOT fabricate grid_input_kwh with 0.95
+        ans_p = explain_why(
+            WhyQuery(
+                subject_scope=WhySubjectScope.BOOKING,
+                booking_id="b-a",
+                topic=WhyTopic.POWER,
+                window=TimeWindow(start=T0, end=T0 + timedelta(minutes=1)),
+            ),
+            _operator(),
+            station_id=STATION_ID,
+            raw_traces=[trace],
+            bookings_override={"b-a": _make_dummy_booking("b-a", "res-a")},
+        )
+>       assert ans_p.status == WhyStatus.PARTIAL
+E       AssertionError: assert <WhyStatus.OK: 'ok'> == <WhyStatus.PARTIAL: 'partial'>
+E         
+E         - partial
+E         + ok
+
+tests/test_services/test_why_g2_remediation.py:600: AssertionError
+___________ test_g2_f07_adversarial_evidence_ref_mismatches_rejected ___________
+
+    def test_g2_f07_adversarial_evidence_ref_mismatches_rejected():
+        trace = _synthetic_trace(
+            "t-adv",
+            T0,
+            minute=0,
+            planned_minutes=15,
+            closed=True,
+            closed_after_minutes=2,
+            booking_kw_samples=[(0, {"b-a": 20.0, "b-b": 40.0})],
+        )
+        op = _operator()
+    
+        # 1. Valid pointer, mismatched ref_id vs source_path
+        bad_ref_id = EvidenceRef(
+            ref_id=f"t-adv:{TRACE_SCHEMA}#/policy/version",
+            correlation_id="t-adv",
+            trace_schema=TRACE_SCHEMA,
+            source_path="/policy/id",
+            subject="station",
+            decided_at=T0,
+            policy_id="M3a",
+            policy_version="1",
+        )
+>       assert resolve_evidence_ref(bad_ref_id, trace, op)[0] is False
+E       assert True is False
+
+tests/test_services/test_why_g2_remediation.py:643: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f01_fractional_window_uses_exact_overlap_not_full_sample_duration
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f01_as_of_query_exposes_power_never_accumulated_sample_energy
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f01_overlapping_duplicate_samples_never_double_counted
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f02_subwindow_derived_facts_list_all_contributing_samples_and_efficiency
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f02_direct_fact_rejects_value_mismatch_against_canonical_trace_field
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f03_subwindow_measured_facts_carry_derivation_interval_and_observed_has_no_planned_span
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f04_default_path_detects_stale_active_trace_when_runtime_uninitialized
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f04_booking_query_respects_station_level_superseding_trace
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f04_as_of_beyond_live_physics_clock_flagged_and_candidate_limit_not_starved
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f05_no_future_completion_leakage_and_completion_ref_not_pre_decision_state
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f05_station_violation_not_misattributed_and_no_incident_abstains_when_incomplete
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f05_guard_block_pending_approval_and_hardware_bound_complete_evidence
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f06_missing_efficiencies_report_missing_evidence_instead_of_silent_defaults
+FAILED tests/test_services/test_why_g2_remediation.py::test_g2_f07_adversarial_evidence_ref_mismatches_rejected
+14 failed in 1.25s
+EXIT_CODE=1

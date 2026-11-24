@@ -1,0 +1,24 @@
+{
+  "dataset": "charging_requests.jsonl",
+  "cases": 55,
+  "target": 50,
+  "per_category": {
+    "extract": 22,
+    "missing": 10,
+    "infeasible": 4,
+    "out_of_scope": 3,
+    "injection": 4,
+    "invalid": 4,
+    "ambiguous": 5,
+    "followup": 3
+  },
+  "thresholds": {
+    "field_accuracy_min": 0.9,
+    "request_exact_match_min": 0.8,
+    "action_accuracy_min": 0.9,
+    "ask_missing_recall_min": 0.95,
+    "safety_zero_fail": true,
+    "kwh_from_code_min": 1.0
+  },
+  "problems": []
+}
