@@ -228,6 +228,28 @@ def live_policy(config: StationConfig) -> tuple[str, dict]:
     return policy_id, dict(planning.parameters) if planning is not None else {}
 
 
+def live_scheduler(config: StationConfig, station) -> Scheduler:
+    """Scheduler của runtime live (`get_runtime`): policy + tham số theo `live_policy(config)`."""
+    policy_id, parameters = live_policy(config)
+    return make_scheduler(policy_id, lambda: station, parameters=parameters or None)
+
+
+def policy_parameters(config: StationConfig, strategy: StrategyName | str) -> dict:
+    """Tham số optimizer của `strategy` theo CÙNG quy tắc với runtime live (Final Acceptance §3.1).
+
+    `planning.parameters` gắn với policy mà runtime live chạy (`live_policy`): benchmark / admission / WHAT-IF chạy
+    ĐÚNG policy đó nhận ĐÚNG tham số đó (cùng policy + config ⇒ cùng thuật toán). Policy khác chạy tham số mặc định của
+    registry — tham số theo thành phần (vd. `optimizer_dc.horizon_minutes`) không áp được cho thành phần khác loại.
+    Trạng thái đã resolve của mỗi run ghi ở `ResolvedExperiment` (services/experiment.py).
+    """
+    from src.services.hybrid_planner import policy_key
+
+    if config.planning is None or not config.planning.parameters:
+        return {}
+    live_id, parameters = live_policy(config)
+    return parameters if policy_key(strategy) == live_id else {}
+
+
 def visit_of(booking: Booking, now: datetime) -> VehicleVisit:
     """Booking → dữ kiện môi trường cho simulator (simulator không biết cư dân / booking)."""
     return VehicleVisit(
@@ -334,12 +356,11 @@ def get_runtime() -> StationRuntime:
         add_notification=repository.add_notification,
         save_trace=decision_trace.persist,
     )
-    policy_id, parameters = live_policy(config)
     rt = StationRuntime(
         config=config,
         tariff=catalog.load_tariff(),
         simulator=station,
-        scheduler=make_scheduler(policy_id, lambda: station, parameters=parameters or None),
+        scheduler=live_scheduler(config, station),
         forecaster=None,
         clock=clock,
         sinks=DispatchSinks(log_decision=log_decision, save_approval=repository.save_approval, notify=notify),
@@ -385,15 +406,21 @@ def build_sim_runtime(
     tariff: Tariff,
     start: datetime,
     engine: str | None = None,
+    *,
+    parameters: dict | None = None,
 ) -> StationRuntime:
     """Runtime cho MỘT lần chạy benchmark: simulator mới, đồng hồ mô phỏng, store + sinks vào bộ nhớ.
 
     Đồng hồ = đồng hồ của simulator (simulation_service tự gọi simulator.step). Yêu cầu phê duyệt trong
     benchmark không có người trả lời → hết hạn = không thực thi (AC4), đúng như vận hành thật.
+    `parameters`: None ⇒ như runtime live (`policy_parameters(config, strategy)`, Final Acceptance §3.1); dict ⇒ tường
+    minh (thí nghiệm), `{}` = tham số mặc định của registry.
     """
     simulator = make_station(config, start, engine)
     simulator.reset(scenario)
-    return _memory_runtime(simulator, make_scheduler(strategy, lambda: simulator), config, tariff)
+    params = policy_parameters(config, strategy) if parameters is None else dict(parameters)
+    scheduler = make_scheduler(strategy, lambda: simulator, parameters=params or None)
+    return _memory_runtime(simulator, scheduler, config, tariff)
 
 
 def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
@@ -417,6 +444,8 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
         algorithms,
         parameters=getattr(rt.scheduler, "parameters", None) or None,
     )
+    # Provenance (Final Acceptance §3.2): bản fork chạy CÙNG thành phần đã resolve của live ⇒ cùng metadata.
+    scheduler.metadata = dict(getattr(rt.scheduler, "metadata", None) or {})
     frt = _memory_runtime(
         fork, scheduler, rt.config, rt.tariff, bookings=bookings, approvals=rt.store.pending_approvals()
     )

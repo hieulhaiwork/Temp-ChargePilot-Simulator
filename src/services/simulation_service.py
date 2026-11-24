@@ -41,9 +41,11 @@ from src.models.simulation import (
     IncidentType,
     KpiReport,
     PolicyInfo,
+    ResolvedExperiment,
     Scenario,
     SessionOutcome,
     SimulationRunResult,
+    ViolationCounts,
 )
 from src.models.station import StationConfig, Tariff
 from src.services import catalog, control_loop, event_bus
@@ -51,6 +53,7 @@ from src.services.admission import run_sync
 from src.services.charging_service import vehicle_power_cap
 from src.services.energy import estimate_energy
 from src.services.errors import DomainError
+from src.services.experiment import try_resolve_experiment
 from src.services.hybrid_planner import as_policy_ref, policy_key
 from src.services.runtime import StationRuntime, build_sim_runtime, get_runtime, make_station, visit_of
 
@@ -257,6 +260,18 @@ async def _run(
             skipped_details=skipped,
             strict=strict_incidents,
         ),
+        experiment=try_resolve_experiment(rt),
+        violations=violation_counts(kpis, sim),
+    )
+
+
+def violation_counts(kpis: KpiReport, station) -> ViolationCounts:
+    """KPI lấy mẫu (MT4) và vi phạm cứng của kernel — hai nguồn, hai trường (Final Acceptance §3.5)."""
+    kernel = getattr(station, "kernel", None)
+    return ViolationCounts(
+        sampled_power_over_limit_minutes=kpis.power_limit_violations,
+        applied_constraint_violation_count=getattr(station, "applied_constraint_violation_count", 0),
+        rejected_allocation_count=getattr(kernel, "rejected_allocation_count", 0),
     )
 
 
@@ -334,8 +349,27 @@ def run_benchmark(
                         f"{statistics.stdev(on_time):.1%}, chi phí {statistics.fmean(cost):,.0f} ± "
                         f"{statistics.stdev(cost):,.0f} VND ({len(sample)} seed)"
                     )
+    experiments, conflicts = run_experiments(runs)
+    notes += [f"Cấu hình đã resolve KHÁC NHAU giữa các run của {pid} (fingerprint lệch)." for pid in conflicts]
     source = benchmark_source(scenarios, strategies, seeds or sorted({s.seed for s in scenarios}))
+    source.experiments = experiments
     return BenchmarkReport(generated_at=datetime.now(UTC), runs=runs, notes=notes, source=source)
+
+
+def run_experiments(runs: list[SimulationRunResult]) -> tuple[dict[str, ResolvedExperiment], list[str]]:
+    """policy_id → cấu hình đã resolve (run đầu tiên) + danh sách policy có run lệch fingerprint (Final Acceptance §3.3).
+
+    Seed / kịch bản không thuộc cấu hình thí nghiệm ⇒ mọi run của một policy phải cùng fingerprint.
+    """
+    experiments: dict[str, ResolvedExperiment] = {}
+    conflicts: list[str] = []
+    for run in runs:
+        if run.experiment is None or run.policy_id is None:
+            continue
+        first = experiments.setdefault(run.policy_id, run.experiment)
+        if first.fingerprint != run.experiment.fingerprint and run.policy_id not in conflicts:
+            conflicts.append(run.policy_id)
+    return experiments, conflicts
 
 
 async def inject_incident(incident: Incident) -> None:
@@ -381,6 +415,7 @@ def latest_benchmark() -> BenchmarkReport:
         time_config=manifest.get("time_config", {}),
         libraries=manifest.get("libraries", {}),
         note=manifest.get("status_note", ""),
+        experiments=manifest.get("experiments", {}),  # baseline cũ không có khoá này ⇒ rỗng
     )
     head = (
         f"Nguồn: baseline {source.baseline_id} version {source.version} ({source.status or 'không rõ trạng thái'}), "

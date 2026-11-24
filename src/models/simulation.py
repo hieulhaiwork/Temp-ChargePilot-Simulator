@@ -6,6 +6,7 @@ cùng định dạng kịch bản, nếu không số trên web và số trong b�
 
 from datetime import time
 from enum import StrEnum
+from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
@@ -107,7 +108,11 @@ class KpiReport(BaseModel):
     service_rate: float = Field(ge=0, le=1)
     energy_cost_vnd: float = Field(ge=0, description="MT3")
     peak_load_kw: float = Field(ge=0)
-    power_limit_violations: int = Field(ge=0, description="MT4 — mục tiêu 0")
+    power_limit_violations: int = Field(
+        ge=0,
+        description="MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của "
+        "kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count",
+    )
     replan_p95_seconds: float | None = Field(default=None, ge=0, description="MT5 — mục tiêu ≤ 2 s")
     blocked_commands: int = Field(ge=0, description="MT6 — số lệnh bị Guard chặn")
 
@@ -120,6 +125,55 @@ class IncidentCounts(BaseModel):
     skipped: int = Field(ge=0, description="Số sự cố bị bỏ qua (không khớp topology) — strict thì phải 0")
     skipped_details: list[str] = Field(default_factory=list, description="`loại@phút' (đầu nối)` của sự cố bị bỏ qua")
     strict: bool = Field(default=False, description="True = chế độ nghiên cứu: sự cố không hợp lệ là lỗi")
+
+
+class ResolvedComponent(BaseModel):
+    """Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định."""
+
+    name: str
+    version: str
+    implementation: str | None = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class ResolvedExperiment(BaseModel):
+    """Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.
+
+    `fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng
+    thành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code
+    (`src/services/experiment.py`), không chép tay.
+    """
+
+    schema_version: str = Field(default="1", description="Version của chính định dạng này (đổi cách băm ⇒ tăng)")
+    policy_id: str
+    policy_version: str
+    components: dict[str, ResolvedComponent] = Field(
+        description="dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard"
+    )
+    dc_charging_model: ResolvedComponent
+    parameters: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, description="Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định"
+    )
+    time_config: dict[str, int | None] = Field(default_factory=dict, description="TimeConfig của trạm (P1)")
+    station_config_sha256: str = Field(description="sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)")
+    tariff_sha256: str | None = Field(default=None, description="sha256 của biểu giá đã nạp")
+    fingerprint: str = Field(description="sha256 ổn định của toàn bộ cấu hình đã resolve ở trên")
+
+
+class ViolationCounts(BaseModel):
+    """Hai loại "vượt giới hạn" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.
+
+    - `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn
+      của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;
+    - `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng
+      (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế
+      (`StationKernel.applied_constraint_violation_count`);
+    - `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).
+    """
+
+    sampled_power_over_limit_minutes: int = Field(ge=0, description="= kpis.power_limit_violations (MT4)")
+    applied_constraint_violation_count: int = Field(ge=0, description="Vi phạm trần cứng sau khi áp (kernel)")
+    rejected_allocation_count: int = Field(default=0, ge=0, description="Đề xuất bị Physical Guard từ chối trước áp")
 
 
 class SimulationRunResult(BaseModel):
@@ -135,6 +189,12 @@ class SimulationRunResult(BaseModel):
     finished_at: AwareDatetime
     notes: str = ""
     incidents: IncidentCounts | None = Field(default=None, description="Số sự cố dự kiến / thực thi / bỏ qua")
+    experiment: ResolvedExperiment | None = Field(
+        default=None, description="Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2)"
+    )
+    violations: ViolationCounts | None = Field(
+        default=None, description="Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5)"
+    )
 
     @model_validator(mode="after")
     def _policy_identity(self) -> "SimulationRunResult":
@@ -180,6 +240,10 @@ class BenchmarkSource(BaseModel):
     time_config: dict[str, int | None] = Field(default_factory=dict, description="TimeConfig của trạm khi đo (P1)")
     libraries: dict[str, str] = Field(default_factory=dict)
     note: str = ""
+    experiments: dict[str, ResolvedExperiment] = Field(
+        default_factory=dict,
+        description="policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ",
+    )
 
 
 class BenchmarkReport(BaseModel):

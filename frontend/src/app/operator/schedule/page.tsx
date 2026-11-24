@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/api/errors";
 import { queries } from "@/lib/api/queries";
 import type { components } from "@/lib/api/schema";
 import { formatKw, formatTime } from "@/lib/format";
+import { policyOf } from "@/lib/policies";
 import { usePollFallback } from "@/lib/ws/useStream";
 
 type Plan = components["schemas"]["SchedulePlan"];
@@ -230,7 +231,7 @@ export default function OperatorSchedulePage() {
                   <SectionHead
                     title="Lịch công suất theo đầu nối"
                     icon="calendar"
-                    extra={<Tag tone="good">{`Lịch v${plan.version} · ${plan.strategy} · tính lúc ${formatTime(plan.created_at)}`}</Tag>}
+                    extra={<Tag tone="good">{`Lịch v${plan.version} · ${policyOf(plan)} · tính lúc ${formatTime(plan.created_at)}`}</Tag>}
                   />
                   <Gantt plan={plan} connectorIds={connectorIds} />
                 </>

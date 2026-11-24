@@ -249,6 +249,14 @@
             ],
             "title": "Code Commit"
           },
+          "experiments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedExperiment"
+            },
+            "description": "policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ",
+            "title": "Experiments",
+            "type": "object"
+          },
           "kind": {
             "$ref": "#/components/schemas/BenchmarkSourceKind"
           },
@@ -1470,7 +1478,7 @@
             "type": "number"
           },
           "power_limit_violations": {
-            "description": "MT4 — mục tiêu 0",
+            "description": "MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count",
             "minimum": 0.0,
             "title": "Power Limit Violations",
             "type": "integer"
@@ -2081,6 +2089,127 @@
         "title": "ResidentSessionView",
         "type": "object"
       },
+      "ResolvedComponent": {
+        "description": "Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.",
+        "properties": {
+          "implementation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Implementation"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "ResolvedComponent",
+        "type": "object"
+      },
+      "ResolvedExperiment": {
+        "description": "Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.\n\n`fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng\nthành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code\n(`src/services/experiment.py`), không chép tay.",
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedComponent"
+            },
+            "description": "dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard",
+            "title": "Components",
+            "type": "object"
+          },
+          "dc_charging_model": {
+            "$ref": "#/components/schemas/ResolvedComponent"
+          },
+          "fingerprint": {
+            "description": "sha256 ổn định của toàn bộ cấu hình đã resolve ở trên",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định",
+            "title": "Parameters",
+            "type": "object"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": "1",
+            "description": "Version của chính định dạng này (đổi cách băm ⇒ tăng)",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "station_config_sha256": {
+            "description": "sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)",
+            "title": "Station Config Sha256",
+            "type": "string"
+          },
+          "tariff_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "sha256 của biểu giá đã nạp",
+            "title": "Tariff Sha256"
+          },
+          "time_config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "TimeConfig của trạm (P1)",
+            "title": "Time Config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "policy_id",
+          "policy_version",
+          "components",
+          "dc_charging_model",
+          "station_config_sha256",
+          "fingerprint"
+        ],
+        "title": "ResolvedExperiment",
+        "type": "object"
+      },
       "ResumeRequest": {
         "properties": {
           "resume": {
@@ -2625,6 +2754,17 @@
       },
       "SimulationRunResult": {
         "properties": {
+          "experiment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedExperiment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2)"
+          },
           "finished_at": {
             "format": "date-time",
             "title": "Finished At",
@@ -2696,6 +2836,17 @@
               }
             ],
             "description": "Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id"
+          },
+          "violations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ViolationCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5)"
           }
         },
         "required": [
@@ -3393,6 +3544,36 @@
           "detail"
         ],
         "title": "Violation",
+        "type": "object"
+      },
+      "ViolationCounts": {
+        "description": "Hai loại \"vượt giới hạn\" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.\n\n- `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn\n  của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;\n- `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng\n  (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế\n  (`StationKernel.applied_constraint_violation_count`);\n- `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).",
+        "properties": {
+          "applied_constraint_violation_count": {
+            "description": "Vi phạm trần cứng sau khi áp (kernel)",
+            "minimum": 0.0,
+            "title": "Applied Constraint Violation Count",
+            "type": "integer"
+          },
+          "rejected_allocation_count": {
+            "default": 0,
+            "description": "Đề xuất bị Physical Guard từ chối trước áp",
+            "minimum": 0.0,
+            "title": "Rejected Allocation Count",
+            "type": "integer"
+          },
+          "sampled_power_over_limit_minutes": {
+            "description": "= kpis.power_limit_violations (MT4)",
+            "minimum": 0.0,
+            "title": "Sampled Power Over Limit Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sampled_power_over_limit_minutes",
+          "applied_constraint_violation_count"
+        ],
+        "title": "ViolationCounts",
         "type": "object"
       },
       "ViolationKind": {

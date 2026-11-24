@@ -203,3 +203,140 @@ def test_undeclared_component_is_copied_not_shared():
     assert copy is not item and isolation.fork_component(item, memo) is copy
     assert not isolation.is_shared(item)
     assert isolation.is_shared(zone_equal_share) and isolation.is_shared(PerfectObservation())
+
+
+# ---- Final Acceptance §4.2 — HybridSimulator.fork() có bản ghi riêng ----------------------------------------------------
+
+
+def _recordings(sim) -> dict:
+    import copy as copy_module
+
+    # AppliedResult bất biến (frozen, mapping chỉ đọc) ⇒ chụp list là đủ; bản ghi dict thì chụp sâu.
+    return {
+        name: list(getattr(sim, name)) if name == "applied_results" else copy_module.deepcopy(getattr(sim, name))
+        for name in sim._RECORDINGS
+    }
+
+
+def test_hybrid_simulator_fork_does_not_share_recordings(scenario):
+    from src.simulator.hybrid import HybridSimulator
+
+    live = HybridSimulator(scenario, record_decisions=True, time=TimeConfig(1, 15))
+    for _ in range(4):
+        live.step()
+    assert live.events and live.frames and live.trace and live.decision_trace and live.applied_results
+    before = _recordings(live)
+    twin = live.fork()
+    for name in live._RECORDINGS:
+        assert getattr(twin, name) is not getattr(live, name), name
+        assert getattr(twin, name) == before[name], name  # bản fork bắt đầu từ đúng lịch sử của live
+    # mutation sâu trên bản fork không chạm live (frame / trace là dict lồng nhau)
+    twin.frames[0]["vehicles"].clear()
+    twin.trace[0]["ac_queue"] = -1
+    twin.events[0]["event"] = "mutated"
+    while not twin.finished:
+        twin.step()
+    assert len(twin.frames) > len(before["frames"]) and len(twin.events) > len(before["events"])
+    assert _recordings(live) == before
+    # và ngược lại: live chạy tiếp không đổi bản ghi của một bản fork khác
+    probe = live.fork()
+    snapshot = _recordings(probe)
+    live.step()
+    assert _recordings(probe) == snapshot
+    assert len(live.trace) == len(before["trace"]) + 1
+
+
+def test_hybrid_simulator_fork_runs_like_the_original(scenario):
+    """Cô lập bản ghi không đổi kết quả: chạy bản fork tới cuối = chạy bản gốc tới cuối."""
+    from src.simulator.hybrid import HybridSimulator
+
+    live = HybridSimulator(scenario, time=TimeConfig(1, 15))
+    for _ in range(3):
+        live.step()
+    result = live.fork().run()
+    assert result == live.run()
+
+
+# ---- Final Acceptance §4.3 — fallback DC model có trạng thái; từ chối closure có trạng thái -----------------------------
+
+
+class StatefulFallback(CountingDCModel):
+    """Fallback DC model có trạng thái (không có fork()) ⇒ phải được copy, không dùng chung."""
+
+
+def test_stateful_fallback_of_the_profile_model_is_isolated(scenario):
+    from src.simulator.core.charging_models.vehicle_profiles import VehicleProfilesDCModel
+
+    default = VehicleProfilesDCModel({})
+    assert isolation.is_shared(default)  # fallback SyntheticTaperV1 ⇒ như cũ
+    fallback = StatefulFallback()
+    model = VehicleProfilesDCModel({}, fallback=fallback)
+    assert not isolation.is_shared(model)
+    live = _kernel(scenario, replace(default_algorithms(), dc_charging_model=model), dc_model=model)
+    twin = live.fork()
+    assert twin.adapter.dc_model is twin.algorithms.dc_charging_model  # một bản cho adapter + algorithms
+    assert twin.adapter.dc_model is not model and twin.adapter.dc_model.fallback is not fallback
+    queries = fallback.queries
+    _plan_and_run(twin, 30)
+    assert twin.adapter.dc_model.fallback.queries > 0
+    assert fallback.queries == queries
+
+
+def test_stateful_fallback_of_the_live_provider_is_isolated():
+    from src.simulator.core.charging_models.live_profiles import DynamicVehicleProfilesDCModel
+
+    shared = DynamicVehicleProfilesDCModel()
+    assert shared.fork().fallback is shared.fallback  # SyntheticTaperV1 khai báo stateless ⇒ dùng chung như cũ
+    fallback = StatefulFallback()
+    provider = DynamicVehicleProfilesDCModel(fallback=fallback)
+    memo: dict = {}
+    twin = isolation.fork_component(provider, memo)
+    assert twin is not provider and twin.fallback is not fallback
+    assert isinstance(twin.fallback, StatefulFallback)
+    import copy as copy_module
+
+    deep = copy_module.deepcopy(provider)
+    assert deep.fallback is not fallback
+
+
+def test_stateful_closure_is_refused_with_a_clear_error(scenario):
+    history: list[int] = []
+
+    def remembering(observation, zone, budget_kw):  # closure có trạng thái (history)
+        history.append(observation.minute)
+        return zone_equal_share(observation, zone, budget_kw)
+
+    with pytest.raises(isolation.StatefulComponentError, match="closure over history"):
+        isolation.fork_component(remembering, {})
+    live = _kernel(scenario, replace(default_algorithms(), optimizers={"AC": remembering, "DC": zone_equal_share}))
+    with pytest.raises(isolation.StatefulComponentError, match="remembering"):
+        live.fork()
+
+    def mutable_default(observation, zone, budget_kw, seen=[]):  # noqa: B006 — chính là thứ cần từ chối
+        return zone_equal_share(observation, zone, budget_kw)
+
+    with pytest.raises(isolation.StatefulComponentError, match="mutable default"):
+        isolation.fork_component(mutable_default, {})
+
+    def tagged(observation, zone, budget_kw):
+        return zone_equal_share(observation, zone, budget_kw)
+
+    tagged.calls = 0
+    with pytest.raises(isolation.StatefulComponentError, match="attributes"):
+        isolation.fork_component(tagged, {})
+
+
+def test_declared_or_plain_functions_are_still_shared():
+    def plain(observation, zone, budget_kw):
+        return zone_equal_share(observation, zone, budget_kw)
+
+    assert isolation.fork_component(plain, {}) is plain  # không có trạng thái thấy được ⇒ như cũ
+
+    counter = {"n": 0}
+
+    def declared(observation, zone, budget_kw):
+        counter["n"] += 1
+        return zone_equal_share(observation, zone, budget_kw)
+
+    declared.__stateless__ = True  # người viết tự khai báo (chịu trách nhiệm)
+    assert isolation.is_shared(declared) and isolation.fork_component(declared, {}) is declared

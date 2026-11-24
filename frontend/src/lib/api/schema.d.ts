@@ -910,6 +910,13 @@ export interface components {
             baseline_id?: string | null;
             /** Code Commit */
             code_commit?: string | null;
+            /**
+             * Experiments
+             * @description policy_id → cấu hình thí nghiệm đã resolve (Final Acceptance §3.3); rỗng ở baseline cũ
+             */
+            experiments?: {
+                [key: string]: components["schemas"]["ResolvedExperiment"];
+            };
             kind: components["schemas"]["BenchmarkSourceKind"];
             /** Libraries */
             libraries?: {
@@ -1534,7 +1541,7 @@ export interface components {
             peak_load_kw: number;
             /**
              * Power Limit Violations
-             * @description MT4 — mục tiêu 0
+             * @description MT4 — mục tiêu 0. Số phút tổng công suất LẤY MẪU vượt giới hạn nguồn; vi phạm cứng vật lý của kernel đếm riêng ở SimulationRunResult.violations.applied_constraint_violation_count
              */
             power_limit_violations: number;
             /**
@@ -1807,6 +1814,81 @@ export interface components {
              */
             soc_estimate?: number | null;
         };
+        /**
+         * ResolvedComponent
+         * @description Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.
+         */
+        ResolvedComponent: {
+            /** Implementation */
+            implementation?: string | null;
+            /** Name */
+            name: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version: string;
+        };
+        /**
+         * ResolvedExperiment
+         * @description Cấu hình thí nghiệm ĐÃ RESOLVE của một run (Final Acceptance §3.2) — đủ để tái lập và để so hai run.
+         *
+         *     `fingerprint` = sha256 của JSON chuẩn hoá (khoá sắp xếp) mọi trường còn lại: cùng fingerprint ⇒ cùng policy, cùng
+         *     thành phần + tham số, cùng DC model, cùng TimeConfig, cùng cấu hình trạm / biểu giá. Sinh bằng code
+         *     (`src/services/experiment.py`), không chép tay.
+         */
+        ResolvedExperiment: {
+            /**
+             * Components
+             * @description dispatch.AC / dispatch.DC / optimizers.AC / optimizers.DC / coordinator / physical_guard
+             */
+            components: {
+                [key: string]: components["schemas"]["ResolvedComponent"];
+            };
+            dc_charging_model: components["schemas"]["ResolvedComponent"];
+            /**
+             * Fingerprint
+             * @description sha256 ổn định của toàn bộ cấu hình đã resolve ở trên
+             */
+            fingerprint: string;
+            /**
+             * Parameters
+             * @description Tham số đã cung cấp (`planning.parameters` / tường minh); rỗng = mặc định
+             */
+            parameters?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Schema Version
+             * @description Version của chính định dạng này (đổi cách băm ⇒ tăng)
+             * @default 1
+             */
+            schema_version: string;
+            /**
+             * Station Config Sha256
+             * @description sha256 của StationConfig đã nạp (topology, giới hạn, optimizer)
+             */
+            station_config_sha256: string;
+            /**
+             * Tariff Sha256
+             * @description sha256 của biểu giá đã nạp
+             */
+            tariff_sha256?: string | null;
+            /**
+             * Time Config
+             * @description TimeConfig của trạm (P1)
+             */
+            time_config?: {
+                [key: string]: number | null;
+            };
+        };
         /** ResumeRequest */
         ResumeRequest: {
             /** Resume */
@@ -2039,6 +2121,8 @@ export interface components {
         };
         /** SimulationRunResult */
         SimulationRunResult: {
+            /** @description Cấu hình thí nghiệm đã resolve + fingerprint (Final Acceptance §3.2) */
+            experiment?: components["schemas"]["ResolvedExperiment"] | null;
             /**
              * Finished At
              * Format: date-time
@@ -2073,6 +2157,8 @@ export interface components {
             started_at: string;
             /** @description Policy enum cũ; None khi chạy policy đăng ký mới — xem policy_id */
             strategy?: components["schemas"]["StrategyName"] | null;
+            /** @description Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5) */
+            violations?: components["schemas"]["ViolationCounts"] | null;
         };
         /**
          * StationConfig
@@ -2420,6 +2506,35 @@ export interface components {
             /** Detail */
             detail: string;
             rule: components["schemas"]["GuardRule"];
+        };
+        /**
+         * ViolationCounts
+         * @description Hai loại "vượt giới hạn" tách riêng (Final Acceptance §3.5) — tên rõ, không cộng lẫn.
+         *
+         *     - `sampled_power_over_limit_minutes`: số phút mà tổng công suất LẤY MẪU cuối phút (đầu ra / η) > giới hạn nguồn
+         *       của phút đó (= KPI `power_limit_violations`, MT4, giữ nguyên định nghĩa). Chỉ nhìn tổng lưới;
+         *     - `applied_constraint_violation_count`: số bước vật lý mà Physical Guard của KERNEL phát hiện vi phạm trần cứng
+         *       (cổng / tủ / vùng / lưới / acceptance) SAU khi áp — vi phạm vật lý thực tế
+         *       (`StationKernel.applied_constraint_violation_count`);
+         *     - `rejected_allocation_count`: đề xuất bị Physical Guard từ chối TRƯỚC khi áp (không phải vi phạm).
+         */
+        ViolationCounts: {
+            /**
+             * Applied Constraint Violation Count
+             * @description Vi phạm trần cứng sau khi áp (kernel)
+             */
+            applied_constraint_violation_count: number;
+            /**
+             * Rejected Allocation Count
+             * @description Đề xuất bị Physical Guard từ chối trước áp
+             * @default 0
+             */
+            rejected_allocation_count: number;
+            /**
+             * Sampled Power Over Limit Minutes
+             * @description = kpis.power_limit_violations (MT4)
+             */
+            sampled_power_over_limit_minutes: number;
         };
         /**
          * ViolationKind
