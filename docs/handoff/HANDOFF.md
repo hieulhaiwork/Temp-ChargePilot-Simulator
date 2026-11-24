@@ -3,7 +3,20 @@
 > Chỉ giữ trạng thái **mới nhất** + bẫy còn đúng. Lịch sử các phiên trước (16–21/11: plan Pha A–C, skeleton, mockup,
 > căn chỉnh SC-16) xem `git log -- docs/handoff/`. Quyết định kỹ thuật nằm ở `docs/adr/`, không lặp lại ở đây.
 
-## Trạng thái 23/11 (mới nhất) — refactor Unified Core, Phase 4
+## Trạng thái 24/11 (mới nhất) — Unified Core đã nghiệm thu và ĐÓNG BĂNG
+
+- Refactor kết thúc: `docs/refactor/FINAL_ACCEPTANCE_REPORT.md` (+ `FINAL_REVIEW_FIX_REPORT.md`). Không refactor thêm;
+  việc tiếp theo là nghiên cứu MVP-3.5 (Tech Lead / Codex).
+- `/simulation/benchmark` + S8 = baseline đóng băng `eval/evidence/2026-11-24-unified-core-frozen-baseline/`
+  (provenance theo policy). S8 lấy danh sách policy từ `GET /simulation/policies`.
+- `guard.after_apply_failsafe: true` mặc định; sự kiện của `sync_clock` không còn bị bỏ.
+- Nhánh `feature/unified-core` đã push lên P-019 `origin` để mở PR vào `develop`. Nhánh `feature/be-fe-integration`
+  (FE G1–G24) cần merge `develop` mới: lệch import `src.agents.*` → `src.llm_chat.*`, `quote_change` phải dùng
+  admission async + consent thật, sơ đồ bãi G24 nên đọc `rt.store` và không phát trong bản fork / benchmark, `budget_kw`
+  của G23 đang là trần vật lý (không phải ngân sách optimizer), frontend dùng `policy_id ?? strategy`.
+- Chưa kiểm chứng: E2E Postgres thật, LLM thật, deploy Render sau refactor; một worker.
+
+## Trạng thái 23/11 (lịch sử) — refactor Unified Core, Phase 4
 
 Đọc `docs/refactor/TECHLEAD_PHASE4_DECISIONS.md` + `docs/refactor/PHASE4_*_REPORT.md`. Hiện trạng kiến trúc (thay mọi
 mô tả `LiveStation` / A–D ở mục 22/11 bên dưới):
@@ -12,8 +25,7 @@ mô tả `LiveStation` / A–D ở mục 22/11 bên dưới):
   `STATION_ENGINE` chỉ còn `hybrid`. `LIVE_STRATEGY` ∈ B0 / M2b / M3a / M3b (A–D bị từ chối khi đọc cấu hình).
 - Quote / booking / đổi yêu cầu = admission trên bản fork của trạm (`src/services/admission.py`), trả **ước tính có
   điều kiện** (`ScheduleProposal.certainty`, `assumptions`, số phê duyệt chờ) — không phải SLA.
-- S8 + `GET /simulation/benchmark` = baseline có version `eval/evidence/2026-11-23-refactor-phase3-baseline/` (tạm;
-  baseline nghiệm thu cuối sinh sau khi nhánh core sửa budget deviation). Bảng A–D cũ: archive deprecated ở
+- (Lịch sử) S8 từng đọc baseline tạm `eval/evidence/2026-11-23-refactor-phase3-baseline/`; nay là baseline đóng băng ở trên. Bảng A–D cũ: archive deprecated ở
   `eval/results/archive/2026-11-22-pre-refactor/`.
 - Alembic `0003` (`0003_drop_lp_strategy_plans.py`) xoá lịch lưu của A–D → sau deploy chạy `make migrate` / `alembic upgrade head`.
 

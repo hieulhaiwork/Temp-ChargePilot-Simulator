@@ -80,5 +80,12 @@ Test: `tests/test_refactor/test_policy_registry.py`. DC model của backend ch�
 - Alembic một head: `0001 → 0002 (decision_traces) → 0003 (xoá lịch lưu A–D, dữ liệu dẫn xuất)`. Deploy cần
   `alembic upgrade head`.
 - `STATION_ENGINE` chỉ còn `hybrid`. Image cần `ev2gym` (`--no-deps`).
-- `eval/results/archive/` và `eval/evidence/2026-11-2{1,2}` là archive (A–D / LiveStation). Baseline hiện hành:
-  `eval/evidence/2026-11-24-unified-core-final-baseline/`.
+- `eval/results/archive/` và `eval/evidence/2026-11-2{1,2}` là archive (A–D / LiveStation). Baseline hiện hành (đóng
+  băng): `eval/evidence/2026-11-24-unified-core-frozen-baseline/`; `…-final-baseline/` giữ làm lịch sử (cùng KPI).
+- Baseline mới: chép `benchmark.json` + `manifest.json` nháp do `run_benchmark.py` sinh (có `experiments`,
+  fingerprint), điền `baseline_id` / `version` / `status`, rồi đổi `BENCHMARK_BASELINE_DIR`.
+- Fork: `isolation.STATELESS` / `__stateless__`, `NESTED`, `StatefulComponentError`; `HybridSimulator.fork` tách bản ghi.
+- Sự kiện trạm: `StationRuntime.outbox` / `advance_clock` / `take_events`, `control_loop.deliver_pending`,
+  `runtime.register_app_loop` (lifespan). Fail-safe: `AppliedResult.hard_violations`, `guard/emergency.py`
+  (`curtail_to_hard_limits`, `stop_faulty_vehicles`). Admission: `StationRuntime.admission_fingerprint`.
+- Frontend S8 đọc policy từ `GET /simulation/policies`, gửi `policy_id` (không còn danh sách cứng).

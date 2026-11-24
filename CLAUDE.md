@@ -19,7 +19,8 @@
   `register_policy(PolicySpec(...))` là chạy được trên backend, chọn qua `policy_id` (API / CLI / khoá tuỳ chọn
   `planning.policy_id` trong `config/station.yaml`); `StrategyName` chỉ là đường tương thích; danh sách hợp lệ:
   `GET /api/v1/simulation/policies`. DC model backend chọn theo tên `DC_MODELS` (mặc định `SyntheticTaperV1`).
-  Refactor Unified Core đang chạy theo phase (`docs/refactor/`, nhánh `feature/unified-core`). Code gốc MVP-1/2/3 chỉ
+  Refactor Unified Core **đã kết thúc và đóng băng** (2026-11-24, `docs/refactor/FINAL_ACCEPTANCE_REPORT.md`); việc tiếp
+  theo là nghiên cứu MVP-3.5, không refactor thêm. Code gốc MVP-1/2/3 chỉ
   được **di chuyển** (thuật toán: `src/optimizer/{dispatch,zones,coordination,registry.py}`; Physical Guard:
   `src/guard/physical/validator.py`; hợp đồng: `src/models/{simulation_core,scheduling,physical_*,charging_physics}`),
   logic giữ nguyên và chứng minh bằng `scripts/refactor/compare_ast_manifest.py`. Gói cũ `src/simulator/src/` và mọi
@@ -50,10 +51,23 @@
 - **Chỉ `src/guard/dispatcher.py` gửi lệnh tới trạm** (`StationActuator.apply_commands`) — ADR-002.
 - **DecisionTrace** (ADR-019 Phase 4): mỗi lần tính lại ghi một trace cùng schema với simulator (`src/services/decision_trace.py`), có `correlation_id` gắn vào mọi `Command`; tóm tắt ở bảng `decision_traces`, chi tiết ở artifact JSONL. Lý do / WHY chỉ lấy từ facts của trace, không để LLM tự tạo.
 - **Ba loại sai lệch công suất** tách riêng: deadband lệnh 0,01 kW / cổng (lượng tử hoá, làm tròn xuống), lệch assigned budget của Coordinator (ghi + replan), vi phạm trần cứng (Physical Guard, TOL 1e-7). Lệnh giảm tải cần cho an toàn không bị anti-flapping / HITL giữ lại.
-  Lô áp một phần (lệnh bị chặn / chờ duyệt): dispatcher kiểm lại lệnh tăng trên đúng tập sẽ áp. Vi phạm cứng sau khi áp
-  ⇒ sự kiện `hard_limit_violated` → lệnh EMERGENCY qua dispatcher khi bật `guard.after_apply_failsafe` (mặc định tắt).
-- **Booking đồng thời**: `charging_service.book` chạy admission ngoài khoá, commit dưới `StationRuntime.booking_lock`
-  + kiểm `booking_version` (đổi ⇒ chạy lại / `PROPOSAL_EXPIRED`); admission dùng đúng consent sẽ lưu.
+  Lô áp một phần (lệnh bị chặn / chờ duyệt): dispatcher kiểm lại lệnh tăng trên đúng tập sẽ áp.
+- **Fail-safe sau khi áp** (`guard.after_apply_failsafe: true` trong `config/station.yaml`; thiếu khoá = tắt): vi phạm
+  cứng ⇒ trạm dừng catch-up ở phút vi phạm, phát `hard_limit_violated` kèm `violation_kinds`. `aggregate_power` ⇒ co
+  đều về trần (`guard/emergency.curtail_to_hard_limits`); `charging_model` / `acceptance` ⇒ ngắt cổng xe lỗi
+  (`stop_faulty_vehicles`) + giữ an toàn (`rt.safety_hold_booking_ids`) + báo vận hành — luôn qua dispatcher.
+- **Không bỏ sự kiện trạm**: mọi consumer tiến đồng hồ bằng `rt.sync_clock()`; sự kiện vào `rt.outbox` và tới
+  control_loop (`deliver_pending` qua vòng sự kiện của app — `runtime.register_app_loop` ở lifespan — / `on_event` /
+  `run_forever`).
+- **Booking đồng thời** (một worker, khoá trong RAM — nhiều worker cần ràng buộc DB, chưa làm): `book` / `change` chạy
+  admission ngoài khoá, commit dưới `StationRuntime.booking_lock` + kiểm `admission_fingerprint()` (booking, nguồn,
+  cổng lỗi, policy); đổi ⇒ chạy lại có giới hạn / `PROPOSAL_EXPIRED`. `change` / `cancel` kiểm lại trạng thái dưới khoá.
+  `book` / `change` dùng consent thật; `quote` ghi rõ giả định consent.
+- **Provenance thí nghiệm**: `planning.parameters` chỉ áp cho policy live (`runtime.policy_parameters`); live, benchmark,
+  admission cùng policy ⇒ cùng tham số. Mỗi run benchmark ghi `experiment` (cấu hình đã resolve + fingerprint,
+  `src/services/experiment.py`) và `violations` (vi phạm cứng thật của kernel) — tách khỏi KPI MT4
+  `power_limit_violations` (phút vượt lấy mẫu). Baseline đóng băng: `eval/evidence/2026-11-24-unified-core-frozen-baseline/`
+  (`/simulation/benchmark` trả bảng này); evidence cũ không sửa.
 - **Agent graph** (chat cư dân): `src/llm_chat/graph.py` — ReAct harness: guardrail → reason → act (tools, HITL
   interrupt cho risky tools, gồm `confirm_booking`) → assess → finalize (escape hatch max-iterations). Đừng thêm node mà
   không cập nhật state schema (`src/llm_chat/state.py`). Chỉ `src/api/routes.py` import `src.llm_chat.graph`. LLM

@@ -198,3 +198,28 @@ Theo `docs/refactor/TECHLEAD_PHASE4_DECISIONS.md`. Chi tiết: `docs/refactor/RE
 7. `/simulation/benchmark` trả baseline chính thức có version: `eval/evidence/2026-11-24-unified-core-final-baseline/`.
 8. Luật kiến trúc chặt hơn, không xoá luật nào: `llm_chat` / `agents` chỉ qua services; simulator chỉ dùng gói thuật
    toán của optimizer + `guard.physical.validator`; không vòng `models / optimizer / guard / simulator`.
+
+## Cập nhật Final Review + Final Acceptance — đóng băng (2026-11-24, `feature/unified-core`)
+
+Báo cáo: `docs/refactor/FINAL_REVIEW_FIX_REPORT.md`, `docs/refactor/FINAL_ACCEPTANCE_REPORT.md`. Không đổi objective,
+tham số solver, vật lý gốc; B0 / M2b / M3a / M3b đóng băng (version `"1"`); AST 114 SAME, golden 0 unexpected.
+
+1. **Registry là nguồn policy duy nhất**: `register_policy(PolicySpec(...))` ⇒ backend / API / CLI nhận theo `policy_id`;
+   `StrategyName` giữ làm đường tương thích (`SchedulePlan.strategy` = None chỉ với policy mới). `GET /simulation/policies`.
+2. **Fork isolation** (`src/simulator/core/isolation.py`): chỉ thành phần khai báo stateless được dùng chung; có trạng
+   thái ⇒ `fork()` hoặc deep copy; closure / hàm có trạng thái không có cơ chế fork bị từ chối
+   (`StatefulComponentError`); container stateless chỉ dùng chung khi thành phần lồng (`NESTED`) cũng stateless.
+   `HybridSimulator.fork` có bản ghi events / frames / trace riêng.
+3. **Observation interface**: optimizer chỉ nhận trạng thái quan sát / ước lượng (`observation_model`, mặc định
+   `PerfectObservation`); vật lý, Physical Guard sau áp, KPI dùng ground truth. Kênh còn lại: `Candidate.allowed_kw`
+   tính từ SOC thật (MVP-3.5).
+4. **Safety event delivery**: sự kiện của `sync_clock` vào `outbox` và luôn tới control_loop; catch-up dừng ở phút vi phạm
+   cứng; `guard.after_apply_failsafe` bật mặc định; vi phạm phân loại `aggregate_power` (co đều về trần) /
+   `charging_model` / `acceptance` (ngắt cổng xe lỗi + giữ an toàn). Mọi lệnh vẫn qua `guard/dispatcher.py` (ADR-002).
+5. **Admission consistency**: `book` / `change` optimistic concurrency (`booking_lock` + `admission_fingerprint`), kiểm
+   lại trạng thái dưới khoá, consent thật; `quote` ghi giả định consent. Giới hạn: một worker, khoá trong RAM.
+6. **Provenance**: so hai bảng benchmark chỉ hợp lệ khi `experiment` (cấu hình đã resolve + fingerprint) khớp; vi phạm
+   cứng của kernel (`violations`) tách khỏi KPI lấy mẫu MT4. Baseline đóng băng:
+   `eval/evidence/2026-11-24-unified-core-frozen-baseline/` (KPI trùng baseline final, 100/100 run).
+7. **Kết thúc refactor.** Việc tiếp theo (MVP-3.5: nhiễu quan sát thật, BMS V / I, robust / uncertainty-aware
+   scheduling, QoS coordinator; MVP-4 / AI-4) là nghiên cứu, không thuộc ADR này.

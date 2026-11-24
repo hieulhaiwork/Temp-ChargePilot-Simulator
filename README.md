@@ -51,22 +51,23 @@ bộ kiểm tra an toàn kiểm soát thực thi. AI không tính công suất v
 
 ## Kết quả đo được
 
-Baseline backend có version `backend-phase3` / `2026-11-23-phase3` (**tạm** — baseline chính thức sinh ở vòng nghiệm
-thu cuối refactor): `HybridStation` trên kernel dùng chung với simulator, vật lý 1', trần quyết định 15', 5 kịch bản ×
-4 policy × seed 1–5. Dữ liệu + điều kiện đo: [`eval/evidence/2026-11-23-refactor-phase3-baseline/`](eval/evidence/2026-11-23-refactor-phase3-baseline/README.md)
+Baseline backend **đóng băng** `backend-unified-core-frozen` / `2026-11-24-frozen` (kết thúc refactor Unified Core):
+`HybridStation` trên kernel dùng chung với simulator, vật lý 1', trần quyết định 15', 5 kịch bản × 4 policy × seed 1–5,
+mỗi run ghi cấu hình thí nghiệm đã resolve + fingerprint. Dữ liệu + điều kiện đo:
+[`eval/evidence/2026-11-24-unified-core-frozen-baseline/`](eval/evidence/2026-11-24-unified-core-frozen-baseline/README.md)
 (màn S8 đọc đúng thư mục này qua `GET /simulation/benchmark`). Trung bình 5 seed, trích hai kịch bản:
 
-| Kịch bản | Policy | Đúng hạn | Chi phí điện (VND) | Vượt giới hạn nguồn | Tính lại p95 |
+| Kịch bản | Policy | Đúng hạn | Chi phí điện (VND) | Vượt giới hạn nguồn | Tính lại p95 (max 5 seed) |
 |---|---|---|---|---|---|
-| `hybrid_evening` | B0 — FCFS + chia đều | 47,5% | 866.649 | 0 | ≤ 0,01 s |
-| `hybrid_evening` | M3a — LLF + LP AC/DC | 46,3% | 796.053 | 0 | 0,02 s |
-| `hybrid_power_drop` (nguồn 106 → 40 kW) | B0 | 45,0% | 770.933 | 0 | ≤ 0,01 s |
-| `hybrid_power_drop` | M3a | 41,2% | 710.449 | 0 | 0,02 s |
+| `hybrid_evening` | B0 — FCFS + chia đều | 47,5% | 866.529 | 0 | ≤ 0,01 s |
+| `hybrid_evening` | M3a — LLF + LP AC/DC | 46,3% | 795.965 | 0 | 0,01 s |
+| `hybrid_power_drop` (nguồn 106 → 40 kW) | B0 | 45,0% | 770.856 | 0 | ≤ 0,01 s |
+| `hybrid_power_drop` | M3a | 41,2% | 710.446 | 0 | 0,01 s |
 
 Đọc đúng các số này:
 
-- **0 lần vượt giới hạn nguồn** ở cả 100 run, kể cả khi nguồn rớt và đầu nối lỗi; tính lại lịch p95 ≤ 0,03 s
-  (mục tiêu ≤ 2 s).
+- **0 phút vượt giới hạn nguồn (lấy mẫu) và 0 vi phạm cứng của kernel** ở cả 100 run, kể cả khi nguồn rớt và đầu nối
+  lỗi; tính lại lịch p95 ≤ 0,02 s (mục tiêu ≤ 2 s; đo trên một máy Windows, không phải trạm thật).
 - M3a **rẻ hơn B0 khoảng 8 %** tiền điện nhưng tỉ lệ đúng hạn **không tốt hơn** — không tuyên bố "tối ưu đúng hạn
   tốt hơn baseline".
 - Tỉ lệ đúng hạn thấp vì kịch bản **cố ý quá tải**; đây không phải số đo trạm thật.
@@ -193,10 +194,11 @@ Kiểm tra: `make check` (ruff + format + pytest + docs) · `make check-all` (+ 
 - [ ] Pitch Deck (`presentation/`)
 - [x] Weekly Journal ([`JOURNAL.md`](JOURNAL.md))
 - [x] Worklog ([`WORKLOG.md`](WORKLOG.md))
-- [ ] Evaluation Evidence — baseline backend B0–M3b có version (tạm,
-  [`eval/evidence/2026-11-23-refactor-phase3-baseline/`](eval/evidence/2026-11-23-refactor-phase3-baseline/README.md));
-  bằng chứng lịch sử A–D ([`eval/evidence/2026-11-22/`](eval/evidence/2026-11-22/README.md), archive); baseline nghiệm
-  thu cuối và `eval/results/report.md` (eval Agent với LLM thật) chưa chạy
+- [ ] Evaluation Evidence — baseline backend B0–M3b đóng băng
+  ([`eval/evidence/2026-11-24-unified-core-frozen-baseline/`](eval/evidence/2026-11-24-unified-core-frozen-baseline/README.md));
+  baseline trước giữ làm lịch sử (Phase 3, final 2026-11-24); bằng chứng lịch sử A–D
+  ([`eval/evidence/2026-11-22/`](eval/evidence/2026-11-22/README.md), archive); `eval/results/report.md` (eval Agent với
+  LLM thật) chưa chạy
 
 ## Team
 

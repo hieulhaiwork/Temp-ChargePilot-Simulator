@@ -119,6 +119,8 @@ Test đối chứng: khi bỏ cấu hình thử nghiệm, M2b trở lại `Rolli
 - Final Review 2026-11-24 §4 đã xử lý ở `FINAL_REVIEW_FIX_REPORT.md` (điểm cắm / cơ chế, mặc định giữ hành vi cũ):
   registry policy, DC profile backend, lớp ground truth / observation, fork isolation, fail-safe sau apply, booking
   concurrency, benchmark `--strict-incidents`. Mô hình nhiễu thật và robust optimizer vẫn là việc MVP-3.5.
+- Final Acceptance 2026-11-24 (`FINAL_ACCEPTANCE_REPORT.md`): giao event an toàn, admission consistency, provenance,
+  baseline đóng băng `eval/evidence/2026-11-24-unified-core-frozen-baseline/`. Refactor kết thúc.
 - PRD §8 / `docs/business-overview.md` còn mô tả benchmark A–D. **Chủ dự án quyết định** có sửa mục tiêu nghiệp vụ
   không.
 - Chưa chạy: E2E với Postgres thật (Neon), LLM thật (OpenAI / Gemini), deploy Render.
