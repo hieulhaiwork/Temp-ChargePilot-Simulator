@@ -18,7 +18,7 @@ Owner: TV3. Task: T2.6 (live), T1.5 (benchmark).
 import asyncio
 import logging
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 ACTIVE = (BookingStatus.CONFIRMED, BookingStatus.QUEUED, BookingStatus.CHARGING)
 RECENT_COMMANDS = 200  # đủ cho cửa sổ anti_flapping (10 phút × 4 cổng)
+OUTBOX_MAX = 10_000  # sự kiện chưa giao tối đa (chặn tràn bộ nhớ nếu không vòng nào nhận)
 
 
 @dataclass
@@ -92,11 +93,60 @@ class StationRuntime:
     rejected_booking_ids: set[str] = field(default_factory=set)  # AC4 — hard_consent_booking_ids
     recorder: SimRecorder = field(default_factory=SimRecorder)
     live: bool = True
+    # Final Acceptance §1.2 — sự kiện trạm phát sinh khi tiến đồng hồ (bất kỳ consumer nào gọi sync_clock) nằm ở đây tới
+    # khi control_loop nhận (on_event / run_forever / deliver_pending) — không consumer nào được bỏ sự kiện.
+    outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
+    # Vòng sự kiện sở hữu `lock` (ghi lại ở on_event / get_runtime): đường đọc đồng bộ (threadpool) đẩy giao sự kiện về đây.
+    loop: asyncio.AbstractEventLoop | None = None
+    # coroutine factory giao outbox cho control_loop (live: control_loop.deliver_pending); None = chờ on_event kế tiếp
+    deliver: Callable[["StationRuntime"], Awaitable[object]] | None = None
+    deliveries: set = field(default_factory=set)  # future / task đang giao (giữ tham chiếu; test chờ được)
+    # Final Acceptance §1.4 — booking bị ngắt công suất vì lỗi charging model / acceptance (giảm tải không sửa được):
+    # control_loop không cấp lại công suất / gán cổng cho booking này; vận hành xử lý.
+    safety_hold_booking_ids: set[str] = field(default_factory=set)
+
+    def advance_clock(self) -> list[StationEvent]:
+        """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
+        minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
+        events = self.simulator.step(minutes) if minutes > 0 else []
+        self.outbox.extend(events)
+        return events
+
+    def take_events(self) -> list[StationEvent]:
+        """Lấy (và xoá) mọi sự kiện chưa giao — control_loop gọi dưới `lock` trước khi tính lại."""
+        events = list(self.outbox)
+        self.outbox.clear()
+        return events
 
     def sync_clock(self) -> list[StationEvent]:
-        """Tiến simulator tới đồng hồ của runtime (live: thời gian thật × SIM_TIME_SCALE); trả sự kiện phát sinh."""
-        minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
-        return self.simulator.step(minutes) if minutes > 0 else []
+        """Đường dùng chung cho MỌI consumer (quote, book, change, session_view, queue_status, overview…): tiến simulator
+        tới đồng hồ runtime (live: thời gian thật × SIM_TIME_SCALE) rồi đẩy sự kiện phát sinh tới control_loop.
+
+        Sự kiện (kể cả `hard_limit_violated`, `charge_completed`) ở lại `outbox` tới khi control_loop nhận: lên lịch giao
+        ngay trên vòng sự kiện của runtime nếu biết (`deliver_pending`), không thì lần on_event / run_forever kế tiếp
+        lấy. Giá trị trả về giữ cho tương thích (đã nằm trong outbox — người gọi KHÔNG cần tự phát lại).
+        """
+        events = self.advance_clock()
+        if self.outbox:
+            self.request_delivery()
+        return events
+
+    def request_delivery(self) -> None:
+        """Lên lịch `deliver(rt)` trên vòng sự kiện của runtime — không chặn người gọi (an toàn từ threadpool)."""
+        if self.deliver is None:
+            return
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if running is not None and (self.loop is None or running is self.loop):
+            future = running.create_task(self.deliver(self))
+        elif self.loop is not None and self.loop.is_running() and not self.loop.is_closed():
+            future = asyncio.run_coroutine_threadsafe(self.deliver(self), self.loop)
+        else:
+            return  # chưa có vòng sự kiện: outbox chờ on_event / run_forever kế tiếp
+        self.deliveries.add(future)
+        future.add_done_callback(self.deliveries.discard)
 
 
 def make_station(config: StationConfig, start: datetime, engine: str | None = None):
@@ -275,6 +325,11 @@ def get_runtime() -> StationRuntime:
         plan=repository.latest_plan(),
     )
     rt_ref.append(rt)
+    rt.deliver = control_loop.deliver_pending  # Final Acceptance §1.2: sự kiện của sync_clock → control_loop
+    try:
+        rt.loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass  # dựng từ threadpool: on_event / run_forever ghi lại vòng sự kiện ở lần chạy đầu
     restored = store.active_bookings()
     for booking in restored:
         rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now))
