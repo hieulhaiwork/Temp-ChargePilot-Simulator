@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-g3-gate-02/fail-before checkout --quiet --detach 4658b1f068350c130ed5ed1a744c19a7b8cd522c 

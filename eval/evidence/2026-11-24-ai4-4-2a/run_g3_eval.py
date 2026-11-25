@@ -1,11 +1,11 @@
 """Deterministic Gate 3 (AI-4.2A) Counterfactual Foundation & Outcome Ledger evaluation + mutation checks."""
 
 import asyncio
+import json
+import sys
 from dataclasses import replace
 from datetime import datetime, timedelta
-import json
 from pathlib import Path
-import sys
 
 from pydantic import ValidationError
 
@@ -192,7 +192,7 @@ async def _run_cases(out_dir: Path) -> dict:
         and led4.censored_count == 2
         and led4.sla_denominator == 0
         and led4.on_time_rate is None
-        and led4.feasible_on_time_rate is None
+        and led4.energy_bound_on_time_rate is None
     )
     case_results.append({"case": "oracle_not_arrived_censored_and_empty_sla_none", "passed": ok4})
 

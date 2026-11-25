@@ -676,7 +676,8 @@ async def test_timeout_and_cancellation_leave_zero_live_or_snapshot_mutation():
     assert snap.recompute_digest() == snap_digest_before
 
 
-async def test_live_replan_is_not_starved_by_concurrent_sandbox_workload():
+@pytest.mark.parametrize("enable_busy_probe", [False, True])
+async def test_live_replan_is_not_starved_by_concurrent_sandbox_workload(enable_busy_probe):
     live_rt = _sim_runtime()
     for b in (
         booking("dc-a", zone="DC", kwh=30, hours=2.0, now=live_rt.clock()),
@@ -694,7 +695,10 @@ async def test_live_replan_is_not_starved_by_concurrent_sandbox_workload():
         if minute >= 5:
             sandbox_in_flight.set()
 
-    live_busy = lambda: live_rt.lock.locked() or live_rt.has_pending_safety()  # noqa: E731
+    def is_live_busy():
+        return live_rt.lock.locked() or live_rt.has_pending_safety()
+
+    live_busy = is_live_busy if enable_busy_probe else None
     sb_a = asyncio.create_task(
         run_sandbox_branch(snap, branch_label="baseline", step_hook=notify_in_flight, live_busy_probe=live_busy)
     )
@@ -846,7 +850,7 @@ async def test_outcome_ledger_censoring_not_arrived_unserved_and_empty_sla_denom
     assert led_empty.cohort_size == 0
     assert led_empty.sla_denominator == 0
     assert led_empty.on_time_rate is None
-    assert led_empty.feasible_on_time_rate is None
+    assert led_empty.energy_bound_on_time_rate is None
     assert led_empty.service_coverage_rate is None
     assert led_empty.by_zone["AC"].on_time_rate is None
     assert led_empty.by_zone["DC"].on_time_rate is None
@@ -879,7 +883,7 @@ async def test_outcome_ledger_censoring_not_arrived_unserved_and_empty_sla_denom
     assert led_cens.censored_in_progress_count == 1
     assert led_cens.sla_denominator == 0
     assert led_cens.on_time_rate is None
-    assert led_cens.feasible_on_time_rate is None
+    assert led_cens.energy_bound_on_time_rate is None
 
     # Case 3: Unserved session (all DC connectors faulted before arrival, deadline within horizon) ->
     # UNSERVED_DEPARTED_OR_EXPIRED, sla_denominator == 1, on_time_rate == 0.0!
@@ -949,3 +953,314 @@ async def test_undelivered_ordinary_outbox_events_are_replayed_in_both_forks_wit
     # instead of waiting 12 minutes until the next 15-min periodic boundary!
     assert by_id["dc-2"].plug_in_at == t3
     assert by_id["dc-2"].plug_wait_minutes == 0.0
+
+
+@pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+    rt = _sim_runtime()
+    snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+    initial_minute = rt.simulator.minute
+    hard_id = "g3-injected-hard"
+    original_step = HybridStation.step
+    steps = []
+
+    def step(station, minutes):
+        events = original_step(station, minutes)
+        steps.append(station.minute)
+        if station.minute == initial_minute + 1:
+            events.append(
+                StationEvent(
+                    event_id=hard_id,
+                    type=EventType.HARD_LIMIT_VIOLATED,
+                    occurred_at=station.now,
+                    violation_kinds=[] if blocked else ["aggregate_power"],
+                )
+            )
+        return events
+
+    monkeypatch.setattr(HybridStation, "step", step)
+    result = await run_sandbox_branch(snap)
+    assert len(steps) == (1 if blocked else horizon)
+    assert result.status == ("unresolved_safety" if blocked else "completed")
+    assert result.unresolved_safety_count == int(blocked)
+    assert result.outcome_ledger.horizon_hard_safety_event_count == 1
+
+
+@pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+async def test_snapshot_rejects_altered_branch_inputs(field):
+    from src.services.copilot.snapshot import build_sandbox_runtime
+
+    rt = _sim_runtime()
+    b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+    rt.store.save_booking(b)
+    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+    if field == "manifest":
+        snap.event_manifest.known_booking_ids.append("hidden")
+    elif field == "booking":
+        snap.known_bookings[0].request.soc_target -= 1
+    elif field == "config":
+        snap.station_config.guard.approval_ttl_minutes += 1
+    elif field == "plan":
+        object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+    elif field == "scheduler":
+        snap = replace(snap, scheduler_metadata={"other": True})
+    elif field == "physics":
+        snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+    with pytest.raises(ValueError, match="integrity"):
+        build_sandbox_runtime(snap)
+
+
+async def test_snapshot_rejects_untracked_present_vehicle():
+    rt = _sim_runtime()
+    b = booking("physical-only", zone="AC", kwh=5, now=rt.clock())
+    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+    with pytest.raises(SnapshotNotReadyError):
+        await capture_atomic_snapshot(rt, horizon_minutes=1)
+
+
+async def test_historical_charge_start_stays_unknown_after_reassignment():
+    rt = _sim_runtime(StrategyName.SIM_B0)
+    sim = rt.simulator
+    t0 = sim.now
+    b = booking("dc-delayed", zone="DC", kwh=25, hours=2.0, now=t0)
+    rt.store.save_booking(b)
+    sim.upsert_vehicle(visit_of(b, t0))
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
+    session = sim.queue.sessions[b.booking_id]
+    assert session.charge_started == sim.minute
+    power = sim.kernel.setpoints[b.booking_id]
+    sim.kernel.hold_setpoint(b.booking_id, 0)
+    sim.step(2)
+    assert sim.kernel.output_kwh.get(b.booking_id, 0.0) == 0
+    sim.kernel.hold_setpoint(b.booking_id, power)
+    sim.step(1)
+    pre_output = sim.kernel.output_kwh[b.booking_id]
+    assert pre_output > 0
+
+    events = sim.inject_incident(
+        Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=sim.connector_of(session.connector))
+    )
+    assert session.charge_started is None
+    await control_loop.on_minute(rt, events)
+    assert session.charge_started == sim.minute
+
+    snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
+    row = (await run_sandbox_branch(snap)).outcome_ledger.vehicles[0]
+    assert row.pre_snapshot_output_kwh == pytest.approx(pre_output, abs=1e-6)
+    assert row.historical_plug_time_unknown
+    assert row.plug_in_at is None
+    assert row.first_charge_at is None
+    assert row.first_rollout_charge_at == sim.now
+
+
+async def test_interleaved_pair_reaps_peer_on_branch_exception(monkeypatch):
+    from src.services.copilot import counterfactual
+
+    peer_started = asyncio.Event()
+    peer_cleaned = asyncio.Event()
+
+    async def branch(_snapshot, *, branch_label, **_kwargs):
+        if branch_label == "baseline":
+            await peer_started.wait()
+            raise ValueError("injected branch failure")
+        peer_started.set()
+        try:
+            await asyncio.Future()
+        finally:
+            peer_cleaned.set()
+
+    monkeypatch.setattr(counterfactual, "run_sandbox_branch", branch)
+    with pytest.raises(ValueError, match="injected branch failure"):
+        await counterfactual.run_paired_noop(None, interleaved=True)
+    cleaned_at_return = peer_cleaned.is_set()
+    for task in asyncio.all_tasks() - {asyncio.current_task()}:
+        if task.get_coro().__qualname__.endswith(".<locals>.branch"):
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    assert cleaned_at_return
+
+
+async def test_pending_safety_retained_when_rollout_is_cancelled_during_delivery(monkeypatch):
+    from src.services.copilot import counterfactual
+
+    snapshot = await capture_atomic_snapshot(_sim_runtime(), horizon_minutes=3)
+    fork = counterfactual.build_sandbox_runtime(snapshot)
+    original_step = fork.simulator.step
+    start_minute = fork.simulator.minute
+    delivering = asyncio.Event()
+
+    def step(minutes):
+        events = original_step(minutes)
+        return [
+            *events,
+            StationEvent(
+                event_id="cancel-hard",
+                type=EventType.HARD_LIMIT_VIOLATED,
+                occurred_at=fork.simulator.now,
+                violation_kinds=["charging_model"],
+                violation_booking_ids=["unknown-vehicle"],
+            ),
+        ]
+
+    async def failsafe(*_args):
+        delivering.set()
+        await asyncio.Future()
+
+    monkeypatch.setattr(fork.simulator, "step", step)
+    monkeypatch.setattr(control_loop, "_failsafe", failsafe)
+    monkeypatch.setattr(counterfactual, "build_sandbox_runtime", lambda _: fork)
+    job = asyncio.create_task(run_sandbox_branch(snapshot))
+    await asyncio.wait_for(delivering.wait(), timeout=3)
+    job.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await job
+    assert fork.simulator.minute == start_minute + 1
+    assert [e.event_id for e in fork.inspect_pending_safety()] == ["cancel-hard"]
+    assert not fork.lock.locked()
+
+
+async def test_missing_physical_update_reports_not_ready():
+    rt = _sim_runtime()
+    book_only = booking("persisted-only", zone="AC", kwh=5, now=rt.clock())
+    rt.store.save_booking(book_only)
+    with pytest.raises(SnapshotNotReadyError) as err:
+        await capture_atomic_snapshot(rt, horizon_minutes=1)
+    assert err.value.reason.value == "inconsistent_cohort"
+    assert book_only.booking_id not in rt.simulator.queue.sessions
+
+
+@pytest.mark.parametrize("block_stop", [True, False])
+async def test_rollout_vehicle_safety_readback_requires_executed_stop(monkeypatch, block_stop):
+    from src.guard import dispatcher
+    from src.services.runtime import SAFETY_ATTEMPT_LIMIT
+
+    rt = _sim_runtime(StrategyName.SIM_B0)
+    b = booking("safety-active", zone="DC", kwh=25, now=rt.clock())
+    rt.store.save_booking(b)
+    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    initial_minute = rt.simulator.minute
+    assert rt.simulator.kernel.setpoints[b.booking_id] > 0
+    snapshot = await capture_atomic_snapshot(rt, horizon_minutes=3)
+    original_step = HybridStation.step
+    original_submit = dispatcher.submit
+    attempts = 0
+
+    def step(station, minutes):
+        events = original_step(station, minutes)
+        if station.minute == initial_minute + 1:
+            events.append(
+                StationEvent(
+                    event_id="active-vehicle-hard",
+                    type=EventType.HARD_LIMIT_VIOLATED,
+                    occurred_at=station.now,
+                    violation_kinds=["charging_model"],
+                    violation_booking_ids=[b.booking_id],
+                )
+            )
+        return events
+
+    async def submit(commands, *args, **kwargs):
+        nonlocal attempts
+        if any(cmd.source == CommandSource.EMERGENCY for cmd in commands):
+            attempts += 1
+            if block_stop:
+                return []
+        return await original_submit(commands, *args, **kwargs)
+
+    monkeypatch.setattr(HybridStation, "step", step)
+    monkeypatch.setattr(dispatcher, "submit", submit)
+    branch = await run_sandbox_branch(snapshot)
+    assert attempts == (SAFETY_ATTEMPT_LIMIT if block_stop else 1)
+    observed_minutes = 1 if block_stop else 3
+    assert branch.observed_until == snapshot.envelope.as_of + timedelta(minutes=observed_minutes)
+    assert branch.unresolved_safety_count == int(block_stop)
+    assert branch.safety_hold_booking_ids_end == [b.booking_id]
+    assert branch.outcome_ledger.vehicles[0].horizon_output_kwh > 0
+    assert branch.outcome_ledger.vehicles[0].status == VehicleOutcomeStatus.CENSORED_IN_PROGRESS
+
+
+async def test_native_solver_timeout_cancels_coroutine_and_allows_next_branch(monkeypatch):
+    from src.services.hybrid_planner import SimulatorScheduler
+
+    rt = _sim_runtime()
+    snapshot = await capture_atomic_snapshot(rt, horizon_minutes=3)
+    original_plan = SimulatorScheduler.plan
+    worker_started = threading.Event()
+    release_worker = threading.Event()
+    worker_finished = threading.Event()
+    minutes = []
+
+    def plan(scheduler, context):
+        if not worker_started.is_set():
+            worker_started.set()
+            try:
+                assert release_worker.wait(timeout=3)
+            finally:
+                worker_finished.set()
+        return original_plan(scheduler, context)
+
+    monkeypatch.setattr(SimulatorScheduler, "plan", plan)
+    job = asyncio.create_task(
+        run_sandbox_branch(snapshot, timeout_s=0.2, step_hook=lambda _, minute: minutes.append(minute))
+    )
+    try:
+        assert await asyncio.to_thread(worker_started.wait, 1)
+        with pytest.raises(TimeoutError):
+            await job
+        assert not worker_finished.is_set()
+        assert minutes == []
+    finally:
+        release_worker.set()
+    assert await asyncio.to_thread(worker_finished.wait, 1)
+    assert (await run_sandbox_branch(snapshot, timeout_s=2)).status == "completed"
+
+
+async def test_live_store_clock_and_staged_booking_event(monkeypatch, clean_db):
+    from src.services import event_bus
+    from src.services.copilot.snapshot import build_sandbox_runtime
+
+    live = runtime.get_runtime()
+    live.clock = lambda: live.simulator.now
+    start = live.simulator.now
+    repository.upsert_user(
+        UserRecord(
+            user_id="g3-clock-resident",
+            email="g3-clock@example.invalid",
+            role=Role.RESIDENT,
+            display_name="G3 resident",
+            created_at=start,
+        )
+    )
+    fixture = booking("unused", zone="AC", kwh=5, hours=5, now=start, arrival=start + timedelta(minutes=30))
+
+    # Wall-clock registration can be later than a paused simulator minute.
+    class FutureWallTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return (start + timedelta(days=1)).astimezone(tz)
+
+    monkeypatch.setattr(charging_service, "datetime", FutureWallTime)
+    publish_original = event_bus.publish
+    captured = []
+
+    async def publish(event):
+        if event.type == EventType.BOOKING_CREATED:
+            snap = await capture_atomic_snapshot(live, horizon_minutes=2)
+            captured.append(snap)
+            await control_loop.deliver_pending(live)
+            version = live.plan.version
+            await publish_original(event)
+            assert live.plan.version == version
+        else:
+            await publish_original(event)
+
+    monkeypatch.setattr(event_bus, "publish", publish)
+    result = await charging_service.book(fixture.request, "g3-clock-resident")
+    assert result.created_at > start
+    (snap,) = captured
+    assert snap.event_manifest.known_booking_ids == [result.booking_id]
+    assert [e.type for e in snap.ordinary_outbox_events] == [EventType.BOOKING_CREATED]
+    assert build_sandbox_runtime(snap).simulator.queue.sessions[result.booking_id].state == "NOT_ARRIVED"

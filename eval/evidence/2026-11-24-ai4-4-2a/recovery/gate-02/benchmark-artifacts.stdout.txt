@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-g3-gate-02/code
+$ cp eval/results/manifest.json eval/results/benchmark.json eval/results/benchmark.md /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/backend-benchmark/ 

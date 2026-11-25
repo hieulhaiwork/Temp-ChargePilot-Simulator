@@ -1,0 +1,1703 @@
+cwd=/tmp/chargepilot-g3-gate-01/code
+$ isolated timeout -k 5s 300s python -m pytest tests/ -q -rs 
+........................................................................ [  9%]
+........................................................................ [ 19%]
+.......ssssssss......................................................... [ 29%]
+........................................................................ [ 39%]
+........................................................................ [ 49%]
+........................................................................ [ 59%]
+................................FFFFFFFFFFFFFFFFFFFFFFF.F.FF............ [ 69%]
+........................................................................ [ 79%]
+........................................................................ [ 89%]
+........................................................................ [ 99%]
+....                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_atomic_snapshot_capture_has_no_mixed_version_state_under_barriers ____
+
+    async def test_atomic_snapshot_capture_has_no_mixed_version_state_under_barriers():
+        rt = _sim_runtime()
+        b1 = booking("dc-1", zone="DC", kwh=25, hours=2.0, now=rt.clock())
+        rt.store.save_booking(b1)
+        rt.simulator.upsert_vehicle(visit_of(b1, rt.clock()))
+        rt.booking_version = 1
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    
+        writer_holding_booking_lock = asyncio.Event()
+        capture_started = asyncio.Event()
+        thread_barrier = threading.Barrier(2)
+    
+        async def writer_mutation() -> None:
+            async with rt.booking_lock:
+                writer_holding_booking_lock.set()
+                await capture_started.wait()
+                b2 = booking("ac-2", zone="AC", kwh=18, hours=4.0, now=rt.clock())
+                rt.store.save_booking(b2)
+                rt.simulator.upsert_vehicle(visit_of(b2, rt.clock()))
+                rt.booking_version = 2
+                await control_loop.on_event(
+                    StationEvent(type=EventType.BOOKING_CREATED, occurred_at=rt.clock(), booking_id=b2.booking_id),
+                    rt,
+                )
+    
+        def off_thread_reader() -> None:
+            thread_barrier.wait(timeout=5.0)
+            rt.sync_clock()
+    
+        writer_task = asyncio.create_task(writer_mutation())
+        await writer_holding_booking_lock.wait()
+    
+        reader_thread = threading.Thread(target=off_thread_reader, daemon=True)
+        reader_thread.start()
+    
+        async def capture_coro():
+            capture_started.set()
+            thread_barrier.wait(timeout=5.0)
+            return await capture_atomic_snapshot(rt, horizon_minutes=30)
+    
+>       snap, _ = await asyncio.gather(capture_coro(), writer_task)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_services/test_counterfactual_foundation.py:166: in capture_coro
+    return await capture_atomic_snapshot(rt, horizon_minutes=30)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 30
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+__ test_snapshot_object_graph_contains_no_live_locks_db_loops_ws_or_actuators __
+
+    def test_snapshot_object_graph_contains_no_live_locks_db_loops_ws_or_actuators():
+        async def _capture():
+            rt = _sim_runtime(dc_charging_model="vinfast_profiles_v0_1")
+            b = booking("dc-vf8", zone="DC", kwh=30, hours=2.0, now=rt.clock())
+            rt.store.save_booking(b)
+            rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+            await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+            return await capture_atomic_snapshot(rt, horizon_minutes=30)
+    
+>       snap = asyncio.run(_capture())
+               ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:198: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_services/test_counterfactual_foundation.py:196: in _capture
+    return await capture_atomic_snapshot(rt, horizon_minutes=30)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...electorEventLoop running=False closed=True debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 30
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+___ test_paired_noop_branches_produce_identical_non_timing_kpis_and_ledgers ____
+
+    async def test_paired_noop_branches_produce_identical_non_timing_kpis_and_ledgers():
+        rt = _sim_runtime(dc_charging_model="vinfast_profiles_v0_1")
+        for item in (
+            booking("dc-1", zone="DC", kwh=28, hours=1.5, now=rt.clock()),
+            booking("dc-2", zone="DC", kwh=22, hours=2.0, now=rt.clock()),
+            booking("ac-1", zone="AC", kwh=16, hours=3.0, now=rt.clock()),
+        ):
+            rt.store.save_booking(item)
+            rt.simulator.upsert_vehicle(visit_of(item, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=45)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:247: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 45
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_ test_sandbox_forks_are_independent_under_interleaved_and_repeated_stateful_runs _
+
+    async def test_sandbox_forks_are_independent_under_interleaved_and_repeated_stateful_runs():
+        rt = _sim_runtime()
+        base_alg = rt.scheduler.algorithms()
+        warm_opt = _WarmStartOptimizer(base_alg.optimizers["DC"])
+        counting_dc = _CountingDCModel(rt.simulator.adapter.dc_model)
+        noisy_obs = _NoisyRngObservation(seed=99)
+    
+        rt.simulator.adapter.dc_model = counting_dc
+        rt.simulator._dc_model = counting_dc
+        rt.simulator.kernel.observation_model = noisy_obs
+        rt.simulator._observation_model = noisy_obs
+        custom_alg = replace(
+            base_alg,
+            optimizers={"AC": base_alg.optimizers["AC"], "DC": warm_opt},
+            dc_charging_model=counting_dc,
+        )
+        rt.scheduler._algorithms = custom_alg
+        rt.scheduler.configure(rt.simulator)
+    
+        for item in (
+            booking("dc-s1", zone="DC", kwh=24, hours=1.5, now=rt.clock()),
+            booking("ac-s1", zone="AC", kwh=12, hours=2.5, now=rt.clock()),
+        ):
+            rt.store.save_booking(item)
+            rt.simulator.upsert_vehicle(visit_of(item, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    
+        live_opt_history = list(warm_opt.history)
+        live_dc_calls = counting_dc.calls
+        live_rng_state = noisy_obs.rng.getstate()
+        live_rng_cache = dict(noisy_obs.cache)
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:295: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 30
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+___ test_rollout_never_mutates_snapshot_digest_or_paused_live_runtime_state ____
+
+    async def test_rollout_never_mutates_snapshot_digest_or_paused_live_runtime_state():
+        rt = _sim_runtime()
+        b = booking("dc-live", zone="DC", kwh=25, hours=2.0, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        rt.simulator.step(5)
+    
+        live_phys_before = canonical_sha256(rt.simulator.snapshot_physics_state())
+        live_plan_before = rt.plan.model_dump(mode="json") if rt.plan else None
+        live_traces_before = len(rt.recorder.decision_traces)
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:341: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 60
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+___ test_sandbox_rollout_has_zero_db_ws_actuator_or_filesystem_side_effects ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa39dc41100>
+clean_db = None
+tmp_path = PosixPath('/tmp/pytest-of-lehieu/pytest-3/test_sandbox_rollout_has_zero_0')
+
+    async def test_sandbox_rollout_has_zero_db_ws_actuator_or_filesystem_side_effects(monkeypatch, clean_db, tmp_path):
+        t0 = datetime(2026, 11, 23, 18, 0, tzinfo=VN)
+        monkeypatch.setattr(runtime, "_live_clock", lambda config: lambda: t0)
+        runtime.reset_runtime()
+        repository.upsert_user(
+            UserRecord(
+                user_id="res-db",
+                email="res-db@example.invalid",
+                role=Role.RESIDENT,
+                display_name="Resident DB",
+                created_at=t0,
+            )
+        )
+        live = runtime.get_runtime()
+        await charging_service.book(
+            ChargeRequest(
+                vehicle_model="VF8_NEW_2026",
+                soc_now=25,
+                soc_target=80,
+                deadline=t0 + timedelta(hours=3),
+                mode=ChargeMode.WALK_IN,
+                zone="DC",
+            ),
+            "res-db",
+        )
+    
+        def _table_counts() -> dict[str, int]:
+            with db_session.session_scope() as s:
+                return {
+                    tbl.name: int(s.execute(select(func.count()).select_from(tbl)).scalar_one())
+                    for tbl in Base.metadata.sorted_tables
+                }
+    
+        ws_calls: list = []
+        live_apply_calls: list = []
+    
+        async def _spy_broadcast(*args, **kwargs):
+            ws_calls.append((args, kwargs))
+    
+        orig_apply = getattr(live.simulator, "apply_commands")
+    
+        def _spy_apply(commands):
+            live_apply_calls.append(commands)
+            return orig_apply(commands)
+    
+        conn_id_op = realtime.register(_spy_broadcast, Role.OPERATOR, "op-ws")
+        conn_id_res = realtime.register(_spy_broadcast, Role.RESIDENT, "res-db")
+        monkeypatch.setattr(realtime, "broadcast", _spy_broadcast)
+        monkeypatch.setattr(live.simulator, "apply_commands", _spy_apply)
+    
+        counts_before = _table_counts()
+        live_phys_before = canonical_sha256(live.simulator.snapshot_physics_state())
+    
+>       snap = await capture_atomic_snapshot(live, horizon_minutes=45)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:408: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...se debug=False>, deliver=<function deliver_pending at 0x7fa410d5a020>, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 45
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+____ test_safety_hold_pending_approval_and_rejected_consent_parity_in_forks ____
+
+    async def test_safety_hold_pending_approval_and_rejected_consent_parity_in_forks():
+        rt = _sim_runtime()
+        b_hold = booking("dc-hold", zone="DC", kwh=30, hours=2.0, now=rt.clock())
+        b_ok = booking("dc-ok", zone="DC", kwh=25, hours=2.0, now=rt.clock())
+        b_pend = booking(
+            "ac-pend",
+            zone="AC",
+            kwh=15,
+            hours=4.0,
+            now=rt.clock(),
+        ).model_copy(update={"consent": ConsentScope(allow_power_reduction=False)})
+        b_rej = booking(
+            "ac-rej",
+            zone="AC",
+            kwh=15,
+            hours=4.0,
+            now=rt.clock(),
+        ).model_copy(update={"consent": ConsentScope(allow_power_reduction=False)})
+    
+        for b in (b_hold, b_ok, b_pend, b_rej):
+            rt.store.save_booking(b)
+            rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+    
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    
+        # Put dc-hold under Safety Hold with safe 0 kW held setpoint (resolved emergency state).
+        rt.safety_hold_booking_ids.add("dc-hold")
+        with rt.simulator.lock:
+            rt.simulator.kernel.hold_setpoint("dc-hold", 0.0)
+    
+        # Open a pending approval for ac-pend and mark ac-rej as rejected consent.
+        now = rt.clock()
+        cmd = Command(
+            type=CommandType.SET_POWER,
+            connector_id="AC-01-1",
+            power_kw=5.0,
+            booking_id="ac-pend",
+            source=CommandSource.OPTIMIZER,
+            issued_by="optimizer",
+            based_on_schedule_version=rt.plan.version if rt.plan else 1,
+            based_on_state_at=now,
+            created_at=now,
+        )
+        pending = Approval(
+            kind=ApprovalKind.RESIDENT_CONSENT,
+            command=cmd,
+            verdict=GuardVerdict(command_id=cmd.command_id, passed=True, checked_at=now),
+            requested_from=b_pend.resident_id,
+            impact_summary="Reduce power",
+            created_at=now,
+        )
+        rt.sinks.save_approval(pending)
+        rt.rejected_booking_ids.add("ac-rej")
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:492: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...EventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids={'dc-hold'})
+horizon_minutes = 30
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_ test_unresolved_hard_safety_or_unsafe_allocation_blocks_snapshot_without_mutating_live _
+
+    async def test_unresolved_hard_safety_or_unsafe_allocation_blocks_snapshot_without_mutating_live():
+        rt = _sim_runtime()
+        b = booking("dc-1", zone="DC", kwh=25, hours=2.0, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    
+        # Case A: Unresolved HARD_LIMIT_VIOLATED + ordinary event in outbox + existing Safety Hold.
+        rt.safety_hold_booking_ids.add("existing-hold")
+        tick_ev = StationEvent(event_id="ord-tick", type=EventType.TICK, occurred_at=rt.clock())
+        hard_ev = StationEvent(
+            event_id="hard-unres",
+            type=EventType.HARD_LIMIT_VIOLATED,
+            occurred_at=rt.clock(),
+            detail="Grid overload",
+            violation_kinds=["aggregate_power"],
+        )
+        rt.queue_events([tick_ev, hard_ev])
+        min_before = rt.simulator.minute
+    
+        with pytest.raises(SnapshotNotReadyError) as exc_info:
+            await capture_atomic_snapshot(rt, horizon_minutes=30)
+        assert exc_info.value.status == SnapshotStatus.NOT_READY
+>       assert exc_info.value.reason == SnapshotNotReadyReason.UNRESOLVED_HARD_SAFETY_EVENT
+E       AssertionError: assert <SnapshotNotR...ported_state'> == <SnapshotNotR...safety_event'>
+E         
+E         - unresolved_hard_safety_event
+E         + unsupported_state
+
+tests/test_services/test_counterfactual_foundation.py:531: AssertionError
+_ test_known_at_t_manifest_excludes_hidden_future_arrivals_and_unannounced_limit_events _
+
+    async def test_known_at_t_manifest_excludes_hidden_future_arrivals_and_unannounced_limit_events():
+        rt = _sim_runtime()
+        t0 = rt.clock()
+    
+        b_now = booking("dc-now", zone="DC", kwh=30, hours=2.0, now=t0).model_copy(
+            update={"created_at": t0 - timedelta(minutes=10)}
+        )
+        b_res_known = booking(
+            "dc-res-known",
+            zone="DC",
+            kwh=20,
+            hours=2.0,
+            now=t0,
+            arrival=t0 + timedelta(minutes=10),
+        ).model_copy(update={"created_at": t0 - timedelta(minutes=5)})
+        b_future_hidden = booking(
+            "dc-future-hidden",
+            zone="DC",
+            kwh=20,
+            hours=2.0,
+            now=t0,
+            arrival=t0 + timedelta(minutes=15),
+        ).model_copy(update={"created_at": t0 + timedelta(minutes=12)})
+    
+        for b in (b_now, b_res_known, b_future_hidden):
+            rt.store.save_booking(b)
+            rt.simulator.upsert_vehicle(visit_of(b, t0))
+    
+        # Also inject an unbooked NOT_ARRIVED scenario vehicle directly into simulator queue
+        unbooked_b = booking(
+            "ac-unbooked-hidden",
+            zone="AC",
+            kwh=15,
+            hours=2.0,
+            now=t0,
+            arrival=t0 + timedelta(minutes=8),
+        )
+        rt.simulator.upsert_vehicle(visit_of(unbooked_b, t0))
+    
+        # Inject one announced LimitEvent (announced at minute 0 -> 45 kW at minute 10)
+        # and one unannounced future LimitEvent (announced at minute 15 -> 8 kW at minute 20).
+        with rt.simulator.lock:
+            ev_known = LimitEvent(effective_minute=10, announced_minute=0, grid_input_kw=45.0, cabinet_output_kw={})
+            ev_hidden = LimitEvent(effective_minute=20, announced_minute=15, grid_input_kw=8.0, cabinet_output_kw={})
+            rt.simulator.kernel.scenario = replace(
+                rt.simulator.kernel.scenario,
+                limit_events=(ev_known, ev_hidden),
+            )
+            # Clear override so scenario limit_events govern grid_input_kw
+            rt.simulator.kernel.grid_input_override_kw = None
+    
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:608: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 30
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+______ test_timeout_and_cancellation_leave_zero_live_or_snapshot_mutation ______
+
+    async def test_timeout_and_cancellation_leave_zero_live_or_snapshot_mutation():
+        rt = _sim_runtime()
+        b = booking("dc-cancel", zone="DC", kwh=30, hours=2.0, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+    
+        live_digest_before = canonical_sha256(rt.simulator.snapshot_physics_state())
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:641: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 60
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+________ test_live_replan_is_not_starved_by_concurrent_sandbox_workload ________
+
+    async def test_live_replan_is_not_starved_by_concurrent_sandbox_workload():
+        live_rt = _sim_runtime()
+        for b in (
+            booking("dc-a", zone="DC", kwh=30, hours=2.0, now=live_rt.clock()),
+            booking("ac-a", zone="AC", kwh=20, hours=4.0, now=live_rt.clock()),
+        ):
+            live_rt.store.save_booking(b)
+            live_rt.simulator.upsert_vehicle(visit_of(b, live_rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=live_rt.clock()), live_rt)
+        plan_v_before = live_rt.plan.version if live_rt.plan else 0
+    
+>       snap = await capture_atomic_snapshot(live_rt, horizon_minutes=120)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:690: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 120
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_______ test_outcome_ledger_hand_calculated_oracle_energy_and_timestamps _______
+
+    async def test_outcome_ledger_hand_calculated_oracle_energy_and_timestamps():
+        """Verify exact pre- vs post-snapshot kWh, plug-in vs first-charge, and completion vs DC unplug."""
+        rt = _sim_runtime(StrategyName.SIM_B0)
+        t0 = rt.clock()
+    
+        # 1) ac-pre arrives at T0 and charges for 10 minutes BEFORE snapshot capture at T0+10m.
+        b_ac = booking("ac-pre", zone="AC", kwh=22, hours=4.0, now=t0)
+        rt.store.save_booking(b_ac)
+        rt.simulator.upsert_vehicle(visit_of(b_ac, t0))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
+        for _ in range(10):
+            ev = rt.simulator.step(1)
+            await control_loop.on_minute(rt, ev)
+    
+        t_snap = rt.simulator.now
+        assert t_snap == t0 + timedelta(minutes=10)
+        pre_phys = rt.simulator.snapshot_physics_state()["sessions"]["ac-pre"]
+        expected_pre_out = pre_phys["output_kwh"]
+        expected_pre_bat = pre_phys["delivered_battery_kwh"]
+        expected_pre_grid = pre_phys["delivered_grid_kwh"]
+        assert expected_pre_out > 0.0
+    
+        # 2) At T_snap, add:
+        #    - dc-quick: needs small energy (~5 kWh) with deadline T_snap + 90m -> finishes early and unplugs after
+        #      dc_unplug_delay_minutes (5 minutes in station.yaml), strictly BEFORE declared deadline!
+        #    - ac-delayed-charge: assigned connector at T_snap, but we place a pending approval holding SET_POWER so
+        #      it plugs in at T_snap with 0 kW, demonstrating plug_in_at != first_charge_at (first_charge_at is None)!
+        b_dc_quick = ChargeRequest(
+            vehicle_model="VF3",
+            soc_now=70,
+            soc_target=80,
+            deadline=t_snap + timedelta(minutes=90),
+            mode=ChargeMode.WALK_IN,
+            zone="DC",
+        )
+        from src.services import energy as energy_svc
+    
+        spec_vf3 = catalog.get_vehicle("VF3")
+        dc_est = energy_svc.estimate_energy(spec_vf3, soc_now=70, soc_target=80)
+        bk_dc = booking("dc-quick", zone="DC", kwh=dc_est.grid_energy_kwh, hours=1.5, now=t_snap).model_copy(
+            update={
+                "request": b_dc_quick,
+                "energy": dc_est,
+                "max_charge_power_kw": min(60.0, spec_vf3.max_dc_kw or 60.0),
+                "created_at": t_snap,
+            }
+        )
+    
+        bk_ac_zero = booking("ac-plug-only", zone="AC", kwh=15, hours=3.0, now=t_snap).model_copy(
+            update={"created_at": t_snap}
+        )
+        for b in (bk_dc, bk_ac_zero):
+            rt.store.save_booking(b)
+            rt.simulator.upsert_vehicle(visit_of(b, t_snap))
+    
+        # Assign ac-plug-only a connector with 0 kW held and put a pending approval on it so SET_POWER > 0 is held!
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t_snap), rt)
+        ac_conn = next(c.connector_id for c in rt.simulator.state().connectors if c.booking_id == "ac-plug-only")
+        with rt.simulator.lock:
+            rt.simulator.kernel.hold_setpoint("ac-plug-only", 0.0)
+        hold_cmd = Command(
+            type=CommandType.SET_POWER,
+            connector_id=ac_conn,
+            power_kw=7.0,
+            booking_id="ac-plug-only",
+            source=CommandSource.OPTIMIZER,
+            issued_by="optimizer",
+            based_on_schedule_version=rt.plan.version if rt.plan else 1,
+            based_on_state_at=t_snap,
+            created_at=t_snap,
+        )
+        rt.sinks.save_approval(
+            Approval(
+                kind=ApprovalKind.RESIDENT_CONSENT,
+                command=hold_cmd,
+                verdict=GuardVerdict(command_id=hold_cmd.command_id, passed=True, checked_at=t_snap),
+                requested_from=bk_ac_zero.resident_id,
+                impact_summary="Hold power",
+                created_at=t_snap,
+            )
+        )
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=40)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:802: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 40
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_ test_outcome_ledger_censoring_not_arrived_unserved_and_empty_sla_denominator _
+
+    async def test_outcome_ledger_censoring_not_arrived_unserved_and_empty_sla_denominator():
+        """Verify NOT_ARRIVED preservation, censoring, unserved sessions, and None (never 1.0) on empty denominators."""
+        # Case 1: Empty cohort (0 bookings) -> on_time_rate and service_coverage_rate MUST be None (not 1.0!)
+        rt_empty = _sim_runtime()
+>       snap_empty = await capture_atomic_snapshot(rt_empty, horizon_minutes=15)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:843: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp..._read_clock_paused=False, _safety_attempts=0, loop=None, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 15
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_ test_undelivered_ordinary_outbox_events_are_replayed_in_both_forks_without_draining_live _
+
+    async def test_undelivered_ordinary_outbox_events_are_replayed_in_both_forks_without_draining_live():
+        """Ordinary outbox events pending at T are captured atomically, kept on live, and replayed on both forks."""
+        rt = _sim_runtime()
+        t0 = rt.clock()
+        b1 = booking("dc-1", zone="DC", kwh=30, hours=2.0, now=t0)
+        rt.store.save_booking(b1)
+        rt.simulator.upsert_vehicle(visit_of(b1, t0))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
+    
+        # Advance 3 minutes (not a 15-min boundary), then arrive a walk-in whose event sits in ordinary outbox.
+        rt.simulator.step(3)
+        t3 = rt.simulator.now
+        b2 = booking("dc-2", zone="DC", kwh=20, hours=2.0, now=t3)
+        rt.store.save_booking(b2)
+        arr_events = rt.simulator.upsert_vehicle(visit_of(b2, t3))
+        arr_events.append(
+            StationEvent(event_id="ord-b2-created", type=EventType.BOOKING_CREATED, occurred_at=t3, booking_id="dc-2")
+        )
+        rt.queue_events(arr_events)
+    
+        live_outbox_ids = [e.event_id for e in rt.inspect_ordinary_outbox()]
+        assert "ord-b2-created" in live_outbox_ids
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=20)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:940: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 20
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+____ test_rollout_handles_hard_safety_before_advancing_or_returning[1-True] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa39dc34050>
+horizon = 1, blocked = True
+
+    @pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+    async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+        rt = _sim_runtime()
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:957: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp..._read_clock_paused=False, _safety_attempts=0, loop=None, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+____ test_rollout_handles_hard_safety_before_advancing_or_returning[3-True] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa39c2bd790>
+horizon = 3, blocked = True
+
+    @pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+    async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+        rt = _sim_runtime()
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:957: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp..._read_clock_paused=False, _safety_attempts=0, loop=None, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 3
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+___ test_rollout_handles_hard_safety_before_advancing_or_returning[3-False] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa39c26b2c0>
+horizon = 3, blocked = False
+
+    @pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+    async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+        rt = _sim_runtime()
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:957: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp..._read_clock_paused=False, _safety_attempts=0, loop=None, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 3
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+____________ test_snapshot_rejects_altered_branch_inputs[manifest] _____________
+
+field = 'manifest'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:994: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_____________ test_snapshot_rejects_altered_branch_inputs[booking] _____________
+
+field = 'booking'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:994: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_____________ test_snapshot_rejects_altered_branch_inputs[config] ______________
+
+field = 'config'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:994: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+______________ test_snapshot_rejects_altered_branch_inputs[plan] _______________
+
+field = 'plan'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:994: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+____________ test_snapshot_rejects_altered_branch_inputs[scheduler] ____________
+
+field = 'scheduler'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:994: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+_____________ test_snapshot_rejects_altered_branch_inputs[physics] _____________
+
+field = 'physics'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:994: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 1
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+________ test_historical_charge_start_stays_unknown_after_reassignment _________
+
+    async def test_historical_charge_start_stays_unknown_after_reassignment():
+        rt = _sim_runtime(StrategyName.SIM_B0)
+        sim = rt.simulator
+        t0 = sim.now
+        b = booking("dc-delayed", zone="DC", kwh=25, hours=2.0, now=t0)
+        rt.store.save_booking(b)
+        sim.upsert_vehicle(visit_of(b, t0))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
+        session = sim.queue.sessions[b.booking_id]
+        assert session.charge_started == sim.minute
+        power = sim.kernel.setpoints[b.booking_id]
+        sim.kernel.hold_setpoint(b.booking_id, 0)
+        sim.step(2)
+        assert sim.kernel.output_kwh.get(b.booking_id, 0.0) == 0
+        sim.kernel.hold_setpoint(b.booking_id, power)
+        sim.step(1)
+        pre_output = sim.kernel.output_kwh[b.booking_id]
+        assert pre_output > 0
+    
+        events = sim.inject_incident(
+            Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=sim.connector_of(session.connector))
+        )
+        assert session.charge_started is None
+        await control_loop.on_minute(rt, events)
+        assert session.charge_started == sim.minute
+    
+>       snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:1045: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp...lectorEventLoop running=False closed=False debug=False>, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 2
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+____ test_pending_safety_retained_when_rollout_is_cancelled_during_delivery ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa39c2b7680>
+
+    async def test_pending_safety_retained_when_rollout_is_cancelled_during_delivery(monkeypatch):
+        from src.services.copilot import counterfactual
+    
+>       snapshot = await capture_atomic_snapshot(_sim_runtime(), horizon_minutes=3)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:1084: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc mô phỏng ChargePilot (hybrid AC/DC — fixture mvp..._read_clock_paused=False, _safety_attempts=0, loop=None, deliver=None, deliveries=set(), safety_hold_booking_ids=set())
+horizon_minutes = 3
+
+    async def capture_atomic_snapshot(
+        rt: StationRuntime,
+        *,
+        horizon_minutes: int = 120,
+    ) -> CapturedSnapshot:
+        """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
+    
+        Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
+        for the in-memory copy, then releases all locks before integrity and readiness checks.
+        """
+        if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
+            raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
+    
+        async with rt.booking_lock:
+            async with rt.decision_lock():
+                with rt._clock_lock:
+                    with rt.simulator.lock:
+                        ordinary_outbox = rt.inspect_ordinary_outbox()
+                        pending_safety = rt.inspect_pending_safety()
+                        safety_holds = frozenset(rt.safety_hold_booking_ids)
+                        rejected_ids = frozenset(rt.rejected_booking_ids)
+    
+                        booking_version = int(rt.booking_version)
+                        plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
+                        plan_version = None if plan_copy is None else int(plan_copy.version)
+                        station_config = rt.config.model_copy(deep=True)
+                        tariff_copy = rt.tariff.model_copy(deep=True)
+                        if type(rt.scheduler) is not SimulatorScheduler:
+>                           raise SnapshotNotReadyError(
+                                SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                                "Only the registered backend scheduler is supported",
+                            )
+E                           src.services.copilot.snapshot.SnapshotNotReadyError: unsupported_state: Only the registered backend scheduler is supported
+
+src/services/copilot/snapshot.py:299: SnapshotNotReadyError
+________________ test_missing_physical_update_reports_not_ready ________________
+
+    async def test_missing_physical_update_reports_not_ready():
+        rt = _sim_runtime()
+        book_only = booking("persisted-only", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(book_only)
+        with pytest.raises(SnapshotNotReadyError) as err:
+            await capture_atomic_snapshot(rt, horizon_minutes=1)
+>       assert err.value.reason.value == "inconsistent_cohort"
+E       AssertionError: assert 'unsupported_state' == 'inconsistent_cohort'
+E         
+E         - inconsistent_cohort
+E         + unsupported_state
+
+tests/test_services/test_counterfactual_foundation.py:1126: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:19: [T2.3] features.build_features
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:27: [T2.3] features.build_features
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:32: [T2.3] features.build_features — chốt ở T2.3 sau EDA
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:37: [T2.3] features.build_features
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:42: [T2.3] datasets.temporal_split
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:47: [T2.3] predict.*Forecaster
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:52: [T2.3] predict.LightGBMForecaster
+SKIPPED [1] tests/test_forecast/test_forecast_contracts.py:57: [T2.1] FR9 — xem thêm test_forecast_never_relaxes_declared_deadline
+26 failed, 690 passed, 8 skipped in 76.72s (0:01:16)

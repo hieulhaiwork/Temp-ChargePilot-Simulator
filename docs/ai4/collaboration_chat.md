@@ -18,3 +18,9 @@
   - Deferred to G6/G7 backlog: production grounding validator, extended causal/semantic oracle, PostgreSQL runtime verification.
 - **Authorization:** Proceed to **AI-4.2A — Counterfactual Foundation (Gate 3)** ONLY (snapshot capture, `known_at(T)` event manifest, independent sandbox forks, paired no-op runner, additive Outcome Ledger; no G4 business patches).
 - **Reference:** [PHASE_4_1_REPORT.md](PHASE_4_1_REPORT.md)
+
+## 4. Gate 3 (AI-4.2A — Counterfactual Foundation)
+
+- **Tech Lead review trước remediation** tại mirror `49b6fec00e90c1f5c6f504abfb038969f2d6c64c`. Verdict `CHANGES REQUIRED`, các mục G3-F01–F08.
+- **Implementation handoff** `READY_FOR_REVIEW`. Patch SHA-256 `59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d`. Focused 213, backend 721 với 8 forecast skips, standalone 180, Golden CRLF 38/38, frozen benchmark 100/100, independent evaluator 8/8 và 6/6 mutations.
+- **Pending** Tech Lead review và PostgreSQL runtime. G4 giữ các MUST operation dưới `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit` và `outage`; khởi động sau khi G3 được phê duyệt. [Báo cáo Gate 3](PHASE_4_2A_REPORT.md)

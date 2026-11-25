@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ tar -xzf /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/raw/golden-crlf-outputs.tar.gz -C /tmp/chargepilot-g3-gate-02 crlf-golden-reference 

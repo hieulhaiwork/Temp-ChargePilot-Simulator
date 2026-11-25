@@ -1,0 +1,60 @@
+cwd=/tmp/chargepilot-g3-gate-02/code
+$ isolated python /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/check_benchmark_provenance.py eval/evidence/2026-11-24-unified-core-frozen-baseline /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/backend-benchmark 
+{
+  "matched_manifest_fields": [
+    "scenarios",
+    "policies",
+    "seeds",
+    "time_config",
+    "experiments",
+    "experiment_fingerprints"
+  ],
+  "experiment_fingerprints": {
+    "B0": "908e98767707ed211e1396a6d3b3b8957e7daa3b0ea8363976e23ad63f439dbe",
+    "M2b": "e640e084d594e23a51b8f185032f6883de09ce000a36de41e0d2c241790f81fa",
+    "M3a": "f338938bbb16d3426137aeed9436f3110461333ec0d2e2dbd2d7f537a0695350",
+    "M3b": "74b84c67b82fcbb131d3c19476e0180bd2624fbb96437b676ba3905e72ed4f2d"
+  },
+  "frozen": {
+    "libraries": {
+      "python": "3.12.10",
+      "os": "Windows 11",
+      "ev2gym": "2.0.0",
+      "numpy": "2.5.5",
+      "scipy": "1.18.1"
+    },
+    "runs": 100,
+    "replan_p95_seconds_across_runs": {
+      "min": 0.0015,
+      "median": 0.009049999999999999,
+      "max": 0.0159,
+      "runs_above_2_seconds": 0
+    },
+    "violation_counts": {
+      "sampled_power_over_limit_minutes": 0,
+      "applied_constraint_violation_count": 0,
+      "rejected_allocation_count": 0
+    }
+  },
+  "candidate": {
+    "libraries": {
+      "python": "3.12.3",
+      "os": "Linux 6.18.58.1-microsoft-standard-WSL2",
+      "ev2gym": "2.0.0",
+      "numpy": "2.4.6",
+      "scipy": "1.18.1"
+    },
+    "runs": 100,
+    "replan_p95_seconds_across_runs": {
+      "min": 0.003,
+      "median": 0.0124,
+      "max": 0.0226,
+      "runs_above_2_seconds": 0
+    },
+    "violation_counts": {
+      "sampled_power_over_limit_minutes": 0,
+      "applied_constraint_violation_count": 0,
+      "rejected_allocation_count": 0
+    }
+  }
+}

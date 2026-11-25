@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git clone --quiet --no-hardlinks --no-checkout /home/lehieu/Projects/P-019 /tmp/chargepilot-g3-gate-02/crlf 

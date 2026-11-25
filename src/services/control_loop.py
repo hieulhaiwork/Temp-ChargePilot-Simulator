@@ -74,6 +74,8 @@ async def on_event(event: StationEvent, rt: StationRuntime, *, batch: tuple[Stat
     """
     rt.retain_safety_events((*batch, event))
     async with rt.decision_lock():
+        if rt.plan is not None and not batch and event.event_id in rt._delivered_mutation_events:
+            return rt.plan
         return await _on_event_locked(event, rt, batch)
 
 
@@ -135,6 +137,20 @@ async def _on_event_locked(event: StationEvent, rt: StationRuntime, batch: tuple
     )
     rt.plan = plan
     rt.store.save_plan(plan)
+    if rt.live:
+        rt._delivered_mutation_events.extend(
+            item.event_id
+            for item in (*side_events, event)
+            if item.type
+            in {
+                EventType.BOOKING_CREATED,
+                EventType.BOOKING_CHANGED,
+                EventType.BOOKING_CANCELLED,
+                EventType.CONNECTOR_FAULT,
+                EventType.CONNECTOR_RESTORED,
+                EventType.POWER_LIMIT_CHANGED,
+            }
+        )
     _sync_booking_status(rt, ())
     _record_load(rt)
     rt.recorder.replan_durations_s.append(time.perf_counter() - started)
@@ -169,6 +185,14 @@ async def on_minute(rt: StationRuntime, events: list[StationEvent]) -> ScheduleP
     if rest:
         plan = await on_event(rest[-1], rt, batch=tuple(rest[:-1]))
     return plan
+
+
+async def settle_rollout_safety(rt: StationRuntime) -> None:
+    """Retry pending safety at the current fork minute using the G1 delivery and readback."""
+    if rt.live:
+        raise ValueError("Rollout safety retries require an isolated runtime")
+    while rt.has_pending_safety() and rt._safety_attempts < SAFETY_ATTEMPT_LIMIT:
+        await on_minute(rt, list(rt.inspect_pending_safety()))
 
 
 async def run_forever(stop: asyncio.Event, rt: StationRuntime) -> None:

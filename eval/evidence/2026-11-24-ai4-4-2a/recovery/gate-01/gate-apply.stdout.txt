@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-g3-gate-01/code apply /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-01/candidate.patch 

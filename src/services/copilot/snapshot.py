@@ -6,7 +6,7 @@ Lock acquisition order matches the repository's canonical hierarchy:
         -> `rt._clock_lock` (thread RLock; guards outbox & pending safety registry)
           -> `rt.simulator.lock` (thread RLock; guards `HybridStation` & `StationKernel`)
 
-Locks are held ONLY during in-memory state cloning and SHA-256 digest computation (never during
+Locks are held during in-memory state cloning (never during
 sandbox rollout or LP solving). `CapturedSnapshot` contains pure data and a detached, lock-free,
 actuator-free `PhysicsSnapshotSeed` — zero live DB connections, event loops, locks, WebSocket
 clients, or `StationActuator` instances.
@@ -17,7 +17,7 @@ import json
 from collections import deque
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from types import MappingProxyType
 from typing import Any
@@ -29,7 +29,6 @@ from src.models.control import Approval, Command
 from src.models.copilot import (
     EVENT_MANIFEST_SCHEMA_VERSION,
     MAX_COUNTERFACTUAL_HORIZON_MINUTES,
-    SNAPSHOT_SCHEMA_VERSION,
     EventManifest,
     KnownLimitEvent,
     SnapshotEnvelope,
@@ -40,12 +39,13 @@ from src.models.events import EventType, StationEvent
 from src.models.physical_constraints import TOL
 from src.models.simulation import ResolvedExperiment
 from src.models.station import StationConfig, Tariff
+from src.services import hybrid_planner
 from src.services.experiment import resolve_experiment
-from src.services.runtime import ACTIVE, OUTBOX_MAX, StationRuntime, _memory_runtime, make_scheduler, visit_of
+from src.services.runtime import OUTBOX_MAX, StationRuntime, _memory_runtime, make_scheduler
 from src.simulator.hybrid_station import HybridStation, PhysicsSnapshotSeed
 
 PROSPECTIVE_ASSUMPTIONS: tuple[str, ...] = (
-    "Prospective known_at(T) boundary: only bookings registered at or before T (created_at <= T) and vehicles physically present at T are included.",
+    "Prospective known_at(T) boundary: live bookings are known through committed store membership at capture; synthetic bookings use created_at <= T in simulator time.",
     "Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute <= as_of_minute) are visible to optimizer and sandbox physics.",
     "Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).",
     "Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.",
@@ -87,7 +87,7 @@ def _thaw_json_tree(value: Any) -> Any:
 
 @dataclass(frozen=True)
 class CapturedSnapshot:
-    """Immutable, self-contained counterfactual snapshot at `envelope.as_of`.
+    """Detached, integrity-checked counterfactual snapshot at `envelope.as_of`.
 
     Contains NO locks, NO event loops, NO DB sessions/engines, NO WebSocket clients,
     and NO `StationActuator` / `HybridStation` instances.
@@ -115,82 +115,35 @@ class CapturedSnapshot:
     _physics_seed: PhysicsSnapshotSeed
 
     def recompute_digest(self) -> str:
-        """Recompute canonical content digest from stored snapshot fields (verifies immutability)."""
-        seed_probe = HybridStation.from_physics_seed(self.station_config, self._physics_seed)
-        known_ids = frozenset(self.event_manifest.known_booking_ids)
-        seed_probe.enforce_known_at_on_fork(self.envelope.sim_minute, known_ids)
-        live_seed_physics = seed_probe.snapshot_physics_state()
-        return _build_snapshot_digest_payload(
-            station_id=self.envelope.station_id,
-            as_of=self.envelope.as_of,
-            sim_minute=self.envelope.sim_minute,
-            booking_version=self.envelope.booking_version,
-            plan_version=self.envelope.plan_version,
-            state_version=self.envelope.state_version,
-            schedule_version=self.envelope.schedule_version,
-            experiment=self.experiment,
-            station_config=self.station_config,
-            tariff=self.tariff,
-            plan=self.plan,
-            known_bookings=self.known_bookings,
-            pending_approvals=self.pending_approvals,
-            recent_commands=self.recent_commands,
-            safety_hold_booking_ids=self.safety_hold_booking_ids,
-            rejected_booking_ids=self.rejected_booking_ids,
-            ordinary_outbox_events=self.ordinary_outbox_events,
-            event_manifest=self.event_manifest,
-            physics_state=live_seed_physics,
+        """Hash the current contents of every input used to build a branch."""
+        return canonical_sha256(
+            {
+                "envelope": self.envelope.model_dump(mode="json", exclude={"snapshot_id", "snapshot_digest"}),
+                "experiment": self.experiment.model_dump(mode="json"),
+                "station_config": self.station_config.model_dump(mode="json"),
+                "tariff": self.tariff.model_dump(mode="json"),
+                "plan": None if self.plan is None else self.plan.model_dump(mode="json"),
+                "bookings": [b.model_dump(mode="json") for b in self.known_bookings],
+                "approvals": [a.model_dump(mode="json") for a in self.pending_approvals],
+                "commands": [c.model_dump(mode="json") for c in self.recent_commands],
+                "safety_holds": sorted(self.safety_hold_booking_ids),
+                "rejected": sorted(self.rejected_booking_ids),
+                "outbox": [e.model_dump(mode="json") for e in self.ordinary_outbox_events],
+                "pending_safety": [e.model_dump(mode="json") for e in self.pending_safety_events],
+                "acknowledged_safety": self.acknowledged_safety_ids,
+                "safety_attempts": self.safety_attempts,
+                "scheduler_name": str(self.scheduler_name),
+                "scheduler_parameters": _thaw_json_tree(self.scheduler_parameters),
+                "scheduler_metadata": _thaw_json_tree(self.scheduler_metadata),
+                "manifest": _manifest_digest(self.event_manifest),
+                "physics_state": _thaw_json_tree(self.physics_state),
+                "physics_seed": self._physics_seed.integrity_state(),
+            }
         )
 
 
-def _build_snapshot_digest_payload(
-    *,
-    station_id: str,
-    as_of: datetime,
-    sim_minute: int,
-    booking_version: int,
-    plan_version: int | None,
-    state_version: int,
-    schedule_version: int,
-    experiment: ResolvedExperiment,
-    station_config: StationConfig,
-    tariff: Tariff,
-    plan: SchedulePlan | None,
-    known_bookings: tuple[Booking, ...],
-    pending_approvals: tuple[Approval, ...],
-    recent_commands: tuple[Command, ...],
-    safety_hold_booking_ids: frozenset[str],
-    rejected_booking_ids: frozenset[str],
-    ordinary_outbox_events: tuple[StationEvent, ...],
-    event_manifest: EventManifest,
-    physics_state: dict[str, Any],
-) -> str:
-    canonical = {
-        "schema_version": SNAPSHOT_SCHEMA_VERSION,
-        "station_id": station_id,
-        "as_of": as_of.isoformat(),
-        "sim_minute": sim_minute,
-        "versions": {
-            "booking_version": booking_version,
-            "plan_version": plan_version,
-            "state_version": state_version,
-            "schedule_version": schedule_version,
-        },
-        "experiment_fingerprint": experiment.fingerprint,
-        "experiment": experiment.model_dump(mode="json"),
-        "station_config": station_config.model_dump(mode="json"),
-        "tariff": tariff.model_dump(mode="json"),
-        "plan": None if plan is None else plan.model_dump(mode="json"),
-        "known_bookings": [b.model_dump(mode="json") for b in known_bookings],
-        "pending_approvals": [a.model_dump(mode="json") for a in pending_approvals],
-        "recent_commands": [c.model_dump(mode="json") for c in recent_commands],
-        "safety_hold_booking_ids": sorted(safety_hold_booking_ids),
-        "rejected_booking_ids": sorted(rejected_booking_ids),
-        "ordinary_outbox_events": [e.model_dump(mode="json") for e in ordinary_outbox_events],
-        "event_manifest_sha256": event_manifest.manifest_sha256,
-        "physics_state": physics_state,
-    }
-    return canonical_sha256(canonical)
+def _manifest_digest(manifest: EventManifest) -> str:
+    return canonical_sha256(manifest.model_dump(mode="json", exclude={"manifest_sha256"}))
 
 
 def _check_capture_readiness(
@@ -245,6 +198,7 @@ def build_known_at_manifest(
     horizon_minutes: int,
     active_bookings: list[Booking],
     raw_physics_state: dict[str, Any],
+    live_store: bool = False,
 ) -> tuple[EventManifest, tuple[Booking, ...]]:
     """Materialize `known_at(T)` cohort & exogenous events once, excluding future hidden ground truth."""
     if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
@@ -256,8 +210,8 @@ def build_known_at_manifest(
     kept_bookings: list[Booking] = []
     excluded_future_bookings = 0
     for b in sorted(active_bookings, key=lambda item: item.booking_id):
-        # Bookings created at/before T (or already physically present at T) belong to known_at(T).
-        if b.created_at <= as_of or b.booking_id in present_set:
+        # The live store is observed at capture. Its created_at uses a different clock.
+        if live_store or b.created_at <= as_of:
             kept_bookings.append(b.model_copy(deep=True))
         else:
             excluded_future_bookings += 1
@@ -291,26 +245,6 @@ def build_known_at_manifest(
     if effective_grid_kw is None:
         effective_grid_kw = float(raw_physics_state["available_power_kw"])
 
-    manifest_body = {
-        "schema_version": EVENT_MANIFEST_SCHEMA_VERSION,
-        "station_id": station_id,
-        "as_of": as_of.isoformat(),
-        "as_of_minute": as_of_minute,
-        "horizon_minutes": horizon_minutes,
-        "horizon_end": horizon_end.isoformat(),
-        "horizon_end_minute": horizon_end_minute,
-        "known_booking_ids": known_booking_ids,
-        "already_present_booking_ids": [vid for vid in present_ids if vid in known_set],
-        "known_future_arrival_booking_ids": known_future_arrivals,
-        "excluded_future_booking_count": excluded_future_bookings,
-        "excluded_unbooked_not_arrived_count": excluded_unbooked_not_arrived,
-        "known_limit_events": [ev.model_dump(mode="json") for ev in known_limit_events],
-        "excluded_unannounced_limit_event_count": int(raw_physics_state["hidden_unannounced_limit_event_count"]),
-        "active_faulted_connectors": list(raw_physics_state["faulted_connectors"]),
-        "effective_grid_limit_kw_at_capture": float(effective_grid_kw),
-        "assumptions": list(PROSPECTIVE_ASSUMPTIONS),
-    }
-    manifest_sha = canonical_sha256(manifest_body)
     manifest = EventManifest(
         schema_version=EVENT_MANIFEST_SCHEMA_VERSION,
         station_id=station_id,
@@ -329,9 +263,9 @@ def build_known_at_manifest(
         active_faulted_connectors=list(raw_physics_state["faulted_connectors"]),
         effective_grid_limit_kw_at_capture=float(effective_grid_kw),
         assumptions=list(PROSPECTIVE_ASSUMPTIONS),
-        manifest_sha256=manifest_sha,
+        manifest_sha256="0" * 64,
     )
-    return manifest, tuple(kept_bookings)
+    return manifest.model_copy(update={"manifest_sha256": _manifest_digest(manifest)}), tuple(kept_bookings)
 
 
 async def capture_atomic_snapshot(
@@ -342,7 +276,7 @@ async def capture_atomic_snapshot(
     """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
 
     Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
-    only for the in-memory copy & digest calculation, then releases all locks before returning.
+    for the in-memory copy, then releases all locks before integrity and readiness checks.
     """
     if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
         raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
@@ -361,6 +295,11 @@ async def capture_atomic_snapshot(
                     plan_version = None if plan_copy is None else int(plan_copy.version)
                     station_config = rt.config.model_copy(deep=True)
                     tariff_copy = rt.tariff.model_copy(deep=True)
+                    if type(rt.scheduler) is not hybrid_planner.SimulatorScheduler:
+                        raise SnapshotNotReadyError(
+                            SnapshotNotReadyReason.UNSUPPORTED_STATE,
+                            "Only the registered backend scheduler is supported",
+                        )
                     experiment = resolve_experiment(rt).model_copy(deep=True)
 
                     as_of = rt.simulator.now
@@ -399,41 +338,49 @@ async def capture_atomic_snapshot(
         horizon_minutes=horizon_minutes,
         active_bookings=active_bookings,
         raw_physics_state=raw_physics,
+        live_store=rt.live,
     )
     known_ids = frozenset(manifest.known_booking_ids)
+    safety_holds &= known_ids
+    rejected_ids &= known_ids
     kept_ordinary_outbox = tuple(
-        ev.model_copy(deep=True) for ev in ordinary_outbox if ev.booking_id is None or ev.booking_id in known_ids
+        ev.model_copy(update={"booking_id": ev.booking_id if ev.booking_id in known_ids else None}, deep=True)
+        for ev in ordinary_outbox
+        if ev.booking_id is None
+        or ev.booking_id in known_ids
+        or ev.type in {EventType.CONNECTOR_FAULT, EventType.CONNECTOR_RESTORED}
     )
-    clean_fork = HybridStation.from_physics_seed(station_config, seed)
-    for b in known_bookings:
-        if b.status in ACTIVE and b.booking_id not in clean_fork.queue.sessions:
-            clean_fork.upsert_vehicle(visit_of(b, as_of))
-    clean_fork._events.clear()
-    clean_fork.enforce_known_at_on_fork(sim_minute, known_ids)
-    clean_seed = clean_fork.export_physics_seed()
-    clean_physics = clean_fork.snapshot_physics_state()
+    present_ids = {
+        vid for vid, row in raw_physics["sessions"].items() if row["state"] not in {"NOT_ARRIVED", "DEPARTED"}
+    }
+    physical_ids = present_ids | set(raw_physics["occupied_connectors"].values())
+    sessions = seed.detached_kernel.queue.sessions
+    inconsistent = physical_ids - known_ids or known_ids - sessions.keys()
+    if inconsistent or any(
+        sessions[b.booking_id].vehicle.departure != probe_station.minute_of(b.request.deadline)
+        or sessions[b.booking_id].vehicle.zone != b.request.zone
+        or sessions[b.booking_id].vehicle.target != b.request.soc_target / 100
+        or sessions[b.booking_id].vehicle.max_kw != b.max_charge_power_kw
+        for b in known_bookings
+    ):
+        raise SnapshotNotReadyError(
+            SnapshotNotReadyReason.INCONSISTENT_COHORT, "Booking commitments and physical sessions disagree"
+        )
 
-    snapshot_digest = _build_snapshot_digest_payload(
-        station_id=station_config.station_id,
-        as_of=as_of,
-        sim_minute=sim_minute,
-        booking_version=booking_version,
-        plan_version=plan_version,
-        state_version=int(clean_physics["state_version"]),
-        schedule_version=int(clean_physics["schedule_version"]),
-        experiment=experiment,
-        station_config=station_config,
-        tariff=tariff_copy,
-        plan=plan_copy,
-        known_bookings=known_bookings,
-        pending_approvals=pending_approvals,
-        recent_commands=recent_commands,
-        safety_hold_booking_ids=safety_holds,
-        rejected_booking_ids=rejected_ids,
-        ordinary_outbox_events=kept_ordinary_outbox,
-        event_manifest=manifest,
-        physics_state=clean_physics,
-    )
+    # Historical references are retained only for members of the prospective cohort.
+    pending_approvals = tuple(a for a in pending_approvals if a.command.booking_id in known_ids)
+    recent_commands = tuple(c for c in recent_commands if c.booking_id is None or c.booking_id in known_ids)
+    if plan_copy is not None:
+        plan_copy.sessions = [row for row in plan_copy.sessions if row.booking_id in known_ids]
+        plan_copy.queue = [vid for vid in plan_copy.queue if vid in known_ids]
+    model_metadata = scheduler_meta["dc_charging_model"]
+    if "vehicle_profiles" in model_metadata:
+        model_metadata["vehicle_profiles"] = {
+            vid: profile for vid, profile in model_metadata["vehicle_profiles"].items() if vid in known_ids
+        }
+    probe_station.enforce_known_at_on_fork(sim_minute, known_ids)
+    clean_seed = probe_station.export_physics_seed()
+    clean_physics = probe_station.snapshot_physics_state()
 
     envelope = SnapshotEnvelope(
         snapshot_id=f"snap-{uuid4().hex[:16]}",
@@ -455,7 +402,7 @@ async def capture_atomic_snapshot(
         experiment_fingerprint=experiment.fingerprint,
         event_manifest_sha256=manifest.manifest_sha256,
         stateful_components_sha256=str(clean_physics["stateful_components_sha256"]),
-        snapshot_digest=snapshot_digest,
+        snapshot_digest="0" * 64,
         known_booking_count=len(known_bookings),
         safety_hold_booking_ids=sorted(safety_holds),
         rejected_booking_ids=sorted(rejected_ids),
@@ -464,7 +411,7 @@ async def capture_atomic_snapshot(
         undelivered_ordinary_outbox_count=len(kept_ordinary_outbox),
     )
 
-    return CapturedSnapshot(
+    snapshot = CapturedSnapshot(
         envelope=envelope,
         event_manifest=manifest,
         experiment=experiment,
@@ -486,6 +433,11 @@ async def capture_atomic_snapshot(
         physics_state=_freeze_json_tree(clean_physics),
         _physics_seed=clean_seed,
     )
+    try:
+        digest = snapshot.recompute_digest()
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise SnapshotNotReadyError(SnapshotNotReadyReason.UNSUPPORTED_STATE, type(exc).__name__) from exc
+    return replace(snapshot, envelope=envelope.model_copy(update={"snapshot_digest": digest}))
 
 
 def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
@@ -493,9 +445,17 @@ def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
 
     Uses no-op `DispatchSinks` and an in-memory `RuntimeStore` (`live=False`, zero DB/WS/file I/O).
     """
+    try:
+        manifest_digest = _manifest_digest(snapshot.event_manifest)
+        valid = (
+            manifest_digest == snapshot.event_manifest.manifest_sha256 == snapshot.envelope.event_manifest_sha256
+            and snapshot.recompute_digest() == snapshot.envelope.snapshot_digest
+        )
+    except (TypeError, ValueError, KeyError, RecursionError) as exc:
+        raise ValueError("Snapshot integrity check failed") from exc
+    if not valid:
+        raise ValueError("Snapshot integrity check failed")
     fork_station = HybridStation.from_physics_seed(snapshot.station_config, snapshot._physics_seed)
-    known_ids = frozenset(snapshot.event_manifest.known_booking_ids)
-    fork_station.enforce_known_at_on_fork(snapshot.envelope.sim_minute, known_ids)
 
     params = _thaw_json_tree(snapshot.scheduler_parameters) or None
     scheduler = make_scheduler(

@@ -362,6 +362,8 @@ class SnapshotStatus(StrEnum):
 class SnapshotNotReadyReason(StrEnum):
     UNRESOLVED_HARD_SAFETY_EVENT = "unresolved_hard_safety_event"
     UNSAFE_PHYSICAL_STATE = "unsafe_physical_state"
+    INCONSISTENT_COHORT = "inconsistent_cohort"
+    UNSUPPORTED_STATE = "unsupported_state"
 
 
 class KnownLimitEvent(BaseModel):
@@ -514,7 +516,9 @@ class VehicleOutcomeRecord(BaseModel):
     booking_id: str = Field(min_length=1)
     zone: Literal["AC", "DC"]
     vehicle_model: str = Field(min_length=1)
-    physically_feasible_from_arrival: bool
+    within_optimistic_energy_bound: bool = Field(
+        description="Vehicle power cap × available hours can cover requested output energy under ideal conditions."
+    )
     original_arrival_at: AwareDatetime
     original_deadline: AwareDatetime
     original_soc_now_pct: float = Field(ge=0, le=100)
@@ -534,6 +538,8 @@ class VehicleOutcomeRecord(BaseModel):
     assigned_connector_id: str | None = None
     plug_in_at: AwareDatetime | None = None
     first_charge_at: AwareDatetime | None = None
+    first_rollout_charge_at: AwareDatetime | None = None
+    historical_plug_time_unknown: bool = False
     target_reached_at: AwareDatetime | None = None
     release_or_departure_at: AwareDatetime | None = None
     release_reason: VehicleReleaseReason | None = None
@@ -541,6 +547,7 @@ class VehicleOutcomeRecord(BaseModel):
     plug_wait_minutes: float | None = Field(default=None, ge=0)
     censored_plug_wait_minutes: float | None = Field(default=None, ge=0)
     charge_start_wait_minutes: float | None = Field(default=None, ge=0)
+    censored_charge_start_wait_minutes: float | None = Field(default=None, ge=0)
     fault_unplug_count: int = Field(default=0, ge=0)
 
     horizon_battery_stored_kwh: float = Field(ge=0)
@@ -586,6 +593,7 @@ class VehicleOutcomeRecord(BaseModel):
             "plug_wait_minutes",
             "censored_plug_wait_minutes",
             "charge_start_wait_minutes",
+            "censored_charge_start_wait_minutes",
             "horizon_battery_stored_kwh",
             "horizon_output_kwh",
             "horizon_grid_input_kwh",
@@ -619,17 +627,17 @@ class ZoneSlaSummary(BaseModel):
     sla_denominator: int = Field(ge=0)
     sla_met_count: int = Field(ge=0)
     on_time_rate: float | None = Field(default=None, ge=0, le=1)
-    feasible_sla_denominator: int = Field(ge=0)
-    feasible_sla_met_count: int = Field(ge=0)
-    feasible_on_time_rate: float | None = Field(default=None, ge=0, le=1)
+    energy_bound_sla_denominator: int = Field(ge=0)
+    energy_bound_sla_met_count: int = Field(ge=0)
+    energy_bound_on_time_rate: float | None = Field(default=None, ge=0, le=1)
     service_coverage_rate: float | None = Field(default=None, ge=0, le=1)
 
     @model_validator(mode="after")
     def _validate_denominators(self) -> "ZoneSlaSummary":
         if (self.sla_denominator == 0) != (self.on_time_rate is None):
             raise ValueError("on_time_rate must be None iff sla_denominator == 0")
-        if (self.feasible_sla_denominator == 0) != (self.feasible_on_time_rate is None):
-            raise ValueError("feasible_on_time_rate must be None iff feasible_sla_denominator == 0")
+        if (self.energy_bound_sla_denominator == 0) != (self.energy_bound_on_time_rate is None):
+            raise ValueError("energy_bound_on_time_rate must be None iff energy_bound_sla_denominator == 0")
         if (self.arrived_count == 0) != (self.service_coverage_rate is None):
             raise ValueError("service_coverage_rate must be None iff arrived_count == 0")
         return self
@@ -648,6 +656,7 @@ class OutcomeLedger(BaseModel):
     as_of: AwareDatetime
     horizon_end: AwareDatetime
     horizon_minutes: int = Field(gt=0)
+    observed_until: AwareDatetime
 
     cohort_size: int = Field(ge=0)
     arrived_count: int = Field(ge=0)
@@ -666,13 +675,15 @@ class OutcomeLedger(BaseModel):
     sla_denominator: int = Field(ge=0)
     sla_met_count: int = Field(ge=0)
     on_time_rate: float | None = Field(default=None, ge=0, le=1)
-    feasible_sla_denominator: int = Field(ge=0)
-    feasible_sla_met_count: int = Field(ge=0)
-    feasible_on_time_rate: float | None = Field(default=None, ge=0, le=1)
+    energy_bound_sla_denominator: int = Field(ge=0)
+    energy_bound_sla_met_count: int = Field(ge=0)
+    energy_bound_on_time_rate: float | None = Field(default=None, ge=0, le=1)
     service_coverage_denominator: int = Field(ge=0)
     service_coverage_rate: float | None = Field(default=None, ge=0, le=1)
     charged_coverage_rate: float | None = Field(default=None, ge=0, le=1)
 
+    plug_wait_observed_count: int = Field(ge=0)
+    charge_start_wait_observed_count: int = Field(ge=0)
     plug_wait_mean_minutes: float | None = Field(default=None, ge=0)
     plug_wait_p90_minutes: float | None = Field(default=None, ge=0)
     charge_start_wait_mean_minutes: float | None = Field(default=None, ge=0)
@@ -713,8 +724,8 @@ class OutcomeLedger(BaseModel):
             raise ValueError("arrived_count + not_arrived_count must equal cohort_size")
         if (self.sla_denominator == 0) != (self.on_time_rate is None):
             raise ValueError("on_time_rate must be None iff sla_denominator == 0")
-        if (self.feasible_sla_denominator == 0) != (self.feasible_on_time_rate is None):
-            raise ValueError("feasible_on_time_rate must be None iff feasible_sla_denominator == 0")
+        if (self.energy_bound_sla_denominator == 0) != (self.energy_bound_on_time_rate is None):
+            raise ValueError("energy_bound_on_time_rate must be None iff energy_bound_sla_denominator == 0")
         if (self.service_coverage_denominator == 0) != (self.service_coverage_rate is None):
             raise ValueError("service_coverage_rate must be None iff service_coverage_denominator == 0")
         if (self.service_coverage_denominator == 0) != (self.charged_coverage_rate is None):
@@ -728,6 +739,9 @@ class SandboxBranchResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     branch_label: str = Field(min_length=1, max_length=64)
+    status: Literal["completed", "unsafe", "unresolved_safety"]
+    observed_until: AwareDatetime
+    unresolved_safety_count: int = Field(ge=0)
     applied: Literal[False] = False
     snapshot_id: str = Field(min_length=1, max_length=64)
     initial_snapshot_digest: str = Field(min_length=64, max_length=64)

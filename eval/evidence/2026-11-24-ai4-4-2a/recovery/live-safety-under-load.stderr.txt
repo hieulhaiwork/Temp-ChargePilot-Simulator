@@ -1,0 +1,2 @@
+fail-safe sau khi áp: lỗi charging_model của xe load-dc — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=d1193d2dcfa146d5847fd55eb6f8b55f)
+fail-safe sau khi áp:  — 1 lệnh an toàn (correlation_id=d1193d2dcfa146d5847fd55eb6f8b55f)

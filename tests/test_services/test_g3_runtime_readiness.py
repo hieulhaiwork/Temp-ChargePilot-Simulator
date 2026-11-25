@@ -84,3 +84,33 @@ async def test_admission_evaluate_does_not_promise_allocation_while_hard_safety_
     assert quoted.plugged_at is None
     assert quoted.delivered_kwh == 0.0
     assert quoted.unmet_kwh > 0.05
+
+
+async def test_admission_cannot_promise_after_rollout_hard_safety(monkeypatch):
+    from src.simulator.hybrid_station import HybridStation
+
+    rt = await _build_runtime_with_queued_vehicle()
+    candidate = booking("candidate-ac", zone="AC", kwh=12, hours=1.0, now=rt.clock())
+    orig = HybridStation.step
+    steps = []
+
+    def step(station, minutes):
+        events = orig(station, minutes)
+        steps.append(station.minute)
+        if len(steps) == 1:
+            events.append(
+                StationEvent(
+                    event_id="g3-admission-hard",
+                    type=EventType.HARD_LIMIT_VIOLATED,
+                    occurred_at=station.now,
+                    violation_kinds=["charging_model"],
+                )
+            )
+        return events
+
+    monkeypatch.setattr(HybridStation, "step", step)
+    result = await admission.evaluate(rt, candidate)
+    assert len(steps) == 1
+    assert result.safety_interrupted
+    assert result.connector_id is None
+    assert not rt.has_pending_safety()

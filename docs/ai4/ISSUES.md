@@ -60,17 +60,22 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 | G2-F08 | **Confirmed gap → Fixed**. Mở rộng independent oracle kiểm toán mọi emitted fact/ref, tách 9 chỉ số kèm denominator rõ ràng và 7/7 mutation detection. | WHY Evaluation |
 | G2-F09 | **Confirmed handoff gap → Fixed**. Tạo/xác minh `docs/ai4/PHASE_4_1_REPORT.md` đồng bộ với `PROJECT_STATE.md`, ledger, hashes và raw evidence. | Docs / Handoff |
 
-## Gate 3 (AI-4.2A) audit & remediation ledger
+## Gate 3 (AI-4.2A) remediation ledger
 
-| ID | Phân loại và kết quả | Owner |
+| ID | Phân loại | Xử lý |
 |---|---|---|
-| **G3-F01** (`fork_runtime` pending safety & `admission_fingerprint`) | **Confirmed bug → Fixed** ([test_g3_runtime_readiness.py](../../tests/test_services/test_g3_runtime_readiness.py), fail-before 3/3 tại [fail-before.stdout.txt](../../eval/evidence/2026-11-24-ai4-4-2a/raw/fail-before.stdout.txt)). Trước sửa, `fork_runtime()` bỏ rơi `_pending_safety`, `_acknowledged_safety` và `_safety_attempts`, khiến fork thoát khỏi interlock an toàn và `admission.evaluate()` hứa cấp cổng/công suất ngay khi live đang treo hard safety; đồng thời `admission_fingerprint()` không đổi khi phát sinh/giải quyết `_pending_safety`. Đã kế thừa đầy đủ trạng thái pending safety trong `fork_runtime()` và đưa `frozenset(_pending_safety)` vào `admission_fingerprint()`. | Runtime / Admission |
-| **R07 (G3 scope)** — Atomic counterfactual snapshot | **Implemented & Verified** ([snapshot.py](../../src/services/copilot/snapshot.py), [test_counterfactual_foundation.py](../../tests/test_services/test_counterfactual_foundation.py)). Chụp nguyên tử theo thứ tự khóa chuẩn `booking_lock → decision_lock → _clock_lock → simulator.lock`, kiểm chứng bằng barrier concurrency không có mixed-version state, không chứa lock/DB/loop/WS/actuator trong graph đối tượng của `CapturedSnapshot`, từ chối `not_ready` khi còn unresolved hard safety hoặc trạng thái vật lý không an toàn mà không làm rơi event outbox hay nhả Safety Hold. | Copilot Snapshot / Runtime |
-| **R06 (G3 foundation half)** — Paired sandbox runner & `known_at(T)` | **Implemented & Verified (G3 scope)** ([counterfactual.py](../../src/services/copilot/counterfactual.py)). Xây dựng `EventManifest` (`known_at(T)`) materialize một lần, cắt sạch future hidden bookings và `LimitEvent` chưa công bố trên fork, chạy paired no-op (`baseline` & `counterfactual`) tái sử dụng Unified Core + Guard + `dispatcher` + single-thread `solver.run_async` kèm `_LOOP_MINUTE_GATES` chống làm đói live replan. Phần 4 business patches (`revise_vehicle`, `site_limit`, `outage`, WHAT-IF API/job) thuộc G4 (AI-4.2B). | Copilot Counterfactual |
-| **R11** — Additive Outcome Ledger | **Implemented & Verified** ([outcome_ledger.py](../../src/services/copilot/outcome_ledger.py)). Giữ nguyên KPI đóng băng; cố định cohort (giữ cả `NOT_ARRIVED`), bảo toàn cam kết gốc, tách năng lượng trước/sau snapshot (không cộng trùng), tách `plug_in_at` vs `first_charge_at` và `target_reached_at` vs `release_or_departure_at`, phân loại 8 trạng thái và trả `None` khi mẫu số rỗng. | Copilot Evaluator |
+| G3-F01 | Confirmed bug | Giữ bản sửa của Neon cho fork và fingerprint. Readiness đã qua 3/3 trên candidate Neon. |
+| G3-F02 | Confirmed bug | Rollout và admission dùng runtime interlock, retry/readback G1 và ghi kết quả an toàn tại bước cuối. |
+| G3-F03 | Confirmed bug | So hash nội dung manifest và seed trước khi dựng branch, copy budget/setpoint maps. |
+| G3-F04 | Confirmed bug | Từ chối cohort vật lý bất nhất, dùng commit membership cho store live, scope lại plan/commands/approvals và lưu mutation event trong outbox. |
+| G3-F05 | Confirmed bug | Historical first charge thiếu evidence trả null. Tách mốc first rollout charge và lưu trạng thái historical plug unknown. |
+| G3-F06 | Confirmed limitation | Đặt tên optimistic energy bound, báo denominator và dùng mốc quan sát được khi censor. |
+| G3-F07 | Confirmed bug và giới hạn | Hủy và thu hồi branch còn lại khi paired job lỗi. Giới hạn concurrency trong một event loop. Native solver và live priority giữ giới hạn. |
+| G3-F08 | Confirmed evidence gap | Candidate patch và gate runner với expected exit codes, independent evaluation và kết quả tổng hợp. |
 
-## Backlog theo dõi sau AI-4.2A (G4+)
+Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REPORT.md).
 
-- **WHAT-IF Business Patches & Delta Engine (G4 / AI-4.2B)**: Triển khai các bản vá nghiệp vụ có kiểm soát (`add_vehicle`, `revise_vehicle`, `site_limit`, `outage`), tính delta so với baseline trên cùng `CapturedSnapshot` + `EventManifest` và kiểm chứng target SOC thấp hơn SOC hiện tại (`already attained`).
-- **HOW-TO Bounded Candidate Search (G5), LLM Presentation & Grounding Validator (G6), PostgreSQL Runtime & Release Verification (G7)**: Theo lộ trình Master Plan và quyết định Tech Lead tại `aa37ca5`, tiếp tục giữ ở các cổng G5–G7 tương ứng (không đụng R10 billing/quote semantics nếu chưa có duyệt riêng).
-- **Doc drift ngoài phạm vi AI-4**: Các tài liệu lịch sử cũ ngoài `docs/ai4/` được giữ nguyên theo chỉ đạo Tech Lead và đưa vào backlog dọn tài liệu sau.
+## Backlog sau AI-4.2A
+
+- G4 MUST gồm `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit` và `outage`. G4 chỉ bắt đầu sau khi Tech Lead phê duyệt G3.
+- G5–G7 giữ bounded HOW-TO, production grounding, LLM integration và PostgreSQL runtime verification theo Master Plan.

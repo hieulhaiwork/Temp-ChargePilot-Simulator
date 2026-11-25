@@ -27,9 +27,11 @@ from src.services.copilot.snapshot import CapturedSnapshot, build_sandbox_runtim
 
 # Per-event-loop Semaphore(1) so multiple sandbox rollouts never flood the single-worker HiGHS
 # solver executor ahead of live replans, without binding one Semaphore across closed event loops.
-_LOOP_MINUTE_GATES: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
-    weakref.WeakKeyDictionary()
+_LOOP_MINUTE_GATES: weakref.WeakValueDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
+    weakref.WeakValueDictionary()
 )
+_LOOP_ACTIVE_BRANCHES: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, int] = weakref.WeakKeyDictionary()
+_MAX_ACTIVE_BRANCHES = 8
 
 
 def _minute_gate() -> asyncio.Semaphore:
@@ -85,10 +87,17 @@ async def _execute_branch(
     frt = build_sandbox_runtime(snapshot)
     minute_entries: list[DecisionLogEntry] = []
     base_log = frt.sinks.log_decision
+    executed_count = 0
+    blocked_count = 0
 
     def _capture_entry(entry: DecisionLogEntry) -> None:
+        nonlocal executed_count, blocked_count
         base_log(entry)
         minute_entries.append(entry)
+        if entry.executed:
+            executed_count += 1
+        elif entry.approval_id is None:
+            blocked_count += 1
 
     frt.sinks = replace(frt.sinks, log_decision=_capture_entry)
     sim = frt.simulator
@@ -104,8 +113,6 @@ async def _execute_branch(
     )
 
     events: list[StationEvent] = list(frt.take_events())
-    executed_count = 0
-    blocked_count = 0
 
     while sim.minute < end_minute:
         await _cooperative_yield(cancel_event, live_busy_probe)
@@ -116,20 +123,24 @@ async def _execute_branch(
             _check_cancel(cancel_event)
             minute_entries.clear()
             await control_loop.on_minute(frt, events)
-            entries = list(minute_entries)
-            for entry in entries:
-                if entry.executed:
-                    executed_count += 1
-                elif entry.approval_id is None:
-                    blocked_count += 1
-            tracker.observe_after_dispatch(sim, entries)
-            events = sim.step(1)
+            await control_loop.settle_rollout_safety(frt)
+            _check_cancel(cancel_event)
+            tracker.observe_after_dispatch(sim, minute_entries)
+            if frt.has_pending_safety():
+                break
+            frt.advance_clock(minutes=1)
+            events = frt.take_events()
             tracker.observe_after_physics_step(
                 sim,
                 step_start_minute=current_minute,
                 step_start_dt=current_dt,
                 emitted_events=events,
             )
+            if sim.minute == end_minute and frt.has_pending_safety():
+                minute_entries.clear()
+                await control_loop.on_minute(frt, events)
+                await control_loop.settle_rollout_safety(frt)
+                tracker.observe_after_dispatch(sim, minute_entries)
 
         if step_hook is not None:
             maybe_coro = step_hook(branch_label, sim.minute)
@@ -138,12 +149,22 @@ async def _execute_branch(
 
     _check_cancel(cancel_event)
     ledger = tracker.finalize(sim)
+    unresolved = len(frt.inspect_pending_safety())
     final_physics = sim.snapshot_physics_state()
     final_physics_digest = canonical_sha256(final_physics)
     wall_ms = round((time.perf_counter() - started) * 1000.0, 3)
 
     return SandboxBranchResult(
         branch_label=branch_label,
+        status=(
+            "unresolved_safety"
+            if unresolved
+            else "unsafe"
+            if ledger.horizon_applied_constraint_violation_count
+            else "completed"
+        ),
+        observed_until=sim.now,
+        unresolved_safety_count=unresolved,
         applied=False,
         snapshot_id=snapshot.envelope.snapshot_id,
         initial_snapshot_digest=snapshot.envelope.snapshot_digest,
@@ -177,22 +198,30 @@ async def run_sandbox_branch(
     """Run one isolated counterfactual branch from `snapshot` with optional timeout and cancellation."""
     if timeout_s is not None and timeout_s <= 0:
         raise ValueError("timeout_s must be positive when provided")
-    coro = _execute_branch(
-        snapshot,
-        branch_label=branch_label,
-        cancel_event=cancel_event,
-        step_hook=step_hook,
-        live_busy_probe=live_busy_probe,
-    )
-    if timeout_s is not None:
+    loop = asyncio.get_running_loop()
+    active = _LOOP_ACTIVE_BRANCHES.get(loop, 0)
+    if active >= _MAX_ACTIVE_BRANCHES:
+        raise RuntimeError("Counterfactual sandbox branch capacity exhausted")
+    _LOOP_ACTIVE_BRANCHES[loop] = active + 1
+    try:
         async with asyncio.timeout(timeout_s):
-            return await coro
-    return await coro
+            return await _execute_branch(
+                snapshot,
+                branch_label=branch_label,
+                cancel_event=cancel_event,
+                step_hook=step_hook,
+                live_busy_probe=live_busy_probe,
+            )
+    finally:
+        _LOOP_ACTIVE_BRANCHES[loop] -= 1
 
 
 def non_timing_branch_signature(result: SandboxBranchResult) -> dict:
     """Extract all deterministic non-timing metrics and per-vehicle outcomes for parity comparison."""
     return {
+        "status": result.status,
+        "observed_until": result.observed_until.isoformat(),
+        "unresolved_safety_count": result.unresolved_safety_count,
         "applied": result.applied,
         "initial_snapshot_digest": result.initial_snapshot_digest,
         "experiment_fingerprint": result.experiment_fingerprint,
@@ -231,20 +260,31 @@ async def run_paired_noop(
 
     async def _run_both() -> tuple[SandboxBranchResult, SandboxBranchResult]:
         if interleaved:
-            return await asyncio.gather(
+            baseline_task = asyncio.create_task(
                 run_sandbox_branch(
                     snapshot,
                     branch_label="baseline",
                     cancel_event=cancel_event,
                     live_busy_probe=live_busy_probe,
-                ),
+                )
+            )
+            counterfactual_task = asyncio.create_task(
                 run_sandbox_branch(
                     snapshot,
                     branch_label="counterfactual",
                     cancel_event=cancel_event,
                     live_busy_probe=live_busy_probe,
-                ),
+                )
             )
+            tasks = (baseline_task, counterfactual_task)
+            try:
+                baseline, counterfactual = await asyncio.gather(*tasks)
+                return baseline, counterfactual
+            finally:
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
         base = await run_sandbox_branch(
             snapshot,
             branch_label="baseline",

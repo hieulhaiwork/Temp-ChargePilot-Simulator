@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-g3-gate-01/code
+$ bash -c printf\ \"PostgreSQL\ runtime\ verification\ is\ pending.\\n\"\;\ exit\ 77 
+PostgreSQL runtime verification is pending.

@@ -140,6 +140,8 @@ class StationKernel:
         twin.observation_model = fork_component(self.observation_model, memo)
         twin.queue, twin.adapter = copy.deepcopy((self.queue, self.adapter), memo)
         twin.setpoints = dict(self.setpoints)
+        twin.active_budget_kw = None if self.active_budget_kw is None else dict(self.active_budget_kw)
+        twin.active_setpoints_kw = None if self.active_setpoints_kw is None else dict(self.active_setpoints_kw)
         twin.faults = set(self.faults)
         twin.output_kwh = dict(self.output_kwh)
         twin.output_by_deadline_kwh = dict(self.output_by_deadline_kwh)

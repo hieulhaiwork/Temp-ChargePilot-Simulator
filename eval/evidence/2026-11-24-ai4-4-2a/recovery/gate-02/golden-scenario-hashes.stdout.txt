@@ -1,0 +1,4 @@
+cwd=/home/lehieu/Projects/P-019
+$ sha256sum /tmp/chargepilot-g3-gate-02/crlf/src/simulator/scenario/mvp1.json /tmp/chargepilot-g3-gate-02/crlf/src/simulator/scenario/vinfast_dc_2port_120kw.json 
+c5ad0f748df618cc1c1e7b8d2ec1b90d005d368c538acb5d22a785ed20ff57e3  /tmp/chargepilot-g3-gate-02/crlf/src/simulator/scenario/mvp1.json
+c05e3251f5956dabb6d45211025b69d70e8af587e6db60c1918603abb11353c5  /tmp/chargepilot-g3-gate-02/crlf/src/simulator/scenario/vinfast_dc_2port_120kw.json

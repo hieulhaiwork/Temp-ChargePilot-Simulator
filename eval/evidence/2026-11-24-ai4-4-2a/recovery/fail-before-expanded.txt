@@ -1,0 +1,785 @@
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+FFFFFFFFFFFF.FFFFF                                                       [100%]
+=================================== FAILURES ===================================
+____ test_rollout_handles_hard_safety_before_advancing_or_returning[1-True] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7085a1418b60>
+horizon = 1, blocked = True
+
+    @pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+    async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+        rt = _sim_runtime()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+        initial_minute = rt.simulator.minute
+        hard_id = "g3-injected-hard"
+        original_step = HybridStation.step
+        steps = []
+    
+        def step(station, minutes):
+            events = original_step(station, minutes)
+            steps.append(station.minute)
+            if station.minute == initial_minute + 1:
+                events.append(
+                    StationEvent(
+                        event_id=hard_id,
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=station.now,
+                        violation_kinds=[] if blocked else ["aggregate_power"],
+                    )
+                )
+            return events
+    
+        monkeypatch.setattr(HybridStation, "step", step)
+        result = await run_sandbox_branch(snap)
+        assert len(steps) == (1 if blocked else horizon)
+>       assert result.status == ("unresolved_safety" if blocked else "completed")
+               ^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:984: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = SandboxBranchResult(branch_label='baseline', applied=False, snapshot_id='snap-9bd2269182db449b', initial_snapshot_dige...(original_deadline > horizon_end and not yet completed) remain in the cohort and are excluded from sla_denominator.']))
+item = 'status'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'SandboxBranchResult' object has no attribute 'status'
+
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pydantic/main.py:1110: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+____ test_rollout_handles_hard_safety_before_advancing_or_returning[3-True] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7085a1158b90>
+horizon = 3, blocked = True
+
+    @pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+    async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+        rt = _sim_runtime()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+        initial_minute = rt.simulator.minute
+        hard_id = "g3-injected-hard"
+        original_step = HybridStation.step
+        steps = []
+    
+        def step(station, minutes):
+            events = original_step(station, minutes)
+            steps.append(station.minute)
+            if station.minute == initial_minute + 1:
+                events.append(
+                    StationEvent(
+                        event_id=hard_id,
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=station.now,
+                        violation_kinds=[] if blocked else ["aggregate_power"],
+                    )
+                )
+            return events
+    
+        monkeypatch.setattr(HybridStation, "step", step)
+        result = await run_sandbox_branch(snap)
+>       assert len(steps) == (1 if blocked else horizon)
+E       assert 3 == 1
+E        +  where 3 = len([1, 2, 3])
+
+tests/test_services/test_counterfactual_foundation.py:983: AssertionError
+----------------------------- Captured stderr call -----------------------------
+WARNI [src.services.control_loop] fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=de7aef05c0a04f96868f5f092fe65c43)
+ERROR [src.services.control_loop] safety_unresolved clock_paused=true correlation_id=de7aef05c0a04f96868f5f092fe65c43 attempt=1 retry_limit=3 dispatch=no_commands
+------------------------------ Captured log call -------------------------------
+WARNING  src.services.control_loop:control_loop.py:528 fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=de7aef05c0a04f96868f5f092fe65c43)
+ERROR    src.services.control_loop:control_loop.py:471 safety_unresolved clock_paused=true correlation_id=de7aef05c0a04f96868f5f092fe65c43 attempt=1 retry_limit=3 dispatch=no_commands
+___ test_rollout_handles_hard_safety_before_advancing_or_returning[3-False] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70859fecb170>
+horizon = 3, blocked = False
+
+    @pytest.mark.parametrize("horizon, blocked", [(1, True), (3, True), (3, False)])
+    async def test_rollout_handles_hard_safety_before_advancing_or_returning(monkeypatch, horizon, blocked):
+        rt = _sim_runtime()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+        initial_minute = rt.simulator.minute
+        hard_id = "g3-injected-hard"
+        original_step = HybridStation.step
+        steps = []
+    
+        def step(station, minutes):
+            events = original_step(station, minutes)
+            steps.append(station.minute)
+            if station.minute == initial_minute + 1:
+                events.append(
+                    StationEvent(
+                        event_id=hard_id,
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=station.now,
+                        violation_kinds=[] if blocked else ["aggregate_power"],
+                    )
+                )
+            return events
+    
+        monkeypatch.setattr(HybridStation, "step", step)
+        result = await run_sandbox_branch(snap)
+        assert len(steps) == (1 if blocked else horizon)
+>       assert result.status == ("unresolved_safety" if blocked else "completed")
+               ^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:984: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = SandboxBranchResult(branch_label='baseline', applied=False, snapshot_id='snap-f526276e30864900', initial_snapshot_dige...(original_deadline > horizon_end and not yet completed) remain in the cohort and are excluded from sla_denominator.']))
+item = 'status'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'SandboxBranchResult' object has no attribute 'status'
+
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pydantic/main.py:1110: AttributeError
+____________ test_snapshot_rejects_altered_branch_inputs[manifest] _____________
+
+field = 'manifest'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+        if field == "manifest":
+            snap.event_manifest.known_booking_ids.append("hidden")
+        elif field == "booking":
+            snap.known_bookings[0].request.soc_target -= 1
+        elif field == "config":
+            snap.station_config.guard.approval_ttl_minutes += 1
+        elif field == "plan":
+            object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+        elif field == "scheduler":
+            snap = replace(snap, scheduler_metadata={"other": True})
+        elif field == "physics":
+            snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+>       with pytest.raises(ValueError, match="integrity"):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_counterfactual_foundation.py:1011: Failed
+_____________ test_snapshot_rejects_altered_branch_inputs[booking] _____________
+
+field = 'booking'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+        if field == "manifest":
+            snap.event_manifest.known_booking_ids.append("hidden")
+        elif field == "booking":
+            snap.known_bookings[0].request.soc_target -= 1
+        elif field == "config":
+            snap.station_config.guard.approval_ttl_minutes += 1
+        elif field == "plan":
+            object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+        elif field == "scheduler":
+            snap = replace(snap, scheduler_metadata={"other": True})
+        elif field == "physics":
+            snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+>       with pytest.raises(ValueError, match="integrity"):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_counterfactual_foundation.py:1011: Failed
+_____________ test_snapshot_rejects_altered_branch_inputs[config] ______________
+
+field = 'config'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+        if field == "manifest":
+            snap.event_manifest.known_booking_ids.append("hidden")
+        elif field == "booking":
+            snap.known_bookings[0].request.soc_target -= 1
+        elif field == "config":
+            snap.station_config.guard.approval_ttl_minutes += 1
+        elif field == "plan":
+            object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+        elif field == "scheduler":
+            snap = replace(snap, scheduler_metadata={"other": True})
+        elif field == "physics":
+            snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+>       with pytest.raises(ValueError, match="integrity"):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_counterfactual_foundation.py:1011: Failed
+______________ test_snapshot_rejects_altered_branch_inputs[plan] _______________
+
+field = 'plan'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+        if field == "manifest":
+            snap.event_manifest.known_booking_ids.append("hidden")
+        elif field == "booking":
+            snap.known_bookings[0].request.soc_target -= 1
+        elif field == "config":
+            snap.station_config.guard.approval_ttl_minutes += 1
+        elif field == "plan":
+            object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+        elif field == "scheduler":
+            snap = replace(snap, scheduler_metadata={"other": True})
+        elif field == "physics":
+            snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+>       with pytest.raises(ValueError, match="integrity"):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_counterfactual_foundation.py:1011: Failed
+____________ test_snapshot_rejects_altered_branch_inputs[scheduler] ____________
+
+field = 'scheduler'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+        if field == "manifest":
+            snap.event_manifest.known_booking_ids.append("hidden")
+        elif field == "booking":
+            snap.known_bookings[0].request.soc_target -= 1
+        elif field == "config":
+            snap.station_config.guard.approval_ttl_minutes += 1
+        elif field == "plan":
+            object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+        elif field == "scheduler":
+            snap = replace(snap, scheduler_metadata={"other": True})
+        elif field == "physics":
+            snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+>       with pytest.raises(ValueError, match="integrity"):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_counterfactual_foundation.py:1011: Failed
+_____________ test_snapshot_rejects_altered_branch_inputs[physics] _____________
+
+field = 'physics'
+
+    @pytest.mark.parametrize("field", ["manifest", "booking", "config", "plan", "scheduler", "physics"])
+    async def test_snapshot_rejects_altered_branch_inputs(field):
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        rt = _sim_runtime()
+        b = booking("integrity-vehicle", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=1)
+        if field == "manifest":
+            snap.event_manifest.known_booking_ids.append("hidden")
+        elif field == "booking":
+            snap.known_bookings[0].request.soc_target -= 1
+        elif field == "config":
+            snap.station_config.guard.approval_ttl_minutes += 1
+        elif field == "plan":
+            object.__setattr__(snap.plan, "version", snap.plan.version + 1)
+        elif field == "scheduler":
+            snap = replace(snap, scheduler_metadata={"other": True})
+        elif field == "physics":
+            snap._physics_seed.detached_kernel.command_resolution_kw += 0.5
+>       with pytest.raises(ValueError, match="integrity"):
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_services/test_counterfactual_foundation.py:1011: Failed
+_______________ test_snapshot_rejects_untracked_present_vehicle ________________
+
+    async def test_snapshot_rejects_untracked_present_vehicle():
+        rt = _sim_runtime()
+        b = booking("physical-only", zone="AC", kwh=5, now=rt.clock())
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+>       with pytest.raises(SnapshotNotReadyError):
+E       Failed: DID NOT RAISE SnapshotNotReadyError
+
+tests/test_services/test_counterfactual_foundation.py:1019: Failed
+________ test_historical_charge_start_stays_unknown_after_reassignment _________
+
+    async def test_historical_charge_start_stays_unknown_after_reassignment():
+        rt = _sim_runtime(StrategyName.SIM_B0)
+        sim = rt.simulator
+        t0 = sim.now
+        b = booking("dc-delayed", zone="DC", kwh=25, hours=2.0, now=t0)
+        rt.store.save_booking(b)
+        sim.upsert_vehicle(visit_of(b, t0))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
+        session = sim.queue.sessions[b.booking_id]
+        assert session.charge_started == sim.minute
+        power = sim.kernel.setpoints[b.booking_id]
+        sim.kernel.hold_setpoint(b.booking_id, 0)
+        sim.step(2)
+        assert sim.kernel.output_kwh.get(b.booking_id, 0.0) == 0
+        sim.kernel.hold_setpoint(b.booking_id, power)
+        sim.step(1)
+        pre_output = sim.kernel.output_kwh[b.booking_id]
+        assert pre_output > 0
+    
+        events = sim.inject_incident(
+            Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=sim.connector_of(session.connector))
+        )
+        assert session.charge_started is None
+        await control_loop.on_minute(rt, events)
+        assert session.charge_started == sim.minute
+    
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
+        row = (await run_sandbox_branch(snap)).outcome_ledger.vehicles[0]
+        assert row.pre_snapshot_output_kwh == pytest.approx(pre_output, abs=1e-6)
+>       assert row.historical_plug_time_unknown
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:1052: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = VehicleOutcomeRecord(booking_id='dc-delayed', zone='DC', vehicle_model='VF8_NEW_2026', physically_feasible_from_arriva...NSORED_IN_PROGRESS: 'censored_in_progress'>, sla_evaluable=False, censored=True, unserved=False, met_original_sla=None)
+item = 'historical_plug_time_unknown'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'VehicleOutcomeRecord' object has no attribute 'historical_plug_time_unknown'
+
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pydantic/main.py:1110: AttributeError
+_____________ test_interleaved_pair_reaps_peer_on_branch_exception _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7085a11b6150>
+
+    async def test_interleaved_pair_reaps_peer_on_branch_exception(monkeypatch):
+        from src.services.copilot import counterfactual
+    
+        peer_started = asyncio.Event()
+        peer_cleaned = asyncio.Event()
+    
+        async def branch(_snapshot, *, branch_label, **_kwargs):
+            if branch_label == "baseline":
+                await peer_started.wait()
+                raise ValueError("injected branch failure")
+            peer_started.set()
+            try:
+                await asyncio.Future()
+            finally:
+                peer_cleaned.set()
+    
+        monkeypatch.setattr(counterfactual, "run_sandbox_branch", branch)
+        with pytest.raises(ValueError, match="injected branch failure"):
+            await counterfactual.run_paired_noop(None, interleaved=True)
+        cleaned_at_return = peer_cleaned.is_set()
+        for task in asyncio.all_tasks() - {asyncio.current_task()}:
+            if task.get_coro().__qualname__.endswith(".<locals>.branch"):
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+>       assert cleaned_at_return
+E       assert False
+
+tests/test_services/test_counterfactual_foundation.py:1082: AssertionError
+________________ test_missing_physical_update_reports_not_ready ________________
+
+    async def test_missing_physical_update_reports_not_ready():
+        rt = _sim_runtime()
+        book_only = booking("persisted-only", zone="AC", kwh=5, now=rt.clock())
+        rt.store.save_booking(book_only)
+>       with pytest.raises(SnapshotNotReadyError) as err:
+E       Failed: DID NOT RAISE SnapshotNotReadyError
+
+tests/test_services/test_counterfactual_foundation.py:1128: Failed
+______ test_rollout_vehicle_safety_readback_requires_executed_stop[True] _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70859ff62390>
+block_stop = True
+
+    @pytest.mark.parametrize("block_stop", [True, False])
+    async def test_rollout_vehicle_safety_readback_requires_executed_stop(monkeypatch, block_stop):
+        from src.guard import dispatcher
+        from src.services.runtime import SAFETY_ATTEMPT_LIMIT
+    
+        rt = _sim_runtime(StrategyName.SIM_B0)
+        b = booking("safety-active", zone="DC", kwh=25, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        initial_minute = rt.simulator.minute
+        assert rt.simulator.kernel.setpoints[b.booking_id] > 0
+        snapshot = await capture_atomic_snapshot(rt, horizon_minutes=3)
+        original_step = HybridStation.step
+        original_submit = dispatcher.submit
+        attempts = 0
+    
+        def step(station, minutes):
+            events = original_step(station, minutes)
+            if station.minute == initial_minute + 1:
+                events.append(
+                    StationEvent(
+                        event_id="active-vehicle-hard",
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=station.now,
+                        violation_kinds=["charging_model"],
+                        violation_booking_ids=[b.booking_id],
+                    )
+                )
+            return events
+    
+        async def submit(commands, *args, **kwargs):
+            nonlocal attempts
+            if any(cmd.source == CommandSource.EMERGENCY for cmd in commands):
+                attempts += 1
+                if block_stop:
+                    return []
+            return await original_submit(commands, *args, **kwargs)
+    
+        monkeypatch.setattr(HybridStation, "step", step)
+        monkeypatch.setattr(dispatcher, "submit", submit)
+        branch = await run_sandbox_branch(snapshot)
+>       assert attempts == (SAFETY_ATTEMPT_LIMIT if block_stop else 1)
+E       assert 1 == 3
+
+tests/test_services/test_counterfactual_foundation.py:1176: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe safety-active — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=89492293a631461587dc016a112753f4)
+WARNI [src.services.control_loop] fail-safe sau khi áp:  — 1 lệnh an toàn (correlation_id=89492293a631461587dc016a112753f4)
+ERROR [src.services.control_loop] safety_unresolved clock_paused=true correlation_id=89492293a631461587dc016a112753f4 attempt=1 retry_limit=3 dispatch=no_commands
+------------------------------ Captured log call -------------------------------
+ERROR    src.services.control_loop:control_loop.py:517 fail-safe sau khi áp: lỗi charging_model của xe safety-active — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=89492293a631461587dc016a112753f4)
+WARNING  src.services.control_loop:control_loop.py:528 fail-safe sau khi áp:  — 1 lệnh an toàn (correlation_id=89492293a631461587dc016a112753f4)
+ERROR    src.services.control_loop:control_loop.py:471 safety_unresolved clock_paused=true correlation_id=89492293a631461587dc016a112753f4 attempt=1 retry_limit=3 dispatch=no_commands
+______ test_rollout_vehicle_safety_readback_requires_executed_stop[False] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70859ff15520>
+block_stop = False
+
+    @pytest.mark.parametrize("block_stop", [True, False])
+    async def test_rollout_vehicle_safety_readback_requires_executed_stop(monkeypatch, block_stop):
+        from src.guard import dispatcher
+        from src.services.runtime import SAFETY_ATTEMPT_LIMIT
+    
+        rt = _sim_runtime(StrategyName.SIM_B0)
+        b = booking("safety-active", zone="DC", kwh=25, now=rt.clock())
+        rt.store.save_booking(b)
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
+        initial_minute = rt.simulator.minute
+        assert rt.simulator.kernel.setpoints[b.booking_id] > 0
+        snapshot = await capture_atomic_snapshot(rt, horizon_minutes=3)
+        original_step = HybridStation.step
+        original_submit = dispatcher.submit
+        attempts = 0
+    
+        def step(station, minutes):
+            events = original_step(station, minutes)
+            if station.minute == initial_minute + 1:
+                events.append(
+                    StationEvent(
+                        event_id="active-vehicle-hard",
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=station.now,
+                        violation_kinds=["charging_model"],
+                        violation_booking_ids=[b.booking_id],
+                    )
+                )
+            return events
+    
+        async def submit(commands, *args, **kwargs):
+            nonlocal attempts
+            if any(cmd.source == CommandSource.EMERGENCY for cmd in commands):
+                attempts += 1
+                if block_stop:
+                    return []
+            return await original_submit(commands, *args, **kwargs)
+    
+        monkeypatch.setattr(HybridStation, "step", step)
+        monkeypatch.setattr(dispatcher, "submit", submit)
+        branch = await run_sandbox_branch(snapshot)
+        assert attempts == (SAFETY_ATTEMPT_LIMIT if block_stop else 1)
+        observed_minutes = 1 if block_stop else 3
+>       assert branch.observed_until == snapshot.envelope.as_of + timedelta(minutes=observed_minutes)
+               ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:1178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = SandboxBranchResult(branch_label='baseline', applied=False, snapshot_id='snap-1fb408e47bca4799', initial_snapshot_dige...(original_deadline > horizon_end and not yet completed) remain in the cohort and are excluded from sla_denominator.']))
+item = 'observed_until'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'SandboxBranchResult' object has no attribute 'observed_until'
+
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pydantic/main.py:1110: AttributeError
+----------------------------- Captured stderr call -----------------------------
+ERROR [src.services.control_loop] fail-safe sau khi áp: lỗi charging_model của xe safety-active — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=94a256c3ad6645a5a4c8689cf8d67012)
+WARNI [src.services.control_loop] fail-safe sau khi áp:  — 1 lệnh an toàn (correlation_id=94a256c3ad6645a5a4c8689cf8d67012)
+------------------------------ Captured log call -------------------------------
+ERROR    src.services.control_loop:control_loop.py:517 fail-safe sau khi áp: lỗi charging_model của xe safety-active — giảm tải không sửa được: ngắt công suất cổng, cần vận hành kiểm tra (correlation_id=94a256c3ad6645a5a4c8689cf8d67012)
+WARNING  src.services.control_loop:control_loop.py:528 fail-safe sau khi áp:  — 1 lệnh an toàn (correlation_id=94a256c3ad6645a5a4c8689cf8d67012)
+________________ test_live_store_clock_and_staged_booking_event ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70859ff6f470>
+clean_db = None
+
+    async def test_live_store_clock_and_staged_booking_event(monkeypatch, clean_db):
+        from src.services import event_bus
+        from src.services.copilot.snapshot import build_sandbox_runtime
+    
+        live = runtime.get_runtime()
+        live.clock = lambda: live.simulator.now
+        start = live.simulator.now
+        repository.upsert_user(
+            UserRecord(
+                user_id="g3-clock-resident",
+                email="g3-clock@example.invalid",
+                role=Role.RESIDENT,
+                display_name="G3 resident",
+                created_at=start,
+            )
+        )
+        fixture = booking("unused", zone="AC", kwh=5, hours=5, now=start, arrival=start + timedelta(minutes=30))
+    
+        # Wall-clock registration can be later than a paused simulator minute.
+        class FutureWallTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return (start + timedelta(days=1)).astimezone(tz)
+    
+        monkeypatch.setattr(charging_service, "datetime", FutureWallTime)
+        publish_original = event_bus.publish
+        captured = []
+    
+        async def publish(event):
+            if event.type == EventType.BOOKING_CREATED:
+                snap = await capture_atomic_snapshot(live, horizon_minutes=2)
+                captured.append(snap)
+                await control_loop.deliver_pending(live)
+                version = live.plan.version
+                await publish_original(event)
+                assert live.plan.version == version
+            else:
+                await publish_original(event)
+    
+        monkeypatch.setattr(event_bus, "publish", publish)
+>       result = await charging_service.book(fixture.request, "g3-clock-resident")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_counterfactual_foundation.py:1261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/services/charging_service.py:304: in book
+    await event_bus.publish(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+event = StationEvent(event_id='19afef48dc164207b2a86b80ea70017a', type=<EventType.BOOKING_CREATED: 'booking_created'>, occurre...r_id=None, booking_id='0fd72c896bf6', new_power_limit_kw=None, detail='', violation_kinds=[], violation_booking_ids=[])
+
+    async def publish(event):
+        if event.type == EventType.BOOKING_CREATED:
+            snap = await capture_atomic_snapshot(live, horizon_minutes=2)
+            captured.append(snap)
+            await control_loop.deliver_pending(live)
+>           version = live.plan.version
+                      ^^^^^^^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'version'
+
+tests/test_services/test_counterfactual_foundation.py:1254: AttributeError
+___________ test_admission_cannot_promise_after_rollout_hard_safety ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70859ff14da0>
+
+    async def test_admission_cannot_promise_after_rollout_hard_safety(monkeypatch):
+        from src.simulator.hybrid_station import HybridStation
+    
+        rt = await _build_runtime_with_queued_vehicle()
+        candidate = booking("candidate-ac", zone="AC", kwh=12, hours=1.0, now=rt.clock())
+        orig = HybridStation.step
+        steps = []
+    
+        def step(station, minutes):
+            events = orig(station, minutes)
+            steps.append(station.minute)
+            if len(steps) == 1:
+                events.append(
+                    StationEvent(
+                        event_id="g3-admission-hard",
+                        type=EventType.HARD_LIMIT_VIOLATED,
+                        occurred_at=station.now,
+                        violation_kinds=["charging_model"],
+                    )
+                )
+            return events
+    
+        monkeypatch.setattr(HybridStation, "step", step)
+        result = await admission.evaluate(rt, candidate)
+>       assert len(steps) == 1
+E       assert 60 == 1
+E        +  where 60 = len([1, 2, 3, 4, 5, 6, ...])
+
+tests/test_services/test_g3_runtime_readiness.py:113: AssertionError
+----------------------------- Captured stderr call -----------------------------
+WARNI [src.services.control_loop] fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=e919d99f8d50445f8d4c9f7f36064d9f)
+ERROR [src.services.control_loop] safety_unresolved clock_paused=true correlation_id=e919d99f8d50445f8d4c9f7f36064d9f attempt=1 retry_limit=3 dispatch=no_commands
+WARNI [src.services.control_loop] fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=31c6587c973c41debd18ae0038a7f756)
+ERROR [src.services.control_loop] safety_unresolved clock_paused=true correlation_id=31c6587c973c41debd18ae0038a7f756 attempt=2 retry_limit=3 dispatch=no_commands
+WARNI [src.services.control_loop] fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=1d479fafa0a34d7a98965ed06d3dbc6a)
+ERROR [src.services.control_loop] safety_unresolved clock_paused=true correlation_id=1d479fafa0a34d7a98965ed06d3dbc6a attempt=3 retry_limit=3 dispatch=no_commands
+------------------------------ Captured log call -------------------------------
+WARNING  src.services.control_loop:control_loop.py:528 fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=e919d99f8d50445f8d4c9f7f36064d9f)
+ERROR    src.services.control_loop:control_loop.py:471 safety_unresolved clock_paused=true correlation_id=e919d99f8d50445f8d4c9f7f36064d9f attempt=1 retry_limit=3 dispatch=no_commands
+WARNING  src.services.control_loop:control_loop.py:528 fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=31c6587c973c41debd18ae0038a7f756)
+ERROR    src.services.control_loop:control_loop.py:471 safety_unresolved clock_paused=true correlation_id=31c6587c973c41debd18ae0038a7f756 attempt=2 retry_limit=3 dispatch=no_commands
+WARNING  src.services.control_loop:control_loop.py:528 fail-safe sau khi áp:  — 0 lệnh an toàn (correlation_id=1d479fafa0a34d7a98965ed06d3dbc6a)
+ERROR    src.services.control_loop:control_loop.py:471 safety_unresolved clock_paused=true correlation_id=1d479fafa0a34d7a98965ed06d3dbc6a attempt=3 retry_limit=3 dispatch=no_commands
+=========================== short test summary info ============================
+FAILED tests/test_services/test_counterfactual_foundation.py::test_rollout_handles_hard_safety_before_advancing_or_returning[1-True]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_rollout_handles_hard_safety_before_advancing_or_returning[3-True]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_rollout_handles_hard_safety_before_advancing_or_returning[3-False]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_altered_branch_inputs[manifest]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_altered_branch_inputs[booking]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_altered_branch_inputs[config]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_altered_branch_inputs[plan]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_altered_branch_inputs[scheduler]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_altered_branch_inputs[physics]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_snapshot_rejects_untracked_present_vehicle
+FAILED tests/test_services/test_counterfactual_foundation.py::test_historical_charge_start_stays_unknown_after_reassignment
+FAILED tests/test_services/test_counterfactual_foundation.py::test_interleaved_pair_reaps_peer_on_branch_exception
+FAILED tests/test_services/test_counterfactual_foundation.py::test_missing_physical_update_reports_not_ready
+FAILED tests/test_services/test_counterfactual_foundation.py::test_rollout_vehicle_safety_readback_requires_executed_stop[True]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_rollout_vehicle_safety_readback_requires_executed_stop[False]
+FAILED tests/test_services/test_counterfactual_foundation.py::test_live_store_clock_and_staged_booking_event
+FAILED tests/test_services/test_g3_runtime_readiness.py::test_admission_cannot_promise_after_rollout_hard_safety
+17 failed, 1 passed, 19 deselected in 1.72s

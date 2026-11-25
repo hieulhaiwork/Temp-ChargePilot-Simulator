@@ -5,7 +5,7 @@ taper, không coordinator, gán cổng EDF) nên có thể hứa SLA mà policy 
 
     runtime.fork_runtime(rt)           bản sao sâu của trạm + cùng policy, control_loop, Guard (store trong bộ nhớ)
     fork.upsert_vehicle(xe giả định)   trạm live không đổi
-    control_loop.on_minute / fork.step(1) tới deadline của xe   (y hệt vòng benchmark)
+    control_loop.on_minute / fork.advance_clock(minutes=1) tới deadline của xe
 
 rồi đọc thời điểm cắm / bắt đầu / đầy, năng lượng giao trước deadline (cùng quy tắc KPI `outcomes()`), chi phí theo
 giá TOU từng phút, vị trí hàng chờ. Khác thực thi thật (ghi trong PHASE3_REPORT): không biết xe chưa đặt lịch, sự cố
@@ -53,6 +53,7 @@ class Admission:
     decisions: int
     approvals_for_candidate: int = 0  # phê duyệt HITL chờ trong lúc mô phỏng, lệnh của chính xe này
     approvals_for_others: int = 0  # ... lệnh của xe khác (có thể đổi kết quả của xe này khi được duyệt)
+    safety_interrupted: bool = False
 
     @property
     def depends_on_approval(self) -> bool:
@@ -79,6 +80,9 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
     while sim.minute < deadline:
         if await control_loop.on_minute(frt, events) is not None:
             decisions += 1
+        await control_loop.settle_rollout_safety(frt)
+        if frt.has_pending_safety():
+            break
         pending.update({a.approval_id: a.command.booking_id for a in frt.store.pending_approvals()})
         session = sim.queue.sessions.get(cid)
         if first:
@@ -91,7 +95,8 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
             connector, plugged = sim.connector_of(session.connector), sim.now
         at = sim.now
         before = sim.kernel.output_kwh.get(cid, 0.0)
-        events = sim.step(1)
+        frt.advance_clock(minutes=1)
+        events = frt.take_events()
         delivered = sim.kernel.output_kwh.get(cid, 0.0) - before
         if delivered > EPS_KWH:
             start = start or at
@@ -99,6 +104,8 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
             cost += delivered * rt.tariff.price_at(at.astimezone(tz).time())
         if session.completed_at is not None:
             break
+    await control_loop.settle_rollout_safety(frt)
+    safety_interrupted = frt.has_pending_safety()
     outcome = next((o for o in sim.outcomes() if o.booking_id == cid), None)
     delivered_kwh = outcome.delivered_kwh_by_deadline if outcome else 0.0
     need = candidate.energy.grid_energy_kwh
@@ -106,11 +113,11 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
     completed = session is not None and session.completed_at is not None
     return Admission(
         policy=getattr(frt.scheduler, "policy_id", None) or str(frt.scheduler.name),
-        connector_id=connector,
-        plugged_at=plugged,
-        charge_start=start,
-        charge_end=end,
-        completed=completed,
+        connector_id=None if safety_interrupted else connector,
+        plugged_at=None if safety_interrupted else plugged,
+        charge_start=None if safety_interrupted else start,
+        charge_end=None if safety_interrupted else end,
+        completed=completed and not safety_interrupted,
         delivered_kwh=delivered_kwh,
         unmet_kwh=max(need - delivered_kwh, 0.0),
         cost_vnd=round(cost) if start is not None else None,
@@ -118,6 +125,7 @@ async def evaluate(rt: StationRuntime, candidate: Booking, *, exclude: str | Non
         decisions=decisions,
         approvals_for_candidate=sum(1 for b in pending.values() if b == cid),
         approvals_for_others=sum(1 for b in pending.values() if b != cid),
+        safety_interrupted=safety_interrupted,
     )
 
 

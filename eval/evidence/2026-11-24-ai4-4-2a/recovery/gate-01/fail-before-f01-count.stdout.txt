@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-g3-gate-01/fail-before
+$ rg -q \^3\ failed /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-01/fail-before-f01.stdout.txt 

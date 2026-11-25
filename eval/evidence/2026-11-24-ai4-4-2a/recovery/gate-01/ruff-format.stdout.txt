@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-g3-gate-01/code
+$ isolated ruff format --check src tests scripts/refactor eval 
+287 files already formatted

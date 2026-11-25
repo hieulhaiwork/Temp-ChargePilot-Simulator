@@ -385,6 +385,7 @@ async def inject_incident(incident: Incident) -> None:
             events = rt.simulator.inject_incident(incident)
         except ValueError as exc:
             raise DomainError(ErrorCode.NOT_FOUND, str(exc)) from None
+        rt.queue_events(events)
     for event in events:
         await event_bus.publish(event)
 

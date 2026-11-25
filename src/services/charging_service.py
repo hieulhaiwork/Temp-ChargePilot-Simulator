@@ -124,6 +124,8 @@ async def _what_if(
     queue_position = result.queue_position
     feasible = connector_id is not None and unmet <= UNMET_TOL_KWH
     reasons = [f"Cần {energy.grid_energy_kwh:.1f} kWh (tính bằng code từ dung lượng pin và hiệu suất, FR3)"]
+    if result.safety_interrupted:
+        reasons.append("Mô phỏng dừng vì trạng thái an toàn chưa được xác nhận")
     if connector_id:
         reasons.append(f"Đầu nối {connector_id}, công suất tối đa {candidate.max_charge_power_kw:g} kW")
     if planned_start and planned_end:
@@ -262,6 +264,7 @@ async def book(
     chosen = consent or (user.consent if user else ConsentScope())
     booking_id = uuid4().hex[:12]
     booking: Booking | None = None
+    event: StationEvent | None = None
     for _attempt in range(BOOKING_COMMIT_ATTEMPTS):
         rt.sync_clock()
         seen = rt.admission_fingerprint()  # Final Acceptance §2.3: booking + nguồn / cổng lỗi / policy
@@ -294,16 +297,17 @@ async def book(
             repository.save_booking(booking, idempotency_key=idempotency_key, request_hash=request_hash)
             rt.booking_version += 1
             async with rt.lock:
-                rt.queue_events(rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)))
+                event = StationEvent(
+                    type=EventType.BOOKING_CREATED, occurred_at=rt.simulator.now, booking_id=booking_id
+                )
+                rt.queue_events([*rt.simulator.upsert_vehicle(visit_of(booking, rt.simulator.now)), event])
         break
-    if booking is None:
+    if booking is None or event is None:
         raise DomainError(
             ErrorCode.PROPOSAL_EXPIRED,
             "Trạm vừa nhận thêm lịch sạc khác trong lúc tính — vui lòng xem lại phương án",
         )
-    await event_bus.publish(
-        StationEvent(type=EventType.BOOKING_CREATED, occurred_at=rt.clock(), booking_id=booking.booking_id)
-    )
+    await event_bus.publish(event)
     return repository.get_booking(booking.booking_id) or booking
 
 
@@ -322,10 +326,9 @@ async def cancel(booking_id: str, resident_id: str) -> Booking:
         rt.booking_version += 1
         async with rt.lock:
             rt.sync_clock()
-            rt.queue_events(rt.simulator.remove_vehicle(booking_id))  # sự kiện trạm không bị bỏ (§1.2)
-    await event_bus.publish(
-        StationEvent(type=EventType.BOOKING_CANCELLED, occurred_at=rt.clock(), booking_id=booking_id)
-    )
+            event = StationEvent(type=EventType.BOOKING_CANCELLED, occurred_at=rt.simulator.now, booking_id=booking_id)
+            rt.queue_events([*rt.simulator.remove_vehicle(booking_id), event])
+    await event_bus.publish(event)
     return cancelled
 
 
@@ -351,6 +354,7 @@ async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str)
     _changed_request(_own_active(booking_id, resident_id), patch)  # kiểm nhanh: booking + yêu cầu mới hợp lệ
     rt = get_runtime()
     updated: Booking | None = None
+    event: StationEvent | None = None
     for _attempt in range(BOOKING_COMMIT_ATTEMPTS):
         rt.sync_clock()
         seen = rt.admission_fingerprint()
@@ -380,14 +384,17 @@ async def change(booking_id: str, patch: BookingChangeRequest, resident_id: str)
             repository.save_booking(updated)
             rt.booking_version += 1
             async with rt.lock:
-                rt.queue_events(rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)))
+                event = StationEvent(
+                    type=EventType.BOOKING_CHANGED, occurred_at=rt.simulator.now, booking_id=booking_id
+                )
+                rt.queue_events([*rt.simulator.upsert_vehicle(visit_of(updated, rt.simulator.now)), event])
         break
-    if updated is None:
+    if updated is None or event is None:
         raise DomainError(
             ErrorCode.PROPOSAL_EXPIRED,
             "Trạm vừa thay đổi (lịch sạc khác / nguồn / đầu nối) trong lúc tính — vui lòng xem lại phương án",
         )
-    await event_bus.publish(StationEvent(type=EventType.BOOKING_CHANGED, occurred_at=rt.clock(), booking_id=booking_id))
+    await event_bus.publish(event)
     return repository.get_booking(booking_id) or updated
 
 

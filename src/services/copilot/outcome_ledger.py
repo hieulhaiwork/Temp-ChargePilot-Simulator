@@ -37,8 +37,10 @@ LEDGER_ASSUMPTIONS: tuple[str, ...] = (
     "Pre-snapshot energies (delivered_battery_kwh, output_kwh, delivered_grid_kwh) are recorded separately and excluded from horizon_*_kwh and horizon_energy_cost_vnd.",
     "horizon_grid_input_kwh divides step charger-output kWh by station conversion efficiency once per physics step via StationKernel.",
     "Original Booking.energy.grid_energy_kwh retains its frozen FR3 charger-output meaning (battery_kwh / charging_efficiency); R10 billing changes remain out of AI-4.2A scope.",
+    "The optimistic energy bound assumes continuous charging at the vehicle cap. It excludes contention, taper and hardware availability.",
+    "Wait statistics include observed timestamps only. Historical charging starts are unknown when earlier energy has already accrued.",
     "Empty SLA or service coverage denominators evaluate to None rather than 1.0.",
-    "Censored vehicles (original_deadline > horizon_end and not yet completed) remain in the cohort and are excluded from sla_denominator.",
+    "Censored vehicles (original_deadline > observed_until and not yet completed) remain in the cohort and are excluded from sla_denominator.",
 )
 
 
@@ -61,7 +63,7 @@ class _VehicleRolloutState:
     booking: Booking
     usable_capacity_kwh: float
     original_arrival_at: datetime
-    physically_feasible: bool
+    within_energy_bound: bool
 
     initial_session_state: str
     initial_soc_pct: float
@@ -80,6 +82,8 @@ class _VehicleRolloutState:
     assigned_connector_id: str | None = None
     plug_in_at: datetime | None = None
     first_charge_at: datetime | None = None
+    first_rollout_charge_at: datetime | None = None
+    historical_plug_unknown: bool = False
     target_reached_at: datetime | None = None
     release_or_departure_at: datetime | None = None
     release_reason: VehicleReleaseReason | None = None
@@ -128,20 +132,18 @@ class OutcomeTracker:
                 init_state = str(s["state"])
                 init_soc_pct = round(float(s["current_soc"]) * 100.0, 6)
                 already_plugged = s["connector_id"] is not None
-                already_completed = s["completed_at"] is not None and int(s["completed_at_minute"]) <= int(
-                    initial_phys["minute"]
+                already_completed = init_state != "NOT_ARRIVED" and (
+                    float(s["current_capacity_kwh"]) >= usable_cap * b.request.soc_target / 100 - ENERGY_EPS_KWH
+                    or s["completed_at"] is not None
                 )
                 pre_bat = float(s["delivered_battery_kwh"])
                 pre_out = float(s["output_kwh"])
                 pre_grid = float(s["delivered_grid_kwh"])
                 arrived_at = orig_arrival if init_state != "NOT_ARRIVED" else None
                 conn_id = s["connector_id"]
-                plug_at = (
-                    datetime.fromisoformat(s["charge_started_at"])
-                    if s["charge_started_at"] is not None
-                    else (as_of if already_plugged else None)
-                )
-                first_charge = plug_at if (pre_out > ENERGY_EPS_KWH and plug_at is not None) else None
+                had_plug = already_plugged or s["last_connector_id"] is not None or pre_out > ENERGY_EPS_KWH
+                plug_at = orig_arrival if had_plug and s["charge_started_minute"] == s["arrival_minute"] else None
+                historical_plug_unknown = had_plug and plug_at is None
                 target_at = datetime.fromisoformat(s["completed_at"]) if s["completed_at"] is not None else None
                 dep_at = datetime.fromisoformat(s["departed_at"]) if s["departed_at"] is not None else None
                 rel_reason = None
@@ -168,7 +170,7 @@ class OutcomeTracker:
                 arrived_at = None
                 conn_id = None
                 plug_at = None
-                first_charge = None
+                historical_plug_unknown = False
                 target_at = None
                 dep_at = None
                 rel_reason = None
@@ -180,7 +182,7 @@ class OutcomeTracker:
                 booking=b,
                 usable_capacity_kwh=usable_cap,
                 original_arrival_at=orig_arrival,
-                physically_feasible=feasible,
+                within_energy_bound=feasible,
                 initial_session_state=init_state,
                 initial_soc_pct=init_soc_pct,
                 already_plugged_at_snapshot=already_plugged,
@@ -195,7 +197,7 @@ class OutcomeTracker:
                 arrived_at=arrived_at,
                 assigned_connector_id=conn_id,
                 plug_in_at=plug_at,
-                first_charge_at=first_charge,
+                historical_plug_unknown=historical_plug_unknown,
                 target_reached_at=target_at,
                 release_or_departure_at=dep_at,
                 release_reason=rel_reason,
@@ -228,7 +230,7 @@ class OutcomeTracker:
                 rec.arrived_at = datetime.fromisoformat(s["arrival_at"])
             conn_id = s["connector_id"]
             if conn_id is not None:
-                if rec.plug_in_at is None:
+                if rec.plug_in_at is None and not rec.historical_plug_unknown:
                     rec.plug_in_at = at_dt
                 if rec.assigned_connector_id is None:
                     rec.assigned_connector_id = conn_id
@@ -280,12 +282,16 @@ class OutcomeTracker:
             step_total_output_kwh += d_out
             step_total_grid_kwh += d_grid
 
-            if d_out > ENERGY_EPS_KWH and rec.first_charge_at is None:
-                rec.first_charge_at = step_start_dt
-                if rec.plug_in_at is None:
-                    rec.plug_in_at = step_start_dt
+            if d_out > ENERGY_EPS_KWH and rec.first_rollout_charge_at is None:
+                rec.first_rollout_charge_at = step_start_dt
+                if rec.pre_output_kwh <= ENERGY_EPS_KWH:
+                    rec.first_charge_at = step_start_dt
 
-            if s["completed_at"] is not None and rec.target_reached_at is None:
+            if (
+                s["completed_at"] is not None
+                and rec.target_reached_at is None
+                and not rec.already_completed_at_snapshot
+            ):
                 rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
 
             if s["departed_at"] is not None and rec.release_or_departure_at is None:
@@ -317,6 +323,7 @@ class OutcomeTracker:
     def finalize(self, station: HybridStation) -> OutcomeLedger:
         """Build immutable `OutcomeLedger` at `horizon_end` with explicit censoring and denominators."""
         final_phys = station.snapshot_physics_state()
+        observed_until = station.now
         sessions = final_phys["sessions"]
 
         records: list[VehicleOutcomeRecord] = []
@@ -360,18 +367,30 @@ class OutcomeTracker:
                 if rec.plug_in_at is not None:
                     plug_wait = round(max(0.0, (rec.plug_in_at - rec.arrived_at).total_seconds() / 60.0), 4)
                     plug_waits.append(plug_wait)
-                else:
-                    end_wait_ref = min(b.request.deadline, self._horizon_end)
+                elif not rec.historical_plug_unknown:
+                    end_wait_ref = min(
+                        b.request.deadline, observed_until, rec.release_or_departure_at or observed_until
+                    )
                     if end_wait_ref >= rec.arrived_at:
                         censored_plug_wait = round((end_wait_ref - rec.arrived_at).total_seconds() / 60.0, 4)
 
             charge_wait: float | None = None
+            censored_charge_wait: float | None = None
             if rec.arrived_at is not None and rec.first_charge_at is not None:
                 charge_wait = round(max(0.0, (rec.first_charge_at - rec.arrived_at).total_seconds() / 60.0), 4)
                 charge_waits.append(charge_wait)
+            elif rec.arrived_at is not None and rec.pre_output_kwh <= ENERGY_EPS_KWH:
+                end_wait_ref = min(b.request.deadline, observed_until, rec.release_or_departure_at or observed_until)
+                if end_wait_ref >= rec.arrived_at:
+                    censored_charge_wait = round((end_wait_ref - rec.arrived_at).total_seconds() / 60.0, 4)
 
-            # Mutually exclusive 8-state outcome classification
-            if rec.target_reached_at is not None:
+            if rec.already_completed_at_snapshot and rec.target_reached_at is None:
+                status = VehicleOutcomeStatus.ALREADY_COMPLETED_AT_SNAPSHOT
+                met_sla = True if self._as_of <= b.request.deadline else None
+                sla_evaluable = met_sla is not None
+                censored = not sla_evaluable
+                unserved = False
+            elif rec.target_reached_at is not None:
                 on_time = rec.target_reached_at <= b.request.deadline
                 if rec.already_completed_at_snapshot:
                     status = VehicleOutcomeStatus.ALREADY_COMPLETED_AT_SNAPSHOT
@@ -384,7 +403,7 @@ class OutcomeTracker:
                 unserved = False
                 met_sla: bool | None = on_time
             elif final_state in ("NOT_ARRIVED", "NOT_IN_SIMULATOR"):
-                if b.request.deadline > self._horizon_end:
+                if b.request.deadline > observed_until:
                     status = VehicleOutcomeStatus.CENSORED_NOT_ARRIVED
                     sla_evaluable = False
                     censored = True
@@ -397,7 +416,7 @@ class OutcomeTracker:
                     unserved = True
                     met_sla = False
             else:
-                if final_state != "DEPARTED" and b.request.deadline > self._horizon_end:
+                if final_state != "DEPARTED" and b.request.deadline > observed_until:
                     status = VehicleOutcomeStatus.CENSORED_IN_PROGRESS
                     sla_evaluable = False
                     censored = True
@@ -421,7 +440,7 @@ class OutcomeTracker:
                     booking_id=vid,
                     zone=b.request.zone,
                     vehicle_model=b.request.vehicle_model,
-                    physically_feasible_from_arrival=rec.physically_feasible,
+                    within_optimistic_energy_bound=rec.within_energy_bound,
                     original_arrival_at=rec.original_arrival_at,
                     original_deadline=b.request.deadline,
                     original_soc_now_pct=round(float(b.request.soc_now), 6),
@@ -439,12 +458,15 @@ class OutcomeTracker:
                     assigned_connector_id=rec.assigned_connector_id,
                     plug_in_at=rec.plug_in_at,
                     first_charge_at=rec.first_charge_at,
+                    first_rollout_charge_at=rec.first_rollout_charge_at,
+                    historical_plug_time_unknown=rec.historical_plug_unknown,
                     target_reached_at=rec.target_reached_at,
                     release_or_departure_at=rec.release_or_departure_at,
                     release_reason=rec.release_reason,
                     plug_wait_minutes=plug_wait,
                     censored_plug_wait_minutes=censored_plug_wait,
                     charge_start_wait_minutes=charge_wait,
+                    censored_charge_start_wait_minutes=censored_charge_wait,
                     fault_unplug_count=rec.fault_unplug_count,
                     horizon_battery_stored_kwh=round(rec.horizon_battery_kwh, 6),
                     horizon_output_kwh=round(rec.horizon_output_kwh, 6),
@@ -472,19 +494,11 @@ class OutcomeTracker:
         arrived_rows = [r for r in records if r.arrived_at is not None]
         arrived_count = len(arrived_rows)
         not_arrived_count = cohort_size - arrived_count
-        plugged_arrived = sum(
-            1
-            for r in arrived_rows
-            if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
-        )
+        plugged_arrived = sum(1 for r in arrived_rows if r.plug_in_at is not None or r.historical_plug_time_unknown)
         charged_arrived = sum(
             1 for r in arrived_rows if r.first_charge_at is not None or r.cumulative_output_kwh > ENERGY_EPS_KWH
         )
-        plugged_total = sum(
-            1
-            for r in records
-            if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
-        )
+        plugged_total = sum(1 for r in records if r.plug_in_at is not None or r.historical_plug_time_unknown)
         charged_total = sum(
             1 for r in records if r.first_charge_at is not None or r.cumulative_output_kwh > ENERGY_EPS_KWH
         )
@@ -494,7 +508,7 @@ class OutcomeTracker:
         sla_met = sum(1 for r in evaluable if r.met_original_sla is True)
         on_time_rate = round(sla_met / sla_denom, 6) if sla_denom > 0 else None
 
-        feasible_eval = [r for r in evaluable if r.physically_feasible_from_arrival]
+        feasible_eval = [r for r in evaluable if r.within_optimistic_energy_bound]
         feas_denom = len(feasible_eval)
         feas_met = sum(1 for r in feasible_eval if r.met_original_sla is True)
         feas_rate = round(feas_met / feas_denom, 6) if feas_denom > 0 else None
@@ -511,6 +525,7 @@ class OutcomeTracker:
             as_of=self._as_of,
             horizon_end=self._horizon_end,
             horizon_minutes=self._horizon_minutes,
+            observed_until=observed_until,
             cohort_size=cohort_size,
             arrived_count=arrived_count,
             not_arrived_count=not_arrived_count,
@@ -531,12 +546,14 @@ class OutcomeTracker:
             sla_denominator=sla_denom,
             sla_met_count=sla_met,
             on_time_rate=on_time_rate,
-            feasible_sla_denominator=feas_denom,
-            feasible_sla_met_count=feas_met,
-            feasible_on_time_rate=feas_rate,
+            energy_bound_sla_denominator=feas_denom,
+            energy_bound_sla_met_count=feas_met,
+            energy_bound_on_time_rate=feas_rate,
             service_coverage_denominator=arrived_count,
             service_coverage_rate=svc_cov,
             charged_coverage_rate=chg_cov,
+            plug_wait_observed_count=len(plug_waits),
+            charge_start_wait_observed_count=len(charge_waits),
             plug_wait_mean_minutes=_mean_or_none(plug_waits),
             plug_wait_p90_minutes=_percentile_90(plug_waits),
             charge_start_wait_mean_minutes=_mean_or_none(charge_waits),
@@ -571,16 +588,8 @@ def _build_zone_summary(zone: str, rows: list[VehicleOutcomeRecord]) -> ZoneSlaS
     arrived = [r for r in rows if r.arrived_at is not None]
     arrived_count = len(arrived)
     not_arrived_count = cohort_count - arrived_count
-    plugged_arrived = sum(
-        1
-        for r in arrived
-        if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
-    )
-    plugged_count = sum(
-        1
-        for r in rows
-        if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
-    )
+    plugged_arrived = sum(1 for r in arrived if r.plug_in_at is not None or r.historical_plug_time_unknown)
+    plugged_count = sum(1 for r in rows if r.plug_in_at is not None or r.historical_plug_time_unknown)
     charged_count = sum(1 for r in rows if r.first_charge_at is not None or r.cumulative_output_kwh > ENERGY_EPS_KWH)
     unserved_count = sum(1 for r in rows if r.unserved)
     censored_count = sum(1 for r in rows if r.censored)
@@ -590,7 +599,7 @@ def _build_zone_summary(zone: str, rows: list[VehicleOutcomeRecord]) -> ZoneSlaS
     sla_met = sum(1 for r in evaluable if r.met_original_sla is True)
     on_time = round(sla_met / sla_denom, 6) if sla_denom > 0 else None
 
-    feas_eval = [r for r in evaluable if r.physically_feasible_from_arrival]
+    feas_eval = [r for r in evaluable if r.within_optimistic_energy_bound]
     feas_denom = len(feas_eval)
     feas_met = sum(1 for r in feas_eval if r.met_original_sla is True)
     feas_rate = round(feas_met / feas_denom, 6) if feas_denom > 0 else None
@@ -609,8 +618,8 @@ def _build_zone_summary(zone: str, rows: list[VehicleOutcomeRecord]) -> ZoneSlaS
         sla_denominator=sla_denom,
         sla_met_count=sla_met,
         on_time_rate=on_time,
-        feasible_sla_denominator=feas_denom,
-        feasible_sla_met_count=feas_met,
-        feasible_on_time_rate=feas_rate,
+        energy_bound_sla_denominator=feas_denom,
+        energy_bound_sla_met_count=feas_met,
+        energy_bound_on_time_rate=feas_rate,
         service_coverage_rate=svc_rate,
     )

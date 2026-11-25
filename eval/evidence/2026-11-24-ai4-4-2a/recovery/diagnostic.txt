@@ -1,0 +1,60 @@
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/lehieu/Projects/P-019/.simulator/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/chargepilot-g3-recovery/probe
+configfile: pytest.ini
+plugins: asyncio-1.5.0, typeguard-4.6.0, langsmith-0.15.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 3 items
+
+tests/test_services/test_g3_runtime_readiness.py::test_fork_runtime_inherits_pending_safety_and_suppresses_normal_dispatch Timeout (0:00:12)!
+Thread 0x00007e6aa119e6c0 (most recent call first):
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 89 in _worker
+  File "/usr/lib/python3.12/threading.py", line 1010 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007e6ab3fc2080 (most recent call first):
+  File "/usr/lib/python3.12/selectors.py", line 468 in select
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 1949 in _run_once
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 641 in run_forever
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 674 in run_until_complete
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118 in run
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py", line 915 in inner
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/python.py", line 187 in pytest_pyfunc_call
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/python.py", line 1798 in runtest
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py", line 576 in runtest
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/runner.py", line 184 in pytest_runtest_call
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/runner.py", line 250 in <lambda>
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/runner.py", line 361 in from_call
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/runner.py", line 249 in call_and_report
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/runner.py", line 139 in runtestprotocol
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/runner.py", line 118 in pytest_runtest_protocol
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/main.py", line 411 in pytest_runtestloop
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/main.py", line 387 in _main
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/main.py", line 333 in wrap_session
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/main.py", line 380 in pytest_cmdline_main
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_execution.py", line 147 in _multicall
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_manager.py", line 183 in _hookexec
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pluggy/_caller.py", line 197 in __call__
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/config/__init__.py", line 262 in _main
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/_pytest/config/__init__.py", line 286 in _console_main
+  File "/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest/__main__.py", line 9 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main

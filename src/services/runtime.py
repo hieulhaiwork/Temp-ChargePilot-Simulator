@@ -108,6 +108,7 @@ class StationRuntime:
     # Final Acceptance §1.2 — sự kiện trạm phát sinh khi tiến đồng hồ (bất kỳ consumer nào gọi sync_clock) nằm ở đây tới
     # khi control_loop nhận (on_event / run_forever / deliver_pending) — không consumer nào được bỏ sự kiện.
     _outbox: deque[StationEvent] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX))
+    _delivered_mutation_events: deque[str] = field(default_factory=lambda: deque(maxlen=OUTBOX_MAX), repr=False)
     _clock_lock: RLock = field(default_factory=RLock, repr=False)
     _read_clock_paused: bool = False
     _pending_safety: dict[str, StationEvent] = field(default_factory=dict, repr=False)
@@ -147,12 +148,13 @@ class StationRuntime:
             pending_safety,
         )
 
-    def advance_clock(self) -> list[StationEvent]:
+    def advance_clock(self, *, minutes: int | None = None) -> list[StationEvent]:
         """Tiến simulator tới đồng hồ runtime; sự kiện vào `outbox` (và được trả). Chỉ control_loop gọi trực tiếp."""
         with self._clock_lock:
             if self._pending_safety:
                 return []
-            minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
+            if minutes is None:
+                minutes = int((self.clock() - self.simulator.now).total_seconds() // 60)
             events = self.simulator.step(minutes) if minutes > 0 else []
             self.queue_events(events)
             return events

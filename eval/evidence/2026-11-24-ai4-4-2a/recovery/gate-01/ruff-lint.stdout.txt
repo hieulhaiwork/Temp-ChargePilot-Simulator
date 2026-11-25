@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-g3-gate-01/code
+$ isolated ruff check src tests scripts/refactor eval 
+All checks passed!

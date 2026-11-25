@@ -1,0 +1,3319 @@
+diff --git a/src/models/copilot.py b/src/models/copilot.py
+--- a/src/models/copilot.py
++++ b/src/models/copilot.py
+@@ -1,4 +1,4 @@
+-"""Typed contracts for AI-4 Decision Copilot (Phase AI-4.1: Deterministic WHY Engine).
++"""Typed contracts for AI-4 Decision Copilot (Phase AI-4.1 WHY Engine & Phase AI-4.2A Counterfactual Foundation).
+ 
+ Pure Pydantic contracts with no infrastructure or service dependencies.
+ `ActorContext` is constructed only at trusted server-side boundaries (JWT / deps);
+@@ -8,6 +8,7 @@
+ from datetime import timedelta
+ from enum import StrEnum
+ from math import isfinite
++from typing import Literal
+ 
+ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+ 
+@@ -343,3 +344,423 @@ class WhyAnswer(BaseModel):
+     missing_evidence: list[str] = Field(default_factory=list)
+     truncated: bool = False
+     next_cursor: str | None = None
++
++
++# ---- Phase AI-4.2A: Counterfactual Foundation (Gate 3) -----------------------------------------
++
++SNAPSHOT_SCHEMA_VERSION = "chargepilot.copilot_snapshot/1"
++EVENT_MANIFEST_SCHEMA_VERSION = "chargepilot.event_manifest/1"
++OUTCOME_LEDGER_SCHEMA_VERSION = "chargepilot.outcome_ledger/1"
++MAX_COUNTERFACTUAL_HORIZON_MINUTES = 24 * 60
++
++
++class SnapshotStatus(StrEnum):
++    READY = "ready"
++    NOT_READY = "not_ready"
++
++
++class SnapshotNotReadyReason(StrEnum):
++    UNRESOLVED_HARD_SAFETY_EVENT = "unresolved_hard_safety_event"
++    UNSAFE_PHYSICAL_STATE = "unsafe_physical_state"
++
++
++class KnownLimitEvent(BaseModel):
++    """Exogenous supply/cabinet limit event already announced at or before capture time T."""
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    announced_minute: int = Field(ge=0)
++    announced_at: AwareDatetime
++    effective_minute: int = Field(ge=0)
++    effective_at: AwareDatetime
++    grid_input_kw: float | None = Field(default=None, ge=0)
++    cabinet_output_kw: dict[str, float] = Field(default_factory=dict)
++
++    @field_validator("grid_input_kw")
++    @classmethod
++    def _finite_grid(cls, value: float | None) -> float | None:
++        return _check_finite(value)  # type: ignore[return-value]
++
++    @field_validator("cabinet_output_kw")
++    @classmethod
++    def _finite_cabinets(cls, value: dict[str, float]) -> dict[str, float]:
++        for key, kw in value.items():
++            if not key:
++                raise ValueError("Cabinet ID must not be empty")
++            _check_finite(kw)
++            if kw < 0:
++                raise ValueError("Cabinet output kW must be non-negative")
++        return value
++
++    @model_validator(mode="after")
++    def _check_times(self) -> "KnownLimitEvent":
++        _require_aware(self.announced_at, "announced_at")
++        _require_aware(self.effective_at, "effective_at")
++        if self.announced_minute > self.effective_minute:
++            raise ValueError("announced_minute must not exceed effective_minute")
++        return self
++
++
++class EventManifest(BaseModel):
++    """Prospective `known_at(T)` manifest materialized once and shared identically across sandbox branches."""
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    schema_version: str = Field(default=EVENT_MANIFEST_SCHEMA_VERSION, min_length=1)
++    station_id: str = Field(min_length=1, max_length=64)
++    as_of: AwareDatetime
++    as_of_minute: int = Field(ge=0)
++    horizon_minutes: int = Field(gt=0, le=MAX_COUNTERFACTUAL_HORIZON_MINUTES)
++    horizon_end: AwareDatetime
++    horizon_end_minute: int = Field(gt=0)
++    known_booking_ids: list[str] = Field(default_factory=list)
++    already_present_booking_ids: list[str] = Field(default_factory=list)
++    known_future_arrival_booking_ids: list[str] = Field(default_factory=list)
++    excluded_future_booking_count: int = Field(default=0, ge=0)
++    excluded_unbooked_not_arrived_count: int = Field(default=0, ge=0)
++    known_limit_events: list[KnownLimitEvent] = Field(default_factory=list)
++    excluded_unannounced_limit_event_count: int = Field(default=0, ge=0)
++    active_faulted_connectors: list[str] = Field(default_factory=list)
++    effective_grid_limit_kw_at_capture: float = Field(ge=0)
++    assumptions: list[str] = Field(default_factory=list)
++    manifest_sha256: str = Field(min_length=64, max_length=64)
++
++    @field_validator("effective_grid_limit_kw_at_capture")
++    @classmethod
++    def _finite_limit(cls, value: float) -> float:
++        return _check_finite(value)  # type: ignore[return-value]
++
++    @model_validator(mode="after")
++    def _validate_manifest(self) -> "EventManifest":
++        _require_aware(self.as_of, "as_of")
++        _require_aware(self.horizon_end, "horizon_end")
++        if self.horizon_end <= self.as_of:
++            raise ValueError("horizon_end must be strictly after as_of")
++        if self.horizon_end_minute != self.as_of_minute + self.horizon_minutes:
++            raise ValueError("horizon_end_minute must equal as_of_minute + horizon_minutes")
++        for ev in self.known_limit_events:
++            if ev.announced_minute > self.as_of_minute:
++                raise ValueError("EventManifest must not contain limit events announced after as_of_minute")
++        return self
++
++
++class SnapshotEnvelope(BaseModel):
++    """Pure serializable metadata and cryptographic digests for an atomic counterfactual snapshot at T.
++
++    `experiment_fingerprint` hashes the static resolved policy/component/config setup (`ResolvedExperiment`),
++    whereas `snapshot_digest` hashes the complete canonical dynamic + static state at T (strictly distinct from
++    both `experiment_fingerprint` and `StationRuntime.admission_fingerprint()`).
++    """
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    schema_version: str = Field(default=SNAPSHOT_SCHEMA_VERSION, min_length=1)
++    snapshot_id: str = Field(min_length=1, max_length=64)
++    status: SnapshotStatus = SnapshotStatus.READY
++    station_id: str = Field(min_length=1, max_length=64)
++    as_of: AwareDatetime
++    sim_minute: int = Field(ge=0)
++    horizon_minutes: int = Field(gt=0, le=MAX_COUNTERFACTUAL_HORIZON_MINUTES)
++    booking_version: int = Field(ge=0)
++    plan_version: int | None = Field(default=None, ge=0)
++    state_version: int = Field(ge=0)
++    schedule_version: int = Field(ge=0)
++    policy_id: str = Field(min_length=1)
++    policy_version: str = Field(min_length=1)
++    dc_charging_model_name: str = Field(min_length=1)
++    time_config: dict[str, int | None] = Field(default_factory=dict)
++    station_config_sha256: str = Field(min_length=64, max_length=64)
++    tariff_sha256: str | None = Field(default=None, min_length=64, max_length=64)
++    experiment_fingerprint: str = Field(min_length=64, max_length=64)
++    event_manifest_sha256: str = Field(min_length=64, max_length=64)
++    stateful_components_sha256: str = Field(min_length=64, max_length=64)
++    snapshot_digest: str = Field(min_length=64, max_length=64)
++    known_booking_count: int = Field(ge=0)
++    safety_hold_booking_ids: list[str] = Field(default_factory=list)
++    rejected_booking_ids: list[str] = Field(default_factory=list)
++    pending_approval_ids: list[str] = Field(default_factory=list)
++    recent_command_count: int = Field(ge=0)
++    undelivered_ordinary_outbox_count: int = Field(default=0, ge=0)
++
++    @model_validator(mode="after")
++    def _validate_envelope(self) -> "SnapshotEnvelope":
++        _require_aware(self.as_of, "as_of")
++        if self.snapshot_digest == self.experiment_fingerprint:
++            raise ValueError("snapshot_digest must be distinct from experiment_fingerprint")
++        return self
++
++
++class VehicleOutcomeStatus(StrEnum):
++    ALREADY_COMPLETED_AT_SNAPSHOT = "already_completed_at_snapshot"
++    COMPLETED_ON_TIME = "completed_on_time"
++    COMPLETED_LATE = "completed_late"
++    CENSORED_NOT_ARRIVED = "censored_not_arrived"
++    MISSED_DEADLINE_NOT_ARRIVED = "missed_deadline_not_arrived"
++    CENSORED_IN_PROGRESS = "censored_in_progress"
++    UNSERVED_DEPARTED_OR_EXPIRED = "unserved_departed_or_expired"
++    PARTIAL_MISSED_DEADLINE = "partial_missed_deadline"
++
++
++class VehicleReleaseReason(StrEnum):
++    DC_UNPLUG_DELAY = "dc_unplug_delay"
++    DECLARED_DEPARTURE = "declared_departure"
++
++
++class VehicleOutcomeRecord(BaseModel):
++    """Per-vehicle counterfactual outcome preserving original commitments and separating pre- vs post-snapshot kWh."""
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    booking_id: str = Field(min_length=1)
++    zone: Literal["AC", "DC"]
++    vehicle_model: str = Field(min_length=1)
++    physically_feasible_from_arrival: bool
++    original_arrival_at: AwareDatetime
++    original_deadline: AwareDatetime
++    original_soc_now_pct: float = Field(ge=0, le=100)
++    original_target_soc_pct: float = Field(gt=0, le=100)
++    original_required_battery_kwh: float = Field(ge=0)
++    original_required_output_kwh: float = Field(ge=0)
++
++    initial_session_state: str = Field(min_length=1)
++    initial_soc_pct: float = Field(ge=0, le=100)
++    already_plugged_at_snapshot: bool
++    already_completed_at_snapshot: bool
++    pre_snapshot_battery_stored_kwh: float = Field(ge=0)
++    pre_snapshot_output_kwh: float = Field(ge=0)
++    pre_snapshot_grid_input_kwh: float = Field(ge=0)
++
++    arrived_at: AwareDatetime | None = None
++    assigned_connector_id: str | None = None
++    plug_in_at: AwareDatetime | None = None
++    first_charge_at: AwareDatetime | None = None
++    target_reached_at: AwareDatetime | None = None
++    release_or_departure_at: AwareDatetime | None = None
++    release_reason: VehicleReleaseReason | None = None
++
++    plug_wait_minutes: float | None = Field(default=None, ge=0)
++    censored_plug_wait_minutes: float | None = Field(default=None, ge=0)
++    charge_start_wait_minutes: float | None = Field(default=None, ge=0)
++    fault_unplug_count: int = Field(default=0, ge=0)
++
++    horizon_battery_stored_kwh: float = Field(ge=0)
++    horizon_output_kwh: float = Field(ge=0)
++    horizon_grid_input_kwh: float = Field(ge=0)
++
++    final_session_state: str = Field(min_length=1)
++    final_soc_pct: float = Field(ge=0, le=100)
++    cumulative_battery_stored_kwh: float = Field(ge=0)
++    cumulative_output_kwh: float = Field(ge=0)
++    cumulative_grid_input_kwh: float = Field(ge=0)
++    remaining_to_original_target_battery_kwh: float = Field(ge=0)
++
++    status: VehicleOutcomeStatus
++    sla_evaluable: bool
++    censored: bool
++    unserved: bool
++    met_original_sla: bool | None = None
++
++    @model_validator(mode="after")
++    def _validate_record(self) -> "VehicleOutcomeRecord":
++        _require_aware(self.original_arrival_at, "original_arrival_at")
++        _require_aware(self.original_deadline, "original_deadline")
++        for field_name in (
++            "arrived_at",
++            "plug_in_at",
++            "first_charge_at",
++            "target_reached_at",
++            "release_or_departure_at",
++        ):
++            val = getattr(self, field_name)
++            if val is not None:
++                _require_aware(val, field_name)
++        for num_field in (
++            "original_soc_now_pct",
++            "original_target_soc_pct",
++            "original_required_battery_kwh",
++            "original_required_output_kwh",
++            "initial_soc_pct",
++            "pre_snapshot_battery_stored_kwh",
++            "pre_snapshot_output_kwh",
++            "pre_snapshot_grid_input_kwh",
++            "plug_wait_minutes",
++            "censored_plug_wait_minutes",
++            "charge_start_wait_minutes",
++            "horizon_battery_stored_kwh",
++            "horizon_output_kwh",
++            "horizon_grid_input_kwh",
++            "final_soc_pct",
++            "cumulative_battery_stored_kwh",
++            "cumulative_output_kwh",
++            "cumulative_grid_input_kwh",
++            "remaining_to_original_target_battery_kwh",
++        ):
++            _check_finite(getattr(self, num_field))
++        if self.sla_evaluable != (self.met_original_sla is not None):
++            raise ValueError("met_original_sla must be non-None iff sla_evaluable is True")
++        if self.censored and self.sla_evaluable:
++            raise ValueError("A censored vehicle outcome cannot be sla_evaluable")
++        return self
++
++
++class ZoneSlaSummary(BaseModel):
++    """Per-zone SLA and service denominators (`None` rate when denominator is 0, never 1.0)."""
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    zone: Literal["AC", "DC"]
++    cohort_count: int = Field(ge=0)
++    arrived_count: int = Field(ge=0)
++    not_arrived_count: int = Field(ge=0)
++    plugged_count: int = Field(ge=0)
++    charged_count: int = Field(ge=0)
++    unserved_count: int = Field(ge=0)
++    censored_count: int = Field(ge=0)
++    sla_denominator: int = Field(ge=0)
++    sla_met_count: int = Field(ge=0)
++    on_time_rate: float | None = Field(default=None, ge=0, le=1)
++    feasible_sla_denominator: int = Field(ge=0)
++    feasible_sla_met_count: int = Field(ge=0)
++    feasible_on_time_rate: float | None = Field(default=None, ge=0, le=1)
++    service_coverage_rate: float | None = Field(default=None, ge=0, le=1)
++
++    @model_validator(mode="after")
++    def _validate_denominators(self) -> "ZoneSlaSummary":
++        if (self.sla_denominator == 0) != (self.on_time_rate is None):
++            raise ValueError("on_time_rate must be None iff sla_denominator == 0")
++        if (self.feasible_sla_denominator == 0) != (self.feasible_on_time_rate is None):
++            raise ValueError("feasible_on_time_rate must be None iff feasible_sla_denominator == 0")
++        if (self.arrived_count == 0) != (self.service_coverage_rate is None):
++            raise ValueError("service_coverage_rate must be None iff arrived_count == 0")
++        return self
++
++
++class OutcomeLedger(BaseModel):
++    """Additive AI-4 Outcome Ledger over a fixed snapshot cohort `[as_of, horizon_end)`.
++
++    Frozen `HybridStation.outcomes()` and `simulation_service.compute_kpis()` remain untouched.
++    """
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    schema_version: str = Field(default=OUTCOME_LEDGER_SCHEMA_VERSION, min_length=1)
++    station_id: str = Field(min_length=1, max_length=64)
++    as_of: AwareDatetime
++    horizon_end: AwareDatetime
++    horizon_minutes: int = Field(gt=0)
++
++    cohort_size: int = Field(ge=0)
++    arrived_count: int = Field(ge=0)
++    not_arrived_count: int = Field(ge=0)
++    plugged_count: int = Field(ge=0)
++    charged_count: int = Field(ge=0)
++    completed_on_time_count: int = Field(ge=0)
++    completed_late_count: int = Field(ge=0)
++    already_completed_at_snapshot_count: int = Field(ge=0)
++    unserved_count: int = Field(ge=0)
++    partial_missed_deadline_count: int = Field(ge=0)
++    censored_count: int = Field(ge=0)
++    censored_not_arrived_count: int = Field(ge=0)
++    censored_in_progress_count: int = Field(ge=0)
++
++    sla_denominator: int = Field(ge=0)
++    sla_met_count: int = Field(ge=0)
++    on_time_rate: float | None = Field(default=None, ge=0, le=1)
++    feasible_sla_denominator: int = Field(ge=0)
++    feasible_sla_met_count: int = Field(ge=0)
++    feasible_on_time_rate: float | None = Field(default=None, ge=0, le=1)
++    service_coverage_denominator: int = Field(ge=0)
++    service_coverage_rate: float | None = Field(default=None, ge=0, le=1)
++    charged_coverage_rate: float | None = Field(default=None, ge=0, le=1)
++
++    plug_wait_mean_minutes: float | None = Field(default=None, ge=0)
++    plug_wait_p90_minutes: float | None = Field(default=None, ge=0)
++    charge_start_wait_mean_minutes: float | None = Field(default=None, ge=0)
++    charge_start_wait_p90_minutes: float | None = Field(default=None, ge=0)
++
++    pre_snapshot_battery_stored_kwh: float = Field(ge=0)
++    pre_snapshot_output_kwh: float = Field(ge=0)
++    pre_snapshot_grid_input_kwh: float = Field(ge=0)
++
++    horizon_battery_stored_kwh: float = Field(ge=0)
++    horizon_output_kwh: float = Field(ge=0)
++    horizon_grid_input_kwh: float = Field(ge=0)
++    horizon_energy_cost_vnd: float = Field(ge=0)
++    remaining_to_original_target_battery_kwh: float = Field(ge=0)
++
++    peak_charger_output_kw: float = Field(ge=0)
++    peak_grid_input_kw: float = Field(ge=0)
++
++    pre_snapshot_applied_constraint_violation_count: int = Field(ge=0)
++    horizon_applied_constraint_violation_count: int = Field(ge=0)
++    horizon_rejected_allocation_count: int = Field(ge=0)
++    horizon_sampled_grid_over_limit_minutes: int = Field(ge=0)
++    horizon_hard_safety_event_count: int = Field(ge=0)
++    horizon_guard_blocked_command_count: int = Field(ge=0)
++    horizon_pending_approval_command_count: int = Field(ge=0)
++
++    by_zone: dict[str, ZoneSlaSummary] = Field(default_factory=dict)
++    vehicles: list[VehicleOutcomeRecord] = Field(default_factory=list)
++    assumptions: list[str] = Field(default_factory=list)
++
++    @model_validator(mode="after")
++    def _validate_ledger(self) -> "OutcomeLedger":
++        _require_aware(self.as_of, "as_of")
++        _require_aware(self.horizon_end, "horizon_end")
++        if self.cohort_size != len(self.vehicles):
++            raise ValueError("cohort_size must equal len(vehicles)")
++        if self.arrived_count + self.not_arrived_count != self.cohort_size:
++            raise ValueError("arrived_count + not_arrived_count must equal cohort_size")
++        if (self.sla_denominator == 0) != (self.on_time_rate is None):
++            raise ValueError("on_time_rate must be None iff sla_denominator == 0")
++        if (self.feasible_sla_denominator == 0) != (self.feasible_on_time_rate is None):
++            raise ValueError("feasible_on_time_rate must be None iff feasible_sla_denominator == 0")
++        if (self.service_coverage_denominator == 0) != (self.service_coverage_rate is None):
++            raise ValueError("service_coverage_rate must be None iff service_coverage_denominator == 0")
++        if (self.service_coverage_denominator == 0) != (self.charged_coverage_rate is None):
++            raise ValueError("charged_coverage_rate must be None iff service_coverage_denominator == 0")
++        return self
++
++
++class SandboxBranchResult(BaseModel):
++    """Result of running a single isolated sandbox branch from a `CapturedSnapshot`."""
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    branch_label: str = Field(min_length=1, max_length=64)
++    applied: Literal[False] = False
++    snapshot_id: str = Field(min_length=1, max_length=64)
++    initial_snapshot_digest: str = Field(min_length=64, max_length=64)
++    experiment_fingerprint: str = Field(min_length=64, max_length=64)
++    event_manifest_sha256: str = Field(min_length=64, max_length=64)
++    policy_id: str = Field(min_length=1)
++    policy_version: str = Field(min_length=1)
++    as_of: AwareDatetime
++    horizon_end: AwareDatetime
++    horizon_minutes: int = Field(gt=0)
++    decisions_count: int = Field(ge=0)
++    executed_command_count: int = Field(ge=0)
++    blocked_command_count: int = Field(ge=0)
++    pending_approval_count_end: int = Field(ge=0)
++    safety_hold_booking_ids_end: list[str] = Field(default_factory=list)
++    final_physics_digest: str = Field(min_length=64, max_length=64)
++    wall_time_ms: float = Field(ge=0)
++    outcome_ledger: OutcomeLedger
++
++
++class PairedNoOpResult(BaseModel):
++    """Gate 3 paired no-op validation output: two independent forks from one immutable snapshot."""
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    applied: Literal[False] = False
++    snapshot_id: str = Field(min_length=1, max_length=64)
++    snapshot_digest: str = Field(min_length=64, max_length=64)
++    experiment_fingerprint: str = Field(min_length=64, max_length=64)
++    event_manifest_sha256: str = Field(min_length=64, max_length=64)
++    horizon_minutes: int = Field(gt=0)
++    known_booking_ids: list[str] = Field(default_factory=list)
++    baseline: SandboxBranchResult
++    counterfactual: SandboxBranchResult
++    non_timing_kpis_equal: bool
++    final_physics_digests_equal: bool
+diff --git a/src/services/copilot/__init__.py b/src/services/copilot/__init__.py
+--- a/src/services/copilot/__init__.py
++++ b/src/services/copilot/__init__.py
+@@ -1,11 +1,39 @@
+-"""Deterministic AI-4 Decision Copilot services (Phase AI-4.1: WHY Engine).
++"""Deterministic AI-4 Decision Copilot services (Phase AI-4.1 WHY Engine & Phase AI-4.2A Counterfactual Foundation).
+ 
+-Strictly read-only over DecisionTrace / repository data:
+-- No simulator stepping or clock advancement (`sync_clock` / `simulator.step` forbidden).
+-- No Command construction or actuator calls.
+-- No LLM calls in deterministic services.
++Invariants:
++- Live runtime is never stepped, drained, or mutated (`sync_clock` / live `simulator.step` forbidden).
++- No live `StationActuator` calls, DB mutations, or WebSocket notifications from Copilot services.
++- No LLM calls in deterministic WHY or Counterfactual Foundation services.
+ """
+ 
++from src.services.copilot.counterfactual import (
++    SandboxCancelledError,
++    non_timing_branch_signature,
++    run_paired_noop,
++    run_sandbox_branch,
++)
++from src.services.copilot.outcome_ledger import OutcomeTracker
++from src.services.copilot.snapshot import (
++    CapturedSnapshot,
++    SnapshotNotReadyError,
++    build_known_at_manifest,
++    build_sandbox_runtime,
++    canonical_sha256,
++    capture_atomic_snapshot,
++)
+ from src.services.copilot.why import explain_why
+ 
+-__all__ = ["explain_why"]
++__all__ = [
++    "CapturedSnapshot",
++    "OutcomeTracker",
++    "SandboxCancelledError",
++    "SnapshotNotReadyError",
++    "build_known_at_manifest",
++    "build_sandbox_runtime",
++    "canonical_sha256",
++    "capture_atomic_snapshot",
++    "explain_why",
++    "non_timing_branch_signature",
++    "run_paired_noop",
++    "run_sandbox_branch",
++]
+diff --git a/src/services/copilot/counterfactual.py b/src/services/copilot/counterfactual.py
+new file mode 100644
+--- /dev/null
++++ b/src/services/copilot/counterfactual.py
+@@ -0,0 +1,283 @@
++"""Independent sandbox runner and paired no-op validator (Phase AI-4.2A: WP3.4).
++
++Invariants:
++- Reuses Unified Core (`HybridStation`), Business & Physical Guard, `dispatcher.submit`,
++  `control_loop.on_minute`, and the existing single-thread `solver.run_async` executor.
++- Never creates a second solver thread pool.
++- Serializes sandbox minute decisions through `_SANDBOX_MINUTE_GATE` (`asyncio.Semaphore(1)`)
++  and yields to the event loop every simulated minute (`await asyncio.sleep(0)`), ensuring at most
++  one short LP solve is ever queued ahead of live `control_loop.on_event` or safety handlers.
++- Never mutates `CapturedSnapshot`, live runtime, database, WebSocket clients, or filesystem.
++- In Gate 3 (AI-4.2A), neither branch applies business patches (`baseline` and `counterfactual`
++  are two independent no-op forks from the same `CapturedSnapshot` and `EventManifest`).
++"""
++
++import asyncio
++import time
++import weakref
++from collections.abc import Awaitable, Callable
++from dataclasses import replace
++
++from src.models.control import DecisionLogEntry
++from src.models.copilot import PairedNoOpResult, SandboxBranchResult
++from src.models.events import StationEvent
++from src.services import control_loop
++from src.services.copilot.outcome_ledger import OutcomeTracker
++from src.services.copilot.snapshot import CapturedSnapshot, build_sandbox_runtime, canonical_sha256
++
++# Per-event-loop Semaphore(1) so multiple sandbox rollouts never flood the single-worker HiGHS
++# solver executor ahead of live replans, without binding one Semaphore across closed event loops.
++_LOOP_MINUTE_GATES: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
++    weakref.WeakKeyDictionary()
++)
++
++
++def _minute_gate() -> asyncio.Semaphore:
++    loop = asyncio.get_running_loop()
++    gate = _LOOP_MINUTE_GATES.get(loop)
++    if gate is None:
++        gate = asyncio.Semaphore(1)
++        _LOOP_MINUTE_GATES[loop] = gate
++    return gate
++
++
++class SandboxCancelledError(asyncio.CancelledError):
++    """Raised when a sandbox rollout is explicitly cancelled via `cancel_event`."""
++
++
++StepHook = Callable[[str, int], Awaitable[None] | None]
++LiveBusyProbe = Callable[[], bool]
++
++
++def _check_cancel(cancel_event: asyncio.Event | None) -> None:
++    if cancel_event is not None and cancel_event.is_set():
++        raise SandboxCancelledError("Counterfactual sandbox rollout cancelled")
++
++
++async def _cooperative_yield(
++    cancel_event: asyncio.Event | None,
++    live_busy_probe: LiveBusyProbe | None,
++) -> None:
++    """Yield to the event loop every minute and defer if a live replan/safety pass is active."""
++    _check_cancel(cancel_event)
++    await asyncio.sleep(0)
++    if live_busy_probe is not None:
++        # Bounded cooperative yield (at most a few event-loop turns) so live replan claims solver first.
++        for _ in range(5):
++            if not live_busy_probe():
++                break
++            _check_cancel(cancel_event)
++            await asyncio.sleep(0.001)
++    _check_cancel(cancel_event)
++
++
++async def _execute_branch(
++    snapshot: CapturedSnapshot,
++    *,
++    branch_label: str,
++    cancel_event: asyncio.Event | None,
++    step_hook: StepHook | None,
++    live_busy_probe: LiveBusyProbe | None,
++) -> SandboxBranchResult:
++    started = time.perf_counter()
++    _check_cancel(cancel_event)
++
++    frt = build_sandbox_runtime(snapshot)
++    minute_entries: list[DecisionLogEntry] = []
++    base_log = frt.sinks.log_decision
++
++    def _capture_entry(entry: DecisionLogEntry) -> None:
++        base_log(entry)
++        minute_entries.append(entry)
++
++    frt.sinks = replace(frt.sinks, log_decision=_capture_entry)
++    sim = frt.simulator
++    end_minute = snapshot.event_manifest.horizon_end_minute
++
++    tracker = OutcomeTracker(
++        station_config=frt.config,
++        tariff=frt.tariff,
++        as_of=snapshot.envelope.as_of,
++        horizon_minutes=snapshot.envelope.horizon_minutes,
++        known_bookings=snapshot.known_bookings,
++        station=sim,
++    )
++
++    events: list[StationEvent] = list(frt.take_events())
++    executed_count = 0
++    blocked_count = 0
++
++    while sim.minute < end_minute:
++        await _cooperative_yield(cancel_event, live_busy_probe)
++        current_minute = sim.minute
++        current_dt = sim.now
++
++        async with _minute_gate():
++            _check_cancel(cancel_event)
++            minute_entries.clear()
++            await control_loop.on_minute(frt, events)
++            entries = list(minute_entries)
++            for entry in entries:
++                if entry.executed:
++                    executed_count += 1
++                elif entry.approval_id is None:
++                    blocked_count += 1
++            tracker.observe_after_dispatch(sim, entries)
++            events = sim.step(1)
++            tracker.observe_after_physics_step(
++                sim,
++                step_start_minute=current_minute,
++                step_start_dt=current_dt,
++                emitted_events=events,
++            )
++
++        if step_hook is not None:
++            maybe_coro = step_hook(branch_label, sim.minute)
++            if maybe_coro is not None:
++                await maybe_coro
++
++    _check_cancel(cancel_event)
++    ledger = tracker.finalize(sim)
++    final_physics = sim.snapshot_physics_state()
++    final_physics_digest = canonical_sha256(final_physics)
++    wall_ms = round((time.perf_counter() - started) * 1000.0, 3)
++
++    return SandboxBranchResult(
++        branch_label=branch_label,
++        applied=False,
++        snapshot_id=snapshot.envelope.snapshot_id,
++        initial_snapshot_digest=snapshot.envelope.snapshot_digest,
++        experiment_fingerprint=snapshot.envelope.experiment_fingerprint,
++        event_manifest_sha256=snapshot.event_manifest.manifest_sha256,
++        policy_id=snapshot.envelope.policy_id,
++        policy_version=snapshot.envelope.policy_version,
++        as_of=snapshot.envelope.as_of,
++        horizon_end=snapshot.event_manifest.horizon_end,
++        horizon_minutes=snapshot.envelope.horizon_minutes,
++        decisions_count=len(frt.recorder.replan_durations_s),
++        executed_command_count=executed_count,
++        blocked_command_count=blocked_count,
++        pending_approval_count_end=len(frt.store.pending_approvals()),
++        safety_hold_booking_ids_end=sorted(frt.safety_hold_booking_ids),
++        final_physics_digest=final_physics_digest,
++        wall_time_ms=wall_ms,
++        outcome_ledger=ledger,
++    )
++
++
++async def run_sandbox_branch(
++    snapshot: CapturedSnapshot,
++    *,
++    branch_label: str = "baseline",
++    timeout_s: float | None = None,
++    cancel_event: asyncio.Event | None = None,
++    step_hook: StepHook | None = None,
++    live_busy_probe: LiveBusyProbe | None = None,
++) -> SandboxBranchResult:
++    """Run one isolated counterfactual branch from `snapshot` with optional timeout and cancellation."""
++    if timeout_s is not None and timeout_s <= 0:
++        raise ValueError("timeout_s must be positive when provided")
++    coro = _execute_branch(
++        snapshot,
++        branch_label=branch_label,
++        cancel_event=cancel_event,
++        step_hook=step_hook,
++        live_busy_probe=live_busy_probe,
++    )
++    if timeout_s is not None:
++        async with asyncio.timeout(timeout_s):
++            return await coro
++    return await coro
++
++
++def non_timing_branch_signature(result: SandboxBranchResult) -> dict:
++    """Extract all deterministic non-timing metrics and per-vehicle outcomes for parity comparison."""
++    return {
++        "applied": result.applied,
++        "initial_snapshot_digest": result.initial_snapshot_digest,
++        "experiment_fingerprint": result.experiment_fingerprint,
++        "event_manifest_sha256": result.event_manifest_sha256,
++        "policy_id": result.policy_id,
++        "policy_version": result.policy_version,
++        "as_of": result.as_of.isoformat(),
++        "horizon_end": result.horizon_end.isoformat(),
++        "horizon_minutes": result.horizon_minutes,
++        "decisions_count": result.decisions_count,
++        "executed_command_count": result.executed_command_count,
++        "blocked_command_count": result.blocked_command_count,
++        "pending_approval_count_end": result.pending_approval_count_end,
++        "safety_hold_booking_ids_end": result.safety_hold_booking_ids_end,
++        "final_physics_digest": result.final_physics_digest,
++        "outcome_ledger": result.outcome_ledger.model_dump(mode="json"),
++    }
++
++
++async def run_paired_noop(
++    snapshot: CapturedSnapshot,
++    *,
++    timeout_s: float | None = None,
++    cancel_event: asyncio.Event | None = None,
++    interleaved: bool = False,
++    live_busy_probe: LiveBusyProbe | None = None,
++) -> PairedNoOpResult:
++    """Run two independent no-op sandbox forks (`baseline` and `counterfactual`) from `snapshot`.
++
++    In Gate 3 (AI-4.2A), neither branch applies business patches; both share the exact same
++    `snapshot_digest`, `experiment_fingerprint`, `event_manifest`, and fixed booking cohort.
++    When `interleaved=True`, both branches run concurrently on the event loop, alternating steps.
++    """
++    if timeout_s is not None and timeout_s <= 0:
++        raise ValueError("timeout_s must be positive when provided")
++
++    async def _run_both() -> tuple[SandboxBranchResult, SandboxBranchResult]:
++        if interleaved:
++            return await asyncio.gather(
++                run_sandbox_branch(
++                    snapshot,
++                    branch_label="baseline",
++                    cancel_event=cancel_event,
++                    live_busy_probe=live_busy_probe,
++                ),
++                run_sandbox_branch(
++                    snapshot,
++                    branch_label="counterfactual",
++                    cancel_event=cancel_event,
++                    live_busy_probe=live_busy_probe,
++                ),
++            )
++        base = await run_sandbox_branch(
++            snapshot,
++            branch_label="baseline",
++            cancel_event=cancel_event,
++            live_busy_probe=live_busy_probe,
++        )
++        cf = await run_sandbox_branch(
++            snapshot,
++            branch_label="counterfactual",
++            cancel_event=cancel_event,
++            live_busy_probe=live_busy_probe,
++        )
++        return base, cf
++
++    if timeout_s is not None:
++        async with asyncio.timeout(timeout_s):
++            baseline, counterfactual = await _run_both()
++    else:
++        baseline, counterfactual = await _run_both()
++
++    kpis_equal = non_timing_branch_signature(baseline) == non_timing_branch_signature(counterfactual)
++    phys_equal = baseline.final_physics_digest == counterfactual.final_physics_digest
++
++    return PairedNoOpResult(
++        applied=False,
++        snapshot_id=snapshot.envelope.snapshot_id,
++        snapshot_digest=snapshot.envelope.snapshot_digest,
++        experiment_fingerprint=snapshot.envelope.experiment_fingerprint,
++        event_manifest_sha256=snapshot.event_manifest.manifest_sha256,
++        horizon_minutes=snapshot.envelope.horizon_minutes,
++        known_booking_ids=list(snapshot.event_manifest.known_booking_ids),
++        baseline=baseline,
++        counterfactual=counterfactual,
++        non_timing_kpis_equal=kpis_equal,
++        final_physics_digests_equal=phys_equal,
++    )
+diff --git a/src/services/copilot/outcome_ledger.py b/src/services/copilot/outcome_ledger.py
+new file mode 100644
+--- /dev/null
++++ b/src/services/copilot/outcome_ledger.py
+@@ -0,0 +1,616 @@
++"""Additive Outcome Ledger for AI-4 counterfactual rollouts (Phase AI-4.2A: WP3.5).
++
++Leaves frozen `HybridStation.outcomes()` and `simulation_service.compute_kpis()` completely untouched.
++Fixes the evaluation cohort at snapshot time `T`, preserves original commitments (`target_soc`, `deadline`,
++`arrival`), tracks post-snapshot energy deltas without double-counting pre-snapshot energy, separates
++plug-in time from first-charging time and target-reached time from connector release/departure time,
++preserves `NOT_ARRIVED` and censored vehicles explicitly, and returns `None` (never `1.0`) on empty
++denominators.
++"""
++
++import math
++import statistics
++from dataclasses import dataclass
++from datetime import datetime, timedelta
++from typing import Any
++from zoneinfo import ZoneInfo
++
++from src.models.charging import Booking
++from src.models.control import DecisionLogEntry
++from src.models.copilot import (
++    OUTCOME_LEDGER_SCHEMA_VERSION,
++    OutcomeLedger,
++    VehicleOutcomeRecord,
++    VehicleOutcomeStatus,
++    VehicleReleaseReason,
++    ZoneSlaSummary,
++)
++from src.models.events import EventType, StationEvent
++from src.models.station import StationConfig, Tariff
++from src.simulator.hybrid_station import HybridStation
++
++ENERGY_EPS_KWH = 1e-9
++POWER_OVER_LIMIT_EPS_KW = 1e-6
++FEASIBILITY_TOL_KWH = 0.05
++
++LEDGER_ASSUMPTIONS: tuple[str, ...] = (
++    "Pre-snapshot energies (delivered_battery_kwh, output_kwh, delivered_grid_kwh) are recorded separately and excluded from horizon_*_kwh and horizon_energy_cost_vnd.",
++    "horizon_grid_input_kwh divides step charger-output kWh by station conversion efficiency once per physics step via StationKernel.",
++    "Original Booking.energy.grid_energy_kwh retains its frozen FR3 charger-output meaning (battery_kwh / charging_efficiency); R10 billing changes remain out of AI-4.2A scope.",
++    "Empty SLA or service coverage denominators evaluate to None rather than 1.0.",
++    "Censored vehicles (original_deadline > horizon_end and not yet completed) remain in the cohort and are excluded from sla_denominator.",
++)
++
++
++def _percentile_90(values: list[float]) -> float | None:
++    if not values:
++        return None
++    ordered = sorted(values)
++    idx = max(math.ceil(0.9 * len(ordered)) - 1, 0)
++    return round(ordered[idx], 4)
++
++
++def _mean_or_none(values: list[float]) -> float | None:
++    if not values:
++        return None
++    return round(statistics.fmean(values), 4)
++
++
++@dataclass
++class _VehicleRolloutState:
++    booking: Booking
++    usable_capacity_kwh: float
++    original_arrival_at: datetime
++    physically_feasible: bool
++
++    initial_session_state: str
++    initial_soc_pct: float
++    already_plugged_at_snapshot: bool
++    already_completed_at_snapshot: bool
++    pre_battery_kwh: float
++    pre_output_kwh: float
++    pre_grid_kwh: float
++
++    prev_battery_kwh: float
++    prev_output_kwh: float
++    prev_grid_kwh: float
++    prev_connector_id: str | None
++
++    arrived_at: datetime | None = None
++    assigned_connector_id: str | None = None
++    plug_in_at: datetime | None = None
++    first_charge_at: datetime | None = None
++    target_reached_at: datetime | None = None
++    release_or_departure_at: datetime | None = None
++    release_reason: VehicleReleaseReason | None = None
++    fault_unplug_count: int = 0
++
++    horizon_battery_kwh: float = 0.0
++    horizon_output_kwh: float = 0.0
++    horizon_grid_kwh: float = 0.0
++
++
++class OutcomeTracker:
++    """Minute-by-minute observer attached to a single isolated sandbox `HybridStation` fork."""
++
++    def __init__(
++        self,
++        *,
++        station_config: StationConfig,
++        tariff: Tariff,
++        as_of: datetime,
++        horizon_minutes: int,
++        known_bookings: tuple[Booking, ...],
++        station: HybridStation,
++    ) -> None:
++        self._config = station_config
++        self._tariff = tariff
++        self._tz = ZoneInfo(station_config.timezone)
++        self._as_of = as_of
++        self._horizon_minutes = horizon_minutes
++        self._horizon_end = as_of + timedelta(minutes=horizon_minutes)
++
++        initial_phys = station.snapshot_physics_state()
++        self._initial_applied_violations = int(
++            initial_phys["constraint_counters"]["applied_constraint_violation_count"]
++        )
++        self._initial_rejected_allocations = int(initial_phys["constraint_counters"]["rejected_allocation_count"])
++
++        sessions: dict[str, dict[str, Any]] = initial_phys["sessions"]
++        self._vehicles: dict[str, _VehicleRolloutState] = {}
++
++        for b in sorted(known_bookings, key=lambda item: item.booking_id):
++            vid = b.booking_id
++            s = sessions.get(vid)
++            if s is not None:
++                usable_cap = float(s["battery_capacity_kwh"])
++                orig_arrival = datetime.fromisoformat(s["arrival_at"])
++                init_state = str(s["state"])
++                init_soc_pct = round(float(s["current_soc"]) * 100.0, 6)
++                already_plugged = s["connector_id"] is not None
++                already_completed = s["completed_at"] is not None and int(s["completed_at_minute"]) <= int(
++                    initial_phys["minute"]
++                )
++                pre_bat = float(s["delivered_battery_kwh"])
++                pre_out = float(s["output_kwh"])
++                pre_grid = float(s["delivered_grid_kwh"])
++                arrived_at = orig_arrival if init_state != "NOT_ARRIVED" else None
++                conn_id = s["connector_id"]
++                plug_at = (
++                    datetime.fromisoformat(s["charge_started_at"])
++                    if s["charge_started_at"] is not None
++                    else (as_of if already_plugged else None)
++                )
++                first_charge = plug_at if (pre_out > ENERGY_EPS_KWH and plug_at is not None) else None
++                target_at = datetime.fromisoformat(s["completed_at"]) if s["completed_at"] is not None else None
++                dep_at = datetime.fromisoformat(s["departed_at"]) if s["departed_at"] is not None else None
++                rel_reason = None
++                if dep_at is not None and s["departed_at_minute"] is not None:
++                    rel_reason = (
++                        VehicleReleaseReason.DC_UNPLUG_DELAY
++                        if int(s["departed_at_minute"]) < int(s["departure_minute"])
++                        else VehicleReleaseReason.DECLARED_DEPARTURE
++                    )
++            else:
++                usable_cap = (
++                    b.energy.battery_energy_kwh / ((b.request.soc_target - b.request.soc_now) / 100.0)
++                    if b.request.soc_target > b.request.soc_now
++                    else 0.0
++                )
++                orig_arrival = b.request.arrival_time or b.created_at
++                init_state = "NOT_IN_SIMULATOR"
++                init_soc_pct = float(b.request.soc_now)
++                already_plugged = False
++                already_completed = False
++                pre_bat = 0.0
++                pre_out = 0.0
++                pre_grid = 0.0
++                arrived_at = None
++                conn_id = None
++                plug_at = None
++                first_charge = None
++                target_at = None
++                dep_at = None
++                rel_reason = None
++
++            hours_avail = max(0.0, (b.request.deadline - orig_arrival).total_seconds() / 3600.0)
++            feasible = b.max_charge_power_kw * hours_avail >= b.energy.grid_energy_kwh - FEASIBILITY_TOL_KWH
++
++            self._vehicles[vid] = _VehicleRolloutState(
++                booking=b,
++                usable_capacity_kwh=usable_cap,
++                original_arrival_at=orig_arrival,
++                physically_feasible=feasible,
++                initial_session_state=init_state,
++                initial_soc_pct=init_soc_pct,
++                already_plugged_at_snapshot=already_plugged,
++                already_completed_at_snapshot=already_completed,
++                pre_battery_kwh=pre_bat,
++                pre_output_kwh=pre_out,
++                pre_grid_kwh=pre_grid,
++                prev_battery_kwh=pre_bat,
++                prev_output_kwh=pre_out,
++                prev_grid_kwh=pre_grid,
++                prev_connector_id=conn_id,
++                arrived_at=arrived_at,
++                assigned_connector_id=conn_id,
++                plug_in_at=plug_at,
++                first_charge_at=first_charge,
++                target_reached_at=target_at,
++                release_or_departure_at=dep_at,
++                release_reason=rel_reason,
++            )
++
++        self._horizon_energy_cost_vnd = 0.0
++        self._peak_output_kw = 0.0
++        self._peak_grid_kw = 0.0
++        self._sampled_over_limit_minutes = 0
++        self._hard_safety_event_count = 0
++        self._guard_blocked_commands = 0
++        self._pending_approval_commands = 0
++
++    def observe_after_dispatch(self, station: HybridStation, entries: list[DecisionLogEntry]) -> None:
++        """Record dispatch outcomes and connector assignments at minute `m` BEFORE physics step `[m, m+1)`."""
++        for entry in entries:
++            if entry.approval_id is not None and not entry.executed:
++                self._pending_approval_commands += 1
++            elif not entry.executed:
++                self._guard_blocked_commands += 1
++
++        phys = station.snapshot_physics_state()
++        at_dt = datetime.fromisoformat(phys["now_iso"])
++        sessions = phys["sessions"]
++        for vid, rec in self._vehicles.items():
++            s = sessions.get(vid)
++            if s is None:
++                continue
++            if rec.arrived_at is None and s["state"] != "NOT_ARRIVED":
++                rec.arrived_at = datetime.fromisoformat(s["arrival_at"])
++            conn_id = s["connector_id"]
++            if conn_id is not None:
++                if rec.plug_in_at is None:
++                    rec.plug_in_at = at_dt
++                if rec.assigned_connector_id is None:
++                    rec.assigned_connector_id = conn_id
++            elif rec.prev_connector_id is not None and s["state"] != "DEPARTED":
++                rec.fault_unplug_count += 1
++            rec.prev_connector_id = conn_id
++
++    def observe_after_physics_step(
++        self,
++        station: HybridStation,
++        *,
++        step_start_minute: int,
++        step_start_dt: datetime,
++        emitted_events: list[StationEvent],
++    ) -> None:
++        """Record `[m, m+1)` energy deltas, charging start, completion, unplug/departure, TOU cost, and caps."""
++        for ev in emitted_events:
++            if ev.type == EventType.HARD_LIMIT_VIOLATED:
++                self._hard_safety_event_count += 1
++
++        phys = station.snapshot_physics_state()
++        sessions = phys["sessions"]
++        step_total_output_kwh = 0.0
++        step_total_grid_kwh = 0.0
++
++        for vid, rec in self._vehicles.items():
++            s = sessions.get(vid)
++            if s is None:
++                continue
++            if rec.arrived_at is None and s["state"] != "NOT_ARRIVED":
++                rec.arrived_at = datetime.fromisoformat(s["arrival_at"])
++
++            cur_bat = float(s["delivered_battery_kwh"])
++            cur_out = float(s["output_kwh"])
++            cur_grid = float(s["delivered_grid_kwh"])
++
++            d_bat = max(0.0, cur_bat - rec.prev_battery_kwh)
++            d_out = max(0.0, cur_out - rec.prev_output_kwh)
++            d_grid = max(0.0, cur_grid - rec.prev_grid_kwh)
++
++            rec.prev_battery_kwh = cur_bat
++            rec.prev_output_kwh = cur_out
++            rec.prev_grid_kwh = cur_grid
++
++            rec.horizon_battery_kwh += d_bat
++            rec.horizon_output_kwh += d_out
++            rec.horizon_grid_kwh += d_grid
++
++            step_total_output_kwh += d_out
++            step_total_grid_kwh += d_grid
++
++            if d_out > ENERGY_EPS_KWH and rec.first_charge_at is None:
++                rec.first_charge_at = step_start_dt
++                if rec.plug_in_at is None:
++                    rec.plug_in_at = step_start_dt
++
++            if s["completed_at"] is not None and rec.target_reached_at is None:
++                rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
++
++            if s["departed_at"] is not None and rec.release_or_departure_at is None:
++                rec.release_or_departure_at = datetime.fromisoformat(s["departed_at"])
++                dep_min = int(s["departed_at_minute"])
++                rec.release_reason = (
++                    VehicleReleaseReason.DC_UNPLUG_DELAY
++                    if dep_min < int(s["departure_minute"])
++                    else VehicleReleaseReason.DECLARED_DEPARTURE
++                )
++
++            conn_id = s["connector_id"]
++            if conn_id is None and rec.prev_connector_id is not None and s["state"] != "DEPARTED":
++                rec.fault_unplug_count += 1
++            rec.prev_connector_id = conn_id
++
++        step_output_kw = step_total_output_kwh * 60.0
++        step_grid_kw = step_total_grid_kwh * 60.0
++        self._peak_output_kw = max(self._peak_output_kw, step_output_kw)
++        self._peak_grid_kw = max(self._peak_grid_kw, step_grid_kw)
++
++        price_vnd = self._tariff.price_at(step_start_dt.astimezone(self._tz).time())
++        self._horizon_energy_cost_vnd += step_total_grid_kwh * price_vnd
++
++        grid_cap_kw = station.effective_grid_limit_kw(minute=step_start_minute)
++        if math.isfinite(grid_cap_kw) and step_grid_kw > grid_cap_kw + POWER_OVER_LIMIT_EPS_KW:
++            self._sampled_over_limit_minutes += 1
++
++    def finalize(self, station: HybridStation) -> OutcomeLedger:
++        """Build immutable `OutcomeLedger` at `horizon_end` with explicit censoring and denominators."""
++        final_phys = station.snapshot_physics_state()
++        sessions = final_phys["sessions"]
++
++        records: list[VehicleOutcomeRecord] = []
++        plug_waits: list[float] = []
++        charge_waits: list[float] = []
++
++        for vid in sorted(self._vehicles):
++            rec = self._vehicles[vid]
++            b = rec.booking
++            s = sessions.get(vid)
++
++            if s is not None:
++                final_state = str(s["state"])
++                final_soc_pct = round(float(s["current_soc"]) * 100.0, 6)
++                final_cap_kwh = float(s["current_capacity_kwh"])
++                if rec.arrived_at is None and final_state != "NOT_ARRIVED":
++                    rec.arrived_at = datetime.fromisoformat(s["arrival_at"])
++                if s["completed_at"] is not None and rec.target_reached_at is None:
++                    rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
++                if s["departed_at"] is not None and rec.release_or_departure_at is None:
++                    rec.release_or_departure_at = datetime.fromisoformat(s["departed_at"])
++                    rec.release_reason = (
++                        VehicleReleaseReason.DC_UNPLUG_DELAY
++                        if int(s["departed_at_minute"]) < int(s["departure_minute"])
++                        else VehicleReleaseReason.DECLARED_DEPARTURE
++                    )
++            else:
++                final_state = rec.initial_session_state
++                final_soc_pct = rec.initial_soc_pct
++                final_cap_kwh = rec.usable_capacity_kwh * (final_soc_pct / 100.0)
++
++            cum_bat = rec.pre_battery_kwh + rec.horizon_battery_kwh
++            cum_out = rec.pre_output_kwh + rec.horizon_output_kwh
++            cum_grid = rec.pre_grid_kwh + rec.horizon_grid_kwh
++            desired_cap = rec.usable_capacity_kwh * (b.request.soc_target / 100.0)
++            remaining_bat = max(0.0, desired_cap - final_cap_kwh)
++
++            plug_wait: float | None = None
++            censored_plug_wait: float | None = None
++            if rec.arrived_at is not None:
++                if rec.plug_in_at is not None:
++                    plug_wait = round(max(0.0, (rec.plug_in_at - rec.arrived_at).total_seconds() / 60.0), 4)
++                    plug_waits.append(plug_wait)
++                else:
++                    end_wait_ref = min(b.request.deadline, self._horizon_end)
++                    if end_wait_ref >= rec.arrived_at:
++                        censored_plug_wait = round((end_wait_ref - rec.arrived_at).total_seconds() / 60.0, 4)
++
++            charge_wait: float | None = None
++            if rec.arrived_at is not None and rec.first_charge_at is not None:
++                charge_wait = round(max(0.0, (rec.first_charge_at - rec.arrived_at).total_seconds() / 60.0), 4)
++                charge_waits.append(charge_wait)
++
++            # Mutually exclusive 8-state outcome classification
++            if rec.target_reached_at is not None:
++                on_time = rec.target_reached_at <= b.request.deadline
++                if rec.already_completed_at_snapshot:
++                    status = VehicleOutcomeStatus.ALREADY_COMPLETED_AT_SNAPSHOT
++                elif on_time:
++                    status = VehicleOutcomeStatus.COMPLETED_ON_TIME
++                else:
++                    status = VehicleOutcomeStatus.COMPLETED_LATE
++                sla_evaluable = True
++                censored = False
++                unserved = False
++                met_sla: bool | None = on_time
++            elif final_state in ("NOT_ARRIVED", "NOT_IN_SIMULATOR"):
++                if b.request.deadline > self._horizon_end:
++                    status = VehicleOutcomeStatus.CENSORED_NOT_ARRIVED
++                    sla_evaluable = False
++                    censored = True
++                    unserved = False
++                    met_sla = None
++                else:
++                    status = VehicleOutcomeStatus.MISSED_DEADLINE_NOT_ARRIVED
++                    sla_evaluable = True
++                    censored = False
++                    unserved = True
++                    met_sla = False
++            else:
++                if final_state != "DEPARTED" and b.request.deadline > self._horizon_end:
++                    status = VehicleOutcomeStatus.CENSORED_IN_PROGRESS
++                    sla_evaluable = False
++                    censored = True
++                    unserved = False
++                    met_sla = None
++                elif cum_bat <= ENERGY_EPS_KWH and cum_out <= ENERGY_EPS_KWH:
++                    status = VehicleOutcomeStatus.UNSERVED_DEPARTED_OR_EXPIRED
++                    sla_evaluable = True
++                    censored = False
++                    unserved = True
++                    met_sla = False
++                else:
++                    status = VehicleOutcomeStatus.PARTIAL_MISSED_DEADLINE
++                    sla_evaluable = True
++                    censored = False
++                    unserved = False
++                    met_sla = False
++
++            records.append(
++                VehicleOutcomeRecord(
++                    booking_id=vid,
++                    zone=b.request.zone,
++                    vehicle_model=b.request.vehicle_model,
++                    physically_feasible_from_arrival=rec.physically_feasible,
++                    original_arrival_at=rec.original_arrival_at,
++                    original_deadline=b.request.deadline,
++                    original_soc_now_pct=round(float(b.request.soc_now), 6),
++                    original_target_soc_pct=round(float(b.request.soc_target), 6),
++                    original_required_battery_kwh=round(float(b.energy.battery_energy_kwh), 6),
++                    original_required_output_kwh=round(float(b.energy.grid_energy_kwh), 6),
++                    initial_session_state=rec.initial_session_state,
++                    initial_soc_pct=rec.initial_soc_pct,
++                    already_plugged_at_snapshot=rec.already_plugged_at_snapshot,
++                    already_completed_at_snapshot=rec.already_completed_at_snapshot,
++                    pre_snapshot_battery_stored_kwh=round(rec.pre_battery_kwh, 6),
++                    pre_snapshot_output_kwh=round(rec.pre_output_kwh, 6),
++                    pre_snapshot_grid_input_kwh=round(rec.pre_grid_kwh, 6),
++                    arrived_at=rec.arrived_at,
++                    assigned_connector_id=rec.assigned_connector_id,
++                    plug_in_at=rec.plug_in_at,
++                    first_charge_at=rec.first_charge_at,
++                    target_reached_at=rec.target_reached_at,
++                    release_or_departure_at=rec.release_or_departure_at,
++                    release_reason=rec.release_reason,
++                    plug_wait_minutes=plug_wait,
++                    censored_plug_wait_minutes=censored_plug_wait,
++                    charge_start_wait_minutes=charge_wait,
++                    fault_unplug_count=rec.fault_unplug_count,
++                    horizon_battery_stored_kwh=round(rec.horizon_battery_kwh, 6),
++                    horizon_output_kwh=round(rec.horizon_output_kwh, 6),
++                    horizon_grid_input_kwh=round(rec.horizon_grid_kwh, 6),
++                    final_session_state=final_state,
++                    final_soc_pct=min(100.0, max(0.0, final_soc_pct)),
++                    cumulative_battery_stored_kwh=round(cum_bat, 6),
++                    cumulative_output_kwh=round(cum_out, 6),
++                    cumulative_grid_input_kwh=round(cum_grid, 6),
++                    remaining_to_original_target_battery_kwh=round(remaining_bat, 6),
++                    status=status,
++                    sla_evaluable=sla_evaluable,
++                    censored=censored,
++                    unserved=unserved,
++                    met_original_sla=met_sla,
++                )
++            )
++
++        by_zone: dict[str, ZoneSlaSummary] = {}
++        for zone in ("AC", "DC"):
++            z_rows = [r for r in records if r.zone == zone]
++            by_zone[zone] = _build_zone_summary(zone, z_rows)
++
++        cohort_size = len(records)
++        arrived_rows = [r for r in records if r.arrived_at is not None]
++        arrived_count = len(arrived_rows)
++        not_arrived_count = cohort_size - arrived_count
++        plugged_arrived = sum(
++            1
++            for r in arrived_rows
++            if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
++        )
++        charged_arrived = sum(
++            1 for r in arrived_rows if r.first_charge_at is not None or r.cumulative_output_kwh > ENERGY_EPS_KWH
++        )
++        plugged_total = sum(
++            1
++            for r in records
++            if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
++        )
++        charged_total = sum(
++            1 for r in records if r.first_charge_at is not None or r.cumulative_output_kwh > ENERGY_EPS_KWH
++        )
++
++        evaluable = [r for r in records if r.sla_evaluable]
++        sla_denom = len(evaluable)
++        sla_met = sum(1 for r in evaluable if r.met_original_sla is True)
++        on_time_rate = round(sla_met / sla_denom, 6) if sla_denom > 0 else None
++
++        feasible_eval = [r for r in evaluable if r.physically_feasible_from_arrival]
++        feas_denom = len(feasible_eval)
++        feas_met = sum(1 for r in feasible_eval if r.met_original_sla is True)
++        feas_rate = round(feas_met / feas_denom, 6) if feas_denom > 0 else None
++
++        svc_cov = round(plugged_arrived / arrived_count, 6) if arrived_count > 0 else None
++        chg_cov = round(charged_arrived / arrived_count, 6) if arrived_count > 0 else None
++
++        final_applied_viol = int(final_phys["constraint_counters"]["applied_constraint_violation_count"])
++        final_rejected_alloc = int(final_phys["constraint_counters"]["rejected_allocation_count"])
++
++        return OutcomeLedger(
++            schema_version=OUTCOME_LEDGER_SCHEMA_VERSION,
++            station_id=self._config.station_id,
++            as_of=self._as_of,
++            horizon_end=self._horizon_end,
++            horizon_minutes=self._horizon_minutes,
++            cohort_size=cohort_size,
++            arrived_count=arrived_count,
++            not_arrived_count=not_arrived_count,
++            plugged_count=plugged_total,
++            charged_count=charged_total,
++            completed_on_time_count=sum(1 for r in records if r.status == VehicleOutcomeStatus.COMPLETED_ON_TIME),
++            completed_late_count=sum(1 for r in records if r.status == VehicleOutcomeStatus.COMPLETED_LATE),
++            already_completed_at_snapshot_count=sum(
++                1 for r in records if r.status == VehicleOutcomeStatus.ALREADY_COMPLETED_AT_SNAPSHOT
++            ),
++            unserved_count=sum(1 for r in records if r.unserved),
++            partial_missed_deadline_count=sum(
++                1 for r in records if r.status == VehicleOutcomeStatus.PARTIAL_MISSED_DEADLINE
++            ),
++            censored_count=sum(1 for r in records if r.censored),
++            censored_not_arrived_count=sum(1 for r in records if r.status == VehicleOutcomeStatus.CENSORED_NOT_ARRIVED),
++            censored_in_progress_count=sum(1 for r in records if r.status == VehicleOutcomeStatus.CENSORED_IN_PROGRESS),
++            sla_denominator=sla_denom,
++            sla_met_count=sla_met,
++            on_time_rate=on_time_rate,
++            feasible_sla_denominator=feas_denom,
++            feasible_sla_met_count=feas_met,
++            feasible_on_time_rate=feas_rate,
++            service_coverage_denominator=arrived_count,
++            service_coverage_rate=svc_cov,
++            charged_coverage_rate=chg_cov,
++            plug_wait_mean_minutes=_mean_or_none(plug_waits),
++            plug_wait_p90_minutes=_percentile_90(plug_waits),
++            charge_start_wait_mean_minutes=_mean_or_none(charge_waits),
++            charge_start_wait_p90_minutes=_percentile_90(charge_waits),
++            pre_snapshot_battery_stored_kwh=round(sum(r.pre_snapshot_battery_stored_kwh for r in records), 6),
++            pre_snapshot_output_kwh=round(sum(r.pre_snapshot_output_kwh for r in records), 6),
++            pre_snapshot_grid_input_kwh=round(sum(r.pre_snapshot_grid_input_kwh for r in records), 6),
++            horizon_battery_stored_kwh=round(sum(r.horizon_battery_stored_kwh for r in records), 6),
++            horizon_output_kwh=round(sum(r.horizon_output_kwh for r in records), 6),
++            horizon_grid_input_kwh=round(sum(r.horizon_grid_input_kwh for r in records), 6),
++            horizon_energy_cost_vnd=round(self._horizon_energy_cost_vnd, 2),
++            remaining_to_original_target_battery_kwh=round(
++                sum(r.remaining_to_original_target_battery_kwh for r in records), 6
++            ),
++            peak_charger_output_kw=round(self._peak_output_kw, 6),
++            peak_grid_input_kw=round(self._peak_grid_kw, 6),
++            pre_snapshot_applied_constraint_violation_count=self._initial_applied_violations,
++            horizon_applied_constraint_violation_count=max(0, final_applied_viol - self._initial_applied_violations),
++            horizon_rejected_allocation_count=max(0, final_rejected_alloc - self._initial_rejected_allocations),
++            horizon_sampled_grid_over_limit_minutes=self._sampled_over_limit_minutes,
++            horizon_hard_safety_event_count=self._hard_safety_event_count,
++            horizon_guard_blocked_command_count=self._guard_blocked_commands,
++            horizon_pending_approval_command_count=self._pending_approval_commands,
++            by_zone=by_zone,
++            vehicles=records,
++            assumptions=list(LEDGER_ASSUMPTIONS),
++        )
++
++
++def _build_zone_summary(zone: str, rows: list[VehicleOutcomeRecord]) -> ZoneSlaSummary:
++    cohort_count = len(rows)
++    arrived = [r for r in rows if r.arrived_at is not None]
++    arrived_count = len(arrived)
++    not_arrived_count = cohort_count - arrived_count
++    plugged_arrived = sum(
++        1
++        for r in arrived
++        if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
++    )
++    plugged_count = sum(
++        1
++        for r in rows
++        if r.plug_in_at is not None or r.already_plugged_at_snapshot or r.cumulative_output_kwh > ENERGY_EPS_KWH
++    )
++    charged_count = sum(1 for r in rows if r.first_charge_at is not None or r.cumulative_output_kwh > ENERGY_EPS_KWH)
++    unserved_count = sum(1 for r in rows if r.unserved)
++    censored_count = sum(1 for r in rows if r.censored)
++
++    evaluable = [r for r in rows if r.sla_evaluable]
++    sla_denom = len(evaluable)
++    sla_met = sum(1 for r in evaluable if r.met_original_sla is True)
++    on_time = round(sla_met / sla_denom, 6) if sla_denom > 0 else None
++
++    feas_eval = [r for r in evaluable if r.physically_feasible_from_arrival]
++    feas_denom = len(feas_eval)
++    feas_met = sum(1 for r in feas_eval if r.met_original_sla is True)
++    feas_rate = round(feas_met / feas_denom, 6) if feas_denom > 0 else None
++
++    svc_rate = round(plugged_arrived / arrived_count, 6) if arrived_count > 0 else None
++
++    return ZoneSlaSummary(
++        zone=zone,  # type: ignore[arg-type]
++        cohort_count=cohort_count,
++        arrived_count=arrived_count,
++        not_arrived_count=not_arrived_count,
++        plugged_count=plugged_count,
++        charged_count=charged_count,
++        unserved_count=unserved_count,
++        censored_count=censored_count,
++        sla_denominator=sla_denom,
++        sla_met_count=sla_met,
++        on_time_rate=on_time,
++        feasible_sla_denominator=feas_denom,
++        feasible_sla_met_count=feas_met,
++        feasible_on_time_rate=feas_rate,
++        service_coverage_rate=svc_rate,
++    )
+diff --git a/src/services/copilot/snapshot.py b/src/services/copilot/snapshot.py
+new file mode 100644
+--- /dev/null
++++ b/src/services/copilot/snapshot.py
+@@ -0,0 +1,527 @@
++"""Atomic snapshot capture and prospective `known_at(T)` manifest (Phase AI-4.2A: WP3.2 & WP3.3).
++
++Lock acquisition order matches the repository's canonical hierarchy:
++    `rt.booking_lock` (async)
++      -> `rt.decision_lock()` / `rt.lock` (async; pauses `sync_clock` read-driven steps)
++        -> `rt._clock_lock` (thread RLock; guards outbox & pending safety registry)
++          -> `rt.simulator.lock` (thread RLock; guards `HybridStation` & `StationKernel`)
++
++Locks are held ONLY during in-memory state cloning and SHA-256 digest computation (never during
++sandbox rollout or LP solving). `CapturedSnapshot` contains pure data and a detached, lock-free,
++actuator-free `PhysicsSnapshotSeed` — zero live DB connections, event loops, locks, WebSocket
++clients, or `StationActuator` instances.
++"""
++
++import hashlib
++import json
++from collections import deque
++from collections.abc import Mapping
++from copy import deepcopy
++from dataclasses import dataclass
++from datetime import datetime, timedelta
++from types import MappingProxyType
++from typing import Any
++from uuid import uuid4
++
++from src.guard.physical import adapter as physical_guard_adapter
++from src.models.charging import Booking, SchedulePlan, StrategyName
++from src.models.control import Approval, Command
++from src.models.copilot import (
++    EVENT_MANIFEST_SCHEMA_VERSION,
++    MAX_COUNTERFACTUAL_HORIZON_MINUTES,
++    SNAPSHOT_SCHEMA_VERSION,
++    EventManifest,
++    KnownLimitEvent,
++    SnapshotEnvelope,
++    SnapshotNotReadyReason,
++    SnapshotStatus,
++)
++from src.models.events import EventType, StationEvent
++from src.models.physical_constraints import TOL
++from src.models.simulation import ResolvedExperiment
++from src.models.station import StationConfig, Tariff
++from src.services.experiment import resolve_experiment
++from src.services.runtime import ACTIVE, OUTBOX_MAX, StationRuntime, _memory_runtime, make_scheduler, visit_of
++from src.simulator.hybrid_station import HybridStation, PhysicsSnapshotSeed
++
++PROSPECTIVE_ASSUMPTIONS: tuple[str, ...] = (
++    "Prospective known_at(T) boundary: only bookings registered at or before T (created_at <= T) and vehicles physically present at T are included.",
++    "Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute <= as_of_minute) are visible to optimizer and sandbox physics.",
++    "Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).",
++    "Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.",
++    "Live runtime is never stepped, drained, or mutated during snapshot capture or sandbox rollout.",
++)
++
++
++class SnapshotNotReadyError(RuntimeError):
++    """Raised when live station state cannot safely or consistently be captured for counterfactual rollout."""
++
++    def __init__(self, reason: SnapshotNotReadyReason, detail: str) -> None:
++        super().__init__(f"{reason.value}: {detail}")
++        self.status = SnapshotStatus.NOT_READY
++        self.reason = reason
++        self.detail = detail
++
++
++def canonical_sha256(payload: Any) -> str:
++    """Stable SHA-256 hex digest of canonical sorted-key JSON with strict finite-number check."""
++    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
++    return hashlib.sha256(encoded).hexdigest()
++
++
++def _freeze_json_tree(value: Any) -> Any:
++    if isinstance(value, dict):
++        return MappingProxyType({str(k): _freeze_json_tree(v) for k, v in value.items()})
++    if isinstance(value, list):
++        return tuple(_freeze_json_tree(item) for item in value)
++    return value
++
++
++def _thaw_json_tree(value: Any) -> Any:
++    if isinstance(value, Mapping):
++        return {str(k): _thaw_json_tree(v) for k, v in value.items()}
++    if isinstance(value, tuple):
++        return [_thaw_json_tree(item) for item in value]
++    return value
++
++
++@dataclass(frozen=True)
++class CapturedSnapshot:
++    """Immutable, self-contained counterfactual snapshot at `envelope.as_of`.
++
++    Contains NO locks, NO event loops, NO DB sessions/engines, NO WebSocket clients,
++    and NO `StationActuator` / `HybridStation` instances.
++    """
++
++    envelope: SnapshotEnvelope
++    event_manifest: EventManifest
++    experiment: ResolvedExperiment
++    station_config: StationConfig
++    tariff: Tariff
++    plan: SchedulePlan | None
++    known_bookings: tuple[Booking, ...]
++    pending_approvals: tuple[Approval, ...]
++    recent_commands: tuple[Command, ...]
++    safety_hold_booking_ids: frozenset[str]
++    rejected_booking_ids: frozenset[str]
++    ordinary_outbox_events: tuple[StationEvent, ...]
++    pending_safety_events: tuple[StationEvent, ...]
++    acknowledged_safety_ids: tuple[str, ...]
++    safety_attempts: int
++    scheduler_name: StrategyName | str
++    scheduler_parameters: Mapping[str, Any]
++    scheduler_metadata: Mapping[str, Any]
++    physics_state: Mapping[str, Any]
++    _physics_seed: PhysicsSnapshotSeed
++
++    def recompute_digest(self) -> str:
++        """Recompute canonical content digest from stored snapshot fields (verifies immutability)."""
++        seed_probe = HybridStation.from_physics_seed(self.station_config, self._physics_seed)
++        known_ids = frozenset(self.event_manifest.known_booking_ids)
++        seed_probe.enforce_known_at_on_fork(self.envelope.sim_minute, known_ids)
++        live_seed_physics = seed_probe.snapshot_physics_state()
++        return _build_snapshot_digest_payload(
++            station_id=self.envelope.station_id,
++            as_of=self.envelope.as_of,
++            sim_minute=self.envelope.sim_minute,
++            booking_version=self.envelope.booking_version,
++            plan_version=self.envelope.plan_version,
++            state_version=self.envelope.state_version,
++            schedule_version=self.envelope.schedule_version,
++            experiment=self.experiment,
++            station_config=self.station_config,
++            tariff=self.tariff,
++            plan=self.plan,
++            known_bookings=self.known_bookings,
++            pending_approvals=self.pending_approvals,
++            recent_commands=self.recent_commands,
++            safety_hold_booking_ids=self.safety_hold_booking_ids,
++            rejected_booking_ids=self.rejected_booking_ids,
++            ordinary_outbox_events=self.ordinary_outbox_events,
++            event_manifest=self.event_manifest,
++            physics_state=live_seed_physics,
++        )
++
++
++def _build_snapshot_digest_payload(
++    *,
++    station_id: str,
++    as_of: datetime,
++    sim_minute: int,
++    booking_version: int,
++    plan_version: int | None,
++    state_version: int,
++    schedule_version: int,
++    experiment: ResolvedExperiment,
++    station_config: StationConfig,
++    tariff: Tariff,
++    plan: SchedulePlan | None,
++    known_bookings: tuple[Booking, ...],
++    pending_approvals: tuple[Approval, ...],
++    recent_commands: tuple[Command, ...],
++    safety_hold_booking_ids: frozenset[str],
++    rejected_booking_ids: frozenset[str],
++    ordinary_outbox_events: tuple[StationEvent, ...],
++    event_manifest: EventManifest,
++    physics_state: dict[str, Any],
++) -> str:
++    canonical = {
++        "schema_version": SNAPSHOT_SCHEMA_VERSION,
++        "station_id": station_id,
++        "as_of": as_of.isoformat(),
++        "sim_minute": sim_minute,
++        "versions": {
++            "booking_version": booking_version,
++            "plan_version": plan_version,
++            "state_version": state_version,
++            "schedule_version": schedule_version,
++        },
++        "experiment_fingerprint": experiment.fingerprint,
++        "experiment": experiment.model_dump(mode="json"),
++        "station_config": station_config.model_dump(mode="json"),
++        "tariff": tariff.model_dump(mode="json"),
++        "plan": None if plan is None else plan.model_dump(mode="json"),
++        "known_bookings": [b.model_dump(mode="json") for b in known_bookings],
++        "pending_approvals": [a.model_dump(mode="json") for a in pending_approvals],
++        "recent_commands": [c.model_dump(mode="json") for c in recent_commands],
++        "safety_hold_booking_ids": sorted(safety_hold_booking_ids),
++        "rejected_booking_ids": sorted(rejected_booking_ids),
++        "ordinary_outbox_events": [e.model_dump(mode="json") for e in ordinary_outbox_events],
++        "event_manifest_sha256": event_manifest.manifest_sha256,
++        "physics_state": physics_state,
++    }
++    return canonical_sha256(canonical)
++
++
++def _check_capture_readiness(
++    *,
++    station_config: StationConfig,
++    safety_hold_booking_ids: frozenset[str],
++    pending_safety: tuple[StationEvent, ...],
++    ordinary_outbox: tuple[StationEvent, ...],
++    probe_station: HybridStation,
++) -> None:
++    """Verify station is safe & consistent on an isolated fork probe without calling live stateful models."""
++    if pending_safety:
++        ids = ", ".join(ev.event_id for ev in pending_safety)
++        raise SnapshotNotReadyError(
++            SnapshotNotReadyReason.UNRESOLVED_HARD_SAFETY_EVENT,
++            f"Pending hard safety event(s) unresolved: {ids}",
++        )
++    hard_in_outbox = [ev.event_id for ev in ordinary_outbox if ev.type == EventType.HARD_LIMIT_VIOLATED]
++    if hard_in_outbox:
++        raise SnapshotNotReadyError(
++            SnapshotNotReadyReason.UNRESOLVED_HARD_SAFETY_EVENT,
++            f"Undelivered hard safety event(s) in outbox: {', '.join(hard_in_outbox)}",
++        )
++    safety_state = probe_station.safety_state()
++    for conn in safety_state.connectors:
++        if conn.booking_id in safety_hold_booking_ids and conn.power_kw > 0:
++            raise SnapshotNotReadyError(
++                SnapshotNotReadyReason.UNSAFE_PHYSICAL_STATE,
++                f"Booking {conn.booking_id} under Safety Hold still draws {conn.power_kw:g} kW on {conn.connector_id}",
++            )
++        if conn.power_kw > conn.max_power_kw + TOL:
++            raise SnapshotNotReadyError(
++                SnapshotNotReadyReason.UNSAFE_PHYSICAL_STATE,
++                f"Connector {conn.connector_id} exceeds port limit ({conn.power_kw:g} > {conn.max_power_kw:g} kW)",
++            )
++    power = {c.connector_id: c.power_kw for c in safety_state.connectors}
++    occupants = {c.connector_id: c.booking_id for c in safety_state.connectors}
++    site_violation = physical_guard_adapter.check_site_allocation(station_config, safety_state, power, occupants)
++    if site_violation is not None:
++        detail = getattr(site_violation, "detail", str(site_violation))
++        raise SnapshotNotReadyError(
++            SnapshotNotReadyReason.UNSAFE_PHYSICAL_STATE,
++            f"Current station allocation violates physical limits: {detail}",
++        )
++
++
++def build_known_at_manifest(
++    *,
++    station_id: str,
++    as_of: datetime,
++    as_of_minute: int,
++    horizon_minutes: int,
++    active_bookings: list[Booking],
++    raw_physics_state: dict[str, Any],
++) -> tuple[EventManifest, tuple[Booking, ...]]:
++    """Materialize `known_at(T)` cohort & exogenous events once, excluding future hidden ground truth."""
++    if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
++        raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
++    sessions: dict[str, dict[str, Any]] = raw_physics_state["sessions"]
++    present_ids = sorted(vid for vid, s in sessions.items() if s["state"] not in ("NOT_ARRIVED", "DEPARTED"))
++    present_set = set(present_ids)
++
++    kept_bookings: list[Booking] = []
++    excluded_future_bookings = 0
++    for b in sorted(active_bookings, key=lambda item: item.booking_id):
++        # Bookings created at/before T (or already physically present at T) belong to known_at(T).
++        if b.created_at <= as_of or b.booking_id in present_set:
++            kept_bookings.append(b.model_copy(deep=True))
++        else:
++            excluded_future_bookings += 1
++
++    all_booking_ids = {b.booking_id for b in active_bookings}
++    known_booking_ids = sorted(b.booking_id for b in kept_bookings)
++    known_set = set(known_booking_ids)
++    known_future_arrivals = sorted(
++        vid
++        for vid in known_booking_ids
++        if vid not in present_set and sessions.get(vid, {}).get("state", "NOT_ARRIVED") == "NOT_ARRIVED"
++    )
++    excluded_unbooked_not_arrived = sum(
++        1 for vid, s in sessions.items() if s["state"] == "NOT_ARRIVED" and vid not in all_booking_ids
++    )
++
++    known_limit_events = [
++        KnownLimitEvent(
++            announced_minute=row["announced_minute"],
++            announced_at=datetime.fromisoformat(row["announced_at"]),
++            effective_minute=row["effective_minute"],
++            effective_at=datetime.fromisoformat(row["effective_at"]),
++            grid_input_kw=row["grid_input_kw"],
++            cabinet_output_kw=dict(row["cabinet_output_kw"]),
++        )
++        for row in raw_physics_state["known_limit_events"]
++    ]
++    horizon_end = as_of + timedelta(minutes=horizon_minutes)
++    horizon_end_minute = as_of_minute + horizon_minutes
++    effective_grid_kw = raw_physics_state["effective_grid_limit_kw"]
++    if effective_grid_kw is None:
++        effective_grid_kw = float(raw_physics_state["available_power_kw"])
++
++    manifest_body = {
++        "schema_version": EVENT_MANIFEST_SCHEMA_VERSION,
++        "station_id": station_id,
++        "as_of": as_of.isoformat(),
++        "as_of_minute": as_of_minute,
++        "horizon_minutes": horizon_minutes,
++        "horizon_end": horizon_end.isoformat(),
++        "horizon_end_minute": horizon_end_minute,
++        "known_booking_ids": known_booking_ids,
++        "already_present_booking_ids": [vid for vid in present_ids if vid in known_set],
++        "known_future_arrival_booking_ids": known_future_arrivals,
++        "excluded_future_booking_count": excluded_future_bookings,
++        "excluded_unbooked_not_arrived_count": excluded_unbooked_not_arrived,
++        "known_limit_events": [ev.model_dump(mode="json") for ev in known_limit_events],
++        "excluded_unannounced_limit_event_count": int(raw_physics_state["hidden_unannounced_limit_event_count"]),
++        "active_faulted_connectors": list(raw_physics_state["faulted_connectors"]),
++        "effective_grid_limit_kw_at_capture": float(effective_grid_kw),
++        "assumptions": list(PROSPECTIVE_ASSUMPTIONS),
++    }
++    manifest_sha = canonical_sha256(manifest_body)
++    manifest = EventManifest(
++        schema_version=EVENT_MANIFEST_SCHEMA_VERSION,
++        station_id=station_id,
++        as_of=as_of,
++        as_of_minute=as_of_minute,
++        horizon_minutes=horizon_minutes,
++        horizon_end=horizon_end,
++        horizon_end_minute=horizon_end_minute,
++        known_booking_ids=known_booking_ids,
++        already_present_booking_ids=[vid for vid in present_ids if vid in known_set],
++        known_future_arrival_booking_ids=known_future_arrivals,
++        excluded_future_booking_count=excluded_future_bookings,
++        excluded_unbooked_not_arrived_count=excluded_unbooked_not_arrived,
++        known_limit_events=known_limit_events,
++        excluded_unannounced_limit_event_count=int(raw_physics_state["hidden_unannounced_limit_event_count"]),
++        active_faulted_connectors=list(raw_physics_state["faulted_connectors"]),
++        effective_grid_limit_kw_at_capture=float(effective_grid_kw),
++        assumptions=list(PROSPECTIVE_ASSUMPTIONS),
++        manifest_sha256=manifest_sha,
++    )
++    return manifest, tuple(kept_bookings)
++
++
++async def capture_atomic_snapshot(
++    rt: StationRuntime,
++    *,
++    horizon_minutes: int = 120,
++) -> CapturedSnapshot:
++    """Capture an atomic, lock-free `CapturedSnapshot` at `rt.simulator.now` without mutating live state.
++
++    Acquires `rt.booking_lock` -> `rt.decision_lock()` -> `rt._clock_lock` -> `rt.simulator.lock`
++    only for the in-memory copy & digest calculation, then releases all locks before returning.
++    """
++    if horizon_minutes <= 0 or horizon_minutes > MAX_COUNTERFACTUAL_HORIZON_MINUTES:
++        raise ValueError(f"horizon_minutes must be in 1..{MAX_COUNTERFACTUAL_HORIZON_MINUTES}")
++
++    async with rt.booking_lock:
++        async with rt.decision_lock():
++            with rt._clock_lock:
++                with rt.simulator.lock:
++                    ordinary_outbox = rt.inspect_ordinary_outbox()
++                    pending_safety = rt.inspect_pending_safety()
++                    safety_holds = frozenset(rt.safety_hold_booking_ids)
++                    rejected_ids = frozenset(rt.rejected_booking_ids)
++
++                    booking_version = int(rt.booking_version)
++                    plan_copy = rt.plan.model_copy(deep=True) if rt.plan is not None else None
++                    plan_version = None if plan_copy is None else int(plan_copy.version)
++                    station_config = rt.config.model_copy(deep=True)
++                    tariff_copy = rt.tariff.model_copy(deep=True)
++                    experiment = resolve_experiment(rt).model_copy(deep=True)
++
++                    as_of = rt.simulator.now
++                    sim_minute = int(rt.simulator.minute)
++                    seed = rt.simulator.export_physics_seed()
++
++                    active_bookings = [b.model_copy(deep=True) for b in rt.store.active_bookings()]
++                    pending_approvals = tuple(
++                        sorted(
++                            (a.model_copy(deep=True) for a in rt.store.pending_approvals()),
++                            key=lambda item: item.approval_id,
++                        )
++                    )
++                    recent_commands = tuple(c.model_copy(deep=True) for c in rt.recent_commands)
++                    acked_safety = tuple(rt._acknowledged_safety)
++                    safety_attempts = int(rt._safety_attempts)
++
++                    scheduler_name = rt.scheduler.name
++                    scheduler_params = deepcopy(getattr(rt.scheduler, "parameters", None) or {})
++                    scheduler_meta = deepcopy(getattr(rt.scheduler, "metadata", None) or {})
++
++    # Outside all live locks: validate physical readiness and materialize known_at(T) on isolated probe.
++    probe_station = HybridStation.from_physics_seed(station_config, seed)
++    _check_capture_readiness(
++        station_config=station_config,
++        safety_hold_booking_ids=safety_holds,
++        pending_safety=pending_safety,
++        ordinary_outbox=ordinary_outbox,
++        probe_station=probe_station,
++    )
++    raw_physics = probe_station.snapshot_physics_state()
++    manifest, known_bookings = build_known_at_manifest(
++        station_id=station_config.station_id,
++        as_of=as_of,
++        as_of_minute=sim_minute,
++        horizon_minutes=horizon_minutes,
++        active_bookings=active_bookings,
++        raw_physics_state=raw_physics,
++    )
++    known_ids = frozenset(manifest.known_booking_ids)
++    kept_ordinary_outbox = tuple(
++        ev.model_copy(deep=True) for ev in ordinary_outbox if ev.booking_id is None or ev.booking_id in known_ids
++    )
++    clean_fork = HybridStation.from_physics_seed(station_config, seed)
++    for b in known_bookings:
++        if b.status in ACTIVE and b.booking_id not in clean_fork.queue.sessions:
++            clean_fork.upsert_vehicle(visit_of(b, as_of))
++    clean_fork._events.clear()
++    clean_fork.enforce_known_at_on_fork(sim_minute, known_ids)
++    clean_seed = clean_fork.export_physics_seed()
++    clean_physics = clean_fork.snapshot_physics_state()
++
++    snapshot_digest = _build_snapshot_digest_payload(
++        station_id=station_config.station_id,
++        as_of=as_of,
++        sim_minute=sim_minute,
++        booking_version=booking_version,
++        plan_version=plan_version,
++        state_version=int(clean_physics["state_version"]),
++        schedule_version=int(clean_physics["schedule_version"]),
++        experiment=experiment,
++        station_config=station_config,
++        tariff=tariff_copy,
++        plan=plan_copy,
++        known_bookings=known_bookings,
++        pending_approvals=pending_approvals,
++        recent_commands=recent_commands,
++        safety_hold_booking_ids=safety_holds,
++        rejected_booking_ids=rejected_ids,
++        ordinary_outbox_events=kept_ordinary_outbox,
++        event_manifest=manifest,
++        physics_state=clean_physics,
++    )
++
++    envelope = SnapshotEnvelope(
++        snapshot_id=f"snap-{uuid4().hex[:16]}",
++        status=SnapshotStatus.READY,
++        station_id=station_config.station_id,
++        as_of=as_of,
++        sim_minute=sim_minute,
++        horizon_minutes=horizon_minutes,
++        booking_version=booking_version,
++        plan_version=plan_version,
++        state_version=int(clean_physics["state_version"]),
++        schedule_version=int(clean_physics["schedule_version"]),
++        policy_id=experiment.policy_id,
++        policy_version=experiment.policy_version,
++        dc_charging_model_name=experiment.dc_charging_model.name,
++        time_config=dict(experiment.time_config),
++        station_config_sha256=experiment.station_config_sha256,
++        tariff_sha256=experiment.tariff_sha256,
++        experiment_fingerprint=experiment.fingerprint,
++        event_manifest_sha256=manifest.manifest_sha256,
++        stateful_components_sha256=str(clean_physics["stateful_components_sha256"]),
++        snapshot_digest=snapshot_digest,
++        known_booking_count=len(known_bookings),
++        safety_hold_booking_ids=sorted(safety_holds),
++        rejected_booking_ids=sorted(rejected_ids),
++        pending_approval_ids=[a.approval_id for a in pending_approvals],
++        recent_command_count=len(recent_commands),
++        undelivered_ordinary_outbox_count=len(kept_ordinary_outbox),
++    )
++
++    return CapturedSnapshot(
++        envelope=envelope,
++        event_manifest=manifest,
++        experiment=experiment,
++        station_config=station_config,
++        tariff=tariff_copy,
++        plan=plan_copy,
++        known_bookings=known_bookings,
++        pending_approvals=pending_approvals,
++        recent_commands=recent_commands,
++        safety_hold_booking_ids=safety_holds,
++        rejected_booking_ids=rejected_ids,
++        ordinary_outbox_events=kept_ordinary_outbox,
++        pending_safety_events=pending_safety,
++        acknowledged_safety_ids=acked_safety,
++        safety_attempts=safety_attempts,
++        scheduler_name=scheduler_name,
++        scheduler_parameters=_freeze_json_tree(scheduler_params),
++        scheduler_metadata=_freeze_json_tree(scheduler_meta),
++        physics_state=_freeze_json_tree(clean_physics),
++        _physics_seed=clean_seed,
++    )
++
++
++def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
++    """Materialize a completely isolated in-memory `StationRuntime` fork from `snapshot`.
++
++    Uses no-op `DispatchSinks` and an in-memory `RuntimeStore` (`live=False`, zero DB/WS/file I/O).
++    """
++    fork_station = HybridStation.from_physics_seed(snapshot.station_config, snapshot._physics_seed)
++    known_ids = frozenset(snapshot.event_manifest.known_booking_ids)
++    fork_station.enforce_known_at_on_fork(snapshot.envelope.sim_minute, known_ids)
++
++    params = _thaw_json_tree(snapshot.scheduler_parameters) or None
++    scheduler = make_scheduler(
++        snapshot.scheduler_name,
++        lambda: fork_station,
++        fork_station.kernel.algorithms,
++        parameters=deepcopy(params),
++    )
++    scheduler.metadata = deepcopy(_thaw_json_tree(snapshot.scheduler_metadata))
++
++    frt = _memory_runtime(
++        fork_station,
++        scheduler,
++        fork_station.config,
++        snapshot.tariff.model_copy(deep=True),
++        bookings=[b.model_copy(deep=True) for b in snapshot.known_bookings],
++        approvals=[a.model_copy(deep=True) for a in snapshot.pending_approvals],
++    )
++    frt.booking_version = snapshot.envelope.booking_version
++    frt.plan = snapshot.plan.model_copy(deep=True) if snapshot.plan is not None else None
++    frt.recent_commands.extend(c.model_copy(deep=True) for c in snapshot.recent_commands)
++    frt.rejected_booking_ids.update(snapshot.rejected_booking_ids)
++    frt.safety_hold_booking_ids.update(snapshot.safety_hold_booking_ids)
++    with frt._clock_lock:
++        frt._outbox.extend(ev.model_copy(deep=True) for ev in snapshot.ordinary_outbox_events)
++        frt._pending_safety = {ev.event_id: ev.model_copy(deep=True) for ev in snapshot.pending_safety_events}
++        frt._acknowledged_safety = deque(snapshot.acknowledged_safety_ids, maxlen=OUTBOX_MAX)
++        frt._safety_attempts = snapshot.safety_attempts
++    return frt
+diff --git a/src/services/runtime.py b/src/services/runtime.py
+--- a/src/services/runtime.py
++++ b/src/services/runtime.py
+@@ -132,7 +132,9 @@ def admission_fingerprint(self) -> tuple:
+         Giới hạn: khoá + dấu vân tay nằm trong RAM của MỘT worker (CLAUDE.md "Một worker"); chạy nhiều worker cần khoá /
+         ràng buộc phân tán (chưa làm — ngoài phạm vi).
+         """
+-        state = self.simulator.state()
++        with self._clock_lock:
++            state = self.simulator.state()
++            pending_safety = frozenset(self._pending_safety)
+         faults = tuple(sorted(c.connector_id for c in state.connectors if c.status == ConnectorStatus.FAULT))
+         policy = getattr(self.scheduler, "policy_id", None) or str(getattr(self.scheduler, "name", ""))
+         return (
+@@ -142,6 +144,7 @@ def admission_fingerprint(self) -> tuple:
+             policy,
+             frozenset(self.rejected_booking_ids),
+             frozenset(self.safety_hold_booking_ids),
++            pending_safety,
+         )
+ 
+     def advance_clock(self) -> list[StationEvent]:
+@@ -181,6 +184,16 @@ def has_pending_safety(self) -> bool:
+         with self._clock_lock:
+             return bool(self._pending_safety)
+ 
++    def inspect_ordinary_outbox(self) -> tuple[StationEvent, ...]:
++        """Non-destructive snapshot of ordinary outbox events (never pops or clears)."""
++        with self._clock_lock:
++            return tuple(event.model_copy(deep=True) for event in self._outbox)
++
++    def inspect_pending_safety(self) -> tuple[StationEvent, ...]:
++        """Non-destructive snapshot of unresolved hard safety events sorted by event_id."""
++        with self._clock_lock:
++            return tuple(self._pending_safety[eid].model_copy(deep=True) for eid in sorted(self._pending_safety))
++
+     def begin_safety_attempt(self) -> int | None:
+         with self._clock_lock:
+             if self._safety_attempts >= SAFETY_ATTEMPT_LIMIT:
+@@ -532,6 +545,10 @@ def fork_runtime(rt: StationRuntime, bookings: list[Booking]) -> StationRuntime:
+     frt.recent_commands.extend(c.model_copy(deep=True) for c in rt.recent_commands)
+     frt.rejected_booking_ids.update(rt.rejected_booking_ids)
+     frt.safety_hold_booking_ids.update(rt.safety_hold_booking_ids)
++    with rt._clock_lock:
++        frt._pending_safety = {eid: ev.model_copy(deep=True) for eid, ev in rt._pending_safety.items()}
++        frt._acknowledged_safety = deque(rt._acknowledged_safety, maxlen=OUTBOX_MAX)
++        frt._safety_attempts = rt._safety_attempts
+     return frt
+ 
+ 
+diff --git a/src/simulator/hybrid_station.py b/src/simulator/hybrid_station.py
+--- a/src/simulator/hybrid_station.py
++++ b/src/simulator/hybrid_station.py
+@@ -31,12 +31,14 @@
+ 
+ import copy
+ import functools
++import hashlib
++import json
+ import logging
+ import math
+ import threading
+ from collections import deque
+ from collections.abc import Mapping, Sequence
+-from dataclasses import replace
++from dataclasses import dataclass, replace
+ from datetime import datetime, timedelta
+ from types import MappingProxyType
+ from zoneinfo import ZoneInfo
+@@ -58,11 +60,69 @@
+ from src.simulator.core.algorithms import Algorithms, algorithm_labels, default_algorithms, station_dc_model
+ from src.simulator.core.charging_models.synthetic_dc import SyntheticTaperV1
+ from src.simulator.core.ev2gym_adapter import EV2GymAdapter
++from src.simulator.core.isolation import is_shared
+ from src.simulator.core.kernel import SOC_TOL, StationKernel
+ from src.simulator.core.queue import QueueController, Session
+ from src.simulator.evaluation.trace import decision_record
+ 
+ logger = logging.getLogger(__name__)
++
++
++@dataclass(frozen=True)
++class PhysicsSnapshotSeed:
++    """Lock-free, actuator-free physics seed captured atomically from `HybridStation`.
++
++    Holds a detached `StationKernel` (`emit=None`) and immutable station metadata so
++    counterfactual snapshots contain zero locks, event loops, DB connections, WebSocket
++    clients, or `StationActuator` instances. Each sandbox branch forks `detached_kernel`
++    again, leaving this seed completely untouched.
++    """
++
++    start: datetime
++    available_power_kw: float
++    schedule_version: int
++    dc_model_name: str | None
++    policy: tuple[str, str]
++    time: TimeConfig
++    halted_on: tuple | None
++    visits: tuple[tuple[str, VehicleVisit], ...]
++    cabinets: tuple[Cabinet, ...]
++    connector_to_port: tuple[tuple[str, str], ...]
++    port_to_connector: tuple[tuple[str, str], ...]
++    detached_kernel: StationKernel
++
++
++def _component_state_signature(component: object) -> dict[str, object]:
++    """Deterministic JSON-serializable state descriptor for pluggable components."""
++    shared = is_shared(component)
++    cls_name = f"{type(component).__module__}.{type(component).__qualname__}"
++    if shared:
++        return {"type": cls_name, "shared": True}
++    payload: dict[str, object] = {"type": cls_name, "shared": False}
++    profiles = getattr(component, "profiles", None)
++    if isinstance(profiles, Mapping):
++        payload["registered_vehicle_ids"] = sorted(str(k) for k in profiles)
++    unresolved = getattr(component, "unresolved", None)
++    if isinstance(unresolved, Mapping):
++        payload["unresolved"] = {str(k): str(v) for k, v in sorted(unresolved.items())}
++    rng = getattr(component, "rng", None)
++    if rng is not None and callable(getattr(rng, "getstate", None)):
++        payload["rng_state_repr"] = repr(rng.getstate())
++    if hasattr(component, "__dict__"):
++        attrs = {}
++        for key, value in sorted(vars(component).items()):
++            if key in ("_profiles", "profiles", "unresolved", "rng", "inner", "delegate", "fallback"):
++                continue
++            attrs[key] = repr(value)
++        if attrs:
++            payload["attrs"] = attrs
++    for nested_name in ("inner", "delegate", "fallback"):
++        nested = getattr(component, nested_name, None)
++        if nested is not None:
++            payload[nested_name] = _component_state_signature(nested)
++    return payload
++
++
+ EPS = 1e-6
+ APPLIED_BUFFER_STEPS = 24 * 60  # tối đa một ngày bước 1' giữa hai lần drain (vòng nền drain ≤ 15')
+ # Độ phân giải lệnh công suất: control_loop.diff_commands không gửi lệnh khi đổi < POWER_TOL_KW (khoá bằng test).
+@@ -528,6 +588,201 @@ def fork(self) -> "HybridStation":
+         twin._dc_model = twin.kernel.adapter.dc_model
+         return twin
+ 
++    @_locked
++    def export_physics_seed(self) -> PhysicsSnapshotSeed:
++        """Export a lock-free, actuator-free physics seed for immutable counterfactual snapshots."""
++        detached = self.kernel.fork(emit=None)
++        return PhysicsSnapshotSeed(
++            start=self._start,
++            available_power_kw=float(self._available_power_kw),
++            schedule_version=int(self.schedule_version),
++            dc_model_name=self.dc_model_name,
++            policy=tuple(self._policy),
++            time=self.time,
++            halted_on=None if self._halted_on is None else tuple(self._halted_on),
++            visits=tuple(sorted(self._visits.items())),
++            cabinets=tuple(self._cabinets),
++            connector_to_port=tuple(sorted(self._connector_to_port.items())),
++            port_to_connector=tuple(sorted(self._port_to_connector.items())),
++            detached_kernel=detached,
++        )
++
++    @classmethod
++    def from_physics_seed(cls, config: StationConfig, seed: PhysicsSnapshotSeed) -> "HybridStation":
++        """Materialize a fresh isolated sandbox fork from `seed` without mutating `seed`."""
++        twin = cls.__new__(cls)
++        twin.config = config.model_copy(deep=True)
++        twin.lock = threading.RLock()
++        twin.is_fork = True
++        twin._tz = ZoneInfo(twin.config.timezone)
++        twin.dc_model_name = seed.dc_model_name
++        twin._policy = seed.policy
++        twin.time = seed.time
++        twin._start = seed.start
++        twin._available_power_kw = float(seed.available_power_kw)
++        twin.schedule_version = int(seed.schedule_version)
++        twin._halted_on = seed.halted_on
++        twin._visits = dict(seed.visits)
++        twin._cabinets = seed.cabinets
++        twin._connector_to_port = dict(seed.connector_to_port)
++        twin._port_to_connector = dict(seed.port_to_connector)
++        twin._events = []
++        twin._applied = deque(maxlen=APPLIED_BUFFER_STEPS)
++        twin._dropped_applied_minutes = 0
++        twin._dropped_hard_violations = 0
++        twin.kernel = seed.detached_kernel.fork(emit=twin._emit)
++        twin._algorithms = twin.kernel.algorithms
++        twin._observation_model = twin.kernel.observation_model
++        twin._dc_model = twin.kernel.adapter.dc_model
++        return twin
++
++    @_locked
++    def snapshot_physics_state(self) -> dict:
++        """Pure, deterministic, JSON-serializable ground-truth physics & component state at `now`."""
++        sessions_payload: dict[str, dict] = {}
++        for vid in sorted(self.queue.sessions):
++            s = self.queue.sessions[vid]
++            ev = self.adapter.models[vid]
++            sessions_payload[vid] = {
++                "state": s.state,
++                "zone": s.vehicle.zone,
++                "vehicle_model": s.vehicle.vehicle_model,
++                "connector_id": self.connector_of(s.connector) if s.connector else None,
++                "last_connector_id": self.connector_of(s.last_connector) if s.last_connector else None,
++                "arrival_minute": s.vehicle.arrival,
++                "arrival_at": self.time_at(s.vehicle.arrival),
++                "departure_minute": s.vehicle.departure,
++                "departure_at": self.time_at(s.vehicle.departure),
++                "battery_capacity_kwh": round(float(s.vehicle.battery_kwh), 9),
++                "initial_soc": round(float(s.vehicle.initial_soc), 9),
++                "current_soc": round(float(self.adapter.soc(vid)), 9),
++                "current_capacity_kwh": round(float(ev.current_capacity), 9),
++                "target_soc": round(float(s.vehicle.target), 9),
++                "max_kw": round(float(s.vehicle.max_kw), 9),
++                "charge_started_minute": s.charge_started,
++                "charge_started_at": self.time_at(s.charge_started) if s.charge_started is not None else None,
++                "completed_at_minute": s.completed_at,
++                "completed_at": self.time_at(s.completed_at) if s.completed_at is not None else None,
++                "departed_at_minute": s.departed_at,
++                "departed_at": self.time_at(s.departed_at) if s.departed_at is not None else None,
++                "delivered_battery_kwh": round(float(s.delivered_battery_kwh), 9),
++                "delivered_grid_kwh": round(float(s.delivered_grid_kwh), 9),
++                "output_kwh": round(float(self.kernel.output_kwh.get(vid, 0.0)), 9),
++                "output_by_deadline_kwh": round(float(self.kernel.output_by_deadline_kwh.get(vid, 0.0)), 9),
++            }
++        known_limit_events = [
++            {
++                "announced_minute": ev.announced_minute,
++                "announced_at": self.time_at(ev.announced_minute),
++                "effective_minute": ev.effective_minute,
++                "effective_at": self.time_at(ev.effective_minute),
++                "grid_input_kw": None if ev.grid_input_kw is None else round(float(ev.grid_input_kw), 9),
++                "cabinet_output_kw": {k: round(float(v), 9) for k, v in sorted(ev.cabinet_output_kw.items())},
++            }
++            for ev in self.scenario.limit_events
++            if ev.announced_minute <= self.minute
++        ]
++        hidden_limit_count = sum(1 for ev in self.scenario.limit_events if ev.announced_minute > self.minute)
++        alg = self.kernel.algorithms
++        stateful_sig = {
++            "dispatch": {z: _component_state_signature(p) for z, p in sorted(alg.dispatch.items())},
++            "optimizers": {z: _component_state_signature(o) for z, o in sorted(alg.optimizers.items())},
++            "coordinator": _component_state_signature(alg.coordinator),
++            "dc_charging_model": _component_state_signature(self.adapter.dc_model),
++            "observation_model": _component_state_signature(self.kernel.observation_model),
++            "combined_policy": None if self.kernel.policy is None else _component_state_signature(self.kernel.policy),
++        }
++        stateful_sha256 = hashlib.sha256(
++            json.dumps(stateful_sig, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
++        ).hexdigest()
++        effective = self.kernel.effective_limits()
++        eff_grid = None if not math.isfinite(effective.grid_input_kw) else round(float(effective.grid_input_kw), 9)
++        return {
++            "minute": self.minute,
++            "now_iso": self.now.isoformat(),
++            "state_version": self.kernel.state_version,
++            "schedule_version": self.schedule_version,
++            "available_power_kw": round(float(self.available_power_kw), 9),
++            "effective_grid_limit_kw": eff_grid,
++            "grid_input_override_kw": (
++                None
++                if self.kernel.grid_input_override_kw is None
++                else round(float(self.kernel.grid_input_override_kw), 9)
++            ),
++            "next_decision_minute": self.kernel.next_decision_minute,
++            "halted_on": [] if self._halted_on is None else list(self._halted_on),
++            "faulted_connectors": sorted(self.connector_of(p) for p in self.kernel.faults),
++            "occupied_connectors": {self.connector_of(p): vid for p, vid in sorted(self.queue.occupied.items())},
++            "queues_by_zone": {zone: list(self.queue.waiting[zone]) for zone in sorted(self.queue.waiting)},
++            "held_setpoints_kw": {vid: round(float(kw), 9) for vid, kw in sorted(self.kernel.setpoints.items())},
++            "active_budget_kw": (
++                None
++                if self.kernel.active_budget_kw is None
++                else {z: round(float(v), 9) for z, v in sorted(self.kernel.active_budget_kw.items())}
++            ),
++            "active_setpoints_kw": (
++                None
++                if self.kernel.active_setpoints_kw is None
++                else {vid: round(float(v), 9) for vid, v in sorted(self.kernel.active_setpoints_kw.items())}
++            ),
++            "output_kwh": {vid: round(float(v), 9) for vid, v in sorted(self.kernel.output_kwh.items())},
++            "output_by_deadline_kwh": {
++                vid: round(float(v), 9) for vid, v in sorted(self.kernel.output_by_deadline_kwh.items())
++            },
++            "constraint_counters": {
++                "rejected_allocation_count": self.kernel.rejected_allocation_count,
++                "applied_constraint_violation_count": self.kernel.applied_constraint_violation_count,
++                "budget_deviation_count": self.kernel.budget_deviation_count,
++                "command_deadband_count": self.kernel.command_deadband_count,
++            },
++            "time_config": {
++                "physics_step_minutes": self.kernel.time.physics_step_minutes,
++                "decision_interval_minutes": self.kernel.time.decision_interval_minutes,
++                "planning_horizon_minutes": self.kernel.time.planning_horizon_minutes,
++            },
++            "efficiencies": {
++                "conversion": round(float(self.scenario.conversion), 9),
++                "charging": round(float(self.scenario.efficiency), 9),
++                "dc_unplug_delay_minutes": int(self.scenario.delay),
++            },
++            "sessions": sessions_payload,
++            "known_limit_events": known_limit_events,
++            "hidden_unannounced_limit_event_count": hidden_limit_count,
++            "stateful_components": stateful_sig,
++            "stateful_components_sha256": stateful_sha256,
++        }
++
++    @_locked
++    def effective_grid_limit_kw(self, minute: int | None = None) -> float:
++        """Effective grid-input cap (kW) at `minute` (or `self.minute`) including overrides and known limit events."""
++        limits = self.kernel.effective_limits(minute=minute)
++        return float(limits.grid_input_kw)
++
++    @_locked
++    def enforce_known_at_on_fork(self, as_of_minute: int, known_booking_ids: frozenset[str]) -> dict[str, int]:
++        """Strip future unannounced limit events and unregistered future arrivals on a sandbox fork ONLY."""
++        if not self.is_fork:
++            raise RuntimeError("enforce_known_at_on_fork is strictly restricted to sandbox forks")
++        pruned_vehicles = 0
++        for vid in list(self.queue.sessions):
++            session = self.queue.sessions[vid]
++            if session.state == "NOT_ARRIVED" and vid not in known_booking_ids:
++                self._forget(vid)
++                pruned_vehicles += 1
++        known_events = tuple(ev for ev in self.kernel.scenario.limit_events if ev.announced_minute <= as_of_minute)
++        pruned_events = len(self.kernel.scenario.limit_events) - len(known_events)
++        kept_vehicles = tuple(s.vehicle for s in self.queue.sessions.values())
++        if pruned_vehicles or pruned_events or len(kept_vehicles) != len(self.kernel.scenario.vehicles):
++            self.kernel.scenario = replace(
++                self.kernel.scenario,
++                vehicles=kept_vehicles,
++                limit_events=known_events,
++            )
++        return {
++            "pruned_future_vehicles": pruned_vehicles,
++            "pruned_unannounced_limit_events": pruned_events,
++        }
++
+     def apply_approved(self, approved: ApprovedDecision) -> None:
+         """Áp quyết định đã duyệt THẲNG vào kernel — chỉ cho bản fork; trạm thật chỉ nhận lệnh qua dispatcher."""
+         if not self.is_fork:
+diff --git a/tests/test_services/test_counterfactual_foundation.py b/tests/test_services/test_counterfactual_foundation.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_services/test_counterfactual_foundation.py
+@@ -0,0 +1,951 @@
++"""Comprehensive Gate 3 (AI-4.2A) validation suite for Counterfactual Foundation (WP3.1–WP3.6)."""
++
++import asyncio
++import gc
++import random
++import threading
++import types
++from collections import deque
++from dataclasses import replace
++from datetime import datetime, timedelta
++
++import pytest
++from sqlalchemy import func, select
++
++pytest.importorskip("ev2gym")
++
++from src.db import session as db_session  # noqa: E402
++from src.db.base import Base  # noqa: E402
++from src.models.charging import (  # noqa: E402
++    ChargeMode,
++    ChargeRequest,
++    ConsentScope,
++    StrategyName,
++)
++from src.models.control import (  # noqa: E402
++    Approval,
++    ApprovalKind,
++    Command,
++    CommandSource,
++    CommandType,
++    GuardVerdict,
++    Role,
++)
++from src.models.copilot import (  # noqa: E402
++    ActorContext,
++    SnapshotNotReadyReason,
++    SnapshotStatus,
++    VehicleOutcomeStatus,
++    VehicleReleaseReason,
++    WhyQuery,
++    WhySubjectScope,
++)
++from src.models.events import EventType, StationEvent  # noqa: E402
++from src.models.identity import UserRecord  # noqa: E402
++from src.models.scheduling.observations import SocEstimate, estimated  # noqa: E402
++from src.models.simulation import Incident, IncidentType  # noqa: E402
++from src.models.simulation_core import LimitEvent  # noqa: E402
++from src.services import catalog, charging_service, control_loop, realtime, repository, runtime  # noqa: E402
++from src.services.copilot import (  # noqa: E402
++    SandboxCancelledError,
++    SnapshotNotReadyError,
++    canonical_sha256,
++    capture_atomic_snapshot,
++    explain_why,
++    non_timing_branch_signature,
++    run_paired_noop,
++    run_sandbox_branch,
++)
++from src.services.runtime import StationRuntime, build_sim_runtime, visit_of  # noqa: E402
++from src.simulator.hybrid_station import HybridStation  # noqa: E402
++from tests.factories import VN, booking  # noqa: E402
++
++
++def _sim_runtime(
++    strategy: StrategyName = StrategyName.SIM_M3A,
++    *,
++    dc_charging_model: str | None = None,
++) -> StationRuntime:
++    config, tariff = catalog.load_station_config(), catalog.load_tariff()
++    scenario = catalog.load_scenario("hybrid_evening")
++    start = datetime.combine(datetime(2026, 11, 23).date(), scenario.start_time, tzinfo=VN)
++    if dc_charging_model is not None:
++        station = HybridStation(config, start, dc_charging_model=dc_charging_model)
++        station.reset(scenario)
++        scheduler = runtime.make_scheduler(strategy, lambda: station)
++        return runtime._memory_runtime(station, scheduler, config, tariff)
++    return build_sim_runtime(scenario, strategy, config, tariff, start)
++
++
++class _WarmStartOptimizer:
++    """Stateful optimizer wrapper recording visited minutes."""
++
++    def __init__(self, inner) -> None:
++        self.inner = inner
++        self.history: list[int] = []
++
++    def __call__(self, observation, zone, budget_kw):
++        self.history.append(observation.minute)
++        return self.inner(observation, zone, budget_kw)
++
++
++class _CountingDCModel:
++    """Stateful DC charging model wrapper counting queries."""
++
++    def __init__(self, inner) -> None:
++        self.inner = inner
++        self.calls = 0
++
++    def acceptance_kw(self, state):
++        self.calls += 1
++        return self.inner.acceptance_kw(state)
++
++    def stored_kwh(self, state, setpoint_kw, interval_minutes, efficiency):
++        self.calls += 1
++        return self.inner.stored_kwh(state, setpoint_kw, interval_minutes, efficiency)
++
++
++class _NoisyRngObservation:
++    """Stateful RNG observation model."""
++
++    def __init__(self, seed: int = 42) -> None:
++        self.rng = random.Random(seed)
++        self.cache: dict[tuple[int, str], float] = {}
++
++    def observe(self, minute: int, truth):
++        rows = {}
++        for vid, row in truth.items():
++            key = (minute, vid)
++            if key not in self.cache:
++                self.cache[key] = min(1.0, max(0.0, row.soc + self.rng.uniform(-0.015, 0.015)))
++            rows[vid] = estimated(row, SocEstimate(self.cache[key], measured_at=minute, uncertainty=0.015))
++        return rows
++
++
++# ---- 1. Atomic snapshot capture & barrier concurrency (WP3.1 / WP3.2) ------------------------
++
++
++async def test_atomic_snapshot_capture_has_no_mixed_version_state_under_barriers():
++    rt = _sim_runtime()
++    b1 = booking("dc-1", zone="DC", kwh=25, hours=2.0, now=rt.clock())
++    rt.store.save_booking(b1)
++    rt.simulator.upsert_vehicle(visit_of(b1, rt.clock()))
++    rt.booking_version = 1
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++    writer_holding_booking_lock = asyncio.Event()
++    capture_started = asyncio.Event()
++    thread_barrier = threading.Barrier(2)
++
++    async def writer_mutation() -> None:
++        async with rt.booking_lock:
++            writer_holding_booking_lock.set()
++            await capture_started.wait()
++            b2 = booking("ac-2", zone="AC", kwh=18, hours=4.0, now=rt.clock())
++            rt.store.save_booking(b2)
++            rt.simulator.upsert_vehicle(visit_of(b2, rt.clock()))
++            rt.booking_version = 2
++            await control_loop.on_event(
++                StationEvent(type=EventType.BOOKING_CREATED, occurred_at=rt.clock(), booking_id=b2.booking_id),
++                rt,
++            )
++
++    def off_thread_reader() -> None:
++        thread_barrier.wait(timeout=5.0)
++        rt.sync_clock()
++
++    writer_task = asyncio.create_task(writer_mutation())
++    await writer_holding_booking_lock.wait()
++
++    reader_thread = threading.Thread(target=off_thread_reader, daemon=True)
++    reader_thread.start()
++
++    async def capture_coro():
++        capture_started.set()
++        thread_barrier.wait(timeout=5.0)
++        return await capture_atomic_snapshot(rt, horizon_minutes=30)
++
++    snap, _ = await asyncio.gather(capture_coro(), writer_task)
++    reader_thread.join(timeout=5.0)
++
++    # Writer held booking_lock first, so snapshot must observe complete post-commit state (never mixed v1/v2).
++    assert snap.envelope.booking_version == 2
++    assert snap.envelope.known_booking_count == 2
++    assert sorted(b.booking_id for b in snap.known_bookings) == ["ac-2", "dc-1"]
++    assert snap.plan is not None and snap.envelope.plan_version == snap.plan.version
++    assert {s.booking_id for s in snap.plan.sessions} >= {"ac-2", "dc-1"}
++
++    # Digest distinctions: snapshot_digest != experiment_fingerprint and sensitive to 1-minute physics step.
++    assert snap.envelope.snapshot_digest != snap.envelope.experiment_fingerprint
++    assert snap.recompute_digest() == snap.envelope.snapshot_digest
++    adm_fp_before = rt.admission_fingerprint()
++    rt.simulator.step(1)
++    snap_after_step = await capture_atomic_snapshot(rt, horizon_minutes=30)
++    assert rt.admission_fingerprint() == adm_fp_before  # admission_fingerprint ignores normal minute step
++    assert snap_after_step.envelope.experiment_fingerprint == snap.envelope.experiment_fingerprint
++    assert snap_after_step.envelope.snapshot_digest != snap.envelope.snapshot_digest
++
++
++def test_snapshot_object_graph_contains_no_live_locks_db_loops_ws_or_actuators():
++    async def _capture():
++        rt = _sim_runtime(dc_charging_model="vinfast_profiles_v0_1")
++        b = booking("dc-vf8", zone="DC", kwh=30, hours=2.0, now=rt.clock())
++        rt.store.save_booking(b)
++        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++        await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++        return await capture_atomic_snapshot(rt, horizon_minutes=30)
++
++    snap = asyncio.run(_capture())
++    lock_types = (type(threading.Lock()), type(threading.RLock()), asyncio.Lock, asyncio.Semaphore)
++
++    visited: set[int] = set()
++    queue_objs: deque[object] = deque([snap])
++    forbidden_hits: list[str] = []
++
++    while queue_objs:
++        cur = queue_objs.popleft()
++        obj_id = id(cur)
++        if obj_id in visited or isinstance(cur, (str, bytes, int, float, bool, type, type(None))):
++            continue
++        visited.add(obj_id)
++
++        cls_mod = type(cur).__module__
++        cls_name = f"{cls_mod}.{type(cur).__qualname__}"
++        if isinstance(cur, lock_types):
++            forbidden_hits.append(f"lock:{cls_name}")
++        if isinstance(cur, asyncio.AbstractEventLoop):
++            forbidden_hits.append(f"event_loop:{cls_name}")
++        if isinstance(cur, HybridStation) or callable(getattr(cur, "apply_commands", None)):
++            forbidden_hits.append(f"actuator:{cls_name}")
++        if cls_mod.startswith(("sqlalchemy", "sqlite3", "psycopg", "asyncpg", "fastapi.websockets")):
++            forbidden_hits.append(f"db_or_ws:{cls_name}")
++        if cls_name.endswith(("DispatchSinks", "RuntimeStore", "ConnectionManager")):
++            forbidden_hits.append(f"runtime_handle:{cls_name}")
++
++        for ref in gc.get_referents(cur):
++            if isinstance(ref, (type, types.ModuleType, types.FunctionType, types.MethodType)):
++                continue
++            queue_objs.append(ref)
++
++    assert forbidden_hits == []
++
++
++# ---- 2 & 3. Paired no-op parity, interleaved & stateful component isolation (WP3.4) -----------
++
++
++async def test_paired_noop_branches_produce_identical_non_timing_kpis_and_ledgers():
++    rt = _sim_runtime(dc_charging_model="vinfast_profiles_v0_1")
++    for item in (
++        booking("dc-1", zone="DC", kwh=28, hours=1.5, now=rt.clock()),
++        booking("dc-2", zone="DC", kwh=22, hours=2.0, now=rt.clock()),
++        booking("ac-1", zone="AC", kwh=16, hours=3.0, now=rt.clock()),
++    ):
++        rt.store.save_booking(item)
++        rt.simulator.upsert_vehicle(visit_of(item, rt.clock()))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=45)
++    paired = await run_paired_noop(snap)
++
++    assert paired.applied is False
++    assert paired.non_timing_kpis_equal is True
++    assert paired.final_physics_digests_equal is True
++    assert paired.baseline.initial_snapshot_digest == snap.envelope.snapshot_digest
++    assert paired.counterfactual.initial_snapshot_digest == snap.envelope.snapshot_digest
++    assert paired.baseline.event_manifest_sha256 == snap.event_manifest.manifest_sha256
++    assert paired.counterfactual.event_manifest_sha256 == snap.event_manifest.manifest_sha256
++    assert paired.baseline.experiment_fingerprint == snap.envelope.experiment_fingerprint
++    assert paired.baseline.outcome_ledger.model_dump(mode="json") == (
++        paired.counterfactual.outcome_ledger.model_dump(mode="json")
++    )
++
++
++async def test_sandbox_forks_are_independent_under_interleaved_and_repeated_stateful_runs():
++    rt = _sim_runtime()
++    base_alg = rt.scheduler.algorithms()
++    warm_opt = _WarmStartOptimizer(base_alg.optimizers["DC"])
++    counting_dc = _CountingDCModel(rt.simulator.adapter.dc_model)
++    noisy_obs = _NoisyRngObservation(seed=99)
++
++    rt.simulator.adapter.dc_model = counting_dc
++    rt.simulator._dc_model = counting_dc
++    rt.simulator.kernel.observation_model = noisy_obs
++    rt.simulator._observation_model = noisy_obs
++    custom_alg = replace(
++        base_alg,
++        optimizers={"AC": base_alg.optimizers["AC"], "DC": warm_opt},
++        dc_charging_model=counting_dc,
++    )
++    rt.scheduler._algorithms = custom_alg
++    rt.scheduler.configure(rt.simulator)
++
++    for item in (
++        booking("dc-s1", zone="DC", kwh=24, hours=1.5, now=rt.clock()),
++        booking("ac-s1", zone="AC", kwh=12, hours=2.5, now=rt.clock()),
++    ):
++        rt.store.save_booking(item)
++        rt.simulator.upsert_vehicle(visit_of(item, rt.clock()))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++    live_opt_history = list(warm_opt.history)
++    live_dc_calls = counting_dc.calls
++    live_rng_state = noisy_obs.rng.getstate()
++    live_rng_cache = dict(noisy_obs.cache)
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
++
++    # Interleaved concurrent paired execution + third repeated run from the exact same snapshot.
++    step_trace: list[tuple[str, int]] = []
++
++    async def record_step(label: str, minute: int) -> None:
++        step_trace.append((label, minute))
++        await asyncio.sleep(0)
++
++    b1, b2 = await asyncio.gather(
++        run_sandbox_branch(snap, branch_label="baseline", step_hook=record_step),
++        run_sandbox_branch(snap, branch_label="counterfactual", step_hook=record_step),
++    )
++    b3 = await run_sandbox_branch(snap, branch_label="repeat")
++
++    # Verify interleaving actually occurred (not all baseline before counterfactual).
++    labels_seen = [lbl for lbl, _ in step_trace]
++    first_cf = labels_seen.index("counterfactual")
++    last_base = len(labels_seen) - 1 - labels_seen[::-1].index("baseline")
++    assert first_cf < last_base
++
++    assert non_timing_branch_signature(b1) == non_timing_branch_signature(b2)
++    assert non_timing_branch_signature(b1) == non_timing_branch_signature(b3)
++
++    # Live stateful components remained 100% untouched!
++    assert warm_opt.history == live_opt_history
++    assert counting_dc.calls == live_dc_calls
++    assert noisy_obs.rng.getstate() == live_rng_state
++    assert noisy_obs.cache == live_rng_cache
++
++
++# ---- 4, 5 & 6. Immutability of snapshot & live state + zero DB/WS/FS side effects -----------
++
++
++async def test_rollout_never_mutates_snapshot_digest_or_paused_live_runtime_state():
++    rt = _sim_runtime()
++    b = booking("dc-live", zone="DC", kwh=25, hours=2.0, now=rt.clock())
++    rt.store.save_booking(b)
++    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++    rt.simulator.step(5)
++
++    live_phys_before = canonical_sha256(rt.simulator.snapshot_physics_state())
++    live_plan_before = rt.plan.model_dump(mode="json") if rt.plan else None
++    live_traces_before = len(rt.recorder.decision_traces)
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
++    snap_digest_before = snap.envelope.snapshot_digest
++    assert snap.recompute_digest() == snap_digest_before
++
++    paired = await run_paired_noop(snap, interleaved=True)
++    assert paired.non_timing_kpis_equal is True
++
++    assert snap.envelope.snapshot_digest == snap_digest_before
++    assert snap.recompute_digest() == snap_digest_before
++    assert canonical_sha256(rt.simulator.snapshot_physics_state()) == live_phys_before
++    assert (rt.plan.model_dump(mode="json") if rt.plan else None) == live_plan_before
++    assert len(rt.recorder.decision_traces) == live_traces_before
++
++
++async def test_sandbox_rollout_has_zero_db_ws_actuator_or_filesystem_side_effects(monkeypatch, clean_db, tmp_path):
++    t0 = datetime(2026, 11, 23, 18, 0, tzinfo=VN)
++    monkeypatch.setattr(runtime, "_live_clock", lambda config: lambda: t0)
++    runtime.reset_runtime()
++    repository.upsert_user(
++        UserRecord(
++            user_id="res-db",
++            email="res-db@example.invalid",
++            role=Role.RESIDENT,
++            display_name="Resident DB",
++            created_at=t0,
++        )
++    )
++    live = runtime.get_runtime()
++    await charging_service.book(
++        ChargeRequest(
++            vehicle_model="VF8_NEW_2026",
++            soc_now=25,
++            soc_target=80,
++            deadline=t0 + timedelta(hours=3),
++            mode=ChargeMode.WALK_IN,
++            zone="DC",
++        ),
++        "res-db",
++    )
++
++    def _table_counts() -> dict[str, int]:
++        with db_session.session_scope() as s:
++            return {
++                tbl.name: int(s.execute(select(func.count()).select_from(tbl)).scalar_one())
++                for tbl in Base.metadata.sorted_tables
++            }
++
++    ws_calls: list = []
++    live_apply_calls: list = []
++
++    async def _spy_broadcast(*args, **kwargs):
++        ws_calls.append((args, kwargs))
++
++    orig_apply = getattr(live.simulator, "apply_commands")
++
++    def _spy_apply(commands):
++        live_apply_calls.append(commands)
++        return orig_apply(commands)
++
++    conn_id_op = realtime.register(_spy_broadcast, Role.OPERATOR, "op-ws")
++    conn_id_res = realtime.register(_spy_broadcast, Role.RESIDENT, "res-db")
++    monkeypatch.setattr(realtime, "broadcast", _spy_broadcast)
++    monkeypatch.setattr(live.simulator, "apply_commands", _spy_apply)
++
++    counts_before = _table_counts()
++    live_phys_before = canonical_sha256(live.simulator.snapshot_physics_state())
++
++    snap = await capture_atomic_snapshot(live, horizon_minutes=45)
++
++    import builtins
++
++    real_open = builtins.open
++    fs_opens: list[tuple[str, str]] = []
++
++    def _spy_open(file, mode="r", *args, **kwargs):
++        if any(flag in str(mode) for flag in ("w", "a", "x", "+")):
++            fs_opens.append((str(file), str(mode)))
++        return real_open(file, mode, *args, **kwargs)
++
++    monkeypatch.setattr(builtins, "open", _spy_open)
++    try:
++        paired = await run_paired_noop(snap)
++    finally:
++        realtime.unregister(conn_id_op)
++        realtime.unregister(conn_id_res)
++
++    assert paired.non_timing_kpis_equal is True
++    assert _table_counts() == counts_before
++    assert ws_calls == []
++    assert live_apply_calls == []
++    assert fs_opens == []
++    assert canonical_sha256(live.simulator.snapshot_physics_state()) == live_phys_before
++
++
++# ---- 7 & 8. Safety Hold / approval / consent parity & not_ready safety guard -----------------
++
++
++async def test_safety_hold_pending_approval_and_rejected_consent_parity_in_forks():
++    rt = _sim_runtime()
++    b_hold = booking("dc-hold", zone="DC", kwh=30, hours=2.0, now=rt.clock())
++    b_ok = booking("dc-ok", zone="DC", kwh=25, hours=2.0, now=rt.clock())
++    b_pend = booking(
++        "ac-pend",
++        zone="AC",
++        kwh=15,
++        hours=4.0,
++        now=rt.clock(),
++    ).model_copy(update={"consent": ConsentScope(allow_power_reduction=False)})
++    b_rej = booking(
++        "ac-rej",
++        zone="AC",
++        kwh=15,
++        hours=4.0,
++        now=rt.clock(),
++    ).model_copy(update={"consent": ConsentScope(allow_power_reduction=False)})
++
++    for b in (b_hold, b_ok, b_pend, b_rej):
++        rt.store.save_booking(b)
++        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++    # Put dc-hold under Safety Hold with safe 0 kW held setpoint (resolved emergency state).
++    rt.safety_hold_booking_ids.add("dc-hold")
++    with rt.simulator.lock:
++        rt.simulator.kernel.hold_setpoint("dc-hold", 0.0)
++
++    # Open a pending approval for ac-pend and mark ac-rej as rejected consent.
++    now = rt.clock()
++    cmd = Command(
++        type=CommandType.SET_POWER,
++        connector_id="AC-01-1",
++        power_kw=5.0,
++        booking_id="ac-pend",
++        source=CommandSource.OPTIMIZER,
++        issued_by="optimizer",
++        based_on_schedule_version=rt.plan.version if rt.plan else 1,
++        based_on_state_at=now,
++        created_at=now,
++    )
++    pending = Approval(
++        kind=ApprovalKind.RESIDENT_CONSENT,
++        command=cmd,
++        verdict=GuardVerdict(command_id=cmd.command_id, passed=True, checked_at=now),
++        requested_from=b_pend.resident_id,
++        impact_summary="Reduce power",
++        created_at=now,
++    )
++    rt.sinks.save_approval(pending)
++    rt.rejected_booking_ids.add("ac-rej")
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
++    assert snap.envelope.status == SnapshotStatus.READY
++    assert snap.envelope.safety_hold_booking_ids == ["dc-hold"]
++    assert snap.envelope.rejected_booking_ids == ["ac-rej"]
++    assert snap.envelope.pending_approval_ids == [pending.approval_id]
++
++    paired = await run_paired_noop(snap)
++    assert paired.non_timing_kpis_equal is True
++    assert paired.baseline.safety_hold_booking_ids_end == ["dc-hold"]
++    assert paired.counterfactual.safety_hold_booking_ids_end == ["dc-hold"]
++
++    by_id = {v.booking_id: v for v in paired.baseline.outcome_ledger.vehicles}
++    assert by_id["dc-hold"].horizon_output_kwh == 0.0
++    assert by_id["dc-ok"].horizon_output_kwh > 0.0
++
++
++async def test_unresolved_hard_safety_or_unsafe_allocation_blocks_snapshot_without_mutating_live():
++    rt = _sim_runtime()
++    b = booking("dc-1", zone="DC", kwh=25, hours=2.0, now=rt.clock())
++    rt.store.save_booking(b)
++    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++    # Case A: Unresolved HARD_LIMIT_VIOLATED + ordinary event in outbox + existing Safety Hold.
++    rt.safety_hold_booking_ids.add("existing-hold")
++    tick_ev = StationEvent(event_id="ord-tick", type=EventType.TICK, occurred_at=rt.clock())
++    hard_ev = StationEvent(
++        event_id="hard-unres",
++        type=EventType.HARD_LIMIT_VIOLATED,
++        occurred_at=rt.clock(),
++        detail="Grid overload",
++        violation_kinds=["aggregate_power"],
++    )
++    rt.queue_events([tick_ev, hard_ev])
++    min_before = rt.simulator.minute
++
++    with pytest.raises(SnapshotNotReadyError) as exc_info:
++        await capture_atomic_snapshot(rt, horizon_minutes=30)
++    assert exc_info.value.status == SnapshotStatus.NOT_READY
++    assert exc_info.value.reason == SnapshotNotReadyReason.UNRESOLVED_HARD_SAFETY_EVENT
++
++    # Live state was NOT stepped, Safety Hold NOT released, and outbox events NOT dropped!
++    assert rt.simulator.minute == min_before
++    assert rt.has_pending_safety() is True
++    assert [e.event_id for e in rt.inspect_ordinary_outbox()] == ["ord-tick"]
++    assert "existing-hold" in rt.safety_hold_booking_ids
++
++    # Case B: Clear pending safety, but force an unsafe physical state (setpoint > lowered grid cap).
++    rt.acknowledge_safety([hard_ev])
++    rt.safety_hold_booking_ids.clear()
++    with rt.simulator.lock:
++        rt.simulator.available_power_kw = 5.0  # dc-1 is holding > 5 kW setpoint before curtailment!
++
++    with pytest.raises(SnapshotNotReadyError) as exc_unsafe:
++        await capture_atomic_snapshot(rt, horizon_minutes=30)
++    assert exc_unsafe.value.reason == SnapshotNotReadyReason.UNSAFE_PHYSICAL_STATE
++    assert rt.simulator.minute == min_before
++    assert [e.event_id for e in rt.inspect_ordinary_outbox()] == ["ord-tick"]
++
++
++# ---- 9. Prospective known_at(T) manifest vs hidden future ground truth (WP3.3) ----------------
++
++
++async def test_known_at_t_manifest_excludes_hidden_future_arrivals_and_unannounced_limit_events():
++    rt = _sim_runtime()
++    t0 = rt.clock()
++
++    b_now = booking("dc-now", zone="DC", kwh=30, hours=2.0, now=t0).model_copy(
++        update={"created_at": t0 - timedelta(minutes=10)}
++    )
++    b_res_known = booking(
++        "dc-res-known",
++        zone="DC",
++        kwh=20,
++        hours=2.0,
++        now=t0,
++        arrival=t0 + timedelta(minutes=10),
++    ).model_copy(update={"created_at": t0 - timedelta(minutes=5)})
++    b_future_hidden = booking(
++        "dc-future-hidden",
++        zone="DC",
++        kwh=20,
++        hours=2.0,
++        now=t0,
++        arrival=t0 + timedelta(minutes=15),
++    ).model_copy(update={"created_at": t0 + timedelta(minutes=12)})
++
++    for b in (b_now, b_res_known, b_future_hidden):
++        rt.store.save_booking(b)
++        rt.simulator.upsert_vehicle(visit_of(b, t0))
++
++    # Also inject an unbooked NOT_ARRIVED scenario vehicle directly into simulator queue
++    unbooked_b = booking(
++        "ac-unbooked-hidden",
++        zone="AC",
++        kwh=15,
++        hours=2.0,
++        now=t0,
++        arrival=t0 + timedelta(minutes=8),
++    )
++    rt.simulator.upsert_vehicle(visit_of(unbooked_b, t0))
++
++    # Inject one announced LimitEvent (announced at minute 0 -> 45 kW at minute 10)
++    # and one unannounced future LimitEvent (announced at minute 15 -> 8 kW at minute 20).
++    with rt.simulator.lock:
++        ev_known = LimitEvent(effective_minute=10, announced_minute=0, grid_input_kw=45.0, cabinet_output_kw={})
++        ev_hidden = LimitEvent(effective_minute=20, announced_minute=15, grid_input_kw=8.0, cabinet_output_kw={})
++        rt.simulator.kernel.scenario = replace(
++            rt.simulator.kernel.scenario,
++            limit_events=(ev_known, ev_hidden),
++        )
++        # Clear override so scenario limit_events govern grid_input_kw
++        rt.simulator.kernel.grid_input_override_kw = None
++
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
++    manifest = snap.event_manifest
++    assert manifest.known_booking_ids == ["dc-now", "dc-res-known"]
++    assert manifest.already_present_booking_ids == ["dc-now"]
++    assert manifest.known_future_arrival_booking_ids == ["dc-res-known"]
++    assert manifest.excluded_future_booking_count == 1
++    assert manifest.excluded_unbooked_not_arrived_count == 1
++    assert len(manifest.known_limit_events) == 1
++    assert manifest.known_limit_events[0].grid_input_kw == 45.0
++    assert manifest.excluded_unannounced_limit_event_count == 1
++
++    branch = await run_sandbox_branch(snap, branch_label="baseline")
++    ledger_ids = [v.booking_id for v in branch.outcome_ledger.vehicles]
++    assert ledger_ids == ["dc-now", "dc-res-known"]
++    by_id = {v.booking_id: v for v in branch.outcome_ledger.vehicles}
++    assert by_id["dc-res-known"].arrived_at == t0 + timedelta(minutes=10)
++    assert by_id["dc-res-known"].horizon_output_kwh > 0.0
++    # Unannounced 8 kW drop at minute 20 was excluded, so peak/actual grid power stayed governed by 45 kW (not 8 kW),
++    # and zero sampled over-limit violations occurred.
++    assert branch.outcome_ledger.horizon_sampled_grid_over_limit_minutes == 0
++
++
++# ---- 10 & 11. Timeout, cancellation & live replan non-starvation (WP3.4 / WP3.6) -------------
++
++
++async def test_timeout_and_cancellation_leave_zero_live_or_snapshot_mutation():
++    rt = _sim_runtime()
++    b = booking("dc-cancel", zone="DC", kwh=30, hours=2.0, now=rt.clock())
++    rt.store.save_booking(b)
++    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++    live_digest_before = canonical_sha256(rt.simulator.snapshot_physics_state())
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
++    snap_digest_before = snap.envelope.snapshot_digest
++
++    # 1. Explicit cancel_event mid-rollout at minute 5
++    cancel_ev = asyncio.Event()
++
++    def trigger_cancel(_label: str, minute: int) -> None:
++        if minute >= 5:
++            cancel_ev.set()
++
++    with pytest.raises(SandboxCancelledError):
++        await run_sandbox_branch(snap, cancel_event=cancel_ev, step_hook=trigger_cancel)
++
++    # 2. Strict timeout via slow step_hook
++    async def slow_step(_label: str, _minute: int) -> None:
++        await asyncio.sleep(0.05)
++
++    with pytest.raises(TimeoutError):
++        await run_sandbox_branch(snap, timeout_s=0.01, step_hook=slow_step)
++
++    # 3. Task cancellation (`asyncio.CancelledError`)
++    entered = asyncio.Event()
++
++    async def pause_at_step(_label: str, minute: int) -> None:
++        if minute >= 3:
++            entered.set()
++            await asyncio.sleep(10.0)
++
++    task = asyncio.create_task(run_sandbox_branch(snap, step_hook=pause_at_step))
++    await entered.wait()
++    task.cancel()
++    with pytest.raises(asyncio.CancelledError):
++        await task
++
++    assert canonical_sha256(rt.simulator.snapshot_physics_state()) == live_digest_before
++    assert snap.recompute_digest() == snap_digest_before
++
++
++async def test_live_replan_is_not_starved_by_concurrent_sandbox_workload():
++    live_rt = _sim_runtime()
++    for b in (
++        booking("dc-a", zone="DC", kwh=30, hours=2.0, now=live_rt.clock()),
++        booking("ac-a", zone="AC", kwh=20, hours=4.0, now=live_rt.clock()),
++    ):
++        live_rt.store.save_booking(b)
++        live_rt.simulator.upsert_vehicle(visit_of(b, live_rt.clock()))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=live_rt.clock()), live_rt)
++    plan_v_before = live_rt.plan.version if live_rt.plan else 0
++
++    snap = await capture_atomic_snapshot(live_rt, horizon_minutes=120)
++    sandbox_in_flight = asyncio.Event()
++
++    def notify_in_flight(_label: str, minute: int) -> None:
++        if minute >= 5:
++            sandbox_in_flight.set()
++
++    live_busy = lambda: live_rt.lock.locked() or live_rt.has_pending_safety()  # noqa: E731
++    sb_a = asyncio.create_task(
++        run_sandbox_branch(snap, branch_label="baseline", step_hook=notify_in_flight, live_busy_probe=live_busy)
++    )
++    sb_b = asyncio.create_task(run_sandbox_branch(snap, branch_label="counterfactual", live_busy_probe=live_busy))
++
++    await sandbox_in_flight.wait()
++    t_start = asyncio.get_running_loop().time()
++    new_plan = await control_loop.on_event(
++        StationEvent(type=EventType.TICK, occurred_at=live_rt.clock()),
++        live_rt,
++    )
++    live_latency_s = asyncio.get_running_loop().time() - t_start
++
++    res_a, res_b = await asyncio.gather(sb_a, sb_b)
++    assert new_plan.version > plan_v_before
++    assert live_latency_s < 1.5  # MT5 p95 budget <= 2.0 s
++    assert non_timing_branch_signature(res_a) == non_timing_branch_signature(res_b)
++
++
++# ---- 12. Hand-calculable Outcome Ledger oracle fixtures (WP3.5 / WP3.6) -----------------------
++
++
++async def test_outcome_ledger_hand_calculated_oracle_energy_and_timestamps():
++    """Verify exact pre- vs post-snapshot kWh, plug-in vs first-charge, and completion vs DC unplug."""
++    rt = _sim_runtime(StrategyName.SIM_B0)
++    t0 = rt.clock()
++
++    # 1) ac-pre arrives at T0 and charges for 10 minutes BEFORE snapshot capture at T0+10m.
++    b_ac = booking("ac-pre", zone="AC", kwh=22, hours=4.0, now=t0)
++    rt.store.save_booking(b_ac)
++    rt.simulator.upsert_vehicle(visit_of(b_ac, t0))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
++    for _ in range(10):
++        ev = rt.simulator.step(1)
++        await control_loop.on_minute(rt, ev)
++
++    t_snap = rt.simulator.now
++    assert t_snap == t0 + timedelta(minutes=10)
++    pre_phys = rt.simulator.snapshot_physics_state()["sessions"]["ac-pre"]
++    expected_pre_out = pre_phys["output_kwh"]
++    expected_pre_bat = pre_phys["delivered_battery_kwh"]
++    expected_pre_grid = pre_phys["delivered_grid_kwh"]
++    assert expected_pre_out > 0.0
++
++    # 2) At T_snap, add:
++    #    - dc-quick: needs small energy (~5 kWh) with deadline T_snap + 90m -> finishes early and unplugs after
++    #      dc_unplug_delay_minutes (5 minutes in station.yaml), strictly BEFORE declared deadline!
++    #    - ac-delayed-charge: assigned connector at T_snap, but we place a pending approval holding SET_POWER so
++    #      it plugs in at T_snap with 0 kW, demonstrating plug_in_at != first_charge_at (first_charge_at is None)!
++    b_dc_quick = ChargeRequest(
++        vehicle_model="VF3",
++        soc_now=70,
++        soc_target=80,
++        deadline=t_snap + timedelta(minutes=90),
++        mode=ChargeMode.WALK_IN,
++        zone="DC",
++    )
++    from src.services import energy as energy_svc
++
++    spec_vf3 = catalog.get_vehicle("VF3")
++    dc_est = energy_svc.estimate_energy(spec_vf3, soc_now=70, soc_target=80)
++    bk_dc = booking("dc-quick", zone="DC", kwh=dc_est.grid_energy_kwh, hours=1.5, now=t_snap).model_copy(
++        update={
++            "request": b_dc_quick,
++            "energy": dc_est,
++            "max_charge_power_kw": min(60.0, spec_vf3.max_dc_kw or 60.0),
++            "created_at": t_snap,
++        }
++    )
++
++    bk_ac_zero = booking("ac-plug-only", zone="AC", kwh=15, hours=3.0, now=t_snap).model_copy(
++        update={"created_at": t_snap}
++    )
++    for b in (bk_dc, bk_ac_zero):
++        rt.store.save_booking(b)
++        rt.simulator.upsert_vehicle(visit_of(b, t_snap))
++
++    # Assign ac-plug-only a connector with 0 kW held and put a pending approval on it so SET_POWER > 0 is held!
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t_snap), rt)
++    ac_conn = next(c.connector_id for c in rt.simulator.state().connectors if c.booking_id == "ac-plug-only")
++    with rt.simulator.lock:
++        rt.simulator.kernel.hold_setpoint("ac-plug-only", 0.0)
++    hold_cmd = Command(
++        type=CommandType.SET_POWER,
++        connector_id=ac_conn,
++        power_kw=7.0,
++        booking_id="ac-plug-only",
++        source=CommandSource.OPTIMIZER,
++        issued_by="optimizer",
++        based_on_schedule_version=rt.plan.version if rt.plan else 1,
++        based_on_state_at=t_snap,
++        created_at=t_snap,
++    )
++    rt.sinks.save_approval(
++        Approval(
++            kind=ApprovalKind.RESIDENT_CONSENT,
++            command=hold_cmd,
++            verdict=GuardVerdict(command_id=hold_cmd.command_id, passed=True, checked_at=t_snap),
++            requested_from=bk_ac_zero.resident_id,
++            impact_summary="Hold power",
++            created_at=t_snap,
++        )
++    )
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=40)
++    res = await run_sandbox_branch(snap)
++    ledger = res.outcome_ledger
++    by_id = {v.booking_id: v for v in ledger.vehicles}
++
++    # Verify no pre-snapshot double counting on ac-pre (11 kW for 10 min pre-snapshot, 40 min post-snapshot):
++    rec_ac = by_id["ac-pre"]
++    assert rec_ac.pre_snapshot_output_kwh == pytest.approx(11.0 * 10 / 60.0, abs=1e-5)
++    assert rec_ac.horizon_output_kwh == pytest.approx(11.0 * 40 / 60.0, abs=1e-5)
++    assert rec_ac.cumulative_output_kwh == pytest.approx(11.0 * 50 / 60.0, abs=1e-5)
++    assert rec_ac.pre_snapshot_output_kwh == pytest.approx(expected_pre_out, abs=1e-6)
++    assert rec_ac.pre_snapshot_battery_stored_kwh == pytest.approx(expected_pre_bat, abs=1e-6)
++    assert rec_ac.pre_snapshot_grid_input_kwh == pytest.approx(expected_pre_grid, abs=1e-6)
++    assert rec_ac.cumulative_output_kwh == pytest.approx(
++        rec_ac.pre_snapshot_output_kwh + rec_ac.horizon_output_kwh, abs=2e-6
++    )
++    assert rec_ac.horizon_grid_input_kwh == pytest.approx(
++        rec_ac.horizon_output_kwh / rt.config.power_conversion_efficiency, abs=1e-5
++    )
++
++    # Verify plug_in_at vs first_charge_at separation on ac-plug-only:
++    rec_plug_only = by_id["ac-plug-only"]
++    assert rec_plug_only.plug_in_at is not None
++    assert rec_plug_only.first_charge_at is None
++    assert rec_plug_only.horizon_output_kwh == 0.0
++
++    # Verify target_reached_at vs release_or_departure_at (DC unplug delay) on dc-quick:
++    rec_dc = by_id["dc-quick"]
++    assert rec_dc.status == VehicleOutcomeStatus.COMPLETED_ON_TIME
++    assert rec_dc.target_reached_at is not None
++    assert rec_dc.release_or_departure_at is not None
++    expected_delay = timedelta(minutes=rt.config.dc_unplug_delay_minutes)
++    assert rec_dc.release_or_departure_at == rec_dc.target_reached_at + expected_delay
++    assert rec_dc.release_or_departure_at < rec_dc.original_deadline
++    assert rec_dc.release_reason == VehicleReleaseReason.DC_UNPLUG_DELAY
++
++
++async def test_outcome_ledger_censoring_not_arrived_unserved_and_empty_sla_denominator():
++    """Verify NOT_ARRIVED preservation, censoring, unserved sessions, and None (never 1.0) on empty denominators."""
++    # Case 1: Empty cohort (0 bookings) -> on_time_rate and service_coverage_rate MUST be None (not 1.0!)
++    rt_empty = _sim_runtime()
++    snap_empty = await capture_atomic_snapshot(rt_empty, horizon_minutes=15)
++    res_empty = await run_sandbox_branch(snap_empty)
++    led_empty = res_empty.outcome_ledger
++    assert led_empty.cohort_size == 0
++    assert led_empty.sla_denominator == 0
++    assert led_empty.on_time_rate is None
++    assert led_empty.feasible_on_time_rate is None
++    assert led_empty.service_coverage_rate is None
++    assert led_empty.by_zone["AC"].on_time_rate is None
++    assert led_empty.by_zone["DC"].on_time_rate is None
++
++    # Case 2: 2-vehicle cohort where BOTH have deadline > horizon_end (one NOT_ARRIVED, one CHARGING) ->
++    # sla_denominator == 0 -> on_time_rate is None, NOT_ARRIVED preserved in cohort!
++    rt_cens = _sim_runtime()
++    t0 = rt_cens.clock()
++    b_not_arrived = booking(
++        "res-later",
++        zone="DC",
++        kwh=25,
++        hours=3.0,
++        now=t0,
++        arrival=t0 + timedelta(minutes=60),
++    )
++    b_in_prog = booking("ac-long", zone="AC", kwh=45, hours=8.0, now=t0)
++    for b in (b_not_arrived, b_in_prog):
++        rt_cens.store.save_booking(b)
++        rt_cens.simulator.upsert_vehicle(visit_of(b, t0))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt_cens)
++
++    snap_cens = await capture_atomic_snapshot(rt_cens, horizon_minutes=20)
++    led_cens = (await run_sandbox_branch(snap_cens)).outcome_ledger
++    assert led_cens.cohort_size == 2
++    assert led_cens.arrived_count == 1
++    assert led_cens.not_arrived_count == 1
++    assert led_cens.censored_count == 2
++    assert led_cens.censored_not_arrived_count == 1
++    assert led_cens.censored_in_progress_count == 1
++    assert led_cens.sla_denominator == 0
++    assert led_cens.on_time_rate is None
++    assert led_cens.feasible_on_time_rate is None
++
++    # Case 3: Unserved session (all DC connectors faulted before arrival, deadline within horizon) ->
++    # UNSERVED_DEPARTED_OR_EXPIRED, sla_denominator == 1, on_time_rate == 0.0!
++    rt_unserved = _sim_runtime()
++    t_u = rt_unserved.clock()
++    for conn in rt_unserved.config.connectors:
++        if str(conn.zone) == "DC":
++            rt_unserved.simulator.inject_incident(
++                Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=conn.connector_id)
++            )
++    b_unserved = booking("dc-unserved", zone="DC", kwh=20, hours=0.5, now=t_u)
++    rt_unserved.store.save_booking(b_unserved)
++    rt_unserved.simulator.upsert_vehicle(visit_of(b_unserved, t_u))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t_u), rt_unserved)
++
++    snap_unserved = await capture_atomic_snapshot(rt_unserved, horizon_minutes=35)
++    led_unserved = (await run_sandbox_branch(snap_unserved)).outcome_ledger
++    assert led_unserved.cohort_size == 1
++    assert led_unserved.unserved_count == 1
++    assert led_unserved.sla_denominator == 1
++    assert led_unserved.sla_met_count == 0
++    assert led_unserved.on_time_rate == 0.0
++    assert led_unserved.vehicles[0].status == VehicleOutcomeStatus.UNSERVED_DEPARTED_OR_EXPIRED
++    assert led_unserved.vehicles[0].unserved is True
++    assert led_unserved.vehicles[0].met_original_sla is False
++    # Verify retrospective WHY Engine still works cleanly alongside Counterfactual Foundation
++    why_ans = explain_why(
++        WhyQuery(subject_scope=WhySubjectScope.STATION, topic="overview", at=t_u),
++        ActorContext(actor_id="op-1", role=Role.OPERATOR, station_id=rt_unserved.config.station_id),
++        raw_traces=rt_unserved.recorder.decision_traces,
++    )
++    assert why_ans.topic == "overview"
++
++
++async def test_undelivered_ordinary_outbox_events_are_replayed_in_both_forks_without_draining_live():
++    """Ordinary outbox events pending at T are captured atomically, kept on live, and replayed on both forks."""
++    rt = _sim_runtime()
++    t0 = rt.clock()
++    b1 = booking("dc-1", zone="DC", kwh=30, hours=2.0, now=t0)
++    rt.store.save_booking(b1)
++    rt.simulator.upsert_vehicle(visit_of(b1, t0))
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=t0), rt)
++
++    # Advance 3 minutes (not a 15-min boundary), then arrive a walk-in whose event sits in ordinary outbox.
++    rt.simulator.step(3)
++    t3 = rt.simulator.now
++    b2 = booking("dc-2", zone="DC", kwh=20, hours=2.0, now=t3)
++    rt.store.save_booking(b2)
++    arr_events = rt.simulator.upsert_vehicle(visit_of(b2, t3))
++    arr_events.append(
++        StationEvent(event_id="ord-b2-created", type=EventType.BOOKING_CREATED, occurred_at=t3, booking_id="dc-2")
++    )
++    rt.queue_events(arr_events)
++
++    live_outbox_ids = [e.event_id for e in rt.inspect_ordinary_outbox()]
++    assert "ord-b2-created" in live_outbox_ids
++
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=20)
++    assert snap.envelope.undelivered_ordinary_outbox_count == len(live_outbox_ids)
++    # Live outbox was NOT drained!
++    assert [e.event_id for e in rt.inspect_ordinary_outbox()] == live_outbox_ids
++
++    paired = await run_paired_noop(snap)
++    assert paired.non_timing_kpis_equal is True
++    by_id = {v.booking_id: v for v in paired.baseline.outcome_ledger.vehicles}
++    # Because ordinary outbox was replayed at minute 0 (t3), dc-2 got assigned immediately at t3 (0 min wait)
++    # instead of waiting 12 minutes until the next 15-min periodic boundary!
++    assert by_id["dc-2"].plug_in_at == t3
++    assert by_id["dc-2"].plug_wait_minutes == 0.0
+diff --git a/tests/test_services/test_g3_runtime_readiness.py b/tests/test_services/test_g3_runtime_readiness.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_services/test_g3_runtime_readiness.py
+@@ -0,0 +1,86 @@
++"""Gate 3 (AI-4.2A WP3.1) fail-before / pass-after regression tests for runtime fork & admission readiness."""
++
++from datetime import datetime
++
++import pytest
++
++pytest.importorskip("ev2gym")
++
++from src.models.charging import StrategyName  # noqa: E402
++from src.models.events import EventType, StationEvent  # noqa: E402
++from src.services import admission, catalog, control_loop  # noqa: E402
++from src.services.runtime import build_sim_runtime, fork_runtime, visit_of  # noqa: E402
++from tests.factories import VN, booking  # noqa: E402
++
++
++async def _build_runtime_with_queued_vehicle():
++    config, tariff = catalog.load_station_config(), catalog.load_tariff()
++    scenario = catalog.load_scenario("hybrid_evening")
++    start = datetime.combine(datetime(2026, 11, 23).date(), scenario.start_time, tzinfo=VN)
++    rt = build_sim_runtime(scenario, StrategyName.SIM_M3A, config, tariff, start)
++    queued = booking("dc-q1", zone="DC", kwh=25, hours=2.0, now=rt.clock())
++    rt.store.save_booking(queued)
++    rt.simulator.upsert_vehicle(visit_of(queued, rt.clock()))
++    return rt
++
++
++async def test_fork_runtime_inherits_pending_safety_and_suppresses_normal_dispatch():
++    rt = await _build_runtime_with_queued_vehicle()
++    hard_event = StationEvent(
++        event_id="hard-pending-1",
++        type=EventType.HARD_LIMIT_VIOLATED,
++        occurred_at=rt.clock(),
++        detail="Synthetic unresolved unattributed vehicle fault",
++        violation_kinds=["charging_model"],
++        violation_booking_ids=[],
++    )
++    rt.queue_events([hard_event])
++    assert rt.has_pending_safety() is True
++
++    frt = fork_runtime(rt, list(rt.store.active_bookings()))
++    assert frt.has_pending_safety() is True
++
++    # Normal TICK on fork must suppress non-safety commands just like live runtime.
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=frt.clock()), frt)
++    assert frt.simulator.queue.sessions["dc-q1"].connector is None
++    assert frt.advance_clock() == []
++
++
++async def test_admission_fingerprint_reflects_pending_safety_transition():
++    rt = await _build_runtime_with_queued_vehicle()
++    fp_clean = rt.admission_fingerprint()
++
++    hard_event = StationEvent(
++        event_id="hard-pending-fp",
++        type=EventType.HARD_LIMIT_VIOLATED,
++        occurred_at=rt.clock(),
++        detail="Synthetic unresolved unattributed vehicle fault",
++        violation_kinds=["charging_model"],
++        violation_booking_ids=[],
++    )
++    rt.queue_events([hard_event])
++    fp_pending = rt.admission_fingerprint()
++    assert fp_pending != fp_clean
++
++    rt.acknowledge_safety([hard_event])
++    assert rt.admission_fingerprint() == fp_clean
++
++
++async def test_admission_evaluate_does_not_promise_allocation_while_hard_safety_pending():
++    rt = await _build_runtime_with_queued_vehicle()
++    hard_event = StationEvent(
++        event_id="hard-pending-adm",
++        type=EventType.HARD_LIMIT_VIOLATED,
++        occurred_at=rt.clock(),
++        detail="Synthetic unresolved unattributed vehicle fault",
++        violation_kinds=["charging_model"],
++        violation_booking_ids=[],
++    )
++    rt.queue_events([hard_event])
++    assert rt.has_pending_safety() is True
++
++    candidate = booking("cand-dc", zone="DC", kwh=20, hours=2.0, now=rt.clock())
++    quoted = await admission.evaluate(rt, candidate)
++    assert quoted.plugged_at is None
++    assert quoted.delivered_kwh == 0.0
++    assert quoted.unmet_kwh > 0.05

@@ -38,10 +38,13 @@ import math
 import threading
 from collections import deque
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import datetime, timedelta
-from types import MappingProxyType
+from random import Random
+from types import FunctionType, MappingProxyType
 from zoneinfo import ZoneInfo
+
+import numpy as np
 
 from src.models.charging_physics import DCChargingModel
 from src.models.control import Command, CommandType
@@ -90,6 +93,65 @@ class PhysicsSnapshotSeed:
     connector_to_port: tuple[tuple[str, str], ...]
     port_to_connector: tuple[tuple[str, str], ...]
     detached_kernel: StationKernel
+
+    def integrity_state(self) -> dict:
+        """Canonical execution state of the detached backend seed, without invoking its components."""
+        kernel = self.detached_kernel
+        adapter = kernel.adapter
+        ids_by_model = {id(ev): vid for vid, ev in adapter.models.items()}
+        return _seed_value(
+            {
+                "station": {f.name: getattr(self, f.name) for f in fields(self) if f.name != "detached_kernel"},
+                "kernel": {k: v for k, v in vars(kernel).items() if k not in {"adapter", "queue", "emit"}},
+                "queue": vars(kernel.queue),
+                "adapter": {
+                    "efficiency": adapter.efficiency,
+                    "dc_model": adapter.dc_model,
+                    "connections": adapter._connections,
+                    "vehicles": {vid: [type(ev).__qualname__, vars(ev)] for vid, ev in adapter.models.items()},
+                    "chargers": {
+                        key: {
+                            **vars(charger),
+                            "evs_connected": [
+                                None if ev is None else ids_by_model[id(ev)] for ev in charger.evs_connected
+                            ],
+                        }
+                        for key, charger in adapter.stations.items()
+                    },
+                },
+            }
+        )
+
+
+def _seed_value(value):
+    """Encode the value types used by backend physics and explicitly supported component state."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else {"float": value.hex()}
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, np.ndarray):
+        return {"dtype": value.dtype.str, "shape": value.shape, "values": _seed_value(value.tolist())}
+    if isinstance(value, np.generic):
+        return _seed_value(value.item())
+    if isinstance(value, Mapping):
+        # Preserve iteration order, which can affect the planner and event delivery.
+        return [[_seed_value(key), _seed_value(item)] for key, item in value.items()]
+    if isinstance(value, (list, tuple, deque)):
+        return [_seed_value(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        return sorted((_seed_value(item) for item in value), key=json.dumps)
+    if isinstance(value, Random):
+        return {"random_state": _seed_value(value.getstate())}
+    if isinstance(value, FunctionType) and is_shared(value):
+        return {"function": f"{value.__module__}.{value.__qualname__}"}
+    kind = f"{type(value).__module__}.{type(value).__qualname__}"
+    if is_dataclass(value):
+        return {"type": kind, "fields": _seed_value({f.name: getattr(value, f.name) for f in fields(value)})}
+    if hasattr(value, "__dict__") and not isinstance(value, (FunctionType, type)):
+        return {"type": kind, "fields": _seed_value(vars(value))}
+    raise TypeError(f"Unsupported snapshot physics state: {kind}")
 
 
 def _component_state_signature(component: object) -> dict[str, object]:
@@ -405,7 +467,7 @@ class HybridStation:
         """
         self._events = []
         kernel = self.kernel
-        failsafe = self.config.guard.after_apply_failsafe
+        failsafe = self.config.guard.after_apply_failsafe or self.is_fork
         signalled = False
         for _ in range(max(minutes, 0)):
             held = {vid: kernel.setpoints.get(vid, 0.0) for vid in self.queue.occupied.values()}
@@ -772,7 +834,17 @@ class HybridStation:
         known_events = tuple(ev for ev in self.kernel.scenario.limit_events if ev.announced_minute <= as_of_minute)
         pruned_events = len(self.kernel.scenario.limit_events) - len(known_events)
         kept_vehicles = tuple(s.vehicle for s in self.queue.sessions.values())
-        if pruned_vehicles or pruned_events or len(kept_vehicles) != len(self.kernel.scenario.vehicles):
+        for values in (
+            self.kernel.setpoints,
+            self.kernel.active_setpoints_kw,
+            self.kernel.output_kwh,
+            self.kernel.output_by_deadline_kwh,
+        ):
+            if values is not None:
+                for vid in tuple(values):
+                    if vid not in known_booking_ids:
+                        values.pop(vid)
+        if pruned_vehicles or pruned_events or kept_vehicles != self.kernel.scenario.vehicles:
             self.kernel.scenario = replace(
                 self.kernel.scenario,
                 vehicles=kept_vehicles,
