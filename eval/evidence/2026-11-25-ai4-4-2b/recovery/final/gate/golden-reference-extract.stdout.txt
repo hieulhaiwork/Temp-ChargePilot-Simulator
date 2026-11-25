@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ tar -xzf /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-p0/raw/golden-crlf-outputs.tar.gz -C /tmp/p019-g4-final.Ais6zH/final-gate crlf-golden-reference 

@@ -1,0 +1,106 @@
+cwd=/tmp/p019-g4-final.Ais6zH/reviewed
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/lehieu/Projects/P-019/.simulator/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/p019-g4-final.Ais6zH/reviewed
+configfile: pytest.ini
+plugins: asyncio-1.5.0, typeguard-4.6.0, langsmith-0.15.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 47 items / 32 deselected / 15 selected
+
+tests/test_services/test_what_if.py::test_explicit_half_minute_deadline_is_rejected_before_rollout FAILED [  6%]
+tests/test_services/test_what_if.py::test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets FAILED [ 13%]
+tests/test_services/test_what_if.py::test_target_only_keeps_off_grid_original_deadline_and_physical_release PASSED [ 20%]
+tests/test_services/test_what_if.py::test_wait_delta_does_not_reward_losing_a_slow_booking FAILED [ 26%]
+tests/test_services/test_what_if.py::test_exact_membership_for_wait_sla_and_coverage_rates[swapped-bookings] FAILED [ 33%]
+tests/test_services/test_what_if.py::test_exact_membership_for_wait_sla_and_coverage_rates[same-bookings] FAILED [ 40%]
+tests/test_services/test_what_if.py::test_safe_unequal_observed_windows_suppress_entire_comparison FAILED [ 46%]
+tests/test_services/test_what_if.py::test_site_increase_at_binding_shared_source_changes_mixed_delivery_and_tou PASSED [ 53%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[connector-60] PASSED [ 60%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[cabinet-25] PASSED [ 66%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[zone-25] PASSED [ 73%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[vehicle-16] PASSED [ 80%]
+tests/test_services/test_what_if.py::test_site_patch_replays_future_source_changes_and_cabinet_only_restriction FAILED [ 86%]
+tests/test_services/test_what_if.py::test_site_patch_preserves_announced_grid_event_effective_at_snapshot[override-binds] PASSED [ 93%]
+tests/test_services/test_what_if.py::test_site_patch_preserves_announced_grid_event_effective_at_snapshot[announced-source-binds] FAILED [100%]
+
+=================================== FAILURES ===================================
+________ test_explicit_half_minute_deadline_is_rejected_before_rollout _________
+tests/test_services/test_what_if.py:172: in test_explicit_half_minute_deadline_is_rejected_before_rollout
+    pytest.fail(
+E   Failed: Accepted 2026-11-23T12:07:30+07:00 and held the connector until 2026-11-23T12:08:00+07:00. Battery kWh for first/second: baseline 2.695/0.898333, patched 1.437333/2.156. First booking original/revised SLA: False/False.
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+_______ test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets ________
+tests/test_services/test_what_if.py:199: in test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets
+    with pytest.raises(ValidationError, match="simulator minute"):
+E   Failed: DID NOT RAISE ValidationError
+____________ test_wait_delta_does_not_reward_losing_a_slow_booking _____________
+tests/test_services/test_what_if.py:706: in test_wait_delta_does_not_reward_losing_a_slow_booking
+    assert result.delta[key] is None, f"{key} changed sample from A/B to A, got delta {result.delta[key]}"
+E   AssertionError: plug_wait_mean_minutes changed sample from A/B to A, got delta -15.0
+E   assert -15.0 is None
+___ test_exact_membership_for_wait_sla_and_coverage_rates[swapped-bookings] ____
+tests/test_services/test_what_if.py:792: in test_exact_membership_for_wait_sla_and_coverage_rates
+    assert result.delta[key] == (signed if same_membership else None), key
+E   AssertionError: plug_wait_mean_minutes
+E   assert 5.0 == None
+_____ test_exact_membership_for_wait_sla_and_coverage_rates[same-bookings] _____
+tests/test_services/test_what_if.py:794: in test_exact_membership_for_wait_sla_and_coverage_rates
+    assert key not in result.delta_reasons
+                      ^^^^^^^^^^^^^^^^^^^^
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pydantic/main.py:1110: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'WhatIfResult' object has no attribute 'delta_reasons'
+________ test_safe_unequal_observed_windows_suppress_entire_comparison _________
+tests/test_services/test_what_if.py:817: in test_safe_unequal_observed_windows_suppress_entire_comparison
+    assert result.delta is result.delta_reasons is None
+                           ^^^^^^^^^^^^^^^^^^^^
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pydantic/main.py:1110: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'WhatIfResult' object has no attribute 'delta_reasons'
+__ test_site_patch_replays_future_source_changes_and_cabinet_only_restriction __
+tests/test_services/test_what_if.py:908: in test_site_patch_replays_future_source_changes_and_cabinet_only_restriction
+    _assert_site_branch(result.baseline, baseline, ac_count=2, dc_count=2)
+tests/test_services/test_what_if.py:837: in _assert_site_branch
+    assert metrics.horizon_output_kwh == pytest.approx(output_kw_minutes / 60, abs=2e-6)
+E   assert 6.7966 == 6.796666666666667 ± 2.0e-06
+E     
+E     comparison failed
+E     Obtained: 6.7966
+E     Expected: 6.796666666666667 ± 2.0e-06
+_ test_site_patch_preserves_announced_grid_event_effective_at_snapshot[announced-source-binds] _
+tests/test_services/test_what_if.py:929: in test_site_patch_preserves_announced_grid_event_effective_at_snapshot
+    _assert_site_branch(result.baseline, baseline, ac_count=2, dc_count=2)
+tests/test_services/test_what_if.py:837: in _assert_site_branch
+    assert metrics.horizon_output_kwh == pytest.approx(output_kw_minutes / 60, abs=2e-6)
+E   assert 9.5 == 8.233333333333333 ± 2.0e-06
+E     
+E     comparison failed
+E     Obtained: 9.5
+E     Expected: 8.233333333333333 ± 2.0e-06
+=========================== short test summary info ============================
+FAILED tests/test_services/test_what_if.py::test_explicit_half_minute_deadline_is_rejected_before_rollout - Failed: Accepted 2026-11-23T12:07:30+07:00 and held the connector until 2026-11-23T12:08:00+07:00. Battery kWh for first/second: baseline 2.695/0.898333, patched 1.437333/2.156. First booking original/revised SLA: False/False.
+FAILED tests/test_services/test_what_if.py::test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets - Failed: DID NOT RAISE ValidationError
+FAILED tests/test_services/test_what_if.py::test_wait_delta_does_not_reward_losing_a_slow_booking - AssertionError: plug_wait_mean_minutes changed sample from A/B to A, got delta -15.0
+assert -15.0 is None
+FAILED tests/test_services/test_what_if.py::test_exact_membership_for_wait_sla_and_coverage_rates[swapped-bookings] - AssertionError: plug_wait_mean_minutes
+assert 5.0 == None
+FAILED tests/test_services/test_what_if.py::test_exact_membership_for_wait_sla_and_coverage_rates[same-bookings] - AttributeError: 'WhatIfResult' object has no attribute 'delta_reasons'
+FAILED tests/test_services/test_what_if.py::test_safe_unequal_observed_windows_suppress_entire_comparison - AttributeError: 'WhatIfResult' object has no attribute 'delta_reasons'
+FAILED tests/test_services/test_what_if.py::test_site_patch_replays_future_source_changes_and_cabinet_only_restriction - assert 6.7966 == 6.796666666666667 ± 2.0e-06
+  
+  comparison failed
+  Obtained: 6.7966
+  Expected: 6.796666666666667 ± 2.0e-06
+FAILED tests/test_services/test_what_if.py::test_site_patch_preserves_announced_grid_event_effective_at_snapshot[announced-source-binds] - assert 9.5 == 8.233333333333333 ± 2.0e-06
+  
+  comparison failed
+  Obtained: 9.5
+  Expected: 8.233333333333333 ± 2.0e-06
+================== 8 failed, 7 passed, 32 deselected in 1.88s ==================

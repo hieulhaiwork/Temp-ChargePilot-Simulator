@@ -1,0 +1,61 @@
+cwd=/tmp/p019-g4-final.Ais6zH/final-gate/code
+$ isolated timeout -k 5s 120s python -m pytest tests/test_services/test_what_if.py -vv --junitxml /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/g4-oracles.xml 
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/lehieu/Projects/P-019/.simulator/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/p019-g4-final.Ais6zH/final-gate/code
+configfile: pytest.ini
+plugins: asyncio-1.5.0, typeguard-4.6.0, langsmith-0.15.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 47 items
+
+tests/test_services/test_what_if.py::test_target_soc_oracle_compares_original_and_revised_sla PASSED [  2%]
+tests/test_services/test_what_if.py::test_already_satisfied_preserves_soc_energy_and_release[AC] PASSED [  4%]
+tests/test_services/test_what_if.py::test_already_satisfied_preserves_soc_energy_and_release[DC] PASSED [  6%]
+tests/test_services/test_what_if.py::test_target_increase_tracks_original_crossing_before_revised_target PASSED [  8%]
+tests/test_services/test_what_if.py::test_deadline_oracle_energy_and_actual_release[7] PASSED [ 10%]
+tests/test_services/test_what_if.py::test_deadline_oracle_energy_and_actual_release[23] PASSED [ 12%]
+tests/test_services/test_what_if.py::test_explicit_half_minute_deadline_is_rejected_before_rollout PASSED [ 14%]
+tests/test_services/test_what_if.py::test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets PASSED [ 17%]
+tests/test_services/test_what_if.py::test_target_only_keeps_off_grid_original_deadline_and_physical_release PASSED [ 19%]
+tests/test_services/test_what_if.py::test_reservation_censoring_and_noop_equality PASSED [ 21%]
+tests/test_services/test_what_if.py::test_site_limit_units_known_events_and_copy_on_write PASSED [ 23%]
+tests/test_services/test_what_if.py::test_site_infrastructure_and_independent_validation PASSED [ 25%]
+tests/test_services/test_what_if.py::test_outage_oracle_one_connector_and_restore_at_boundary[False] PASSED [ 27%]
+tests/test_services/test_what_if.py::test_outage_oracle_one_connector_and_restore_at_boundary[True] PASSED [ 29%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad0] PASSED [ 31%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad1] PASSED [ 34%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad2] PASSED [ 36%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad3] PASSED [ 38%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad4] PASSED [ 40%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad5] PASSED [ 42%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad6] PASSED [ 44%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad7] PASSED [ 46%]
+tests/test_services/test_what_if.py::test_authorization_and_resident_projection PASSED [ 48%]
+tests/test_services/test_what_if.py::test_unresolved_safety_suppresses_unequal_window_deltas PASSED [ 51%]
+tests/test_services/test_what_if.py::test_tampered_snapshot_and_live_intervention_attempt_are_rejected PASSED [ 53%]
+tests/test_services/test_what_if.py::test_jobs_owner_single_worker_capacity_and_cancellation PASSED [ 55%]
+tests/test_services/test_what_if.py::test_job_timeout_and_ttl PASSED     [ 57%]
+tests/test_services/test_what_if.py::test_job_result_detached_from_polling_client PASSED [ 59%]
+tests/test_services/test_what_if.py::test_finished_ac_session_can_resume_and_keeps_historical_completion PASSED [ 61%]
+tests/test_services/test_what_if.py::test_attained_queued_vehicle_uses_no_connector PASSED [ 63%]
+tests/test_services/test_what_if.py::test_outage_rejects_past_misaligned_and_unknown_connector PASSED [ 65%]
+tests/test_services/test_what_if.py::test_g4_patch_uses_only_sandbox_sinks PASSED [ 68%]
+tests/test_services/test_what_if.py::test_site_cap_equal_to_current_still_limits_future_announced_increase PASSED [ 70%]
+tests/test_services/test_what_if.py::test_resolved_hard_violation_remains_unsafe_at_equal_full_horizon PASSED [ 72%]
+tests/test_services/test_what_if.py::test_cancelling_native_job_never_submits_its_patched_branch PASSED [ 74%]
+tests/test_services/test_what_if.py::test_wait_delta_does_not_reward_losing_a_slow_booking PASSED [ 76%]
+tests/test_services/test_what_if.py::test_exact_membership_for_wait_sla_and_coverage_rates[swapped-bookings] PASSED [ 78%]
+tests/test_services/test_what_if.py::test_exact_membership_for_wait_sla_and_coverage_rates[same-bookings] PASSED [ 80%]
+tests/test_services/test_what_if.py::test_safe_unequal_observed_windows_suppress_entire_comparison PASSED [ 82%]
+tests/test_services/test_what_if.py::test_site_increase_at_binding_shared_source_changes_mixed_delivery_and_tou PASSED [ 85%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[connector-60] PASSED [ 87%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[cabinet-25] PASSED [ 89%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[zone-25] PASSED [ 91%]
+tests/test_services/test_what_if.py::test_site_increase_cannot_exceed_equipment_or_vehicle_caps[vehicle-16] PASSED [ 93%]
+tests/test_services/test_what_if.py::test_site_patch_replays_future_source_changes_and_cabinet_only_restriction PASSED [ 95%]
+tests/test_services/test_what_if.py::test_site_patch_preserves_announced_grid_event_effective_at_snapshot[override-binds] PASSED [ 97%]
+tests/test_services/test_what_if.py::test_site_patch_preserves_announced_grid_event_effective_at_snapshot[announced-source-binds] PASSED [100%]
+
+- generated xml file: /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/g4-oracles.xml -
+============================== 47 passed in 2.40s ==============================

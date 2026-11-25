@@ -107,20 +107,25 @@ class StationMetrics(BaseModel):
     service_coverage_denominator: int
     service_coverage_rate: float | None
     charged_coverage_rate: float | None
+    unserved_count: int
     plug_wait_observed_count: int
     plug_wait_censored_count: int
+    plug_wait_unknown_count: int
     plug_wait_mean_minutes: float | None
     plug_wait_p90_minutes: float | None
     charge_wait_observed_count: int
     charge_wait_censored_count: int
+    charge_wait_unknown_count: int
     charge_wait_mean_minutes: float | None
     charge_wait_p90_minutes: float | None
     horizon_battery_kwh: float
     horizon_output_kwh: float
     horizon_grid_input_kwh: float
     horizon_energy_cost_vnd: float
-    unmet_original_battery_kwh: float
-    unmet_original_output_kwh: float
+    unmet_original_battery_kwh: float = Field(description="Energy remaining to original targets at observation cutoff.")
+    unmet_original_output_kwh: float = Field(
+        description="Charger-output equivalent of remaining battery energy at cutoff."
+    )
     peak_charger_output_kw: float
     peak_grid_input_kw: float
 
@@ -144,6 +149,12 @@ class WhatIfBranch(BaseModel):
     pending_approval_commands: int
 
 
+class DeltaUnavailableReason(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    code: Literal["missing_data", "non_comparable_sample"]
+
+
 class WhatIfResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -165,6 +176,7 @@ class WhatIfResult(BaseModel):
     baseline: WhatIfBranch
     patched: WhatIfBranch
     delta: dict[str, float | None] | None
+    delta_reasons: dict[str, DeltaUnavailableReason] | None = None
     feasible: bool | None
     affected_vehicles: tuple[WhatIfVehicleOutcome, ...]
     assumptions: tuple[str, ...]

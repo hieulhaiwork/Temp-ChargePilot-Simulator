@@ -1,0 +1,6 @@
+cwd=/tmp/p019-g4-final.Ais6zH/final-gate/code
+$ isolated timeout -k 5s 120s env PYTHONPATH=. python eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/g4-latency.json 
+target_soc: 3/3 repeated signatures, median=36.084 ms, max=42.115 ms
+deadline: 3/3 repeated signatures, median=30.750 ms, max=31.794 ms
+site_limit: 3/3 repeated signatures, median=28.526 ms, max=29.868 ms
+outage: 3/3 repeated signatures, median=31.831 ms, max=32.176 ms

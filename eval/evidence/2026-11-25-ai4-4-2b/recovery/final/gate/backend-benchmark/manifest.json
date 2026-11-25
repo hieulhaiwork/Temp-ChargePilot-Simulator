@@ -1,0 +1,352 @@
+{
+  "kind": "generated",
+  "baseline_id": null,
+  "version": null,
+  "status": "generated",
+  "code_commit": "4658b1f068350c130ed5ed1a744c19a7b8cd522c",
+  "generated_at": "2026-11-25T07:30:34.003039+00:00",
+  "command": "eval/run_benchmark.py --seeds 1,2,3,4,5",
+  "benchmark_sha256": "d88c05c1f74cbf52711f9a75773e8d5ad3bfaecb1d11b03dba66aa7f74fb57d1",
+  "scenarios": [
+    "connector_failure",
+    "hybrid_evening",
+    "hybrid_power_drop",
+    "peak_evening",
+    "power_drop"
+  ],
+  "policies": [
+    "B0",
+    "M2b",
+    "M3a",
+    "M3b"
+  ],
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "runs": 100,
+  "time_config": {
+    "physics_step_minutes": 1,
+    "decision_interval_minutes": 15,
+    "planning_horizon_minutes": null
+  },
+  "libraries": {
+    "python": "3.12.3",
+    "os": "Linux 6.18.58.1-microsoft-standard-WSL2",
+    "ev2gym": "2.0.0",
+    "numpy": "2.4.6",
+    "scipy": "1.18.1"
+  },
+  "experiments": {
+    "B0": {
+      "schema_version": "1",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "components": {
+        "dispatch.AC": {
+          "name": "fifo",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "parameters": {}
+        },
+        "dispatch.DC": {
+          "name": "fcfs",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "parameters": {}
+        },
+        "optimizers.AC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "parameters": {}
+        },
+        "optimizers.DC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "parameters": {}
+        },
+        "coordinator": {
+          "name": "fixed_share",
+          "version": "1",
+          "implementation": "src.optimizer.coordination.fixed_budget.FixedShareCoordinator",
+          "parameters": {
+            "output_kw": {
+              "AC": 22.0,
+              "DC": 78.0
+            }
+          }
+        },
+        "physical_guard": {
+          "name": "physical_v1",
+          "version": "1",
+          "implementation": "src.guard.physical.validator.guard",
+          "parameters": {
+            "absolute_tolerance": 1e-07
+          }
+        }
+      },
+      "dc_charging_model": {
+        "name": "synthetic_taper_v1",
+        "version": "1",
+        "implementation": "src.simulator.core.charging_models.synthetic_dc.SyntheticTaperV1",
+        "parameters": {
+          "taper_start_soc": 0.6,
+          "slope_per_soc": 2.25,
+          "minimum_fraction": 0.05
+        }
+      },
+      "parameters": {},
+      "time_config": {
+        "physics_step_minutes": 1,
+        "decision_interval_minutes": 15,
+        "planning_horizon_minutes": null
+      },
+      "station_config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+      "tariff_sha256": "3a4ef38aae48b59647635f9771fa977002dd39370811e2b4655468aab0094786",
+      "fingerprint": "908e98767707ed211e1396a6d3b3b8957e7daa3b0ea8363976e23ad63f439dbe"
+    },
+    "M2b": {
+      "schema_version": "1",
+      "policy_id": "M2b",
+      "policy_version": "1",
+      "components": {
+        "dispatch.AC": {
+          "name": "fifo",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "parameters": {}
+        },
+        "dispatch.DC": {
+          "name": "llf",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.least_laxity.least_laxity",
+          "parameters": {}
+        },
+        "optimizers.AC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "parameters": {}
+        },
+        "optimizers.DC": {
+          "name": "rolling_lp",
+          "version": "1",
+          "implementation": "src.optimizer.zones.rolling_lp.RollingHorizonLP",
+          "parameters": {
+            "horizon_minutes": 120,
+            "block_minutes": 5,
+            "sla_weight": 4.0,
+            "shortfall_weight": 1.0,
+            "early_weight": 0.02,
+            "queue_weight": 0.5,
+            "time_limit_s": 0.2
+          }
+        },
+        "coordinator": {
+          "name": "fixed_share",
+          "version": "1",
+          "implementation": "src.optimizer.coordination.fixed_budget.FixedShareCoordinator",
+          "parameters": {
+            "output_kw": {
+              "AC": 22.0,
+              "DC": 78.0
+            }
+          }
+        },
+        "physical_guard": {
+          "name": "physical_v1",
+          "version": "1",
+          "implementation": "src.guard.physical.validator.guard",
+          "parameters": {
+            "absolute_tolerance": 1e-07
+          }
+        }
+      },
+      "dc_charging_model": {
+        "name": "synthetic_taper_v1",
+        "version": "1",
+        "implementation": "src.simulator.core.charging_models.synthetic_dc.SyntheticTaperV1",
+        "parameters": {
+          "taper_start_soc": 0.6,
+          "slope_per_soc": 2.25,
+          "minimum_fraction": 0.05
+        }
+      },
+      "parameters": {},
+      "time_config": {
+        "physics_step_minutes": 1,
+        "decision_interval_minutes": 15,
+        "planning_horizon_minutes": null
+      },
+      "station_config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+      "tariff_sha256": "3a4ef38aae48b59647635f9771fa977002dd39370811e2b4655468aab0094786",
+      "fingerprint": "e640e084d594e23a51b8f185032f6883de09ce000a36de41e0d2c241790f81fa"
+    },
+    "M3a": {
+      "schema_version": "1",
+      "policy_id": "M3a",
+      "policy_version": "1",
+      "components": {
+        "dispatch.AC": {
+          "name": "fifo",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "parameters": {}
+        },
+        "dispatch.DC": {
+          "name": "llf",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.least_laxity.least_laxity",
+          "parameters": {}
+        },
+        "optimizers.AC": {
+          "name": "ac_rolling_lp",
+          "version": "1",
+          "implementation": "src.optimizer.zones.ac_lp.ACRollingLP",
+          "parameters": {
+            "block_minutes": 15,
+            "time_limit_s": 0.2
+          }
+        },
+        "optimizers.DC": {
+          "name": "rolling_lp",
+          "version": "1",
+          "implementation": "src.optimizer.zones.rolling_lp.RollingHorizonLP",
+          "parameters": {
+            "horizon_minutes": 120,
+            "block_minutes": 5,
+            "sla_weight": 4.0,
+            "shortfall_weight": 1.0,
+            "early_weight": 0.02,
+            "queue_weight": 0.5,
+            "time_limit_s": 0.2
+          }
+        },
+        "coordinator": {
+          "name": "fixed_share",
+          "version": "1",
+          "implementation": "src.optimizer.coordination.fixed_budget.FixedShareCoordinator",
+          "parameters": {
+            "output_kw": {
+              "AC": 22.0,
+              "DC": 78.0
+            }
+          }
+        },
+        "physical_guard": {
+          "name": "physical_v1",
+          "version": "1",
+          "implementation": "src.guard.physical.validator.guard",
+          "parameters": {
+            "absolute_tolerance": 1e-07
+          }
+        }
+      },
+      "dc_charging_model": {
+        "name": "synthetic_taper_v1",
+        "version": "1",
+        "implementation": "src.simulator.core.charging_models.synthetic_dc.SyntheticTaperV1",
+        "parameters": {
+          "taper_start_soc": 0.6,
+          "slope_per_soc": 2.25,
+          "minimum_fraction": 0.05
+        }
+      },
+      "parameters": {},
+      "time_config": {
+        "physics_step_minutes": 1,
+        "decision_interval_minutes": 15,
+        "planning_horizon_minutes": null
+      },
+      "station_config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+      "tariff_sha256": "3a4ef38aae48b59647635f9771fa977002dd39370811e2b4655468aab0094786",
+      "fingerprint": "f338938bbb16d3426137aeed9436f3110461333ec0d2e2dbd2d7f537a0695350"
+    },
+    "M3b": {
+      "schema_version": "1",
+      "policy_id": "M3b",
+      "policy_version": "1",
+      "components": {
+        "dispatch.AC": {
+          "name": "fifo",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "parameters": {}
+        },
+        "dispatch.DC": {
+          "name": "llf",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.least_laxity.least_laxity",
+          "parameters": {}
+        },
+        "optimizers.AC": {
+          "name": "ac_rolling_lp",
+          "version": "1",
+          "implementation": "src.optimizer.zones.ac_lp.ACRollingLP",
+          "parameters": {
+            "block_minutes": 15,
+            "time_limit_s": 0.2
+          }
+        },
+        "optimizers.DC": {
+          "name": "rolling_lp",
+          "version": "1",
+          "implementation": "src.optimizer.zones.rolling_lp.RollingHorizonLP",
+          "parameters": {
+            "horizon_minutes": 120,
+            "block_minutes": 5,
+            "sla_weight": 4.0,
+            "shortfall_weight": 1.0,
+            "early_weight": 0.02,
+            "queue_weight": 0.5,
+            "time_limit_s": 0.2
+          }
+        },
+        "coordinator": {
+          "name": "dynamic_slack",
+          "version": "1",
+          "implementation": "src.optimizer.coordination.dynamic_slack.DynamicSlackCoordinator",
+          "parameters": {}
+        },
+        "physical_guard": {
+          "name": "physical_v1",
+          "version": "1",
+          "implementation": "src.guard.physical.validator.guard",
+          "parameters": {
+            "absolute_tolerance": 1e-07
+          }
+        }
+      },
+      "dc_charging_model": {
+        "name": "synthetic_taper_v1",
+        "version": "1",
+        "implementation": "src.simulator.core.charging_models.synthetic_dc.SyntheticTaperV1",
+        "parameters": {
+          "taper_start_soc": 0.6,
+          "slope_per_soc": 2.25,
+          "minimum_fraction": 0.05
+        }
+      },
+      "parameters": {},
+      "time_config": {
+        "physics_step_minutes": 1,
+        "decision_interval_minutes": 15,
+        "planning_horizon_minutes": null
+      },
+      "station_config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+      "tariff_sha256": "3a4ef38aae48b59647635f9771fa977002dd39370811e2b4655468aab0094786",
+      "fingerprint": "74b84c67b82fcbb131d3c19476e0180bd2624fbb96437b676ba3905e72ed4f2d"
+    }
+  },
+  "experiment_fingerprints": {
+    "B0": "908e98767707ed211e1396a6d3b3b8957e7daa3b0ea8363976e23ad63f439dbe",
+    "M2b": "e640e084d594e23a51b8f185032f6883de09ce000a36de41e0d2c241790f81fa",
+    "M3a": "f338938bbb16d3426137aeed9436f3110461333ec0d2e2dbd2d7f537a0695350",
+    "M3b": "74b84c67b82fcbb131d3c19476e0180bd2624fbb96437b676ba3905e72ed4f2d"
+  }
+}

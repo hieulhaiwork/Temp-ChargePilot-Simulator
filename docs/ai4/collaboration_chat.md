@@ -29,3 +29,8 @@
 
 - **AUTHORIZED**. Scope gồm `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit`, `outage`, paired evaluation và internal jobs.
 - **Implementation handoff READY_FOR_REVIEW**. Patch SHA-256 `ec99050de22414c7f3b964c6ae898458db15a169119bc05ae5ba5abaa92491bf`, overall mandatory gate exit 0. PostgreSQL runtime PENDING. [Báo cáo Gate 4](PHASE_4_2B_REPORT.md)
+- **Tech Lead review** tại mirror `343cddce2e7c22e8753945589a94d2ad7ed48042`. Verdict `CONDITIONAL PASS — FINAL REMEDIATION REQUIRED`. Chấp nhận architecture và gate evidence, yêu cầu G4-F01 deadline precision, G4-F02 comparable KPI samples và G4-F03 mixed-load site-limit oracles.
+- **Mentor demo tối 25/11/2026.** Tech Lead duyệt thứ tự G4 remediation → G4 final acceptance → G6A → G5 → G6B → G7. G6A gồm shared integration foundation cùng WHY/WHAT-IF end-to-end. Đây là mốc review riêng trong G6. HOW-TO vẫn là MUST, với toàn bộ AC cho G5, G6B và G7. G6A chờ Tech Lead review candidate G4 và cấp authorization riêng. [Roadmap và integration handoff](AI-4_MASTER_IMPLEMENTATION_PLAN.md)
+- **Implementation handoff G4 — READY_FOR_FINAL_ACCEPTANCE.** G4-F01–F03 đã xử lý. Final candidate SHA-256 `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f`. Mandatory gate exit 0, WHAT-IF 47, backend 768 + 8 forecast skips, standalone 180, Golden 38/38, frozen 100/100. PostgreSQL runtime PENDING. [Phase Report](PHASE_4_2B_REPORT.md)
+
+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 4)**

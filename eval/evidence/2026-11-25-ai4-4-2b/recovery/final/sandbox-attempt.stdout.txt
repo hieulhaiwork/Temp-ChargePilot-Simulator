@@ -1,0 +1,14 @@
+cwd=/tmp/p019-g4-final.Ais6zH/reviewed
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/lehieu/Projects/P-019/.simulator/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/p019-g4-final.Ais6zH/reviewed
+configfile: pytest.ini
+plugins: asyncio-1.5.0, typeguard-4.6.0, langsmith-0.15.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 47 items / 32 deselected / 15 selected
+
+tests/test_services/test_what_if.py::test_explicit_half_minute_deadline_is_rejected_before_rollout FAILED [  6%]
+tests/test_services/test_what_if.py::test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets FAILED [ 13%]
+tests/test_services/test_what_if.py::test_target_only_keeps_off_grid_original_deadline_and_physical_release FAILED [ 20%]
+tests/test_services/test_what_if.py::test_wait_delta_does_not_reward_losing_a_slow_booking 

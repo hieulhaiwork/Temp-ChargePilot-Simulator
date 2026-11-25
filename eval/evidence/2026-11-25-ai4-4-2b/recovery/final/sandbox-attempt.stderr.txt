@@ -1,0 +1,5 @@
++ env -i PATH=/home/lehieu/Projects/P-019/.simulator/bin:/usr/bin:/bin LANG=C.UTF-8 TZ=UTC PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_services/test_what_if.py -k 'half_minute or deadline_grid or target_only or losing_a_slow or exact_membership or safe_unequal or site_increase or site_patch_' -vv --tb=short
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

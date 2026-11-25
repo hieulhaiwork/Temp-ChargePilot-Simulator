@@ -1,0 +1,38 @@
++ git clone --quiet --no-hardlinks --no-checkout /home/lehieu/Projects/P-019 /tmp/p019-g4-final.Ais6zH/patch
++ git -C /tmp/p019-g4-final.Ais6zH/patch -c core.autocrlf=false checkout --quiet --detach 4658b1f068350c130ed5ed1a744c19a7b8cd522c
++ git -C /tmp/p019-g4-final.Ais6zH/patch apply --index /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/candidate.patch
+++ git -C /tmp/p019-g4-final.Ais6zH/patch write-tree
++ g3_tree=9680487382695b6bf638c0bc86adcd6a07728d6d
++ git -C /tmp/p019-g4-final.Ais6zH/patch apply --index /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-02/candidate.patch
+++ git -C /tmp/p019-g4-final.Ais6zH/patch write-tree
++ reviewed_tree=39a8ffb8275e6f74d4522c247ba076a4b3e542c7
++ paths=(src/models/what_if.py src/services/copilot/what_if.py src/simulator/core/kernel.py src/simulator/hybrid_station.py tests/test_services/test_what_if.py)
++ for path in "${paths[@]}"
++ cp src/models/what_if.py /tmp/p019-g4-final.Ais6zH/patch/src/models/what_if.py
++ for path in "${paths[@]}"
++ cp src/services/copilot/what_if.py /tmp/p019-g4-final.Ais6zH/patch/src/services/copilot/what_if.py
++ for path in "${paths[@]}"
++ cp src/simulator/core/kernel.py /tmp/p019-g4-final.Ais6zH/patch/src/simulator/core/kernel.py
++ for path in "${paths[@]}"
++ cp src/simulator/hybrid_station.py /tmp/p019-g4-final.Ais6zH/patch/src/simulator/hybrid_station.py
++ for path in "${paths[@]}"
++ cp tests/test_services/test_what_if.py /tmp/p019-g4-final.Ais6zH/patch/tests/test_services/test_what_if.py
++ git -C /tmp/p019-g4-final.Ais6zH/patch add -- src/models/what_if.py src/services/copilot/what_if.py src/simulator/core/kernel.py src/simulator/hybrid_station.py tests/test_services/test_what_if.py
++ git -C /tmp/p019-g4-final.Ais6zH/patch diff --cached --check 39a8ffb8275e6f74d4522c247ba076a4b3e542c7
++ git -C /tmp/p019-g4-final.Ais6zH/patch diff --cached --name-status 39a8ffb8275e6f74d4522c247ba076a4b3e542c7
+M	src/models/what_if.py
+M	src/services/copilot/what_if.py
+M	src/simulator/core/kernel.py
+M	src/simulator/hybrid_station.py
+M	tests/test_services/test_what_if.py
++ git -C /tmp/p019-g4-final.Ais6zH/patch diff --cached --no-ext-diff --binary 39a8ffb8275e6f74d4522c247ba076a4b3e542c7
++ git -C /tmp/p019-g4-final.Ais6zH/patch diff --cached --no-ext-diff --binary 9680487382695b6bf638c0bc86adcd6a07728d6d
++ cd /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final
++ sha256sum remediation.patch
++ cd gate
++ sha256sum candidate.patch
++ git -C /tmp/p019-g4-final.Ais6zH/patch apply --reverse --check /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final/remediation.patch
++ git -C /tmp/p019-g4-final.Ais6zH/patch apply --reverse --check /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/candidate.patch
++ python - /tmp/p019-g4-final.Ais6zH/patch
+245 candidate product/test paths match local workspace bytes.
++ cp tests/test_services/test_what_if.py /tmp/p019-g4-final.Ais6zH/reviewed/tests/test_services/test_what_if.py

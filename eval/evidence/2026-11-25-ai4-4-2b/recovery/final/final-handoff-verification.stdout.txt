@@ -1,0 +1,36 @@
+## feature/ai-4...origin/feature/ai-4
+ M docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md
+ M docs/ai4/FOUNDATION_CONTRACT.md
+ M docs/ai4/ISSUES.md
+ M docs/ai4/PHASE_4_1_REPORT.md
+ M docs/ai4/PROJECT_STATE.md
+ M docs/ai4/collaboration_chat.md
+ M src/models/copilot.py
+ M src/services/admission.py
+ M src/services/charging_service.py
+ M src/services/control_loop.py
+ M src/services/copilot/__init__.py
+ M src/services/runtime.py
+ M src/services/simulation_service.py
+ M src/simulator/core/kernel.py
+ M src/simulator/hybrid_station.py
+?? docs/ai4/G3_RECOVERY_STATE.md
+?? docs/ai4/G4_RECOVERY_STATE.md
+?? docs/ai4/PHASE_4_2A_REPORT.md
+?? docs/ai4/PHASE_4_2B_REPORT.md
+?? eval/evidence/2026-11-24-ai4-4-2a/
+?? eval/evidence/2026-11-25-ai4-4-2b/
+?? src/models/what_if.py
+?? src/services/copilot/counterfactual.py
+?? src/services/copilot/jobs.py
+?? src/services/copilot/outcome_ledger.py
+?? src/services/copilot/snapshot.py
+?? src/services/copilot/what_if.py
+?? tests/test_services/test_counterfactual_foundation.py
+?? tests/test_services/test_g3_runtime_readiness.py
+?? tests/test_services/test_what_if.py
+4658b1f068350c130ed5ed1a744c19a7b8cd522c
+remediation.patch: OK
+candidate.patch: OK
+Tested final gate code matches 245 local product/test paths byte-for-byte.
+125 relative links resolve in 7 handoff and oracle files.

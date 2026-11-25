@@ -1,0 +1,2537 @@
+diff --git a/eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py b/eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py
+new file mode 100644
+index 0000000..24036e6
+--- /dev/null
++++ b/eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py
+@@ -0,0 +1,64 @@
++"""Record whole-pair WHAT-IF wall time and repeatability on a small synthetic fixture."""
++
++import asyncio
++import json
++import statistics
++import sys
++import time
++from datetime import timedelta
++from pathlib import Path
++
++from src.models.charging import StrategyName
++from src.models.control import Role
++from src.models.copilot import ActorContext
++from src.services import catalog
++from src.services.copilot import capture_atomic_snapshot, run_what_if
++from src.services.runtime import build_sim_runtime, visit_of
++from tests.factories import NOW, booking
++
++
++async def run(out: Path) -> None:
++    config, tariff = catalog.load_station_config(), catalog.load_tariff()
++    rt = build_sim_runtime(catalog.load_scenario("hybrid_evening"), StrategyName.SIM_B0, config, tariff, NOW)
++    record = booking("demo-ac", now=rt.clock(), hours=0.5)
++    rt.store.save_booking(record)
++    rt.simulator.upsert_vehicle(visit_of(record, rt.clock()))
++    snapshot = await capture_atomic_snapshot(rt, horizon_minutes=25)
++    actor = ActorContext(actor_id="synthetic-operator", role=Role.OPERATOR, station_id=config.station_id)
++    patches = {
++        "target_soc": {"op": "revise_vehicle", "booking_id": record.booking_id, "target_soc": 21},
++        "deadline": {
++            "op": "revise_vehicle",
++            "booking_id": record.booking_id,
++            "deadline": rt.clock() + timedelta(minutes=18),
++        },
++        "site_limit": {"op": "site_limit", "grid_input_kw": 8},
++        "outage": {"op": "outage", "connector_id": "AC-01-1", "duration_minutes": 4},
++    }
++    output = {}
++    for label, patch in patches.items():
++        samples = []
++        signature = None
++        result = None
++        for _ in range(3):
++            start = time.perf_counter()
++            result = await run_what_if(snapshot, actor, patch)
++            samples.append(round((time.perf_counter() - start) * 1000, 3))
++            current = result.model_dump(exclude={"baseline": {"run_id"}, "patched": {"run_id"}}, mode="json")
++            assert result.status == "completed" and result.applied is False
++            assert signature is None or signature == current, label
++            signature = current
++        output[label] = {
++            "elapsed_ms": samples,
++            "median_ms": statistics.median(samples),
++            "max_ms": max(samples),
++            "paired_result": result.model_dump(mode="json"),
++        }
++        print(
++            f"{label}: 3/3 repeated signatures, median={statistics.median(samples):.3f} ms, max={max(samples):.3f} ms"
++        )
++    out.write_text(json.dumps({"fixture": "B0 synthetic AC, 25 simulated minutes", "operations": output}, indent=2))
++
++
++if __name__ == "__main__":
++    asyncio.run(run(Path(sys.argv[1])))
+diff --git a/eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh b/eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh
+new file mode 100644
+index 0000000..1488ad0
+--- /dev/null
++++ b/eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh
+@@ -0,0 +1,141 @@
++#!/usr/bin/env bash
++# From P-019 root. Pass a new scratch directory and an evidence directory containing candidate.patch.
++set -euo pipefail
++root=$PWD
++scratch=$(realpath -m "$1")
++raw=$(realpath "$2")
++p0=$root/eval/evidence/2026-11-24-ai4-p0
++g3=$root/eval/evidence/2026-11-24-ai4-4-2a
++g4=eval/evidence/2026-11-25-ai4-4-2b
++venv=${P0_VENV:-"$root/.simulator"}
++base=4658b1f068350c130ed5ed1a744c19a7b8cd522c
++approved=$g3/recovery/gate-02/candidate.patch
++patch=$raw/candidate.patch
++test -s "$patch"
++test ! -e "$raw/exit-codes.tsv"
++mkdir "$scratch"
++printf 'gate\texit\texpected\tresult\tstart_utc\tend_utc\n' > "$raw/exit-codes.tsv"
++
++finish() {
++    local rc=$? status=PASS
++    if (( rc != 0 )); then status=FAIL; fi
++    printf 'overall\t%s\t0\t%s\t-\t%s\n' "$rc" "$status" "$(date -u +%FT%TZ)" >> "$raw/exit-codes.tsv"
++}
++trap finish EXIT
++
++record() {
++    local name=$1 expected=$2 rc=0 start result
++    shift 2
++    start=$(date -u +%FT%TZ)
++    { printf 'cwd=%s\n$ ' "$PWD"; printf '%q ' "$@"; printf '\n'; } > "$raw/$name.stdout.txt"
++    "$@" >> "$raw/$name.stdout.txt" 2> "$raw/$name.stderr.txt" || rc=$?
++    case "$expected" in
++        "$rc") result=PASS ;;
++        pending) result=PENDING ;;
++        *) result=FAIL ;;
++    esac
++    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$rc" "$expected" "$result" "$start" "$(date -u +%FT%TZ)" \
++        >> "$raw/exit-codes.tsv"
++    [[ $result != FAIL ]]
++}
++
++isolated() {
++    env -i PATH="$venv/bin:/usr/bin:/bin" LANG=C.UTF-8 TZ=UTC PYTHONIOENCODING=utf-8 PYTHONDONTWRITEBYTECODE=1 "$@"
++}
++
++candidate() {
++    local name=$1 directory=$2 autocrlf=$3
++    record "$name-clone" 0 git clone --quiet --no-hardlinks --no-checkout "$root" "$directory"
++    record "$name-checkout" 0 git -C "$directory" -c core.autocrlf="$autocrlf" checkout --quiet --detach "$base"
++    record "$name-apply-g3" 0 git -C "$directory" -c core.autocrlf="$autocrlf" apply "$approved"
++    record "$name-apply-g4" 0 git -C "$directory" -c core.autocrlf="$autocrlf" apply "$patch"
++}
++
++tests() (
++    cd "$scratch/code"
++    local failed=0
++    record focused-g4 0 isolated timeout -k 5s 180s python -m pytest -q \
++        tests/test_services/test_what_if.py \
++        tests/test_services/test_counterfactual_foundation.py \
++        tests/test_services/test_g3_runtime_readiness.py \
++        tests/test_services/test_fork_isolation.py \
++        tests/test_services/test_safety_event_delivery.py \
++        tests/test_services/test_admission_consistency.py \
++        tests/test_refactor/test_registry_extension.py \
++        tests/test_architecture.py || failed=1
++    record g4-oracles 0 isolated timeout -k 5s 120s python -m pytest \
++        tests/test_services/test_what_if.py -vv --junitxml "$raw/g4-oracles.xml" || failed=1
++    record g4-latency 0 isolated timeout -k 5s 120s env PYTHONPATH=. python \
++        "$g4/measure_what_if.py" "$raw/g4-latency.json" || failed=1
++    record g3-eval 0 isolated timeout -k 5s 180s env PYTHONPATH=. python \
++        eval/evidence/2026-11-24-ai4-4-2a/run_g3_eval.py "$raw/g3-eval" || failed=1
++    record backend-tests 0 isolated timeout -k 5s 300s python -m pytest tests/ -q -rs || failed=1
++    record simulator-tests 0 isolated timeout -k 5s 180s python -m pytest src/simulator/tests/ -q || failed=1
++    return "$failed"
++)
++
++quality() (
++    cd "$scratch/code"
++    local failed=0
++    record ruff-lint 0 isolated ruff check src tests scripts/refactor eval || failed=1
++    record ruff-format 0 isolated ruff format --check src tests scripts/refactor eval || failed=1
++    record docs 0 isolated python scripts/check_docs.py || failed=1
++    record openapi 0 isolated python scripts/export_openapi.py --check || failed=1
++    record agent-offline 0 isolated python eval/run_agent_eval.py --offline --out "$raw/agent-offline" || failed=1
++    record ast-parity 0 isolated python scripts/refactor/compare_ast_manifest.py \
++        docs/refactor/raw/phase4-final/preserved_baseline_manifest.txt -- src || failed=1
++    record postgres-runtime pending bash -c '
++        for exe in postgres pg_isready initdb; do command -v "$exe" || true; done
++        if command -v docker >/dev/null; then timeout -k 2s 10s docker info --format "{{.ServerVersion}}" || true; fi
++        printf "PostgreSQL runtime verification is pending.\n"
++        exit 77
++    '
++    return "$failed"
++)
++
++benchmark() (
++    cd "$scratch/code"
++    record benchmark 0 isolated timeout -k 5s 600s python eval/run_benchmark.py --seeds 1,2,3,4,5
++    mkdir "$raw/backend-benchmark"
++    record benchmark-artifacts 0 cp eval/results/{manifest.json,benchmark.json,benchmark.md} "$raw/backend-benchmark/"
++    frozen=eval/evidence/2026-11-24-unified-core-frozen-baseline
++    record benchmark-compare 0 isolated python scripts/refactor/compare_backend_benchmark.py \
++        "$frozen/benchmark.json" "$raw/backend-benchmark/benchmark.json"
++    record benchmark-provenance 0 isolated python "$p0/check_benchmark_provenance.py" "$frozen" "$raw/backend-benchmark"
++)
++
++golden() (
++    candidate golden "$scratch/crlf" true
++    record golden-scenario-provenance 0 bash -c 'cd "$1"
++        printf "%s\n" \
++            "c5ad0f748df618cc1c1e7b8d2ec1b90d005d368c538acb5d22a785ed20ff57e3  mvp1.json" \
++            "c05e3251f5956dabb6d45211025b69d70e8af587e6db60c1918603abb11353c5  vinfast_dc_2port_120kw.json" |
++            sha256sum --check' _ "$scratch/crlf/src/simulator/scenario"
++    ref=$p0/raw/golden-crlf-outputs.tar.gz
++    record golden-reference-provenance 0 bash -c 'printf "%s  %s\n" \
++        2b442feb6c443bad9ae17aef66e90d849b256c719ea49b84fdca9c25261fe2bd "$1" | sha256sum --check' _ "$ref"
++    record golden-reference-extract 0 tar -xzf "$ref" -C "$scratch" crlf-golden-reference
++    cd "$scratch/crlf"
++    record golden-run 0 isolated timeout -k 5s 240s python scripts/refactor/run_sim_kpi_gate.py run "$scratch/golden-candidate"
++    record golden-compare 0 isolated python scripts/refactor/run_sim_kpi_gate.py compare "$scratch/crlf-golden-reference" \
++        "$scratch/golden-candidate" --evidence eval/evidence/2026-11-22/raw/sim-hardware \
++        --module-map docs/refactor/raw/phase4-final/module_map.txt
++    record golden-archive 0 tar -czf "$raw/golden-crlf-candidate.tar.gz" -C "$scratch" golden-candidate
++)
++
++record approved-g3 0 bash -c 'printf "%s  %s\n" \
++    59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d "$1" | sha256sum --check' _ "$approved"
++record workspace-head 0 git rev-parse HEAD
++record gate-patch-sha256 0 sha256sum "$patch"
++candidate gate "$scratch/code" false
++record gate-code 0 git -C "$scratch/code" status --short --untracked-files=all
++record environment 0 isolated bash -c 'uname -srmo; cat /etc/os-release; lscpu; python -VV; python -m pip list --format=freeze'
++tests & tests_pid=$!
++quality & quality_pid=$!
++benchmark & benchmark_pid=$!
++golden & golden_pid=$!
++overall=0
++for job in "$tests_pid" "$quality_pid" "$benchmark_pid" "$golden_pid"; do
++    wait "$job" || overall=1
++done
++exit "$overall"
+diff --git a/src/models/what_if.py b/src/models/what_if.py
+new file mode 100644
+index 0000000..b6cc3bf
+--- /dev/null
++++ b/src/models/what_if.py
+@@ -0,0 +1,201 @@
++"""Typed internal contracts for AI-4.2B WHAT-IF."""
++
++from datetime import datetime
++from enum import StrEnum
++from typing import Annotated, Literal
++
++from pydantic import AwareDatetime, BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, model_validator
++
++from src.models.copilot import MAX_COUNTERFACTUAL_HORIZON_MINUTES
++
++
++def _iso_datetime(value: object) -> datetime:
++    if isinstance(value, str):
++        return datetime.fromisoformat(value)
++    if isinstance(value, datetime):
++        return value
++    raise ValueError("Provide an ISO-8601 timestamp with an offset")
++
++
++PatchDatetime = Annotated[AwareDatetime, BeforeValidator(_iso_datetime)]
++
++
++class ReviseVehicle(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    op: Literal["revise_vehicle"]
++    booking_id: str = Field(strict=True, min_length=1, max_length=64)
++    target_soc: float | None = Field(default=None, strict=True, ge=0, le=100, allow_inf_nan=False)
++    deadline: PatchDatetime | None = None
++
++    @model_validator(mode="after")
++    def _has_change(self) -> "ReviseVehicle":
++        if self.target_soc is None and self.deadline is None:
++            raise ValueError("Provide target_soc or deadline")
++        return self
++
++
++class SiteLimit(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    op: Literal["site_limit"]
++    grid_input_kw: float = Field(strict=True, gt=0, allow_inf_nan=False)
++    hypothetical_infrastructure: bool = Field(default=False, strict=True)
++
++
++class Outage(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    op: Literal["outage"]
++    connector_id: str = Field(strict=True, min_length=1, max_length=64)
++    starts_at: PatchDatetime | None = None
++    duration_minutes: int = Field(strict=True, gt=0, le=MAX_COUNTERFACTUAL_HORIZON_MINUTES)
++
++
++WhatIfPatch = Annotated[ReviseVehicle | SiteLimit | Outage, Field(discriminator="op")]
++PATCH_ADAPTER: TypeAdapter[WhatIfPatch] = TypeAdapter(WhatIfPatch)
++
++
++class CommitmentOutcome(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    target_soc: float = Field(ge=0, le=100)
++    deadline: AwareDatetime
++    target_reached_at: AwareDatetime | None
++    already_satisfied_at_snapshot: bool
++    met_deadline: bool | None
++    remaining_battery_kwh: float
++    remaining_output_kwh: float
++
++
++class WhatIfVehicleOutcome(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    booking_id: str
++    baseline_original: CommitmentOutcome
++    patched_original: CommitmentOutcome
++    patched_revised: CommitmentOutcome | None
++    baseline_plug_in_at: AwareDatetime | None
++    patched_plug_in_at: AwareDatetime | None
++    baseline_first_charge_at: AwareDatetime | None
++    patched_first_charge_at: AwareDatetime | None
++    baseline_release_at: AwareDatetime | None
++    patched_release_at: AwareDatetime | None
++    initial_soc_pct: float
++    baseline_final_soc_pct: float
++    patched_final_soc_pct: float
++    baseline_horizon_battery_kwh: float
++    patched_horizon_battery_kwh: float
++
++
++class SlaMetrics(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    cohort_size: int
++    denominator: int
++    met_count: int
++    on_time_rate: float | None
++    censored_count: int
++
++
++class StationMetrics(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    cohort_size: int
++    sla: SlaMetrics
++    by_zone: dict[str, SlaMetrics]
++    service_coverage_denominator: int
++    service_coverage_rate: float | None
++    charged_coverage_rate: float | None
++    unserved_count: int
++    plug_wait_observed_count: int
++    plug_wait_censored_count: int
++    plug_wait_unknown_count: int
++    plug_wait_mean_minutes: float | None
++    plug_wait_p90_minutes: float | None
++    charge_wait_observed_count: int
++    charge_wait_censored_count: int
++    charge_wait_unknown_count: int
++    charge_wait_mean_minutes: float | None
++    charge_wait_p90_minutes: float | None
++    horizon_battery_kwh: float
++    horizon_output_kwh: float
++    horizon_grid_input_kwh: float
++    horizon_energy_cost_vnd: float
++    unmet_original_battery_kwh: float = Field(description="Energy remaining to original targets at observation cutoff.")
++    unmet_original_output_kwh: float = Field(
++        description="Charger-output equivalent of remaining battery energy at cutoff."
++    )
++    peak_charger_output_kw: float
++    peak_grid_input_kw: float
++
++
++class WhatIfBranch(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    run_id: str
++    input_sha256: str
++    config_sha256: str
++    final_physics_sha256: str
++    status: Literal["completed", "unsafe", "unresolved_safety"]
++    observed_until: AwareDatetime
++    metrics: StationMetrics
++    hard_violations: int
++    rejected_allocations: int
++    sampled_grid_over_limit_minutes: int
++    unresolved_safety_count: int
++    blocked_commands: int
++    pending_approvals: int
++    pending_approval_commands: int
++
++
++class DeltaUnavailableReason(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    code: Literal["missing_data", "non_comparable_sample"]
++
++
++class WhatIfResult(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    applied: Literal[False] = False
++    status: Literal["completed", "unsafe", "incomplete"]
++    snapshot_id: str
++    snapshot_digest: str
++    snapshot_time: AwareDatetime
++    state_version: int
++    experiment_fingerprint: str
++    event_manifest_sha256: str
++    horizon_end: AwareDatetime
++    horizon_minutes: int
++    known_booking_count: int
++    known_limit_event_count: int
++    patch: WhatIfPatch
++    patch_sha256: str
++    hypothetical_infrastructure: bool
++    baseline: WhatIfBranch
++    patched: WhatIfBranch
++    delta: dict[str, float | None] | None
++    delta_reasons: dict[str, DeltaUnavailableReason] | None = None
++    feasible: bool | None
++    affected_vehicles: tuple[WhatIfVehicleOutcome, ...]
++    assumptions: tuple[str, ...]
++
++
++class WhatIfJobStatus(StrEnum):
++    QUEUED = "queued"
++    RUNNING = "running"
++    SUCCEEDED = "succeeded"
++    FAILED = "failed"
++    CANCELLED = "cancelled"
++    EXPIRED = "expired"
++
++
++class WhatIfJobView(BaseModel):
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    applied: Literal[False] = False
++    job_id: str
++    status: WhatIfJobStatus
++    error: Literal["timeout", "execution_failed"] | None = None
++    result: WhatIfResult | None = None
+diff --git a/src/services/copilot/__init__.py b/src/services/copilot/__init__.py
+index f01c264..52908c9 100644
+--- a/src/services/copilot/__init__.py
++++ b/src/services/copilot/__init__.py
+@@ -12,6 +12,7 @@ from src.services.copilot.counterfactual import (
+     run_paired_noop,
+     run_sandbox_branch,
+ )
++from src.services.copilot.jobs import WhatIfJobs
+ from src.services.copilot.outcome_ledger import OutcomeTracker
+ from src.services.copilot.snapshot import (
+     CapturedSnapshot,
+@@ -21,6 +22,7 @@ from src.services.copilot.snapshot import (
+     canonical_sha256,
+     capture_atomic_snapshot,
+ )
++from src.services.copilot.what_if import run_what_if
+ from src.services.copilot.why import explain_why
+ 
+ __all__ = [
+@@ -28,6 +30,7 @@ __all__ = [
+     "OutcomeTracker",
+     "SandboxCancelledError",
+     "SnapshotNotReadyError",
++    "WhatIfJobs",
+     "build_known_at_manifest",
+     "build_sandbox_runtime",
+     "canonical_sha256",
+@@ -36,4 +39,5 @@ __all__ = [
+     "non_timing_branch_signature",
+     "run_paired_noop",
+     "run_sandbox_branch",
++    "run_what_if",
+ ]
+diff --git a/src/services/copilot/counterfactual.py b/src/services/copilot/counterfactual.py
+index 9e4b7d2..d95a329 100644
+--- a/src/services/copilot/counterfactual.py
++++ b/src/services/copilot/counterfactual.py
+@@ -17,6 +17,7 @@ import time
+ import weakref
+ from collections.abc import Awaitable, Callable
+ from dataclasses import replace
++from typing import Protocol
+ 
+ from src.models.control import DecisionLogEntry
+ from src.models.copilot import PairedNoOpResult, SandboxBranchResult
+@@ -24,6 +25,7 @@ from src.models.events import StationEvent
+ from src.services import control_loop
+ from src.services.copilot.outcome_ledger import OutcomeTracker
+ from src.services.copilot.snapshot import CapturedSnapshot, build_sandbox_runtime, canonical_sha256
++from src.services.runtime import StationRuntime
+ 
+ # Per-event-loop Semaphore(1) so multiple sandbox rollouts never flood the single-worker HiGHS
+ # solver executor ahead of live replans, without binding one Semaphore across closed event loops.
+@@ -51,6 +53,16 @@ StepHook = Callable[[str, int], Awaitable[None] | None]
+ LiveBusyProbe = Callable[[], bool]
+ 
+ 
++class BranchIntervention(Protocol):
++    """Internal seam for a validated WHAT-IF intervention."""
++
++    revised_booking_id: str | None
++
++    def at_minute(self, runtime: StationRuntime, *, terminal: bool = False) -> list[StationEvent]: ...
++
++    def after_step(self, runtime: StationRuntime) -> None: ...
++
++
+ def _check_cancel(cancel_event: asyncio.Event | None) -> None:
+     if cancel_event is not None and cancel_event.is_set():
+         raise SandboxCancelledError("Counterfactual sandbox rollout cancelled")
+@@ -80,6 +92,7 @@ async def _execute_branch(
+     cancel_event: asyncio.Event | None,
+     step_hook: StepHook | None,
+     live_busy_probe: LiveBusyProbe | None,
++    intervention: BranchIntervention | None,
+ ) -> SandboxBranchResult:
+     started = time.perf_counter()
+     _check_cancel(cancel_event)
+@@ -108,8 +121,9 @@ async def _execute_branch(
+         tariff=frt.tariff,
+         as_of=snapshot.envelope.as_of,
+         horizon_minutes=snapshot.envelope.horizon_minutes,
+-        known_bookings=snapshot.known_bookings,
++        known_bookings=tuple(b.model_copy(deep=True) for b in snapshot.known_bookings),
+         station=sim,
++        revised_booking_id=intervention.revised_booking_id if intervention is not None else None,
+     )
+ 
+     events: list[StationEvent] = list(frt.take_events())
+@@ -122,6 +136,16 @@ async def _execute_branch(
+         async with _minute_gate():
+             _check_cancel(cancel_event)
+             minute_entries.clear()
++            if intervention is not None:
++                if frt.has_pending_safety():
++                    await control_loop.on_minute(frt, events)
++                    await control_loop.settle_rollout_safety(frt)
++                    if frt.has_pending_safety():
++                        tracker.observe_after_dispatch(sim, minute_entries)
++                        break
++                    events = []
++                _check_cancel(cancel_event)
++                events.extend(intervention.at_minute(frt))
+             await control_loop.on_minute(frt, events)
+             await control_loop.settle_rollout_safety(frt)
+             _check_cancel(cancel_event)
+@@ -136,11 +160,15 @@ async def _execute_branch(
+                 step_start_dt=current_dt,
+                 emitted_events=events,
+             )
++            if intervention is not None:
++                intervention.after_step(frt)
+             if sim.minute == end_minute and frt.has_pending_safety():
+                 minute_entries.clear()
+                 await control_loop.on_minute(frt, events)
+                 await control_loop.settle_rollout_safety(frt)
+                 tracker.observe_after_dispatch(sim, minute_entries)
++            if intervention is not None and sim.minute == end_minute and not frt.has_pending_safety():
++                intervention.at_minute(frt, terminal=True)
+ 
+         if step_hook is not None:
+             maybe_coro = step_hook(branch_label, sim.minute)
+@@ -194,6 +222,7 @@ async def run_sandbox_branch(
+     cancel_event: asyncio.Event | None = None,
+     step_hook: StepHook | None = None,
+     live_busy_probe: LiveBusyProbe | None = None,
++    intervention: BranchIntervention | None = None,
+ ) -> SandboxBranchResult:
+     """Run one isolated counterfactual branch from `snapshot` with optional timeout and cancellation."""
+     if timeout_s is not None and timeout_s <= 0:
+@@ -211,6 +240,7 @@ async def run_sandbox_branch(
+                 cancel_event=cancel_event,
+                 step_hook=step_hook,
+                 live_busy_probe=live_busy_probe,
++                intervention=intervention,
+             )
+     finally:
+         _LOOP_ACTIVE_BRANCHES[loop] -= 1
+diff --git a/src/services/copilot/jobs.py b/src/services/copilot/jobs.py
+new file mode 100644
+index 0000000..f24cc1b
+--- /dev/null
++++ b/src/services/copilot/jobs.py
+@@ -0,0 +1,162 @@
++"""Bounded, owner-scoped WHAT-IF jobs for the single-worker backend."""
++
++import asyncio
++import logging
++from collections import deque
++from dataclasses import dataclass
++from math import isfinite
++from uuid import uuid4
++
++from src.models.copilot import ActorContext
++from src.models.what_if import WhatIfJobStatus, WhatIfJobView, WhatIfPatch
++from src.services.copilot.counterfactual import LiveBusyProbe
++from src.services.copilot.snapshot import CapturedSnapshot
++from src.services.copilot.what_if import DEFAULT_WHAT_IF_TIMEOUT_S, _prepare_patch, run_what_if
++
++logger = logging.getLogger(__name__)
++
++
++class WhatIfCapacityError(RuntimeError):
++    """The job service is at its bounded queue or retention capacity."""
++
++
++@dataclass
++class _Job:
++    actor: ActorContext
++    view: WhatIfJobView
++    deadline: float
++    snapshot: CapturedSnapshot | None
++    patch: WhatIfPatch | None
++    expires_at: float | None = None
++
++
++class WhatIfJobs:
++    """One asynchronous consumer per service. The native solver remains shared."""
++
++    def __init__(
++        self,
++        *,
++        max_queued: int = 4,
++        max_retained: int = 64,
++        ttl_s: float = 300,
++        timeout_s: float = DEFAULT_WHAT_IF_TIMEOUT_S,
++        live_busy_probe: LiveBusyProbe | None = None,
++    ):
++        if not 1 <= max_queued < max_retained or not isfinite(ttl_s) or ttl_s <= 0 or not 0 < timeout_s <= 600:
++            raise ValueError("Invalid WHAT-IF job bounds")
++        self._max_queued = max_queued
++        self._max_retained = max_retained
++        self._ttl_s = ttl_s
++        self._timeout_s = timeout_s
++        self._live_busy_probe = live_busy_probe
++        self._jobs: dict[str, _Job] = {}
++        self._queue: deque[str] = deque()
++        self._loop: asyncio.AbstractEventLoop | None = None
++        self._worker: asyncio.Task[None] | None = None
++        self._active_task: asyncio.Task | None = None
++        self._active_id: str | None = None
++        self._closed = False
++
++    def _clock(self) -> float:
++        loop = asyncio.get_running_loop()
++        if self._loop is None:
++            self._loop = loop
++        if self._loop is not loop:
++            raise RuntimeError("WHAT-IF jobs are owned by one event loop")
++        return loop.time()
++
++    def _purge(self, now: float) -> None:
++        for job_id, job in tuple(self._jobs.items()):
++            if job.expires_at is None or now < job.expires_at:
++                continue
++            if now >= job.expires_at + self._ttl_s:
++                del self._jobs[job_id]
++            else:
++                job.view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.EXPIRED)
++
++    def submit(self, actor: ActorContext, snapshot: CapturedSnapshot, patch: WhatIfPatch | dict) -> WhatIfJobView:
++        now = self._clock()
++        if self._closed:
++            raise RuntimeError("WHAT-IF jobs service is closed")
++        self._purge(now)
++        if len(self._queue) >= self._max_queued or len(self._jobs) >= self._max_retained:
++            raise WhatIfCapacityError("WHAT-IF job capacity exhausted")
++        prepared = _prepare_patch(snapshot, actor, patch)
++        job_id = uuid4().hex
++        view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.QUEUED)
++        self._jobs[job_id] = _Job(actor.model_copy(), view, now + self._timeout_s, snapshot, prepared.patch)
++        self._queue.append(job_id)
++        if self._worker is None or self._worker.done():
++            self._worker = asyncio.create_task(self._consume())
++        return view
++
++    def _owned(self, actor: ActorContext, job_id: str) -> _Job | None:
++        self._purge(self._clock())
++        job = self._jobs.get(job_id)
++        return job if job is not None and job.actor == actor else None
++
++    def get(self, actor: ActorContext, job_id: str) -> WhatIfJobView | None:
++        job = self._owned(actor, job_id)
++        return None if job is None else job.view.model_copy(deep=True)
++
++    def cancel(self, actor: ActorContext, job_id: str) -> WhatIfJobView | None:
++        job = self._owned(actor, job_id)
++        if job is None:
++            return None
++        if job.view.status == WhatIfJobStatus.QUEUED:
++            self._queue.remove(job_id)
++            self._finish(job, WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.CANCELLED))
++        elif job.view.status == WhatIfJobStatus.RUNNING and self._active_task is not None and self._active_id == job_id:
++            self._active_task.cancel()
++        return job.view.model_copy(deep=True)
++
++    def _finish(self, job: _Job, view: WhatIfJobView) -> None:
++        job.snapshot = None
++        job.patch = None
++        job.view = view
++        job.expires_at = self._clock() + self._ttl_s
++
++    async def _consume(self) -> None:
++        while self._queue:
++            job_id = self._queue.popleft()
++            job = self._jobs[job_id]
++            remaining = job.deadline - self._clock()
++            if remaining <= 0:
++                self._finish(job, WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.FAILED, error="timeout"))
++                continue
++
++            job.view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.RUNNING)
++            self._active_id = job_id
++            assert job.snapshot is not None and job.patch is not None
++            self._active_task = asyncio.create_task(
++                run_what_if(
++                    job.snapshot, job.actor, job.patch, timeout_s=remaining, live_busy_probe=self._live_busy_probe
++                )
++            )
++            try:
++                result = await self._active_task
++            except asyncio.CancelledError:
++                view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.CANCELLED)
++            except TimeoutError:
++                view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.FAILED, error="timeout")
++            except Exception as exc:
++                logger.error("what_if_job_failed job_id=%s error_type=%s", job_id, type(exc).__name__)
++                view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.FAILED, error="execution_failed")
++            else:
++                view = WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.SUCCEEDED, result=result)
++            finally:
++                self._active_id = None
++                self._active_task = None
++            self._finish(job, view)
++
++    async def close(self) -> None:
++        """Stop accepting jobs and wait for coroutine cleanup."""
++        self._clock()
++        self._closed = True
++        while self._queue:
++            job_id = self._queue.popleft()
++            self._finish(self._jobs[job_id], WhatIfJobView(job_id=job_id, status=WhatIfJobStatus.CANCELLED))
++        if self._active_task is not None:
++            self._active_task.cancel()
++        if self._worker is not None:
++            await self._worker
+diff --git a/src/services/copilot/outcome_ledger.py b/src/services/copilot/outcome_ledger.py
+index cc772ef..e6a773e 100644
+--- a/src/services/copilot/outcome_ledger.py
++++ b/src/services/copilot/outcome_ledger.py
+@@ -106,6 +106,7 @@ class OutcomeTracker:
+         horizon_minutes: int,
+         known_bookings: tuple[Booking, ...],
+         station: HybridStation,
++        revised_booking_id: str | None = None,
+     ) -> None:
+         self._config = station_config
+         self._tariff = tariff
+@@ -113,6 +114,7 @@ class OutcomeTracker:
+         self._as_of = as_of
+         self._horizon_minutes = horizon_minutes
+         self._horizon_end = as_of + timedelta(minutes=horizon_minutes)
++        self._revised_booking_id = revised_booking_id
+ 
+         initial_phys = station.snapshot_physics_state()
+         self._initial_applied_violations = int(
+@@ -287,12 +289,13 @@ class OutcomeTracker:
+                 if rec.pre_output_kwh <= ENERGY_EPS_KWH:
+                     rec.first_charge_at = step_start_dt
+ 
+-            if (
+-                s["completed_at"] is not None
+-                and rec.target_reached_at is None
+-                and not rec.already_completed_at_snapshot
+-            ):
+-                rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
++            if rec.target_reached_at is None and not rec.already_completed_at_snapshot:
++                if vid == self._revised_booking_id:
++                    target_kwh = rec.usable_capacity_kwh * rec.booking.request.soc_target / 100
++                    if rec.arrived_at is not None and float(s["current_capacity_kwh"]) >= target_kwh - ENERGY_EPS_KWH:
++                        rec.target_reached_at = station.now
++                elif s["completed_at"] is not None:
++                    rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
+ 
+             if s["departed_at"] is not None and rec.release_or_departure_at is None:
+                 rec.release_or_departure_at = datetime.fromisoformat(s["departed_at"])
+@@ -341,7 +344,7 @@ class OutcomeTracker:
+                 final_cap_kwh = float(s["current_capacity_kwh"])
+                 if rec.arrived_at is None and final_state != "NOT_ARRIVED":
+                     rec.arrived_at = datetime.fromisoformat(s["arrival_at"])
+-                if s["completed_at"] is not None and rec.target_reached_at is None:
++                if vid != self._revised_booking_id and s["completed_at"] is not None and rec.target_reached_at is None:
+                     rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
+                 if s["departed_at"] is not None and rec.release_or_departure_at is None:
+                     rec.release_or_departure_at = datetime.fromisoformat(s["departed_at"])
+diff --git a/src/services/copilot/snapshot.py b/src/services/copilot/snapshot.py
+index 7797aa8..f5539e8 100644
+--- a/src/services/copilot/snapshot.py
++++ b/src/services/copilot/snapshot.py
+@@ -440,11 +440,8 @@ async def capture_atomic_snapshot(
+     return replace(snapshot, envelope=envelope.model_copy(update={"snapshot_digest": digest}))
+ 
+ 
+-def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
+-    """Materialize a completely isolated in-memory `StationRuntime` fork from `snapshot`.
+-
+-    Uses no-op `DispatchSinks` and an in-memory `RuntimeStore` (`live=False`, zero DB/WS/file I/O).
+-    """
++def verify_snapshot_integrity(snapshot: CapturedSnapshot) -> None:
++    """Validate the materialized known-at inputs and the detached execution state."""
+     try:
+         manifest_digest = _manifest_digest(snapshot.event_manifest)
+         valid = (
+@@ -455,6 +452,11 @@ def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
+         raise ValueError("Snapshot integrity check failed") from exc
+     if not valid:
+         raise ValueError("Snapshot integrity check failed")
++
++
++def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
++    """Materialize an isolated, in-memory fork with no live sinks."""
++    verify_snapshot_integrity(snapshot)
+     fork_station = HybridStation.from_physics_seed(snapshot.station_config, snapshot._physics_seed)
+ 
+     params = _thaw_json_tree(snapshot.scheduler_parameters) or None
+diff --git a/src/services/copilot/what_if.py b/src/services/copilot/what_if.py
+new file mode 100644
+index 0000000..50198d4
+--- /dev/null
++++ b/src/services/copilot/what_if.py
+@@ -0,0 +1,586 @@
++"""Authorized, paired WHAT-IF experiments on the shared counterfactual runner."""
++
++import asyncio
++from dataclasses import dataclass
++from datetime import UTC, datetime, timedelta
++from typing import Any
++from uuid import uuid4
++
++from pydantic import Field, ValidationError, model_validator
++from pydantic_core import PydanticCustomError
++
++from src.models.charging import Booking, ChargeMode, ChargeRequest, EnergyEstimate
++from src.models.control import Role
++from src.models.copilot import ActorContext, OutcomeLedger, SandboxBranchResult, VehicleOutcomeRecord
++from src.models.events import EventType, StationEvent
++from src.models.station import SupplyMode
++from src.models.what_if import (
++    PATCH_ADAPTER,
++    CommitmentOutcome,
++    DeltaUnavailableReason,
++    Outage,
++    ReviseVehicle,
++    SiteLimit,
++    SlaMetrics,
++    StationMetrics,
++    WhatIfBranch,
++    WhatIfPatch,
++    WhatIfResult,
++    WhatIfVehicleOutcome,
++)
++from src.services.copilot.counterfactual import LiveBusyProbe, run_sandbox_branch
++from src.services.copilot.snapshot import CapturedSnapshot, canonical_sha256, verify_snapshot_integrity
++from src.services.runtime import StationRuntime
++
++SOC_EPS_PCT = 1e-8
++DEFAULT_WHAT_IF_TIMEOUT_S = 60.0
++
++
++class WhatIfForbiddenError(PermissionError):
++    """The actor may not run this operation for the requested subject."""
++
++
++class _HypotheticalChargeRequest(ChargeRequest):
++    """A revised commitment can require zero additional charging at capture."""
++
++    soc_target: float = Field(ge=0, le=100)
++
++    @model_validator(mode="after")
++    def _check_consistency(self) -> "_HypotheticalChargeRequest":
++        if self.mode == ChargeMode.RESERVATION and self.arrival_time is None:
++            raise ValueError("Reservation requires arrival_time")
++        if self.arrival_time is not None and self.deadline <= self.arrival_time:
++            raise ValueError("Deadline must follow arrival_time")
++        return self
++
++
++class _HypotheticalBooking(Booking):
++    request: _HypotheticalChargeRequest
++
++
++@dataclass(frozen=True)
++class PreparedWhatIf:
++    patch: WhatIfPatch
++    as_of_minute: int
++    original_booking: Booking | None = None
++    revised_booking: Booking | None = None
++    target_changed: bool = False
++    already_satisfied: bool = False
++    outage_start: int | None = None
++    outage_end: int | None = None
++    hypothetical_infrastructure: bool = False
++
++
++def _prepare_patch(
++    snapshot: CapturedSnapshot, actor: ActorContext, patch: WhatIfPatch | dict[str, Any]
++) -> PreparedWhatIf:
++    if actor.station_id != snapshot.envelope.station_id:
++        raise WhatIfForbiddenError("WHAT-IF operation not allowed")
++    verify_snapshot_integrity(snapshot)
++    data = patch if isinstance(patch, dict) else patch.model_dump(mode="python")
++    patch = PATCH_ADAPTER.validate_python(data)
++    minute = snapshot.envelope.sim_minute
++    now = snapshot.envelope.as_of
++
++    if isinstance(patch, ReviseVehicle):
++        original = next((b for b in snapshot.known_bookings if b.booking_id == patch.booking_id), None)
++        if original is None or (actor.role == Role.RESIDENT and original.resident_id != actor.actor_id):
++            raise WhatIfForbiddenError("WHAT-IF operation not allowed")
++        session = snapshot.physics_state["sessions"].get(original.booking_id)
++        if session is None or session["state"] == "DEPARTED":
++            raise ValueError("Booking must have an active or prospective physical session")
++        deadline = original.request.deadline if patch.deadline is None else patch.deadline.astimezone(UTC)
++        if patch.deadline is not None and (deadline - now.astimezone(UTC)) % timedelta(minutes=1):
++            raise ValidationError.from_exception_data(
++                "ReviseVehicle",
++                [
++                    {
++                        "type": PydanticCustomError(
++                            "deadline_not_on_simulator_minute",
++                            "Revised deadline must align with a simulator minute relative to snapshot time",
++                        ),
++                        "loc": ("deadline",),
++                        "input": patch.deadline,
++                    }
++                ],
++            )
++        arrival_at = datetime.fromisoformat(session["arrival_at"])
++        if deadline <= max(now, arrival_at):
++            raise ValueError("Revised deadline must follow snapshot time and vehicle arrival")
++
++        target = original.request.soc_target if patch.target_soc is None else patch.target_soc
++        target_changed = target != original.request.soc_target
++        soc = float(session["current_soc"]) * 100
++        arrived = session["state"] != "NOT_ARRIVED"
++        attained = arrived and soc >= target - SOC_EPS_PCT
++        if target_changed and not arrived and soc >= target - SOC_EPS_PCT:
++            raise ValueError("A reservation below or at its assumed arrival SOC has no observed SOC at capture")
++
++        request = {**original.request.model_dump(), "soc_target": target, "deadline": deadline}
++        energy = original.energy
++        if target_changed:
++            needed = float(session["battery_capacity_kwh"]) * max(target - soc, 0.0) / 100
++            request["soc_now"] = soc
++            energy = EnergyEstimate(
++                vehicle_model=energy.vehicle_model,
++                soc_now=soc,
++                soc_target=target,
++                battery_energy_kwh=needed,
++                grid_energy_kwh=needed / energy.efficiency,
++                efficiency=energy.efficiency,
++            )
++        revised = _HypotheticalBooking.model_validate({**original.model_dump(), "request": request, "energy": energy})
++        return PreparedWhatIf(
++            patch=ReviseVehicle.model_validate({**data, "deadline": deadline if patch.deadline is not None else None}),
++            as_of_minute=minute,
++            original_booking=original.model_copy(deep=True),
++            revised_booking=revised,
++            target_changed=target_changed,
++            already_satisfied=attained,
++        )
++
++    if actor.role != Role.OPERATOR:
++        raise WhatIfForbiddenError("WHAT-IF operation not allowed")
++    config = snapshot.station_config
++    if isinstance(patch, SiteLimit):
++        if config.supply_mode != SupplyMode.SHARED:
++            raise ValueError("site_limit requires shared supply")
++        installed = config.grid_input_limit_kw or config.power_limit_kw
++        above_installed = patch.grid_input_kw > installed
++        if above_installed and not patch.hypothetical_infrastructure:
++            raise ValueError("Above-installed grid input requires hypothetical_infrastructure")
++        supported_max = max(installed, config.nameplate_power_kw / config.power_conversion_efficiency)
++        if patch.grid_input_kw > supported_max:
++            raise ValueError("Grid input exceeds the supported station power envelope")
++        return PreparedWhatIf(patch, minute, hypothetical_infrastructure=above_installed)
++
++    if not any(port.connector_id == patch.connector_id for port in config.connectors):
++        raise ValueError("Unknown connector")
++    starts_at = (patch.starts_at or now).astimezone(UTC)
++    seconds = (starts_at - now.astimezone(UTC)).total_seconds()
++    if seconds < 0 or seconds % 60 != 0 or starts_at >= snapshot.event_manifest.horizon_end:
++        raise ValueError("Outage must start on a simulator minute within the planned horizon")
++    start = minute + int(seconds // 60)
++    return PreparedWhatIf(
++        Outage.model_validate({**data, "starts_at": starts_at}),
++        minute,
++        outage_start=start,
++        outage_end=start + patch.duration_minutes,
++    )
++
++
++class _WhatIfIntervention:
++    """One branch's private application state and observed revised target crossing."""
++
++    def __init__(
++        self,
++        prepared: PreparedWhatIf | None,
++        announced_grid: dict[int, float] | None = None,
++        *,
++        capture_minute: int,
++    ):
++        self.prepared = prepared
++        self._announced_grid = announced_grid or {}
++        self._capture_minute = capture_minute
++        original = prepared.original_booking if prepared is not None and prepared.target_changed else None
++        self.revised_booking_id = original.booking_id if original is not None else None
++        self.revised_reached_at: datetime | None = None
++        self._owns_outage = False
++        self._skipped_fault = False
++        self._applied_outage = False
++        self._restored_outage = False
++
++    def at_minute(self, runtime: StationRuntime, *, terminal: bool = False) -> list[StationEvent]:
++        station = runtime.simulator
++        if runtime.live or not station.is_fork:
++            raise ValueError("WHAT-IF patches require an isolated sandbox")
++        announced = None
++        if not terminal and station.minute in self._announced_grid:
++            announced = station.replay_sandbox_grid_limit(at_capture=station.minute == self._capture_minute)
++        events = self._patch_at_minute(runtime, self.prepared, terminal=terminal) if self.prepared else []
++        if announced is not None and not any(event.type == EventType.POWER_LIMIT_CHANGED for event in events):
++            events.insert(0, announced)
++        return events
++
++    def _patch_at_minute(
++        self, runtime: StationRuntime, prepared: PreparedWhatIf, *, terminal: bool
++    ) -> list[StationEvent]:
++        station = runtime.simulator
++        patch = prepared.patch
++        minute = station.minute
++        at_start = minute == prepared.as_of_minute
++
++        if isinstance(patch, Outage):
++            if minute == prepared.outage_end and self._owns_outage:
++                events = station.set_sandbox_connector_fault(patch.connector_id, faulted=False)
++                self._owns_outage = False
++                self._restored_outage = True
++                return events
++            if not terminal and minute == prepared.outage_start:
++                if patch.connector_id in station.snapshot_physics_state()["faulted_connectors"]:
++                    self._skipped_fault = True
++                    return []
++                events = station.set_sandbox_connector_fault(patch.connector_id, faulted=True)
++                self._owns_outage = True
++                self._applied_outage = True
++                return events
++            return []
++
++        if terminal:
++            return []
++        if isinstance(patch, SiteLimit):
++            if not at_start:
++                return []
++            future_increase = any(
++                at > minute and limit > patch.grid_input_kw for at, limit in self._announced_grid.items()
++            )
++            if patch.grid_input_kw == station.effective_grid_limit_kw() and not future_increase:
++                return []
++            station.set_sandbox_grid_limit(patch.grid_input_kw)
++            return [
++                StationEvent(
++                    type=EventType.POWER_LIMIT_CHANGED,
++                    occurred_at=station.now,
++                    new_power_limit_kw=station.effective_grid_limit_kw(),
++                    detail="WHAT-IF grid input limit",
++                )
++            ]
++
++        original, revised = prepared.original_booking, prepared.revised_booking
++        if not at_start or original is None or revised is None or original.request == revised.request:
++            return []
++        event = station.revise_sandbox_vehicle(
++            revised.booking_id,
++            target=revised.request.soc_target / 100,
++            deadline=revised.request.deadline,
++            required_output_kwh=revised.energy.grid_energy_kwh,
++        )
++        runtime.store.save_booking(revised)
++        return [event]
++
++    def after_step(self, runtime: StationRuntime) -> None:
++        if self.revised_booking_id is None or self.revised_reached_at is not None:
++            return
++        assert self.prepared is not None and self.prepared.revised_booking is not None
++        if self.prepared.already_satisfied:
++            return
++        revised = self.prepared.revised_booking
++        station = runtime.simulator
++        with station.lock:
++            session = station.queue.sessions[self.revised_booking_id]
++            reached = station.adapter.soc(self.revised_booking_id) * 100 >= revised.request.soc_target - SOC_EPS_PCT
++            if session.state != "NOT_ARRIVED" and reached:
++                self.revised_reached_at = station.now
++
++    def assumptions(self) -> tuple[str, ...]:
++        assert self.prepared is not None
++        if isinstance(self.prepared.patch, SiteLimit):
++            return (
++                "The site patch replaces the captured runtime supply setting and caps later regimes. "
++                "Announced grid and cabinet limits and existing equipment caps still apply.",
++            )
++        if not isinstance(self.prepared.patch, Outage):
++            return ()
++        if self._skipped_fault:
++            return ("Connector was already faulted at outage start. Its pre-existing fault was preserved.",)
++        if self._restored_outage:
++            return ("The patch-owned fault was restored at the end of its declared interval.",)
++        if self._applied_outage:
++            return ("Outage restoration falls after the observed rollout cutoff.",)
++        return ("Outage start falls after the observed rollout cutoff.",)
++
++
++def _station_metrics(branch: SandboxBranchResult, efficiencies: dict[str, float]) -> StationMetrics:
++    ledger = branch.outcome_ledger
++    plug_censored = sum(row.censored_plug_wait_minutes is not None for row in ledger.vehicles)
++    charge_censored = sum(row.censored_charge_start_wait_minutes is not None for row in ledger.vehicles)
++    return StationMetrics(
++        cohort_size=ledger.cohort_size,
++        sla=SlaMetrics(
++            cohort_size=ledger.cohort_size,
++            denominator=ledger.sla_denominator,
++            met_count=ledger.sla_met_count,
++            on_time_rate=ledger.on_time_rate,
++            censored_count=ledger.censored_count,
++        ),
++        by_zone={
++            name: SlaMetrics(
++                cohort_size=zone.cohort_count,
++                denominator=zone.sla_denominator,
++                met_count=zone.sla_met_count,
++                on_time_rate=zone.on_time_rate,
++                censored_count=zone.censored_count,
++            )
++            for name, zone in ledger.by_zone.items()
++        },
++        service_coverage_denominator=ledger.service_coverage_denominator,
++        service_coverage_rate=ledger.service_coverage_rate,
++        charged_coverage_rate=ledger.charged_coverage_rate,
++        unserved_count=ledger.unserved_count,
++        plug_wait_observed_count=ledger.plug_wait_observed_count,
++        plug_wait_censored_count=plug_censored,
++        plug_wait_unknown_count=ledger.arrived_count - ledger.plug_wait_observed_count - plug_censored,
++        plug_wait_mean_minutes=ledger.plug_wait_mean_minutes,
++        plug_wait_p90_minutes=ledger.plug_wait_p90_minutes,
++        charge_wait_observed_count=ledger.charge_start_wait_observed_count,
++        charge_wait_censored_count=charge_censored,
++        charge_wait_unknown_count=ledger.arrived_count - ledger.charge_start_wait_observed_count - charge_censored,
++        charge_wait_mean_minutes=ledger.charge_start_wait_mean_minutes,
++        charge_wait_p90_minutes=ledger.charge_start_wait_p90_minutes,
++        horizon_battery_kwh=ledger.horizon_battery_stored_kwh,
++        horizon_output_kwh=ledger.horizon_output_kwh,
++        horizon_grid_input_kwh=ledger.horizon_grid_input_kwh,
++        horizon_energy_cost_vnd=ledger.horizon_energy_cost_vnd,
++        unmet_original_battery_kwh=ledger.remaining_to_original_target_battery_kwh,
++        unmet_original_output_kwh=round(
++            sum(row.remaining_to_original_target_battery_kwh / efficiencies[row.booking_id] for row in ledger.vehicles),
++            6,
++        ),
++        peak_charger_output_kw=ledger.peak_charger_output_kw,
++        peak_grid_input_kw=ledger.peak_grid_input_kw,
++    )
++
++
++def _summary(
++    branch: SandboxBranchResult, config_hash: str, input_hash: str, efficiencies: dict[str, float]
++) -> WhatIfBranch:
++    ledger = branch.outcome_ledger
++    return WhatIfBranch(
++        run_id=uuid4().hex,
++        input_sha256=input_hash,
++        config_sha256=config_hash,
++        final_physics_sha256=branch.final_physics_digest,
++        status=branch.status,
++        observed_until=branch.observed_until,
++        metrics=_station_metrics(branch, efficiencies),
++        hard_violations=ledger.horizon_applied_constraint_violation_count,
++        rejected_allocations=ledger.horizon_rejected_allocation_count,
++        sampled_grid_over_limit_minutes=ledger.horizon_sampled_grid_over_limit_minutes,
++        unresolved_safety_count=branch.unresolved_safety_count,
++        blocked_commands=branch.blocked_command_count,
++        pending_approvals=branch.pending_approval_count_end,
++        pending_approval_commands=ledger.horizon_pending_approval_command_count,
++    )
++
++
++def _original_outcome(row: VehicleOutcomeRecord, efficiency: float) -> CommitmentOutcome:
++    return CommitmentOutcome(
++        target_soc=row.original_target_soc_pct,
++        deadline=row.original_deadline,
++        target_reached_at=row.target_reached_at,
++        already_satisfied_at_snapshot=row.already_completed_at_snapshot,
++        met_deadline=row.met_original_sla,
++        remaining_battery_kwh=row.remaining_to_original_target_battery_kwh,
++        remaining_output_kwh=round(row.remaining_to_original_target_battery_kwh / efficiency, 6),
++    )
++
++
++def _revised_outcome(
++    row: VehicleOutcomeRecord, patched: SandboxBranchResult, intervention: _WhatIfIntervention
++) -> CommitmentOutcome:
++    prepared = intervention.prepared
++    assert prepared is not None and prepared.revised_booking is not None
++    revised = prepared.revised_booking
++    deadline = revised.request.deadline
++    target = revised.request.soc_target
++    attained = prepared.already_satisfied
++    reached = intervention.revised_reached_at if prepared.target_changed else row.target_reached_at
++    if reached is not None:
++        met = reached <= deadline
++    elif attained and patched.as_of <= deadline:
++        met = True
++    elif attained:
++        met = None
++    elif patched.observed_until >= deadline or row.final_session_state == "DEPARTED":
++        met = False
++    else:
++        met = None
++    remaining = row.remaining_to_original_target_battery_kwh
++    if prepared.target_changed:
++        battery_kwh = revised.energy.battery_energy_kwh
++        remaining = 0.0 if attained or reached is not None else max(battery_kwh - row.horizon_battery_stored_kwh, 0)
++    return CommitmentOutcome(
++        target_soc=target,
++        deadline=deadline,
++        target_reached_at=reached,
++        already_satisfied_at_snapshot=attained,
++        met_deadline=met,
++        remaining_battery_kwh=round(remaining, 6),
++        remaining_output_kwh=round(remaining / revised.energy.efficiency, 6),
++    )
++
++
++def _metric_sample_ids(ledger: OutcomeLedger) -> dict[str, set[str]]:
++    """Select the same wait observations and rate denominators as the Outcome Ledger."""
++    rows = ledger.vehicles
++    plug = {row.booking_id for row in rows if row.plug_wait_minutes is not None}
++    charge = {row.booking_id for row in rows if row.charge_start_wait_minutes is not None}
++    arrived = {row.booking_id for row in rows if row.arrived_at is not None}
++    return {
++        "plug_wait_mean_minutes": plug,
++        "plug_wait_p90_minutes": plug,
++        "charge_wait_mean_minutes": charge,
++        "charge_wait_p90_minutes": charge,
++        "service_coverage_rate": arrived,
++        "charged_coverage_rate": arrived,
++        "sla.on_time_rate": {row.booking_id for row in rows if row.sla_evaluable},
++        **{
++            f"sla.{zone}.on_time_rate": {row.booking_id for row in rows if row.sla_evaluable and row.zone == zone}
++            for zone in ledger.by_zone
++        },
++    }
++
++
++def _metric_values(metrics: StationMetrics) -> dict[str, float | None]:
++    values = metrics.model_dump(exclude={"sla", "by_zone"})
++    for prefix, sla in (("sla", metrics.sla), *((f"sla.{zone}", sla) for zone, sla in metrics.by_zone.items())):
++        values.update({f"{prefix}.{key}": value for key, value in sla.model_dump().items()})
++    return values
++
++
++def _metrics_delta(
++    baseline: StationMetrics, patched: StationMetrics, baseline_ledger: OutcomeLedger, patched_ledger: OutcomeLedger
++) -> tuple[dict[str, float | None], dict[str, DeltaUnavailableReason]]:
++    baseline_values, patched_values = _metric_values(baseline), _metric_values(patched)
++    baseline_samples, patched_samples = _metric_sample_ids(baseline_ledger), _metric_sample_ids(patched_ledger)
++    delta: dict[str, float | None] = {}
++    reasons: dict[str, DeltaUnavailableReason] = {}
++    for key in sorted(baseline_values):
++        first, second = baseline_values[key], patched_values[key]
++        if baseline_samples.get(key) != patched_samples.get(key):
++            delta[key] = None
++            reasons[key] = DeltaUnavailableReason(code="non_comparable_sample")
++        elif first is None or second is None:
++            delta[key] = None
++            reasons[key] = DeltaUnavailableReason(code="missing_data")
++        else:
++            delta[key] = round(second - first, 6)
++    return delta, reasons
++
++
++async def run_what_if(
++    snapshot: CapturedSnapshot,
++    actor: ActorContext,
++    patch: WhatIfPatch | dict[str, Any],
++    *,
++    timeout_s: float = DEFAULT_WHAT_IF_TIMEOUT_S,
++    cancel_event: asyncio.Event | None = None,
++    live_busy_probe: LiveBusyProbe | None = None,
++) -> WhatIfResult:
++    """Run a validated pair and return only the caller's authorized projections."""
++    if not 0 < timeout_s <= 600:
++        raise ValueError("WHAT-IF timeout must be in (0, 600] seconds")
++    prepared = _prepare_patch(snapshot, actor, patch)
++    capture_minute = snapshot.envelope.sim_minute
++    announced_grid = {
++        max(capture_minute, event.effective_minute): event.grid_input_kw
++        for event in snapshot.event_manifest.known_limit_events
++        if event.grid_input_kw is not None and event.effective_minute < snapshot.event_manifest.horizon_end_minute
++    }
++    intervention = _WhatIfIntervention(prepared, announced_grid, capture_minute=capture_minute)
++    async with asyncio.timeout(timeout_s):
++        baseline = await run_sandbox_branch(
++            snapshot,
++            cancel_event=cancel_event,
++            live_busy_probe=live_busy_probe,
++            intervention=(
++                _WhatIfIntervention(None, announced_grid, capture_minute=capture_minute) if announced_grid else None
++            ),
++        )
++        patched = await run_sandbox_branch(
++            snapshot,
++            branch_label="patched",
++            cancel_event=cancel_event,
++            live_busy_probe=live_busy_probe,
++            intervention=intervention,
++        )
++    verify_snapshot_integrity(snapshot)
++
++    safe = baseline.status == patched.status == "completed"
++    full_window = baseline.observed_until == patched.observed_until == snapshot.event_manifest.horizon_end
++    consistent = safe and full_window
++    status = "completed" if consistent else "unsafe" if not safe else "incomplete"
++    snap_hash = snapshot.envelope.snapshot_digest
++    config_hash = snapshot.envelope.station_config_sha256
++    patch_hash = canonical_sha256(prepared.patch.model_dump(mode="json"))
++    patched_input_hash = canonical_sha256({"snapshot_sha256": snap_hash, "patch_sha256": patch_hash})
++    patched_config_hash = (
++        canonical_sha256({"station_config_sha256": config_hash, "site_grid_input_kw": prepared.patch.grid_input_kw})
++        if isinstance(prepared.patch, SiteLimit)
++        else config_hash
++    )
++    efficiencies = {b.booking_id: b.energy.efficiency for b in snapshot.known_bookings}
++    base_summary = _summary(baseline, config_hash, snap_hash, efficiencies)
++    patched_summary = _summary(patched, patched_config_hash, patched_input_hash, efficiencies)
++    delta, delta_reasons = (
++        _metrics_delta(base_summary.metrics, patched_summary.metrics, baseline.outcome_ledger, patched.outcome_ledger)
++        if consistent
++        else (None, None)
++    )
++
++    originals = {row.booking_id: row for row in baseline.outcome_ledger.vehicles}
++    visible = {
++        b.booking_id for b in snapshot.known_bookings if actor.role == Role.OPERATOR or b.resident_id == actor.actor_id
++    }
++    affected: list[WhatIfVehicleOutcome] = []
++    feasible: bool | None = None if consistent else False
++    for row in patched.outcome_ledger.vehicles:
++        if row.booking_id not in visible:
++            continue
++        original = originals[row.booking_id]
++        is_revised = prepared.revised_booking is not None and row.booking_id == prepared.revised_booking.booking_id
++        if original == row and not is_revised:
++            continue
++        revised = _revised_outcome(row, patched, intervention) if is_revised else None
++        if revised is not None and consistent:
++            feasible = revised.met_deadline
++        eff = efficiencies[row.booking_id]
++        affected.append(
++            WhatIfVehicleOutcome(
++                booking_id=row.booking_id,
++                baseline_original=_original_outcome(original, eff),
++                patched_original=_original_outcome(row, eff),
++                patched_revised=revised,
++                baseline_plug_in_at=original.plug_in_at,
++                patched_plug_in_at=row.plug_in_at,
++                baseline_first_charge_at=original.first_charge_at,
++                patched_first_charge_at=row.first_charge_at,
++                baseline_release_at=original.release_or_departure_at,
++                patched_release_at=row.release_or_departure_at,
++                initial_soc_pct=row.initial_soc_pct,
++                baseline_final_soc_pct=original.final_soc_pct,
++                patched_final_soc_pct=row.final_soc_pct,
++                baseline_horizon_battery_kwh=original.horizon_battery_stored_kwh,
++                patched_horizon_battery_kwh=row.horizon_battery_stored_kwh,
++            )
++        )
++    return WhatIfResult(
++        status=status,
++        snapshot_id=snapshot.envelope.snapshot_id,
++        snapshot_digest=snap_hash,
++        snapshot_time=snapshot.envelope.as_of,
++        state_version=snapshot.envelope.state_version,
++        experiment_fingerprint=snapshot.envelope.experiment_fingerprint,
++        event_manifest_sha256=snapshot.event_manifest.manifest_sha256,
++        horizon_end=snapshot.event_manifest.horizon_end,
++        horizon_minutes=snapshot.envelope.horizon_minutes,
++        known_booking_count=snapshot.envelope.known_booking_count,
++        known_limit_event_count=len(snapshot.event_manifest.known_limit_events),
++        patch=prepared.patch,
++        patch_sha256=patch_hash,
++        hypothetical_infrastructure=prepared.hypothetical_infrastructure,
++        baseline=base_summary,
++        patched=patched_summary,
++        delta=delta,
++        delta_reasons=delta_reasons,
++        feasible=feasible,
++        affected_vehicles=tuple(affected),
++        assumptions=(
++            *snapshot.event_manifest.assumptions,
++            "Delta is patched minus baseline on a shared full safe observation window and matching metric samples.",
++            "Station unmet energy is remaining energy to original targets at the observation cutoff.",
++            "Station SLA uses original commitments. Revised SLA is reported separately.",
++            "Remaining output equivalents use booking charging efficiency. Grid input denotes sampled station energy.",
++            *intervention.assumptions(),
++        ),
++    )
+diff --git a/src/simulator/core/kernel.py b/src/simulator/core/kernel.py
+index 6e3b342..896212a 100644
+--- a/src/simulator/core/kernel.py
++++ b/src/simulator/core/kernel.py
+@@ -100,6 +100,8 @@ class StationKernel:
+         self.setpoints: dict[str, float] = {}  # vehicle -> held charger-output kW (until the next approved value)
+         self.faults: set[str] = set()  # ports out of service: never offered to dispatch
+         self.grid_input_override_kw: float | None = None  # backend power incident (immediately effective)
++        self.sandbox_grid_cap_kw: float | None = None
++        self.sandbox_replays_announced_grid = False
+         self.output_kwh: dict[str, float] = {}  # charger-output energy (backend meaning)
+         self.output_by_deadline_kwh: dict[str, float] = {}
+         # Planning memo of the last approved decision. Not physical state: does not bump state_version.
+@@ -177,7 +179,12 @@ class StationKernel:
+             self.scenario if scenario is None else scenario, self.now if minute is None else minute
+         )
+         if self.grid_input_override_kw is not None:
+-            limits = replace(limits, grid_input_kw=self.grid_input_override_kw)
++            override = self.grid_input_override_kw
++            if self.sandbox_replays_announced_grid:
++                override = min(override, limits.grid_input_kw)
++            limits = replace(limits, grid_input_kw=override)
++        if self.sandbox_grid_cap_kw is not None:
++            limits = replace(limits, grid_input_kw=min(limits.grid_input_kw, self.sandbox_grid_cap_kw))
+         return limits
+ 
+     def boundary(
+@@ -283,7 +290,7 @@ class StationKernel:
+             self.now,
+             zone,
+             empty,
+-            tuple(self.queue.waiting[zone]),
++            tuple(vid for vid in self.queue.waiting[zone] if self.queue.sessions[vid].state == "QUEUED"),
+             self._view(),
+             MappingProxyType(limits),
+             self.scenario.efficiency,
+diff --git a/src/simulator/hybrid_station.py b/src/simulator/hybrid_station.py
+index 37aa08f..1c74c99 100644
+--- a/src/simulator/hybrid_station.py
++++ b/src/simulator/hybrid_station.py
+@@ -369,6 +369,8 @@ class HybridStation:
+ 
+     @property
+     def available_power_kw(self) -> float:
++        if self.kernel.sandbox_grid_cap_kw is not None or self.kernel.sandbox_replays_announced_grid:
++            return self.kernel.effective_limits().grid_input_kw
+         return self._available_power_kw
+ 
+     @available_power_kw.setter
+@@ -421,7 +423,9 @@ class HybridStation:
+     @_locked
+     def state(self) -> StationState:
+         sessions = []
+-        queued = [vid for zone in self.queue.waiting.values() for vid in zone]
++        queued = [
++            vid for zone in self.queue.waiting.values() for vid in zone if self.queue.sessions[vid].state == "QUEUED"
++        ]
+         for vid, s in self.queue.sessions.items():
+             if s.state in ("NOT_ARRIVED", "DEPARTED"):
+                 continue
+@@ -556,6 +560,81 @@ class HybridStation:
+             )
+         ]
+ 
++    @_locked
++    def revise_sandbox_vehicle(
++        self, booking_id: str, *, target: float, deadline: datetime, required_output_kwh: float
++    ) -> StationEvent:
++        """Change the hypothetical commitment, leaving the EV and physical history in place."""
++        if not self.is_fork:
++            raise ValueError("Vehicle revisions require an isolated simulator")
++        session = self.queue.sessions[booking_id]
++        departure = self.minute_of(deadline)
++        if session.state == "DEPARTED" or departure <= max(self.minute, session.vehicle.arrival):
++            raise ValueError("Revised departure must follow current time and arrival")
++
++        vehicle = replace(session.vehicle, target=target, departure=departure)
++        session.vehicle = vehicle
++        self.kernel.scenario = replace(
++            self.scenario, vehicles=tuple(vehicle if row.id == booking_id else row for row in self.scenario.vehicles)
++        )
++        ev = self.adapter.models[booking_id]
++        ev.desired_capacity = vehicle.battery_kwh * target
++        ev.time_of_departure = departure - self.scenario.start
++        if booking_id in self._visits:
++            self._visits[booking_id] = replace(
++                self._visits[booking_id],
++                departure_time=deadline,
++                required_kwh=required_output_kwh,
++                soc_target=target,
++            )
++        if session.state != "NOT_ARRIVED":
++            attained = self.adapter.soc(booking_id) >= target - SOC_TOL
++            if attained and session.state != "FINISHED":
++                session.state = "FINISHED"
++                # An occupied DC connector starts its normal release delay now.
++                if session.connector is not None:
++                    session.completed_at = self.minute
++            elif not attained and session.state == "FINISHED":
++                session.state, session.completed_at = "CHARGING", None
++        self.kernel.state_version += 1
++        return StationEvent(type=EventType.BOOKING_CHANGED, occurred_at=self.now, booking_id=booking_id)
++
++    @_locked
++    def set_sandbox_grid_limit(self, grid_input_kw: float) -> None:
++        """Set hypothetical supply using copy-on-write; retain announced limit events."""
++        if not self.is_fork or self.scenario.independent_grid_input_limit_kw is not None:
++            raise ValueError("Site limit requires an isolated simulator with shared supply")
++        if not math.isfinite(grid_input_kw) or grid_input_kw <= 0:
++            raise ValueError("Site grid input limit must be positive and finite")
++        self.kernel.scenario = replace(self.scenario, grid_kw=grid_input_kw)
++        self.kernel.grid_input_override_kw = None
++        self.kernel.sandbox_grid_cap_kw = grid_input_kw
++        self.kernel.state_version += 1
++
++    @_locked
++    def replay_sandbox_grid_limit(self, *, at_capture: bool) -> StationEvent:
++        """Use the retained scenario's announced source regime on an isolated WHAT-IF fork."""
++        if not self.is_fork:
++            raise ValueError("Announced source events require an isolated simulator")
++        self.kernel.sandbox_replays_announced_grid = True
++        if not at_capture:
++            # The next announced regime supersedes the runtime supply premise captured at T.
++            self.kernel.grid_input_override_kw = None
++        self.kernel.state_version += 1
++        return StationEvent(
++            type=EventType.POWER_LIMIT_CHANGED,
++            occurred_at=self.now,
++            new_power_limit_kw=self.effective_grid_limit_kw(),
++            detail="Announced grid input limit",
++        )
++
++    @_locked
++    def set_sandbox_connector_fault(self, connector_id: str, *, faulted: bool) -> list[StationEvent]:
++        if not self.is_fork:
++            raise ValueError("Outages require an isolated simulator")
++        kind = IncidentType.CONNECTOR_FAULT if faulted else IncidentType.CONNECTOR_RESTORED
++        return self.inject_incident(Incident(type=kind, connector_id=connector_id))
++
+     @_locked
+     def upsert_vehicle(self, visit: VehicleVisit) -> list[StationEvent]:
+         self._events = []
+diff --git a/tests/test_services/test_what_if.py b/tests/test_services/test_what_if.py
+new file mode 100644
+index 0000000..f54a610
+--- /dev/null
++++ b/tests/test_services/test_what_if.py
+@@ -0,0 +1,987 @@
++"""Gate 4 independent energy, deadline, safety, authorization and job probes."""
++
++import asyncio
++import threading
++from dataclasses import replace
++from datetime import UTC, time, timedelta, timezone
++
++import pytest
++from pydantic import ValidationError
++
++from src.models.charging import StrategyName
++from src.models.control import Role
++from src.models.copilot import ActorContext
++from src.models.events import EventType, StationEvent
++from src.models.simulation import Incident, IncidentType
++from src.models.simulation_core import LimitEvent
++from src.models.station import StationConfig
++from src.models.what_if import PATCH_ADAPTER, WhatIfJobStatus
++from src.services import catalog, control_loop
++from src.services.copilot import capture_atomic_snapshot
++from src.services.copilot import jobs as jobs_module
++from src.services.copilot import what_if as what_if_module
++from src.services.copilot.counterfactual import run_sandbox_branch
++from src.services.copilot.jobs import WhatIfCapacityError, WhatIfJobs
++from src.services.copilot.snapshot import build_sandbox_runtime
++from src.services.copilot.what_if import WhatIfForbiddenError, _prepare_patch, run_what_if
++from src.services.runtime import build_sim_runtime, visit_of
++from src.simulator.hybrid_station import HybridStation
++from tests.factories import NOW, booking
++
++
++def _rt(*, config=None, start=None):
++    scenario = catalog.load_scenario("hybrid_evening")
++    if start is not None:
++        scenario = scenario.model_copy(update={"start_time": start})
++    return build_sim_runtime(
++        scenario,
++        StrategyName.SIM_B0,
++        config or catalog.load_station_config(),
++        catalog.load_tariff(),
++        NOW,
++    )
++
++
++def _actor(rt, name="operator", role=Role.OPERATOR):
++    return ActorContext(actor_id=name, station_id=rt.config.station_id, role=role)
++
++
++def _add(rt, name="a", **kwargs):
++    record = booking(name, now=rt.clock(), **kwargs)
++    rt.store.save_booking(record)
++    rt.simulator.upsert_vehicle(visit_of(record, rt.clock()))
++    return record
++
++
++async def _replan(rt):
++    await control_loop.on_event(StationEvent(type=EventType.TICK, occurred_at=rt.clock()), rt)
++
++
++def _target(b, pct):
++    return {"op": "revise_vehicle", "booking_id": b.booking_id, "target_soc": pct}
++
++
++async def test_target_soc_oracle_compares_original_and_revised_sla():
++    rt = _rt()
++    b = _add(rt, hours=0.5)
++    await _replan(rt)
++    at = rt.clock()
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=35)
++    operator = _actor(rt)
++    res = await run_what_if(snap, operator, _target(b, 21))
++    assert res.applied is False and res.status == "completed"
++    (row,) = res.affected_vehicles
++    cap = catalog.get_vehicle("VF8_NEW_2026").usable_capacity_kwh
++    required = cap / 100
++    # AC acceptance spreads this headroom over the first 15 minutes.
++    # The 0.001 kW command quantum rounds down, so the next minute supplies the remainder.
++    expected_minute = 16
++    assert row.baseline_original.target_soc == row.patched_original.target_soc == 80
++    assert row.patched_revised.target_soc == 21
++    assert row.patched_revised.target_reached_at == at + timedelta(minutes=expected_minute)
++    assert row.patched_revised.met_deadline is True
++    assert row.patched_original.met_deadline is False
++    assert row.patched_horizon_battery_kwh == pytest.approx(required, abs=1e-6)
++    assert res.patched.metrics.horizon_output_kwh == pytest.approx(required / 0.98, abs=1e-6)
++    assert res.patched.metrics.horizon_grid_input_kwh == pytest.approx(required / 0.98 / 0.95, abs=1e-6)
++    assert res.delta["horizon_output_kwh"] == pytest.approx(required / 0.98 - 11 * 30 / 60, abs=1e-6)
++    assert res.feasible is True
++    assert res.snapshot_digest == snap.recompute_digest()
++    assert res.event_manifest_sha256 == snap.event_manifest.manifest_sha256
++    assert res.baseline.input_sha256 == snap.envelope.snapshot_digest != res.patched.input_sha256
++
++
++@pytest.mark.parametrize("zone", ["AC", "DC"])
++async def test_already_satisfied_preserves_soc_energy_and_release(zone):
++    rt = _rt()
++    b = _add(rt, zone=zone, hours=2)
++    await _replan(rt)
++    rt.simulator.step(3)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    res = await run_what_if(snap, _actor(rt), _target(b, 0))
++    (row,) = res.affected_vehicles
++    assert row.patched_revised.already_satisfied_at_snapshot is True
++    assert row.patched_revised.target_reached_at is None
++    assert row.patched_revised.met_deadline is True
++    assert row.patched_horizon_battery_kwh == 0
++    assert row.patched_first_charge_at is None  # Historical timestamp unknown in G3.
++    assert res.patched.metrics.plug_wait_unknown_count == 0
++    assert res.patched.metrics.charge_wait_unknown_count == 1
++    assert res.patched.metrics.horizon_grid_input_kwh == 0
++    assert row.patched_release_at == (snap.envelope.as_of + timedelta(minutes=5) if zone == "DC" else None)
++    assert rt.simulator.adapter.soc(b.booking_id) * 100 > 20
++    assert snap.recompute_digest() == snap.envelope.snapshot_digest
++
++
++async def test_target_increase_tracks_original_crossing_before_revised_target():
++    rt = _rt()
++    # Same fixture holds a small original target without changing the EV's initial SOC.
++    b = _add(rt, hours=2)
++    b.request.soc_target = 21
++    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++    await _replan(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=20)
++    (row,) = (await run_what_if(snap, _actor(rt), _target(b, 22))).affected_vehicles
++    assert row.patched_original.met_deadline and row.patched_revised.met_deadline
++    assert row.patched_original.target_reached_at < row.patched_revised.target_reached_at
++    assert row.patched_original.target_reached_at == snap.envelope.as_of + timedelta(minutes=8)
++    assert row.baseline_original.target_reached_at == snap.envelope.as_of + timedelta(minutes=16)
++
++
++@pytest.mark.parametrize("deadline_minutes", [7, 23])
++async def test_deadline_oracle_energy_and_actual_release(deadline_minutes):
++    rt = _rt()
++    b = _add(rt, hours=0.25)
++    await _replan(rt)
++    at = rt.clock()
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=30)
++    deadline = at + timedelta(minutes=deadline_minutes)
++    result = await run_what_if(
++        snap, _actor(rt), {"op": "revise_vehicle", "booking_id": b.booking_id, "deadline": deadline}
++    )
++    (row,) = result.affected_vehicles
++    assert row.baseline_original.deadline == row.patched_original.deadline == b.request.deadline
++    assert row.patched_revised.deadline == row.patched_release_at == deadline
++    assert row.patched_original.met_deadline is False
++    assert row.patched_revised.met_deadline is False
++    assert result.delta["horizon_output_kwh"] == pytest.approx(11 * (deadline_minutes - 15) / 60, abs=1e-6)
++    assert result.delta["horizon_grid_input_kwh"] == pytest.approx(11 * (deadline_minutes - 15) / 60 / 0.95, abs=1e-6)
++
++
++async def test_explicit_half_minute_deadline_is_rejected_before_rollout():
++    rt = _rt()
++    at = rt.clock()
++    revised = at + timedelta(minutes=7, seconds=30)
++    first = _add(rt, "first", hours=0.25)
++    second = _add(rt, "second", arrival=at + timedelta(minutes=1))
++    rt.simulator.inject_incident(Incident(type=IncidentType.CONNECTOR_FAULT, connector_id="AC-02-1"))
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=20)
++    patch = {"op": "revise_vehicle", "booking_id": first.booking_id, "deadline": revised}
++    try:
++        result = await run_what_if(snap, _actor(rt), patch)
++    except ValidationError as exc:
++        (error,) = exc.errors()
++        assert error["loc"] == ("deadline",)
++        assert error["type"] == "deadline_not_on_simulator_minute"
++    else:
++        # Fail-before diagnostics show where the silent ceil falls in the rollout.
++        rows = {row.booking_id: row for row in result.affected_vehicles}
++        a, b = rows[first.booking_id], rows[second.booking_id]
++        assert a.patched_release_at == b.patched_plug_in_at == at + timedelta(minutes=8)
++        assert a.patched_horizon_battery_kwh == pytest.approx(11 * 0.98 * 8 / 60, abs=1e-6)
++        assert a.baseline_release_at == b.baseline_plug_in_at == at + timedelta(minutes=15)
++        assert a.patched_original.met_deadline is a.patched_revised.met_deadline is False
++        pytest.fail(
++            f"Accepted {revised.isoformat()} and held the connector until {a.patched_release_at.isoformat()}. "
++            f"Battery kWh for first/second: baseline {a.baseline_horizon_battery_kwh}/{b.baseline_horizon_battery_kwh}, "
++            f"patched {a.patched_horizon_battery_kwh}/{b.patched_horizon_battery_kwh}. "
++            f"First booking original/revised SLA: {a.patched_original.met_deadline}/{a.patched_revised.met_deadline}."
++        )
++    with pytest.raises(ValidationError, match="simulator minute"):
++        WhatIfJobs().submit(_actor(rt), snap, patch)
++
++
++async def test_deadline_grid_uses_snapshot_seconds_and_normalizes_offsets():
++    rt = _rt(start=time(12, 0, 30, 123000))
++    b = _add(rt, hours=0.25)
++    rt.simulator.step(2)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=16)
++    at = snap.envelope.as_of
++    aligned = at + timedelta(minutes=7)
++    other_offset = timezone(timedelta(hours=-3, minutes=-30))
++    patch = {
++        "op": "revise_vehicle",
++        "booking_id": b.booking_id,
++        "deadline": aligned.astimezone(other_offset).isoformat(),
++    }
++    result = await run_what_if(snap, _actor(rt), patch)
++    (row,) = result.affected_vehicles
++    assert result.patch.deadline.isoformat() == aligned.astimezone(UTC).isoformat()
++    assert row.patched_revised.deadline == row.patched_release_at == aligned
++    whole_wall_minute = aligned.replace(second=0, microsecond=0)
++    for invalid in (whole_wall_minute, aligned + timedelta(microseconds=1)):
++        with pytest.raises(ValidationError, match="simulator minute"):
++            await run_what_if(snap, _actor(rt), {**patch, "deadline": invalid})
++    with pytest.raises(ValidationError, match="timezone"):
++        await run_what_if(snap, _actor(rt), {**patch, "deadline": aligned.replace(tzinfo=None)})
++
++
++async def test_target_only_keeps_off_grid_original_deadline_and_physical_release():
++    rt = _rt()
++    b = _add(rt, hours=7.5 / 60)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=10)
++    result = await run_what_if(snap, _actor(rt), _target(b, 70))
++    (row,) = result.affected_vehicles
++    assert result.patch.deadline is None
++    assert row.baseline_original.deadline == row.patched_original.deadline == b.request.deadline
++    assert row.patched_revised.deadline == b.request.deadline
++    assert row.baseline_release_at == row.patched_release_at == snap.envelope.as_of + timedelta(minutes=8)
++    assert row.patched_original.met_deadline is row.patched_revised.met_deadline is False
++
++
++async def test_reservation_censoring_and_noop_equality():
++    rt = _rt()
++    at = rt.clock()
++    b = _add(rt, arrival=at + timedelta(minutes=20))
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=10)
++    actor = _actor(rt, b.resident_id, Role.RESIDENT)
++    noop = await run_what_if(snap, actor, _target(b, 80))
++    assert all(value in (None, 0) for value in noop.delta.values())
++    assert noop.feasible is None
++    assert noop.patched.metrics.sla.denominator == 0
++    assert noop.patched.metrics.sla.censored_count == 1
++    assert noop.delta_reasons["plug_wait_mean_minutes"].code == "missing_data"
++    assert noop.delta_reasons["sla.on_time_rate"].code == "missing_data"
++    assert noop.delta_reasons["service_coverage_rate"].code == "missing_data"
++    assert noop.delta_reasons["charged_coverage_rate"].code == "missing_data"
++    revised = await run_what_if(snap, actor, _target(b, 70))
++    assert revised.affected_vehicles[0].patched_revised.met_deadline is None
++    assert revised.patched.metrics.horizon_battery_kwh == 0
++    with pytest.raises(ValueError, match="arrival"):
++        await run_what_if(
++            snap, actor, {"op": "revise_vehicle", "booking_id": b.booking_id, "deadline": at + timedelta(minutes=5)}
++        )
++
++
++async def test_site_limit_units_known_events_and_copy_on_write():
++    rt = _rt()
++    _add(rt)
++    cap_event = LimitEvent(4, 0, 5.0, {"AC-01": 11.0})
++    rt.simulator.kernel.scenario = replace(rt.simulator.scenario, limit_events=(cap_event,))
++    await _replan(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    baseline_fork = build_sandbox_runtime(snap)
++    local_state = rt.simulator.snapshot_physics_state()
++    actor = _actor(rt)
++    op = {"op": "site_limit", "grid_input_kw": 8}
++    res = await run_what_if(snap, actor, op)
++    repeat = await run_what_if(snap, actor, op)
++    assert res.status == "completed"
++    assert res.delta == repeat.delta
++    # B0 fixed shares reserve 22% of charger output for AC, even with no DC load.
++    assert res.patched.metrics.horizon_grid_input_kwh == pytest.approx((8 + 5) * 0.22 * 4 / 60, abs=0.002)
++    assert res.patched.metrics.peak_grid_input_kw == pytest.approx(8 * 0.22, abs=0.015)
++    assert res.patched.metrics.peak_charger_output_kw == pytest.approx(8 * 0.22 * 0.95, abs=0.015)
++    assert res.baseline.metrics.horizon_grid_input_kwh == pytest.approx((11 / 0.95 + 5 * 0.22) * 4 / 60, abs=0.002)
++    expected_cost = res.patched.metrics.horizon_grid_input_kwh * rt.tariff.price_at(rt.clock().time())
++    assert res.patched.metrics.horizon_energy_cost_vnd == pytest.approx(expected_cost, abs=0.03)
++    assert res.baseline.config_sha256 != res.patched.config_sha256
++    assert rt.simulator.snapshot_physics_state() == local_state
++    assert baseline_fork.simulator.scenario.limit_events[0].cabinet_output_kw["AC-01"] == 11
++    assert snap.recompute_digest() == snap.envelope.snapshot_digest
++
++
++async def test_site_infrastructure_and_independent_validation():
++    rt = _rt()
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
++    actor = _actor(rt)
++    with pytest.raises(ValueError, match="hypothetical"):
++        await run_what_if(snap, actor, {"op": "site_limit", "grid_input_kw": 120})
++    result = await run_what_if(
++        snap, actor, {"op": "site_limit", "grid_input_kw": 120, "hypothetical_infrastructure": True}
++    )
++    assert result.hypothetical_infrastructure is True
++    with pytest.raises(ValueError, match="envelope"):
++        await run_what_if(snap, actor, {"op": "site_limit", "grid_input_kw": 1000, "hypothetical_infrastructure": True})
++
++    config = StationConfig.model_validate(
++        {
++            **rt.config.model_dump(),
++            "supply_mode": "independent",
++            "independent_grid_input_limit_kw": {"AC": 30, "DC": 90},
++        }
++    )
++    independent = _rt(config=config)
++    snap = await capture_atomic_snapshot(independent, horizon_minutes=2)
++    with pytest.raises(ValueError, match="shared supply"):
++        await run_what_if(snap, _actor(independent), {"op": "site_limit", "grid_input_kw": 8})
++
++
++@pytest.mark.parametrize("restore_at_boundary", [False, True])
++async def test_outage_oracle_one_connector_and_restore_at_boundary(restore_at_boundary):
++    rt = _rt()
++    at = rt.clock()
++    _add(rt, arrival=at + timedelta(minutes=2))
++    # This fault predates the patch and must survive. Only the other AC connector can serve the EV.
++    original_fault = "AC-02-1"
++    rt.simulator.inject_incident(Incident(type=IncidentType.CONNECTOR_FAULT, connector_id=original_fault))
++    minutes = 5 if restore_at_boundary else 10
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=minutes)
++    actor = _actor(rt)
++    patch = {"op": "outage", "connector_id": "AC-01-1", "starts_at": at + timedelta(minutes=2), "duration_minutes": 3}
++    result = await run_what_if(snap, actor, patch)
++    assert result.status == "completed"
++    assert result.delta["horizon_output_kwh"] == pytest.approx(-11 * 3 / 60, abs=1e-6)
++    (row,) = result.affected_vehicles
++    assert row.baseline_plug_in_at == at + timedelta(minutes=2)
++    assert row.patched_plug_in_at == (None if restore_at_boundary else at + timedelta(minutes=5))
++    if restore_at_boundary:
++        assert result.delta["plug_wait_mean_minutes"] is None
++        assert result.delta_reasons["plug_wait_mean_minutes"].code == "non_comparable_sample"
++        assert result.delta["service_coverage_rate"] == -1
++    assert any("patch-owned fault was restored" in line for line in result.assumptions)
++    preserved = await run_what_if(snap, actor, {**patch, "connector_id": original_fault})
++    assert all(value in (None, 0) for value in preserved.delta.values())
++    assert "pre-existing fault was preserved" in preserved.assumptions[-1]
++    assert rt.simulator.snapshot_physics_state()["faulted_connectors"] == [original_fault]
++
++
++@pytest.mark.parametrize(
++    "bad",
++    [
++        {"op": "add_vehicle"},
++        {"op": "revise_vehicle", "booking_id": "a"},
++        {"op": "revise_vehicle", "booking_id": "a", "target_soc": "25"},
++        {"op": "revise_vehicle", "booking_id": "a", "deadline": 1700000000},
++        {"op": "revise_vehicle", "booking_id": "a", "deadline": "2026-11-23T12:00:00"},
++        {"op": "site_limit", "grid_input_kw": float("inf")},
++        {"op": "site_limit", "grid_input_kw": 20, "charger_output_kw": 20},
++        {"op": "outage", "connector_id": "x", "duration_minutes": True},
++    ],
++)
++def test_strict_business_patch_schema(bad):
++    with pytest.raises(ValidationError):
++        PATCH_ADAPTER.validate_python(bad)
++
++
++async def test_authorization_and_resident_projection():
++    rt = _rt()
++    mine = _add(rt, "me")
++    other = _add(rt, "private-identity")
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=3)
++    resident = _actor(rt, mine.resident_id, Role.RESIDENT)
++    for patch in (_target(other, 21), _target(booking("absent"), 21), {"op": "site_limit", "grid_input_kw": 8}):
++        with pytest.raises(WhatIfForbiddenError, match="not allowed"):
++            await run_what_if(snap, resident, patch)
++    with pytest.raises(WhatIfForbiddenError):
++        await run_what_if(
++            snap, ActorContext(actor_id="op", station_id="other-site", role=Role.OPERATOR), _target(mine, 21)
++        )
++    res = await run_what_if(snap, resident, _target(mine, 21))
++    assert res.known_booking_count == 2
++    assert [row.booking_id for row in res.affected_vehicles] == [mine.booking_id]
++    assert other.booking_id not in res.model_dump_json()
++
++
++async def test_unresolved_safety_suppresses_unequal_window_deltas(monkeypatch):
++    rt = _rt()
++    _add(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=6)
++    original = HybridStation.step
++
++    def step(station, minutes):
++        events = original(station, minutes)
++        if station.kernel.sandbox_grid_cap_kw and station.minute == 1:
++            events.append(StationEvent(event_id="g4-hard", type=EventType.HARD_LIMIT_VIOLATED, occurred_at=station.now))
++        return events
++
++    monkeypatch.setattr(HybridStation, "step", step)
++    res = await run_what_if(snap, _actor(rt), {"op": "site_limit", "grid_input_kw": 8})
++    assert res.baseline.observed_until == snap.event_manifest.horizon_end
++    assert res.patched.observed_until == snap.envelope.as_of + timedelta(minutes=1)
++    assert res.patched.status == "unresolved_safety" and res.status == "unsafe"
++    assert res.delta is None and res.feasible is False and res.applied is False
++    assert res.delta_reasons is None
++
++
++async def test_tampered_snapshot_and_live_intervention_attempt_are_rejected():
++    from src.services.copilot.what_if import _WhatIfIntervention
++
++    rt = _rt()
++    b = _add(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
++    actor = _actor(rt)
++    patch = _target(b, 21)
++    prepared = _prepare_patch(snap, actor, patch)
++    with pytest.raises(ValueError, match="isolated sandbox"):
++        _WhatIfIntervention(prepared, capture_minute=prepared.as_of_minute).at_minute(rt)
++    snap.event_manifest.assumptions.append("unverified assumption")
++    with pytest.raises(ValueError, match="integrity"):
++        await run_what_if(snap, actor, patch)
++
++
++async def _wait_status(service, actor, job_id, status):
++    async with asyncio.timeout(4):
++        while True:
++            result = service.get(actor, job_id)
++            if result.status == status:
++                return result
++            await asyncio.sleep(0)
++
++
++async def test_jobs_owner_single_worker_capacity_and_cancellation(monkeypatch):
++    rt = _rt()
++    b = _add(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
++    owner = _actor(rt, b.resident_id, Role.RESIDENT)
++    outsider = _actor(rt, "outsider", Role.RESIDENT)
++    operator = _actor(rt)
++    ran, cancelled = asyncio.Event(), asyncio.Event()
++
++    async def slow(*args, **kwargs):
++        ran.set()
++        try:
++            await asyncio.Future()
++        finally:
++            cancelled.set()
++
++    monkeypatch.setattr(jobs_module, "run_what_if", slow)
++    svc = WhatIfJobs(max_queued=1)
++    active = svc.submit(owner, snap, _target(b, 21))
++    try:
++        await asyncio.wait_for(ran.wait(), 2)
++        queued = svc.submit(owner, snap, _target(b, 22))
++        with pytest.raises(WhatIfCapacityError):
++            svc.submit(owner, snap, _target(b, 23))
++        assert svc.get(outsider, active.job_id) is None
++        assert svc.cancel(operator, queued.job_id) is None
++        assert svc.cancel(owner, queued.job_id).status == WhatIfJobStatus.CANCELLED
++        svc.cancel(owner, active.job_id)
++        view = await _wait_status(svc, owner, active.job_id, WhatIfJobStatus.CANCELLED)
++        assert cancelled.is_set()
++        assert view.applied is False and view.result is None
++    finally:
++        await svc.close()
++
++
++async def test_job_timeout_and_ttl(monkeypatch):
++    rt = _rt()
++    b = _add(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
++    owner = _actor(rt, b.resident_id, Role.RESIDENT)
++    cleanup = asyncio.Event()
++
++    async def slow(*args, timeout_s, **kwargs):
++        try:
++            async with asyncio.timeout(timeout_s):
++                await asyncio.Future()
++        finally:
++            cleanup.set()
++
++    monkeypatch.setattr(jobs_module, "run_what_if", slow)
++    svc = WhatIfJobs(timeout_s=0.05, ttl_s=5)
++    job = svc.submit(owner, snap, _target(b, 21))
++    try:
++        view = await _wait_status(svc, owner, job.job_id, WhatIfJobStatus.FAILED)
++        assert view.error == "timeout" and cleanup.is_set() and not view.applied
++        original_clock = svc._clock
++        monkeypatch.setattr(svc, "_clock", lambda: original_clock() + 6)
++        assert svc.get(owner, job.job_id).status == WhatIfJobStatus.EXPIRED
++        monkeypatch.setattr(svc, "_clock", lambda: original_clock() + 20)
++        assert svc.get(owner, job.job_id) is None
++    finally:
++        await svc.close()
++
++
++async def test_job_result_detached_from_polling_client():
++    rt = _rt()
++    b = _add(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=3)
++    owner = _actor(rt, b.resident_id, Role.RESIDENT)
++    svc = WhatIfJobs()
++    job = svc.submit(owner, snap, _target(b, 21))
++    try:
++        view = await _wait_status(svc, owner, job.job_id, WhatIfJobStatus.SUCCEEDED)
++        assert view.result.applied is False
++        view.result.patched.metrics.by_zone.clear()
++        assert set(svc.get(owner, job.job_id).result.patched.metrics.by_zone) == {"AC", "DC"}
++    finally:
++        await svc.close()
++
++
++async def test_finished_ac_session_can_resume_and_keeps_historical_completion():
++    rt = _rt()
++    b = _add(rt)
++    b.request.soc_target = 21
++    rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
++    await _replan(rt)
++    for _ in range(20):
++        events = rt.simulator.step(1)
++        await control_loop.on_minute(rt, events)
++    assert rt.simulator.queue.sessions[b.booking_id].state == "FINISHED"
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=20)
++    res = await run_what_if(snap, _actor(rt), _target(b, 22))
++    (row,) = res.affected_vehicles
++    assert row.baseline_original.target_reached_at == row.patched_original.target_reached_at
++    assert row.patched_original.already_satisfied_at_snapshot
++    assert row.patched_revised.target_reached_at > snap.envelope.as_of
++    assert row.baseline_horizon_battery_kwh == 0.0 < row.patched_horizon_battery_kwh
++    assert rt.simulator.queue.sessions[b.booking_id].state == "FINISHED"
++
++
++async def test_attained_queued_vehicle_uses_no_connector():
++    rt = _rt()
++    for name in ("a", "b"):
++        _add(rt, name)
++    queued = _add(rt, "c")
++    await _replan(rt)
++    assert rt.simulator.queue.sessions[queued.booking_id].state == "QUEUED"
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=3)
++    res = await run_what_if(snap, _actor(rt, queued.resident_id, Role.RESIDENT), _target(queued, 10))
++    (row,) = res.affected_vehicles
++    assert row.patched_revised.already_satisfied_at_snapshot
++    assert row.patched_plug_in_at is None
++    assert row.patched_horizon_battery_kwh == 0.0
++    assert rt.simulator.queue.sessions[queued.booking_id].state == "QUEUED"
++
++
++async def test_outage_rejects_past_misaligned_and_unknown_connector():
++    rt = _rt()
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=5)
++    actor = _actor(rt)
++    patch = {"op": "outage", "connector_id": "AC-01-1", "duration_minutes": 1}
++    for offset in (-60, 15, 300):
++        with pytest.raises(ValueError, match="simulator minute"):
++            await run_what_if(snap, actor, {**patch, "starts_at": rt.clock() + timedelta(seconds=offset)})
++    with pytest.raises(ValueError, match="Unknown connector"):
++        await run_what_if(snap, actor, {**patch, "connector_id": "CABINET-ONLY"})
++
++
++async def test_g4_patch_uses_only_sandbox_sinks(monkeypatch, clean_db):
++    from src.models.identity import UserRecord
++    from src.services import realtime, repository, runtime
++
++    monkeypatch.setattr(runtime, "_live_clock", lambda _: lambda: NOW)
++    b = booking("live", now=NOW)
++    repository.upsert_user(
++        UserRecord(
++            user_id=b.resident_id, email="g4@example.invalid", display_name="G4", role=Role.RESIDENT, created_at=NOW
++        )
++    )
++    repository.save_booking(b)
++    live = runtime.get_runtime()
++    before = live.simulator.snapshot_physics_state()
++    snap = await capture_atomic_snapshot(live, horizon_minutes=4)
++    original = HybridStation.apply_commands
++
++    def apply_commands(station, commands):
++        assert station.is_fork
++        return original(station, commands)
++
++    def forbidden_write(*args, **kwargs):
++        pytest.fail("WHAT-IF invoked a live effect")
++
++    monkeypatch.setattr(HybridStation, "apply_commands", apply_commands)
++    monkeypatch.setattr(realtime, "broadcast", forbidden_write)
++    for name in ("save_booking", "save_plan", "append_event", "append_decision", "save_approval", "append_load_point"):
++        monkeypatch.setattr(repository, name, forbidden_write)
++    await run_what_if(snap, _actor(live), _target(b, 21))
++    await run_what_if(snap, _actor(live), {"op": "site_limit", "grid_input_kw": 10})
++    await run_what_if(snap, _actor(live), {"op": "outage", "connector_id": "AC-01-1", "duration_minutes": 2})
++    assert live.simulator.snapshot_physics_state() == before
++    assert repository.get_booking(b.booking_id) == b
++
++
++async def test_site_cap_equal_to_current_still_limits_future_announced_increase():
++    rt = _rt()
++    _add(rt)
++    rt.simulator.inject_incident(Incident(type=IncidentType.POWER_LIMIT_CHANGE, new_power_limit_kw=8))
++    rt.simulator.kernel.scenario = replace(rt.simulator.scenario, limit_events=(LimitEvent(4, 0, 20, {}),))
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    result = await run_what_if(snap, _actor(rt), {"op": "site_limit", "grid_input_kw": 8})
++    assert result.status == "completed"
++    assert result.patched.metrics.peak_grid_input_kw == pytest.approx(0.22 * 8, abs=0.002)
++    assert result.baseline.metrics.peak_grid_input_kw == pytest.approx(0.22 * 20, abs=0.002)
++    assert result.delta["horizon_grid_input_kwh"] == pytest.approx(0.22 * (8 - 20) * 4 / 60, abs=0.002)
++
++
++async def test_resolved_hard_violation_remains_unsafe_at_equal_full_horizon(monkeypatch):
++    rt = _rt()
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=2)
++    original = HybridStation.step
++
++    def step(station, minutes):
++        events = original(station, minutes)
++        if station.kernel.sandbox_grid_cap_kw and station.minute == 1:
++            station.kernel.applied_constraint_violation_count += 1
++            events.append(
++                StationEvent(
++                    type=EventType.HARD_LIMIT_VIOLATED, occurred_at=station.now, violation_kinds=["aggregate_power"]
++                )
++            )
++        return events
++
++    monkeypatch.setattr(HybridStation, "step", step)
++    result = await run_what_if(snap, _actor(rt), {"op": "site_limit", "grid_input_kw": 8})
++    assert result.baseline.observed_until == result.patched.observed_until == snap.event_manifest.horizon_end
++    assert result.patched.status == "unsafe"
++    assert result.patched.hard_violations == 1 and result.patched.unresolved_safety_count == 0
++    assert result.delta is None and result.feasible is False
++    assert result.delta_reasons is None
++
++
++async def test_cancelling_native_job_never_submits_its_patched_branch(monkeypatch):
++    rt = _rt()
++    _add(rt)
++    snapshot = await capture_atomic_snapshot(rt, horizon_minutes=4)
++    actor = _actor(rt)
++    scheduler_type = type(rt.scheduler)
++    original = scheduler_type.plan
++    worker_started, release_worker = threading.Event(), threading.Event()
++    observed_grid = []
++
++    def plan(scheduler, ctx):
++        observed_grid.append(ctx.state.available_power_kw)
++        if not worker_started.is_set():
++            worker_started.set()
++            assert release_worker.wait(5)
++        return original(scheduler, ctx)
++
++    monkeypatch.setattr(scheduler_type, "plan", plan)
++    service = WhatIfJobs()
++    first = service.submit(actor, snapshot, {"op": "site_limit", "grid_input_kw": 8})
++    try:
++        assert await asyncio.to_thread(worker_started.wait, 3)
++        second = service.submit(actor, snapshot, {"op": "site_limit", "grid_input_kw": 20})
++        service.cancel(actor, first.job_id)
++        cancelled = await _wait_status(service, actor, first.job_id, WhatIfJobStatus.CANCELLED)
++        assert cancelled.result is None
++        assert not release_worker.is_set()
++        release_worker.set()
++        completed = await _wait_status(service, actor, second.job_id, WhatIfJobStatus.SUCCEEDED)
++        assert not completed.result.applied
++        assert 8 not in observed_grid and 20 in observed_grid
++    finally:
++        release_worker.set()
++        await service.close()
++
++
++async def test_wait_delta_does_not_reward_losing_a_slow_booking(monkeypatch):
++    rt = _rt()
++    a = _add(rt, "vehicle-a")
++    b = _add(rt, "private-vehicle-b")
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
++    original = await run_sandbox_branch(snap)
++    ledger = original.outcome_ledger
++    a_row, b_row = (next(row for row in ledger.vehicles if row.booking_id == rec.booking_id) for rec in (a, b))
++    baseline = ledger.model_copy(
++        update={
++            "vehicles": [
++                _observed_wait(a_row, 10),
++                _observed_wait(b_row, 50),
++            ],
++            "plug_wait_mean_minutes": 30,
++            "plug_wait_p90_minutes": 50,
++            "charge_start_wait_mean_minutes": 30,
++            "charge_start_wait_p90_minutes": 50,
++            "horizon_output_kwh": 8,
++            "horizon_energy_cost_vnd": 4000,
++        }
++    )
++    patched = baseline.model_copy(
++        update={
++            "vehicles": [
++                _observed_wait(a_row, 15),
++                b_row.model_copy(
++                    update={
++                        "plug_in_at": None,
++                        "first_charge_at": None,
++                        "plug_wait_minutes": None,
++                        "charge_start_wait_minutes": None,
++                        "censored_plug_wait_minutes": 60,
++                        "censored_charge_start_wait_minutes": 60,
++                        "final_session_state": "QUEUED",
++                        "horizon_battery_stored_kwh": 0,
++                        "horizon_output_kwh": 0,
++                        "horizon_grid_input_kwh": 0,
++                        "cumulative_battery_stored_kwh": 0,
++                        "cumulative_output_kwh": 0,
++                        "cumulative_grid_input_kwh": 0,
++                    }
++                ),
++            ],
++            "plug_wait_observed_count": 1,
++            "charge_start_wait_observed_count": 1,
++            "plug_wait_mean_minutes": 15,
++            "plug_wait_p90_minutes": 15,
++            "charge_start_wait_mean_minutes": 15,
++            "charge_start_wait_p90_minutes": 15,
++            "plugged_count": 1,
++            "charged_count": 1,
++            "service_coverage_rate": 0.5,
++            "charged_coverage_rate": 0.5,
++            "horizon_output_kwh": 5,
++            "horizon_energy_cost_vnd": 2800,
++        }
++    )
++
++    async def run_branch(_snapshot, *, branch_label="baseline", **_kwargs):
++        return original.model_copy(update={"outcome_ledger": patched if branch_label == "patched" else baseline})
++
++    monkeypatch.setattr(what_if_module, "run_sandbox_branch", run_branch)
++    result = await run_what_if(snap, _actor(rt, a.resident_id, Role.RESIDENT), _target(a, 80))
++    assert result.baseline.metrics.plug_wait_mean_minutes == 30
++    assert result.patched.metrics.plug_wait_mean_minutes == 15
++    assert result.patched.metrics.plug_wait_observed_count == result.patched.metrics.plug_wait_censored_count == 1
++    for key in (
++        "plug_wait_mean_minutes",
++        "plug_wait_p90_minutes",
++        "charge_wait_mean_minutes",
++        "charge_wait_p90_minutes",
++    ):
++        assert result.delta[key] is None, f"{key} changed sample from A/B to A, got delta {result.delta[key]}"
++        assert result.delta_reasons[key].code == "non_comparable_sample"
++    assert result.delta["service_coverage_rate"] == result.delta["charged_coverage_rate"] == -0.5
++    assert result.delta["horizon_output_kwh"] == -3
++    assert result.delta["horizon_energy_cost_vnd"] == -1200
++    assert b.booking_id not in result.model_dump_json()
++
++
++def _observed_wait(row, minutes):
++    observed = row.arrived_at + timedelta(minutes=minutes)
++    return row.model_copy(
++        update={
++            "plug_in_at": observed,
++            "first_charge_at": observed,
++            "plug_wait_minutes": minutes,
++            "charge_start_wait_minutes": minutes,
++        }
++    )
++
++
++@pytest.mark.parametrize("same_membership", [False, True], ids=["swapped-bookings", "same-bookings"])
++async def test_exact_membership_for_wait_sla_and_coverage_rates(monkeypatch, same_membership):
++    rt = _rt()
++    for zone in ("AC", "DC"):
++        for tag in ("a", "b"):
++            _add(rt, f"{zone}-{tag}", zone=zone)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=20)
++    branch = await run_sandbox_branch(snap)
++    ledger = branch.outcome_ledger
++
++    def branch_ledger(tag, wait, met):
++        rows = []
++        for row in ledger.vehicles:
++            selected = row.booking_id.endswith(f"-{tag}")
++            observation = (
++                _observed_wait(row, wait)
++                if selected
++                else row.model_copy(
++                    update={
++                        "arrived_at": None,
++                        "plug_in_at": None,
++                        "first_charge_at": None,
++                        "plug_wait_minutes": None,
++                        "charge_start_wait_minutes": None,
++                    }
++                )
++            )
++            rows.append(
++                observation.model_copy(
++                    update={
++                        "sla_evaluable": selected,
++                        "met_original_sla": met if selected else None,
++                        "censored": not selected,
++                        "unserved": selected and not met,
++                    }
++                )
++            )
++        zones = {
++            zone: metrics.model_copy(
++                update={
++                    "sla_denominator": 1,
++                    "sla_met_count": int(met),
++                    "on_time_rate": float(met),
++                    "censored_count": 1,
++                }
++            )
++            for zone, metrics in ledger.by_zone.items()
++        }
++        return ledger.model_copy(
++            update={
++                "vehicles": rows,
++                "by_zone": zones,
++                "sla_denominator": 2,
++                "sla_met_count": 2 * int(met),
++                "on_time_rate": float(met),
++                "arrived_count": 2,
++                "not_arrived_count": 2,
++                "censored_count": 2,
++                "unserved_count": 2 * int(not met),
++                "service_coverage_denominator": 2,
++                "service_coverage_rate": float(met),
++                "charged_coverage_rate": float(met),
++                "plug_wait_observed_count": 2,
++                "charge_start_wait_observed_count": 2,
++                "plug_wait_mean_minutes": wait,
++                "plug_wait_p90_minutes": wait,
++                "charge_start_wait_mean_minutes": wait,
++                "charge_start_wait_p90_minutes": wait,
++            }
++        )
++
++    baseline = branch_ledger("a", 10, True)
++    patched = branch_ledger("a" if same_membership else "b", 15, False)
++
++    async def run_branch(_snapshot, *, branch_label="baseline", **_kwargs):
++        return branch.model_copy(update={"outcome_ledger": patched if branch_label == "patched" else baseline})
++
++    monkeypatch.setattr(what_if_module, "run_sandbox_branch", run_branch)
++    result = await run_what_if(snap, _actor(rt), {"op": "site_limit", "grid_input_kw": 8})
++    expected_deltas = {
++        "plug_wait_mean_minutes": 5,
++        "plug_wait_p90_minutes": 5,
++        "charge_wait_mean_minutes": 5,
++        "charge_wait_p90_minutes": 5,
++        "sla.on_time_rate": -1,
++        "sla.AC.on_time_rate": -1,
++        "sla.DC.on_time_rate": -1,
++        "service_coverage_rate": -1,
++        "charged_coverage_rate": -1,
++    }
++    for key, signed in expected_deltas.items():
++        assert result.delta[key] == (signed if same_membership else None), key
++        if same_membership:
++            assert key not in result.delta_reasons
++        else:
++            assert result.delta_reasons[key].code == "non_comparable_sample"
++    assert result.delta["sla.met_count"] == -2
++    assert result.delta["sla.denominator"] == 0
++    assert result.delta["unserved_count"] == 2
++    assert result.delta["sla.censored_count"] == 0
++
++
++async def test_safe_unequal_observed_windows_suppress_entire_comparison(monkeypatch):
++    rt = _rt()
++    b = _add(rt)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=5)
++    baseline = await run_sandbox_branch(snap)
++    early = baseline.model_copy(update={"observed_until": baseline.observed_until - timedelta(minutes=1)})
++
++    async def run_branch(_snapshot, *, branch_label="baseline", **_kwargs):
++        return early if branch_label == "patched" else baseline
++
++    monkeypatch.setattr(what_if_module, "run_sandbox_branch", run_branch)
++    result = await run_what_if(snap, _actor(rt), _target(b, 80))
++    assert result.baseline.status == result.patched.status == "completed"
++    assert result.status == "incomplete"
++    assert result.delta is result.delta_reasons is None
++
++
++def _site_patch(grid_kw, *, upgraded=False):
++    return {"op": "site_limit", "grid_input_kw": grid_kw, "hypothetical_infrastructure": upgraded}
++
++
++def _set_limits(rt, *events, runtime_grid=None):
++    if runtime_grid is not None:
++        rt.simulator.inject_incident(Incident(type=IncidentType.POWER_LIMIT_CHANGE, new_power_limit_kw=runtime_grid))
++    rt.simulator.kernel.scenario = replace(rt.simulator.scenario, limit_events=events)
++
++
++def _assert_site_branch(branch, output_profile, *, ac_count, dc_count):
++    """Integrate explicit (AC output, DC output, minutes, VND/grid kWh) blocks."""
++    metrics = branch.metrics
++    output_kw_minutes = sum((ac + dc) * minutes for ac, dc, minutes, _ in output_profile)
++    expected_cost = sum((ac + dc) * minutes / 60 / 0.95 * price for ac, dc, minutes, price in output_profile)
++    peak_output_kw = max(ac + dc for ac, dc, _, _ in output_profile)
++    assert branch.status == "completed"
++    assert metrics.horizon_output_kwh == pytest.approx(output_kw_minutes / 60, abs=2e-6)
++    assert metrics.horizon_battery_kwh == pytest.approx(output_kw_minutes / 60 * 0.98, abs=2e-6)
++    assert metrics.horizon_grid_input_kwh == pytest.approx(output_kw_minutes / 60 / 0.95, abs=2e-6)
++    assert metrics.horizon_energy_cost_vnd == pytest.approx(expected_cost, abs=0.01)
++    assert metrics.peak_charger_output_kw == pytest.approx(peak_output_kw, abs=2e-6)
++    assert metrics.peak_grid_input_kw == pytest.approx(peak_output_kw / 0.95, abs=2e-6)
++    for sla, count in (
++        (metrics.sla, ac_count + dc_count),
++        (metrics.by_zone["AC"], ac_count),
++        (metrics.by_zone["DC"], dc_count),
++    ):
++        assert (sla.denominator, sla.met_count, sla.on_time_rate, sla.censored_count) == (count, 0, 0, 0)
++    assert branch.hard_violations == branch.rejected_allocations == branch.sampled_grid_over_limit_minutes == 0
++    assert branch.unresolved_safety_count == branch.blocked_commands == branch.pending_approval_commands == 0
++
++
++async def test_site_increase_at_binding_shared_source_changes_mixed_delivery_and_tou():
++    rt = _rt(start=time(19, 56))
++    for zone in ("AC", "DC"):
++        for i in range(2):
++            _add(rt, f"{zone}-{i}", zone=zone, hours=8 / 60)
++    _set_limits(rt, runtime_grid=40)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    result = await run_what_if(snap, _actor(rt), _site_patch(80))
++    # Conversion 0.95 and B0 shares 22:78. Four EVs keep both zones supply-bound.
++    _assert_site_branch(result.baseline, [(8.36, 29.64, 4, 3500), (8.36, 29.64, 4, 2000)], ac_count=2, dc_count=2)
++    _assert_site_branch(result.patched, [(16.72, 59.28, 4, 3500), (16.72, 59.28, 4, 2000)], ac_count=2, dc_count=2)
++    assert result.delta["horizon_output_kwh"] == pytest.approx(38 * 8 / 60, abs=2e-6)
++    assert result.delta["horizon_energy_cost_vnd"] == pytest.approx(40 * 4 / 60 * (3500 + 2000), abs=0.02)
++    for row in result.affected_vehicles:
++        ac = row.booking_id.startswith("AC")
++        assert row.patched_horizon_battery_kwh == pytest.approx((8.36 if ac else 29.64) * 8 / 60 * 0.98, abs=2e-6)
++
++
++@pytest.mark.parametrize(
++    ("bottleneck", "expected_dc"), [("connector", 60), ("cabinet", 25), ("zone", 25), ("vehicle", 16)]
++)
++async def test_site_increase_cannot_exceed_equipment_or_vehicle_caps(bottleneck, expected_dc):
++    config = catalog.load_station_config().model_dump()
++    if bottleneck == "cabinet":
++        next(cab for cab in config["cabinets"] if cab["zone"] == "DC")["output_limit_kw"] = 25
++    if bottleneck == "zone":
++        # A valid fixed-share policy cannot budget above the physical zone cap.
++        config["physical_zone_cap_kw"]["DC"] = config["zone_budgets_kw"]["DC"] = 25
++    rt = _rt(config=StationConfig.model_validate(config), start=time(19, 56))
++    _add(rt, "ac", hours=8 / 60)
++    _add(rt, "dc", zone="DC", cap=16 if bottleneck == "vehicle" else 100, hours=8 / 60)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    result = await run_what_if(snap, _actor(rt), _site_patch(140, upgraded=True))
++    profile = [(11, expected_dc, 4, 3500), (11, expected_dc, 4, 2000)]
++    for branch in (result.baseline, result.patched):
++        _assert_site_branch(branch, profile, ac_count=1, dc_count=1)
++    assert result.hypothetical_infrastructure
++    assert result.delta["horizon_output_kwh"] == result.delta["horizon_grid_input_kwh"] == 0
++
++
++async def test_site_patch_replays_future_source_changes_and_cabinet_only_restriction():
++    rt = _rt(start=time(19, 56))
++    for zone in ("AC", "DC"):
++        for i in range(2):
++            _add(rt, f"{zone}-{i}", zone=zone, hours=8 / 60)
++    _set_limits(
++        rt, LimitEvent(2, 0, 30, {}), LimitEvent(4, 0, 100, {}), LimitEvent(6, 0, None, {"DC-01": 12}), runtime_grid=50
++    )
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    before = rt.simulator.snapshot_physics_state()
++    result = await run_what_if(snap, _actor(rt), _site_patch(80))
++    # The decrease binds both branches. The increase exceeds only the patch. The later
++    # cabinet restriction limits DC output to 12 kW while the AC budget still uses grid input.
++    # Emergency curtailment floors each connector. At 50 -> 30 kW the binary64 expression
++    # 18.525 * 0.6 * 1000 falls just below 11115. The 0.01 kW deadband retains 11.114 per DC port.
++    baseline = [(10.45, 37.05, 2, 3500), (6.27, 22.228, 2, 3500), (20.9, 74.1, 2, 2000), (20.9, 12, 2, 2000)]
++    patched = [(16.72, 59.28, 2, 3500), (6.27, 22.23, 2, 3500), (16.72, 59.28, 2, 2000), (16.72, 12, 2, 2000)]
++    _assert_site_branch(result.baseline, baseline, ac_count=2, dc_count=2)
++    _assert_site_branch(result.patched, patched, ac_count=2, dc_count=2)
++    assert result.known_limit_event_count == 3
++    assert rt.simulator.snapshot_physics_state() == before
++    assert snap.recompute_digest() == snap.envelope.snapshot_digest
++
++
++@pytest.mark.parametrize("runtime_grid", [20, 50], ids=["override-binds", "announced-source-binds"])
++async def test_site_patch_preserves_announced_grid_event_effective_at_snapshot(runtime_grid, monkeypatch):
++    rt = _rt(start=time(19, 56))
++    for zone in ("AC", "DC"):
++        for i in range(2):
++            _add(rt, f"{zone}-{i}", zone=zone, hours=8 / 60)
++    _set_limits(rt, LimitEvent(0, 0, 30, {}), LimitEvent(4, 0, 100, {}), runtime_grid=runtime_grid)
++    snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
++    assert snap.physics_state["grid_input_override_kw"] == runtime_grid
++    assert snap.event_manifest.known_limit_events[0].effective_at == snap.envelope.as_of
++    delivered_events = {False: [], True: []}
++    on_minute = control_loop.on_minute
++
++    async def track_grid_events(runtime, events):
++        patched = runtime.simulator.kernel.sandbox_grid_cap_kw is not None
++        delivered_events[patched].extend(
++            (runtime.simulator.minute, event.new_power_limit_kw)
++            for event in events
++            if event.type == EventType.POWER_LIMIT_CHANGED
++        )
++        return await on_minute(runtime, events)
++
++    monkeypatch.setattr(control_loop, "on_minute", track_grid_events)
++    result = await run_what_if(snap, _actor(rt), _site_patch(80))
++    first_ac_dc = (4.18, 14.82) if runtime_grid == 20 else (6.27, 22.23)
++    baseline = [(*first_ac_dc, 4, 3500), (20.9, 74.1, 4, 2000)]
++    patched = [(6.27, 22.23, 4, 3500), (16.72, 59.28, 4, 2000)]
++    _assert_site_branch(result.baseline, baseline, ac_count=2, dc_count=2)
++    _assert_site_branch(result.patched, patched, ac_count=2, dc_count=2)
++    assert delivered_events == {False: [(0, min(runtime_grid, 30)), (4, 100)], True: [(0, 30), (4, 80)]}

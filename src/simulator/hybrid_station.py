@@ -369,7 +369,7 @@ class HybridStation:
 
     @property
     def available_power_kw(self) -> float:
-        if self.kernel.sandbox_grid_cap_kw is not None:
+        if self.kernel.sandbox_grid_cap_kw is not None or self.kernel.sandbox_replays_announced_grid:
             return self.kernel.effective_limits().grid_input_kw
         return self._available_power_kw
 
@@ -612,11 +612,14 @@ class HybridStation:
         self.kernel.state_version += 1
 
     @_locked
-    def replay_sandbox_grid_limit(self, grid_input_kw: float) -> StationEvent:
-        """Apply an announced source event at its effective minute on either WHAT-IF fork."""
-        if not self.is_fork or not math.isfinite(grid_input_kw) or grid_input_kw < 0:
-            raise ValueError("Announced source events require an isolated simulator and a finite nonnegative limit")
-        self.available_power_kw = grid_input_kw
+    def replay_sandbox_grid_limit(self, *, at_capture: bool) -> StationEvent:
+        """Use the retained scenario's announced source regime on an isolated WHAT-IF fork."""
+        if not self.is_fork:
+            raise ValueError("Announced source events require an isolated simulator")
+        self.kernel.sandbox_replays_announced_grid = True
+        if not at_capture:
+            # The next announced regime supersedes the runtime supply premise captured at T.
+            self.kernel.grid_input_override_kw = None
         self.kernel.state_version += 1
         return StationEvent(
             type=EventType.POWER_LIMIT_CHANGED,

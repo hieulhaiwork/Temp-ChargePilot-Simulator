@@ -1,0 +1,4 @@
+cwd=/tmp/p019-g4-final.Ais6zH/final-gate/code
+$ isolated timeout -k 3s 120s python -m pytest -q tests/test_services/test_counterfactual_foundation.py tests/test_services/test_g3_runtime_readiness.py 
+.....................................                                    [100%]
+37 passed in 2.72s

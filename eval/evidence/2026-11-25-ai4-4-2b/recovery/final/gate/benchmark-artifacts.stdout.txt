@@ -1,0 +1,2 @@
+cwd=/tmp/p019-g4-final.Ais6zH/final-gate/code
+$ cp eval/results/manifest.json eval/results/benchmark.json eval/results/benchmark.md /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/backend-benchmark/ 

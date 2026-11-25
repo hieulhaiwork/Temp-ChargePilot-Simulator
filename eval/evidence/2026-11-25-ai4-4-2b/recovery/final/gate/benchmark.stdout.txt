@@ -1,0 +1,3 @@
+cwd=/tmp/p019-g4-final.Ais6zH/final-gate/code
+$ isolated timeout -k 5s 600s python eval/run_benchmark.py --seeds 1\,2\,3\,4\,5 
+==> Đã ghi /tmp/p019-g4-final.Ais6zH/final-gate/code/eval/results/benchmark.md (+ benchmark.json, manifest.json)

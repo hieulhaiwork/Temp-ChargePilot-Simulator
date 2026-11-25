@@ -80,11 +80,20 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 ## Backlog sau AI-4.2A
 
 - G4 MUST gồm `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit` và `outage`. Tech Lead đã cấp quyền triển khai G4.
-- G5–G7 giữ bounded HOW-TO, production grounding, LLM integration và PostgreSQL runtime verification theo Master Plan.
+- Sau G4 final acceptance và authorization riêng, thứ tự là G6A → G5 → G6B → G7. Bounded HOW-TO, production grounding, LLM integration và PostgreSQL runtime verification giữ scope đã duyệt. [Master Plan](AI-4_MASTER_IMPLEMENTATION_PLAN.md)
 
 ## Gate 4 (AI-4.2B) verification ledger
 
-- **R06 G4 READY_FOR_REVIEW.** Bốn WHAT-IF operation, paired deltas và owner-scoped jobs đã qua local gates. Ca site cap bằng nguồn hiện tại trước đợt tăng nguồn có fail-before và pass-after.
-- **R10/R11.** G4 dùng station grid input đo trong horizon, charger output và battery energy riêng. Original và revised SLA có cutoff và denominator. R10 billing giữ phạm vi đã duyệt.
+- **R06.** Bốn WHAT-IF operation và owner-scoped jobs đã qua local gate ở candidate được review. Tech Lead ghi `CONDITIONAL PASS — FINAL REMEDIATION REQUIRED` cho G4-F01–F03 tại mirror `343cddce2e7c22e8753945589a94d2ad7ed48042`.
+- **R10/R11.** G4 tách station grid input, charger output và battery energy. Original và revised SLA có cutoff và denominator. Station unmet battery kWh và charger-output equivalent đo remaining energy để đạt target gốc tại observation cutoff. R10 billing giữ phạm vi đã duyệt.
 - **Remaining.** PostgreSQL runtime verification. Native solver call đã bắt đầu có thể tiếp tục sau khi job bị hủy. G4 probe xác nhận job bị hủy ở baseline không submit patched branch.
-- [Báo cáo Gate 4](PHASE_4_2B_REPORT.md)
+
+| Finding | Phân loại | Resolution và evidence |
+|---|---|---|
+| G4-F01 | Confirmed bug | T+7:30 từng rời cổng tại T+8, ảnh hưởng năng lượng và booking tiếp theo. Typed validation chặn explicit deadline lệch lưới T. Fixture kiểm timezone, lưới bắt đầu tại giây lẻ, deadline aligned và target-only với deadline gốc lẻ. |
+| G4-F02 | Confirmed bug | Mất mẫu B từng tạo delta wait −15 phút. Mean, p90 và rates cần đúng tập booking; metadata tách `non_comparable_sample` khỏi `missing_data`. Giữ counts và additive energy/cost delta. |
+| G4-F03 | Verification gap và confirmed replay bug | Mixed AC/DC oracles kiểm site binding, hardware/acceptance, future decrease/increase và cabinet-only. Sandbox replay giữ announced source có hiệu lực tại T riêng với runtime override, và phát một effective limit event cho mỗi nhánh tại boundary. |
+
+[Báo cáo Gate 4](PHASE_4_2B_REPORT.md) · [Oracle calculations](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/oracle-calculations.md)
+
+**G4 — READY_FOR_FINAL_ACCEPTANCE.** Remediation candidate `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f` qua mandatory gate exit 0. Cả ba findings chờ Tech Lead final acceptance. PostgreSQL runtime vẫn PENDING. [Gate ledger](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/exit-codes.tsv)

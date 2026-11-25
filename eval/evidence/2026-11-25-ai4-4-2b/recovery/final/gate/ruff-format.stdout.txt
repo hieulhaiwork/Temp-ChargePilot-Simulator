@@ -1,0 +1,3 @@
+cwd=/tmp/p019-g4-final.Ais6zH/final-gate/code
+$ isolated ruff format --check src tests scripts/refactor eval 
+292 files already formatted

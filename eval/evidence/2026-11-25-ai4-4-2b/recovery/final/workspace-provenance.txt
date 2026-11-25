@@ -1,0 +1,59 @@
++ git status --short --branch
+## feature/ai-4...origin/feature/ai-4
+ M docs/ai4/FOUNDATION_CONTRACT.md
+ M docs/ai4/ISSUES.md
+ M docs/ai4/PHASE_4_1_REPORT.md
+ M docs/ai4/PROJECT_STATE.md
+ M docs/ai4/collaboration_chat.md
+ M src/models/copilot.py
+ M src/services/admission.py
+ M src/services/charging_service.py
+ M src/services/control_loop.py
+ M src/services/copilot/__init__.py
+ M src/services/runtime.py
+ M src/services/simulation_service.py
+ M src/simulator/core/kernel.py
+ M src/simulator/hybrid_station.py
+?? docs/ai4/G3_RECOVERY_STATE.md
+?? docs/ai4/G4_RECOVERY_STATE.md
+?? docs/ai4/PHASE_4_2A_REPORT.md
+?? docs/ai4/PHASE_4_2B_REPORT.md
+?? eval/evidence/2026-11-24-ai4-4-2a/
+?? eval/evidence/2026-11-25-ai4-4-2b/
+?? src/models/what_if.py
+?? src/services/copilot/counterfactual.py
+?? src/services/copilot/jobs.py
+?? src/services/copilot/outcome_ledger.py
+?? src/services/copilot/snapshot.py
+?? src/services/copilot/what_if.py
+?? tests/test_services/test_counterfactual_foundation.py
+?? tests/test_services/test_g3_runtime_readiness.py
+?? tests/test_services/test_what_if.py
++ git rev-parse HEAD
+4658b1f068350c130ed5ed1a744c19a7b8cd522c
++ git clone --quiet --no-hardlinks --no-checkout . /tmp/p019-g4-final.Ais6zH/reviewed
++ git -C /tmp/p019-g4-final.Ais6zH/reviewed -c core.autocrlf=false checkout --quiet --detach 4658b1f068350c130ed5ed1a744c19a7b8cd522c
++ g3=/home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/candidate.patch
++ g4=/home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-02/candidate.patch
++ printf '%s  %s\n' 59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/candidate.patch ec99050de22414c7f3b964c6ae898458db15a169119bc05ae5ba5abaa92491bf /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-02/candidate.patch
++ sha256sum --check
+/home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/candidate.patch: OK
+/home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-02/candidate.patch: OK
++ git -C /tmp/p019-g4-final.Ais6zH/reviewed apply /home/lehieu/Projects/P-019/eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/candidate.patch
++ git -C /tmp/p019-g4-final.Ais6zH/reviewed apply /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-02/candidate.patch
++ diff -qr -x __pycache__ -x .pytest_cache -x .ruff_cache /tmp/p019-g4-final.Ais6zH/reviewed/src src
+Only in src/agents: nodes
+Only in src/agents: tools
+Only in src/simulator: claude_rd
+Only in src/simulator: outputs
+Only in src/simulator: src
++ git status --ignored --short src/agents/nodes src/agents/tools src/simulator/claude_rd src/simulator/outputs src/simulator/src
+!! src/agents/nodes/
+!! src/agents/tools/
+!! src/simulator/claude_rd/
+!! src/simulator/outputs/
+!! src/simulator/src/
++ python - /tmp/p019-g4-final.Ais6zH/reviewed
+245 tracked or unignored product/test paths match reconstructed review candidate byte-for-byte.
++ cmp /tmp/p019-g4-final.Ais6zH/reviewed/eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh
++ cmp /tmp/p019-g4-final.Ais6zH/reviewed/eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py

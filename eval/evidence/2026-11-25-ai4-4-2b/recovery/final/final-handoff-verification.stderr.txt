@@ -1,0 +1,8 @@
++ git status --short --branch
++ git rev-parse HEAD
++ git diff --check -- docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md docs/ai4/ISSUES.md docs/ai4/PROJECT_STATE.md docs/ai4/collaboration_chat.md src/simulator/core/kernel.py src/simulator/hybrid_station.py
++ cd eval/evidence/2026-11-25-ai4-4-2b/recovery/final
++ sha256sum -c remediation.sha256
++ cd gate
++ sha256sum -c candidate.sha256
++ python - /tmp/p019-g4-final.Ais6zH/final-gate/code eval/evidence/2026-11-25-ai4-4-2b/recovery/final

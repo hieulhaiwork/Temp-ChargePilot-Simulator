@@ -18,7 +18,7 @@
 
 ### 1.1. Phase gate
 
-Thứ tự: P0 → 4.0 → 4.1 → 4.2A → 4.2B → 4.3 → 4.4 → 4.5. Không song song các phase phụ thuộc. Mỗi lượt chỉ thực hiện phase người dùng chỉ định. Cuối phase **STOP — WAITING_FOR_TECH_LEAD_REVIEW**, không tự chuyển phase dù test xanh. Tech Lead có quyền yêu cầu patch cùng phase và review lại. Không merge main/push nếu người dùng chưa cho phép; khi được yêu cầu push, push đúng branch đã duyệt, không force-push. Không stash/reset/xóa thay đổi của người khác. Không cài deps không cần thiết hoặc đổi lockfile ngoài scope.
+Thứ tự đã duyệt là G0 → G1 → G2 → G3 → G4 final acceptance → G6A → G5 → G6B → G7. Mỗi lượt chỉ thực hiện phase người dùng chỉ định và dừng chờ Tech Lead ở mỗi gate. G4 remediation kết thúc tại **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 4)**. Tech Lead có quyền yêu cầu patch cùng phase và review lại. Không merge main/push nếu người dùng chưa cho phép; khi được yêu cầu push, push đúng branch đã duyệt, không force-push. Không stash/reset/xóa thay đổi của người khác. Không cài deps không cần thiết hoặc đổi lockfile ngoài scope.
 
 P0 trước hết đọc `git status --short`, `git rev-parse HEAD`, `git branch --show-current`, `git log -5 --oneline`; nếu repo local P-019 là nguồn chính, xác định commit local tương đương mirror bằng diff/hash file; không mặc định cùng hash (mirror được đồng bộ khác lịch sử). Nếu có drift, ghi báo cáo và dừng trước sửa code. Chỉ tạo branch sau khi baseline xác định, ví dụ `feature/ai-4` từ baseline được duyệt. Các phase tiếp theo tạo commit nhỏ, reviewable trên branch AI-4; có thể dùng nhánh con nếu nhóm quy định. Thành viên MVP-3.5 phát triển độc lập `feature/mvp-3.5` (tên đề xuất), không sửa frozen policy hoặc các contract chung nếu chưa phối hợp. Không tự merge branch optimizer mới trong quá trình AI-4.
 
@@ -55,10 +55,13 @@ P0 trước hết đọc `git status --short`, `git rev-parse HEAD`, `git branch
 | 4.0 | Fork/trace đúng semantics, persistence truy xuất được | G1 |
 | 4.1 | WHY deterministic, evidence + auth | G2 |
 | 4.2A | Snapshot/fork atomic, paired runner no-op | G3 |
-| 4.2B | 4 loại patch, KPI delta, job isolation | G4 |
+| 4.2B | 4 loại patch, KPI delta, job isolation, remediation G4-F01–F03, Tech Lead final acceptance | G4 |
+| 4.4A | Shared integration foundation, WHY và WHAT-IF end-to-end | G6A |
 | 4.3 | Bounded recommendation search | G5 |
-| 4.4 | NL Copilot, server route, grounding, API/UI tối thiểu | G6 |
+| 4.4B | HOW-TO end-to-end trên foundation đã có | G6B |
 | 4.5 | Eval độc lập, E2E, release candidate | G7 |
+
+Tech Lead duyệt đổi thứ tự cho demo mentor tối 25/11/2026. Sau remediation, G4 dừng chờ final acceptance. G6A cần authorization riêng từ Tech Lead sau khi review candidate G4. HOW-TO vẫn là MUST với toàn bộ requirements và acceptance criteria của G5, G6B và G7. G6 chỉ hoàn tất khi G6A và G6B đáp ứng toàn bộ AC G6.
 
 ## Phase P0 — Baseline Verification (G0)
 
@@ -137,14 +140,15 @@ Discriminated union, `extra=forbid`, strict units/validations, actor auth server
 | Op | Actor | Semantics / acceptance |
 |---|---|---|
 | revise_vehicle.target_soc | Resident own booking; Operator chỉ nếu quyền được duyệt | 0..100%; xác minh SOC thực tại T, target đã đạt → already_satisfied, không reset pin, không giả lập charge ngược; reject nếu trạng thái không hợp lệ. Nếu target giảm dưới SOC thật, xử lý explicit immediate attainment hoặc reject với lý do; giữ actual SOC và original commitment. Kiểm tra `_update_present` khi FINISHED/CHARGING, recompute energy basis đúng; không reset accumulated kWh/arrival/counter; không thay max_kw/zone ngoài patch. |
-| revise_vehicle.deadline | như trên | timezone-aware, sau T/arrival; past/departed rejected; deadline thay đổi chỉ trong sandbox. Sạc xong và rút cổng là hai sự kiện khác; không tự thay unplug logic. |
-| site_limit | Operator | grid input kW, positive, finite, bounded physical supply; nếu independent supply → unsupported (không giả định site share); cap tăng trên installed/configured limit chỉ khi explicit hypothetical_infrastructure, không coi có thể áp thật. Không bypass physical caps. |
+| revise_vehicle.deadline | như trên | Timezone-aware, sau T/arrival và nằm trên lưới phút tính từ snapshot T. Deadline explicit lệch lưới trả typed validation error. Target-only giữ deadline gốc và cách tính phút rời của live booking. Deadline chỉ đổi trong sandbox. Sạc xong và rút cổng là hai sự kiện riêng. |
+| site_limit | Operator | Grid input kW dương, hữu hạn, trong power envelope, dùng shared supply. Tăng trên configured limit cần explicit hypothetical infrastructure. Patch thay runtime supply premise tại T và đặt trần cho các regime sau. Giữ announced source và cabinet schedule, kể cả sự kiện có hiệu lực tại T, cùng các trần thiết bị. |
 | outage | Operator | connector fault tại T hoặc future time explicit, restore sau duration; reject ID lạ/cross-site, invalid interval, already faulted restoration không tự khôi phục fault trước đó; preserve event ordering. Cả cabinet là separate scope optional, không nhầm một đầu nối là cả tủ. |
 
 ### Result contract / metrics
 
 `WhatIfResult`: `status`, `snapshot_id`, `snapshot_time`, `state_version`, baseline/patched run IDs, canonical patch, resolved experiment fingerprint + branch config/patch hashes, event manifest/hash, common horizon & cohort counts, baseline/patch KPI & delta, affected vehicles (authorized projection), assumptions, hard violation counters, guard/approval dependencies, `applied: Literal[False]`, `hypothetical_infrastructure`, truncation/error fields. Delta = patched − baseline, explicit sign/units. Report AC/DC/overall on-time with denominators, service coverage, unmet battery energy (and output/grid distinctly), time to target, wait metric definition and censored counts, future energy cost (VND) and peak grid input, safety counters; all same horizon. For revised vehicle: report evaluation against ORIGINAL target and deadline as well as revised target/deadline, original target not reached because revised charging stopped is valid original miss; no denominator gaming. Incomplete original deadline outside horizon → unknown/censored, not pass/fail artificially; no unconditional SLA promise. Existing `SessionOutcome` and compute_kpis can be reused where semantics fit; do not overwrite historical definitions.
 
+- Rate, mean và p90 có delta khi hai nhánh chạy an toàn hết cùng horizon và dùng đúng cùng tập booking cho KPI đó. Giữ branch-local aggregates và counts. Khi delta metric là null, `delta_reasons` phân biệt `non_comparable_sample` và `missing_data`, không chứa booking IDs. `unmet_original_battery_kwh` và charger-output equivalent đo phần năng lượng còn thiếu để đạt target gốc tại observation cutoff.
 - Job execution service for WHAT-IF/HOW-TO (per ADR-014), bounded queue, max candidate count/horizon, job ownership and TTL, timeout/cancel with safe checkpoints between solver tasks, statuses queued/running/succeeded/failed/cancelled/expired. In-process single worker acceptable for MVP; no durable jobs promise. Solver native call may not cancel immediately; mark cancellation accurately, stop subsequent simulation, never report applied. No unbounded background tasks, no thread-per-candidate. Expose service internally; REST contract in 4.4. Baseline simulation once per search job later, not repeated unnecessarily.
 - Tests: patch exactness, no-op, same snapshot, SOC reduced/increased, target already met, earlier/later deadline, AC/DC, reserved not arrived, site reduction/increase & independent, connector fault+restore timing and invalid IDs, outage at horizon boundary, pre-existing fault, safety hold/pending approvals, infeasible and horizon censored, no known arrivals, impossible infrastructure, invalid patch/unknown fields, cross-user access/job results, no live state/DB/WS writes. Assertions on branch deltas and manually calculable small fixtures (not only snapshot equality). Verify energy accounting across repeated runs. Store raw run evidence; benchmark WHAT-IF latency separately from LP solver.
 
@@ -170,10 +174,22 @@ Discriminated union, `extra=forbid`, strict units/validations, actor auth server
 
 **Mục tiêu:** người dùng hai role hỏi bằng ngôn ngữ tự nhiên và nhận kết quả grounded từ service đã nghiệm thu. Không viết một agent tự điều phối sạc. Không gọi LLM trong loop vật lý, không đưa raw internal trace chứa dữ liệu ngoài quyền vào model context.
 
+### G6A — AI-4.4A · Shared foundation, WHY và WHAT-IF
+
+- Đưa WHY và WHAT-IF qua NL, structured fallback, API và UI ở hai role. Kiểm grounded claims, authorization, job lifecycle, lỗi và isolation end-to-end. Report và dừng review G6A riêng.
+- Giữ `CopilotIntent` cho `why`, `what_if`, `how_to`, `clarify` và `unsupported`. HOW-TO giữ handler riêng trả `feature_not_available` cho đến khi có engine được tích hợp. Recommendations chỉ lấy từ engine deterministic sau G5. Router typed và deterministic với handler boundaries rõ, `ActorContext` và quyền do server xác định.
+- API response và job envelopes có result type và job kind rõ ràng. WHAT-IF và HOW-TO dùng chung workload bounds và solver single-worker. Giữ thay đổi vào `WhatIfJobs` trong phạm vi cần thiết cho tích hợp.
+- Giữ deterministic engine độc lập với HTTP, LLM và UI. Handoff phải giữ khả năng G5 tái sử dụng một baseline trong bounded candidate search và dùng chung semantics announced-event replay. Grounding contract có thể nhận HOW-TO evidence và candidate results khi có engine.
+- Demo dùng dữ liệu và kết quả thực từ deterministic services. Giữ đầy đủ safety, authorization, grounding và sandbox isolation. Mọi kết quả là advisory, `applied=false`. API apply và tự sửa live booking nằm ngoài phạm vi.
+
+### G6B — AI-4.4B · HOW-TO integration
+
+Sau khi G5 được nghiệm thu và G6B được cấp phép, nối HOW-TO đã duyệt vào router, typed jobs, grounding, API và UI. Chạy E2E cả hai role, kiểm candidates và grounding evidence, cùng toàn bộ AC G6 dưới đây. G7 vẫn giữ đầy đủ AC release.
+
 ### A. Intent và routing
 
 - `src/agents/` chứa AI-4, provider chung `src/services/llm.py`; giữ `src/llm_chat/` và resident booking flow hiện có. Dùng structured output (Pydantic schema) cho `CopilotIntent`: `why|what_if|how_to|clarify|unsupported`, query/patch/goal tương ứng, không dùng arbitrary tool name. LLM chỉ parse subject alias/thời điểm/đơn vị/giá trị và mục tiêu; server resolve booking/connector từ catalog/context đã auth. Không cho model gán role/owner/snapshot ID/authorization hoặc chọn code thực thi. Dùng timezone station, resolve giờ tương đối từ server clock, không đoán AM/PM/đơn vị/xe không rõ. Trích xuất nhiều điều kiện trong phạm vi whitelist; nếu vượt support, trả unsupported/clarify, không tự bỏ điều kiện.
-- Deterministic router validate schema, authorize trước retrieval/rollout, gọi một workflow bounded đã có; WHAT-IF và HOW-TO chạy job 4.2B. LLM timeout/budget/retry theo cấu hình chung; không chạy ReAct loop tùy ý, không cho LLM gọi arbitrary SQL, Python, URLs hay simulator mutator. Tách parse LLM latency khỏi simulation và final rendering. Mock/fixture mode và structured API/form deterministic fallback khi LLM unavailable; không coi mock là eval LLM thật.
+- Deterministic router validate schema, authorize trước retrieval/rollout và gọi workflow bounded tương ứng. WHAT-IF dùng jobs 4.2B, HOW-TO dùng cùng workload bounds và single-worker solver khi tích hợp ở G6B. LLM timeout/budget/retry theo cấu hình chung; không chạy ReAct loop tùy ý, không cho LLM gọi arbitrary SQL, Python, URLs hay simulator mutator. Tách parse LLM latency khỏi simulation và final rendering. Mock/fixture mode và structured API/form deterministic fallback khi LLM unavailable; không coi mock là eval LLM thật.
 - Hội thoại tối thiểu: hỏi lại trường thiếu, cho phép follow-up tham chiếu kết quả theo ID do server phát và kiểm ownership/TTL; lưu context ngắn đã redact. Không đọc raw system prompts hoặc hidden state. Không tự thực hiện AI-1. Test Việt/Anh (tiếng Việt trọng tâm), typo, relative dates, mơ hồ, injection qua user text/metadata, query nhiều mục tiêu unsupported, model output invalid. Intent handler server-only tests (LLM mock trả role operator vẫn không được escalate).
 
 ### B. Grounded explanation
@@ -235,11 +251,11 @@ Tech Lead kiểm diff base..HEAD, code paths thực, test independence, negative
 |---|---|---|
 | Foundation fixes R01–R04 | 4.0 | G1 |
 | Trace evidence semantics R05 | 4.0/4.1 | G1–G2 |
-| WHY resident/operator | 4.1 | G2, G6, G7 |
+| WHY resident/operator | 4.1 | G2, G6A, G7 |
 | Snapshot consistency R07 | 4.2A | G3 |
-| WHAT-IF target SOC/deadline/site/outage + delta R06 | 4.2B | G4, G6, G7 |
-| HOW-TO bounded resident/operator | 4.3 | G5, G6, G7 |
-| NL, grounding, permissions, UI | 4.4 | G6–G7 |
+| WHAT-IF target SOC/deadline/site/outage + delta R06 | 4.2B | G4, G6A, G7 |
+| HOW-TO bounded resident/operator | 4.3 | G5, G6B, G7 |
+| NL, grounding, permissions, UI | 4.4A và 4.4B | G6A, G6B, G7 |
 | Postgres / LLM real / deploy R08 | 4.5 | G7 |
 | Optimizer research R09 | MVP-3.5 (separate) | not a gate AI-4 |
 

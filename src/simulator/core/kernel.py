@@ -101,6 +101,7 @@ class StationKernel:
         self.faults: set[str] = set()  # ports out of service: never offered to dispatch
         self.grid_input_override_kw: float | None = None  # backend power incident (immediately effective)
         self.sandbox_grid_cap_kw: float | None = None
+        self.sandbox_replays_announced_grid = False
         self.output_kwh: dict[str, float] = {}  # charger-output energy (backend meaning)
         self.output_by_deadline_kwh: dict[str, float] = {}
         # Planning memo of the last approved decision. Not physical state: does not bump state_version.
@@ -178,7 +179,10 @@ class StationKernel:
             self.scenario if scenario is None else scenario, self.now if minute is None else minute
         )
         if self.grid_input_override_kw is not None:
-            limits = replace(limits, grid_input_kw=self.grid_input_override_kw)
+            override = self.grid_input_override_kw
+            if self.sandbox_replays_announced_grid:
+                override = min(override, limits.grid_input_kw)
+            limits = replace(limits, grid_input_kw=override)
         if self.sandbox_grid_cap_kw is not None:
             limits = replace(limits, grid_input_kw=min(limits.grid_input_kw, self.sandbox_grid_cap_kw))
         return limits
