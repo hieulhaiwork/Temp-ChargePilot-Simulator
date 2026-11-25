@@ -1,0 +1,5 @@
+cwd=/tmp/p019-g6a-clean-verify
+$ isolated timeout -k 3s 150s python -m pytest -q tests/test_services/test_why_engine.py tests/test_services/test_why_temporal_and_auth.py tests/test_services/test_why_g2_remediation.py tests/test_services/test_why_g2_final_fix.py tests/test_services/test_counterfactual_foundation.py tests/test_services/test_g3_runtime_readiness.py tests/test_services/test_what_if.py 
+........................................................................ [ 56%]
+........................................................                 [100%]
+128 passed in 5.38s

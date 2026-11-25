@@ -32,7 +32,8 @@ Mở `http://localhost:3000/login`. Tài khoản fixture đều có mật khẩu
 
 | Vai trò | Email fixture | Dashboard |
 |---|---|---|
-| Resident | `res-resident-demo@g6a.example` | `/resident` |
+| Resident (có lịch chờ) | `res-resident-demo@g6a.example` | `/resident` |
+| Resident 2 (kiểm cô lập tài khoản) | `second-resident@g6a.example` | `/resident` |
 | Operator | `operator@g6a.example` | `/operator` |
 
 1. Resident hỏi **Tại sao xe của tôi vẫn chưa được sạc?** Mở Bằng chứng để xem decision time, stage và refs của WHY.

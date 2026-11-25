@@ -1,0 +1,22 @@
+{
+  "configured_provider": "openai",
+  "describe_provider": {
+    "provider": "openai",
+    "model": "gpt-4o",
+    "model_classify": "gpt-4o-mini"
+  },
+  "model_classify": "gpt-4o-mini",
+  "model_generate": "gpt-4o",
+  "openai_base_url_host": "api.openai.com (default)",
+  "openai_api_key_configured": false,
+  "other_env_keys_configured": {
+    "GEMINI_API_KEY": false,
+    "GOOGLE_API_KEY": false,
+    "OPENROUTER_API_KEY": false,
+    "ANTHROPIC_API_KEY": false
+  },
+  "local_llm_base_url": "http://localhost:11434/v1",
+  "local_llm_reachable": false,
+  "real_llm_smoke_status": "PENDING_NO_AUTHORIZED_KEY",
+  "demo_and_browser_smoke_mode": "LLM_PROVIDER=mock (deterministic fallback parser; real FastAPI/JWT/WHY/WHAT-IF/Guard/StationKernel)"
+}

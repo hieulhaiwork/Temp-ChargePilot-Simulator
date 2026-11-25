@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { Notice, Panel, SectionHead, Tag } from "@/components/ui/blocks";
@@ -189,33 +189,68 @@ function active(job?: Schema["CopilotJob"]) {
 
 export function CopilotPanel({ role }: { role: Schema["CopilotContext"]["role"] }) {
   const session = useSession();
+  const cache = useQueryClient();
+  const sessionToken = session?.token ?? "";
+  useEffect(() => {
+    if (!session) {
+      void cache.cancelQueries({ queryKey: ["copilot"] });
+      cache.removeQueries({ queryKey: ["copilot"] });
+    }
+  }, [cache, session]);
   if (!session || session.role !== role) return null;
-  return <CopilotForActor key={session.userId} role={role} userId={session.userId} />;
+  const actorKey = `${role}:${session.userId}:${sessionToken}`;
+  return <CopilotForActor key={actorKey} role={role} userId={session.userId} actorKey={actorKey} />;
 }
 
-function CopilotForActor({ role, userId }: { role: Schema["CopilotContext"]["role"]; userId: string }) {
+function CopilotForActor({
+  role,
+  userId,
+  actorKey,
+}: {
+  role: Schema["CopilotContext"]["role"];
+  userId: string;
+  actorKey: string;
+}) {
   const id = useId();
   const cache = useQueryClient();
+  const mountedRef = useRef(true);
+  const submitEpochRef = useRef(0);
   const [reply, setReply] = useState<Reply>();
   const [message, setMessage] = useState("");
   const [booking, setBooking] = useState("");
   const [connector, setConnector] = useState("");
   const [mode, setMode] = useState<FormMode>("why");
   const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      submitEpochRef.current += 1;
+      void cache.cancelQueries({ queryKey: ["copilot", "context", role, userId, actorKey] });
+      void cache.cancelQueries({ queryKey: ["copilot", "job", userId, actorKey] });
+      cache.removeQueries({ queryKey: ["copilot", "context", role, userId, actorKey] });
+      cache.removeQueries({ queryKey: ["copilot", "job", userId, actorKey] });
+    };
+  }, [actorKey, cache, role, userId]);
   const context = useQuery({
-    queryKey: ["copilot", "context", role, userId],
-    queryFn: () => unwrap(api.GET("/api/v1/copilot/context")),
+    queryKey: ["copilot", "context", role, userId, actorKey],
+    queryFn: ({ signal }) => unwrap(api.GET("/api/v1/copilot/context", { signal })),
   });
   const submit = useMutation({
-    mutationFn: (request: () => Promise<Reply>) => request(),
-    onSuccess(result) {
+    mutationFn: async (request: () => Promise<Reply>) => {
+      const epoch = ++submitEpochRef.current;
+      const result = await request();
+      return { epoch, result };
+    },
+    onSuccess({ epoch, result }) {
+      if (!mountedRef.current || epoch !== submitEpochRef.current) return;
       setReply(result);
       if (result.kind === "notice" && result.code === "structured_fallback") setFormOpen(true);
     },
   });
   const initial = reply?.kind === "job" ? reply : undefined;
   const jobId = initial?.job.job_id ?? "";
-  const jobKey = ["copilot", "job", userId, jobId] as const;
+  const jobKey = ["copilot", "job", userId, actorKey, jobId] as const;
   const poll = useQuery({
     queryKey: jobKey,
     enabled: active(initial?.job),
@@ -227,7 +262,9 @@ function CopilotForActor({ role, userId }: { role: Schema["CopilotContext"]["rol
   const job = (poll.data ?? initial)?.job;
   const cancel = useMutation({
     mutationFn: () => unwrap(api.DELETE("/api/v1/copilot/jobs/{job_id}", { params: { path: { job_id: jobId } } })),
-    onSuccess: (result) => cache.setQueryData(jobKey, result),
+    onSuccess: (result) => {
+      if (mountedRef.current) cache.setQueryData(jobKey, result);
+    },
   });
   const timezone = context.data?.timezone ?? "Asia/Ho_Chi_Minh";
   const choices = context.data;

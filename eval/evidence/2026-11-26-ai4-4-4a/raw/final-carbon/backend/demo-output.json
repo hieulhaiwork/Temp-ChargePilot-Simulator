@@ -1,0 +1,4336 @@
+{
+  "provider": "deterministic fallback (LLM_PROVIDER=mock)",
+  "station_as_of": "2026-11-23T12:01:00+07:00",
+  "resident_why": {
+    "question": "Tại sao xe của tôi vẫn chưa được sạc?",
+    "http": 200,
+    "kind": "why",
+    "result": {
+      "status": "partial",
+      "topic": "queue",
+      "subject_scope": "own_booking",
+      "subject_id": "resident-demo",
+      "query_at": "2026-11-23T12:01:00+07:00",
+      "query_window": null,
+      "decision_time": "2026-11-23T12:01:00+07:00",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "state_version": 20,
+      "traces": [
+        {
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "state_version": 20,
+          "schedule_version": 2,
+          "closed": false,
+          "planned_interval_start": "2026-11-23T12:01:00+07:00",
+          "planned_interval_end": "2026-11-23T12:16:00+07:00",
+          "effective_start": "2026-11-23T12:01:00+07:00",
+          "effective_end": "2026-11-23T12:16:00+07:00",
+          "measured_start": null,
+          "measured_end": null,
+          "coverage_status": "not_evaluated",
+          "post_apply_status": "not_evaluated",
+          "stale_after_restart": false
+        }
+      ],
+      "facts": [
+        {
+          "fact_id": "f001:1002311b:vehicle.observed_state",
+          "name": "vehicle.observed_state",
+          "subject": "resident-demo",
+          "stage": "observed",
+          "value": "QUEUED",
+          "unit": null,
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/vehicles/resident-demo/state",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/state",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/state"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f002:1002311b:vehicle.observed_connector",
+          "name": "vehicle.observed_connector",
+          "subject": "resident-demo",
+          "stage": "observed",
+          "value": null,
+          "unit": null,
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/vehicles/resident-demo/connector_id",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/connector_id",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/connector_id"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f003:1002311b:queue.observed_position",
+          "name": "queue.observed_position",
+          "subject": "resident-demo",
+          "stage": "observed",
+          "value": 1,
+          "unit": "rank",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/vehicles/resident-demo/queue_position",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/queue_position",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/queue_position"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f004:1002311b:queue.zone_empty_ports",
+          "name": "queue.zone_empty_ports",
+          "subject": "AC",
+          "stage": "observed",
+          "value": 0,
+          "unit": "count",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/zone_summary/AC/empty_ports",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/empty_ports",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/empty_ports"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f005:1002311b:queue.zone_faulted_ports",
+          "name": "queue.zone_faulted_ports",
+          "subject": "AC",
+          "stage": "observed",
+          "value": 0,
+          "unit": "count",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/zone_summary/AC/faulted_ports",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/faulted_ports",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/faulted_ports"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f006:1002311b:queue.zone_waiting_count",
+          "name": "queue.zone_waiting_count",
+          "subject": "AC",
+          "stage": "observed",
+          "value": 1,
+          "unit": "count",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/zone_summary/AC/waiting_count",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/waiting_count",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/waiting_count"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f007:1002311b:queue.zone_occupied_ports",
+          "name": "queue.zone_occupied_ports",
+          "subject": "AC",
+          "stage": "observed",
+          "value": 2,
+          "unit": "count",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/observed/zone_summary/AC/occupied_ports",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/occupied_ports",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/occupied_ports"
+          ],
+          "derivation_params": {}
+        },
+        {
+          "fact_id": "f008:1002311b:dispatch.policy",
+          "name": "dispatch.policy",
+          "subject": "AC",
+          "stage": "config",
+          "value": "fifo",
+          "unit": null,
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null,
+          "source_path": "/planned/dispatch/AC/policy",
+          "evidence_ref": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/dispatch/AC/policy",
+          "derivation_kind": "direct",
+          "derivation_op": null,
+          "input_evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/dispatch/AC/policy"
+          ],
+          "derivation_params": {}
+        }
+      ],
+      "reasons": [
+        {
+          "code": "NO_FREE_COMPATIBLE_PORT",
+          "category": "observed",
+          "subject": "resident-demo",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "fact_refs": [
+            "f001:1002311b:vehicle.observed_state",
+            "f003:1002311b:queue.observed_position",
+            "f004:1002311b:queue.zone_empty_ports",
+            "f005:1002311b:queue.zone_faulted_ports"
+          ],
+          "evidence_refs": [
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/state",
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/queue_position",
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/empty_ports",
+            "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/faulted_ports"
+          ],
+          "template_key": "queue.no_free_port",
+          "params": {
+            "zone": "AC",
+            "faulted_ports": 0
+          },
+          "summary": "Xe đang chờ vì vùng AC không còn cổng tương thích trống ở thời điểm quyết định."
+        }
+      ],
+      "evidence_refs": [
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/state",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/vehicles/resident-demo/state",
+          "subject": "resident-demo",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/connector_id",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/vehicles/resident-demo/connector_id",
+          "subject": "resident-demo",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/queue_position",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/vehicles/resident-demo/queue_position",
+          "subject": "resident-demo",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/empty_ports",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/zone_summary/AC/empty_ports",
+          "subject": "AC",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/faulted_ports",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/zone_summary/AC/faulted_ports",
+          "subject": "AC",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/waiting_count",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/zone_summary/AC/waiting_count",
+          "subject": "AC",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/occupied_ports",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/observed/zone_summary/AC/occupied_ports",
+          "subject": "AC",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        },
+        {
+          "ref_id": "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/dispatch/AC/policy",
+          "correlation_id": "1002311b10b14d91964bd0aaf1243725",
+          "trace_schema": "chargepilot.backend_decision_trace/2",
+          "source_path": "/planned/dispatch/AC/policy",
+          "subject": "AC",
+          "decided_at": "2026-11-23T12:01:00+07:00",
+          "policy_id": "B0",
+          "policy_version": "1",
+          "time_scope": "decision_snapshot",
+          "interval_start": null,
+          "interval_end": null
+        }
+      ],
+      "assumptions": [
+        "Trace đang mở (active): chỉ có dữ kiện tại thời điểm quyết định, chưa có số đo thực tế."
+      ],
+      "missing_evidence": [
+        "active_trace_no_measured_data"
+      ],
+      "truncated": false,
+      "next_cursor": null
+    },
+    "claims": [
+      {
+        "claim_id": "f001:1002311b:vehicle.observed_state",
+        "subject": "resident-demo",
+        "name": "vehicle.observed_state",
+        "value": "QUEUED",
+        "unit": null,
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/state"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f002:1002311b:vehicle.observed_connector",
+        "subject": "resident-demo",
+        "name": "vehicle.observed_connector",
+        "value": null,
+        "unit": null,
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/connector_id"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f003:1002311b:queue.observed_position",
+        "subject": "resident-demo",
+        "name": "queue.observed_position",
+        "value": 1,
+        "unit": "rank",
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/queue_position"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f004:1002311b:queue.zone_empty_ports",
+        "subject": "AC",
+        "name": "queue.zone_empty_ports",
+        "value": 0,
+        "unit": "count",
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/empty_ports"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f005:1002311b:queue.zone_faulted_ports",
+        "subject": "AC",
+        "name": "queue.zone_faulted_ports",
+        "value": 0,
+        "unit": "count",
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/faulted_ports"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f006:1002311b:queue.zone_waiting_count",
+        "subject": "AC",
+        "name": "queue.zone_waiting_count",
+        "value": 1,
+        "unit": "count",
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/waiting_count"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f007:1002311b:queue.zone_occupied_ports",
+        "subject": "AC",
+        "name": "queue.zone_occupied_ports",
+        "value": 2,
+        "unit": "count",
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/occupied_ports"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "f008:1002311b:dispatch.policy",
+        "subject": "AC",
+        "name": "dispatch.policy",
+        "value": "fifo",
+        "unit": null,
+        "stage": "config",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/dispatch/AC/policy"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": null,
+        "reason_category": null
+      },
+      {
+        "claim_id": "reason:0",
+        "subject": "resident-demo",
+        "name": "queue.no_free_port",
+        "value": "Xe đang chờ vì vùng AC không còn cổng tương thích trống ở thời điểm quyết định.",
+        "unit": null,
+        "stage": "observed",
+        "observed_at": "2026-11-23T12:01:00+07:00",
+        "interval_start": null,
+        "interval_end": null,
+        "evidence_refs": [
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/state",
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/vehicles/resident-demo/queue_position",
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/empty_ports",
+          "1002311b10b14d91964bd0aaf1243725:chargepilot.backend_decision_trace/2#/planned/observed/zone_summary/AC/faulted_ports"
+        ],
+        "branch": null,
+        "direction": null,
+        "reason_code": "NO_FREE_COMPATIBLE_PORT",
+        "reason_category": "observed"
+      }
+    ],
+    "summary": "Bằng chứng hiện có chỉ trả lời được một phần.",
+    "parse_source": "deterministic"
+  },
+  "resident_soc": {
+    "question": "Nếu tôi chỉ cần sạc đến 75% thay vì 90% thì sao?",
+    "http": 202,
+    "kind": "job",
+    "job": {
+      "job_id": "3e6b2ca9a79b4a3b9ff609d50ba70fcd",
+      "job_kind": "what_if",
+      "status": "succeeded",
+      "error": null,
+      "result": {
+        "kind": "what_if",
+        "result": {
+          "applied": false,
+          "status": "completed",
+          "snapshot_id": "snap-d7d2782fee824d33",
+          "snapshot_digest": "f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88",
+          "snapshot_time": "2026-11-23T12:01:00+07:00",
+          "state_version": 20,
+          "experiment_fingerprint": "908e98767707ed211e1396a6d3b3b8957e7daa3b0ea8363976e23ad63f439dbe",
+          "event_manifest_sha256": "d3a7e46a1d439e16f3dcccd92160c869a3a4fcfcea47aaf2e97fd96c9381fbfe",
+          "horizon_end": "2026-11-23T14:01:00+07:00",
+          "horizon_minutes": 120,
+          "known_booking_count": 5,
+          "known_limit_event_count": 0,
+          "patch": {
+            "op": "revise_vehicle",
+            "booking_id": "resident-demo",
+            "target_soc": 75.0,
+            "deadline": null
+          },
+          "patch_sha256": "26a6fd3dbcba2ca9b82ec6cc17095a79c12e6f2cd258fc84581bf2f9c1be0b38",
+          "hypothetical_infrastructure": false,
+          "baseline": {
+            "run_id": "b874e2a806ac493d8c74fefa88bd1bf1",
+            "input_sha256": "f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88",
+            "config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+            "final_physics_sha256": "3938989b0df7adcbbaab96a5c2ec171552a0f969171341d66eeb0e35fb4bccfe",
+            "status": "completed",
+            "observed_until": "2026-11-23T14:01:00+07:00",
+            "metrics": {
+              "cohort_size": 5,
+              "sla": {
+                "cohort_size": 5,
+                "denominator": 3,
+                "met_count": 2,
+                "on_time_rate": 0.666667,
+                "censored_count": 2
+              },
+              "by_zone": {
+                "AC": {
+                  "cohort_size": 3,
+                  "denominator": 1,
+                  "met_count": 0,
+                  "on_time_rate": 0.0,
+                  "censored_count": 2
+                },
+                "DC": {
+                  "cohort_size": 2,
+                  "denominator": 2,
+                  "met_count": 2,
+                  "on_time_rate": 1.0,
+                  "censored_count": 0
+                }
+              },
+              "service_coverage_denominator": 5,
+              "service_coverage_rate": 0.8,
+              "charged_coverage_rate": 0.8,
+              "unserved_count": 1,
+              "plug_wait_observed_count": 4,
+              "plug_wait_censored_count": 1,
+              "plug_wait_unknown_count": 0,
+              "plug_wait_mean_minutes": 0.0,
+              "plug_wait_p90_minutes": 0.0,
+              "charge_wait_observed_count": 0,
+              "charge_wait_censored_count": 1,
+              "charge_wait_unknown_count": 4,
+              "charge_wait_mean_minutes": null,
+              "charge_wait_p90_minutes": null,
+              "horizon_battery_kwh": 114.002,
+              "horizon_output_kwh": 116.328572,
+              "horizon_grid_input_kwh": 122.451128,
+              "horizon_energy_cost_vnd": 244902.26,
+              "unmet_original_battery_kwh": 70.767666,
+              "unmet_original_output_kwh": 70.767666,
+              "peak_charger_output_kw": 100.0,
+              "peak_grid_input_kw": 105.263158
+            },
+            "hard_violations": 0,
+            "rejected_allocations": 0,
+            "sampled_grid_over_limit_minutes": 0,
+            "unresolved_safety_count": 0,
+            "blocked_commands": 0,
+            "pending_approvals": 0,
+            "pending_approval_commands": 0
+          },
+          "patched": {
+            "run_id": "163807de42ae4f5a8531e9214a7cd80c",
+            "input_sha256": "b663275eed22a4a3b1af72dce6d99fc984ef278221c512d6258cc63fe7588ada",
+            "config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+            "final_physics_sha256": "4d7781f6e4e9f0c7493731047088e301a1305cc24586cf7460ed3ec2ac72457e",
+            "status": "completed",
+            "observed_until": "2026-11-23T14:01:00+07:00",
+            "metrics": {
+              "cohort_size": 5,
+              "sla": {
+                "cohort_size": 5,
+                "denominator": 3,
+                "met_count": 2,
+                "on_time_rate": 0.666667,
+                "censored_count": 2
+              },
+              "by_zone": {
+                "AC": {
+                  "cohort_size": 3,
+                  "denominator": 1,
+                  "met_count": 0,
+                  "on_time_rate": 0.0,
+                  "censored_count": 2
+                },
+                "DC": {
+                  "cohort_size": 2,
+                  "denominator": 2,
+                  "met_count": 2,
+                  "on_time_rate": 1.0,
+                  "censored_count": 0
+                }
+              },
+              "service_coverage_denominator": 5,
+              "service_coverage_rate": 0.8,
+              "charged_coverage_rate": 0.8,
+              "unserved_count": 1,
+              "plug_wait_observed_count": 4,
+              "plug_wait_censored_count": 1,
+              "plug_wait_unknown_count": 0,
+              "plug_wait_mean_minutes": 0.0,
+              "plug_wait_p90_minutes": 0.0,
+              "charge_wait_observed_count": 0,
+              "charge_wait_censored_count": 1,
+              "charge_wait_unknown_count": 4,
+              "charge_wait_mean_minutes": null,
+              "charge_wait_p90_minutes": null,
+              "horizon_battery_kwh": 114.002,
+              "horizon_output_kwh": 116.328572,
+              "horizon_grid_input_kwh": 122.451128,
+              "horizon_energy_cost_vnd": 244902.26,
+              "unmet_original_battery_kwh": 70.767666,
+              "unmet_original_output_kwh": 70.767666,
+              "peak_charger_output_kw": 100.0,
+              "peak_grid_input_kw": 105.263158
+            },
+            "hard_violations": 0,
+            "rejected_allocations": 0,
+            "sampled_grid_over_limit_minutes": 0,
+            "unresolved_safety_count": 0,
+            "blocked_commands": 0,
+            "pending_approvals": 0,
+            "pending_approval_commands": 0
+          },
+          "delta": {
+            "charge_wait_censored_count": 0.0,
+            "charge_wait_mean_minutes": null,
+            "charge_wait_observed_count": 0.0,
+            "charge_wait_p90_minutes": null,
+            "charge_wait_unknown_count": 0.0,
+            "charged_coverage_rate": 0.0,
+            "cohort_size": 0.0,
+            "horizon_battery_kwh": 0.0,
+            "horizon_energy_cost_vnd": 0.0,
+            "horizon_grid_input_kwh": 0.0,
+            "horizon_output_kwh": 0.0,
+            "peak_charger_output_kw": 0.0,
+            "peak_grid_input_kw": 0.0,
+            "plug_wait_censored_count": 0.0,
+            "plug_wait_mean_minutes": 0.0,
+            "plug_wait_observed_count": 0.0,
+            "plug_wait_p90_minutes": 0.0,
+            "plug_wait_unknown_count": 0.0,
+            "service_coverage_denominator": 0.0,
+            "service_coverage_rate": 0.0,
+            "sla.AC.censored_count": 0.0,
+            "sla.AC.cohort_size": 0.0,
+            "sla.AC.denominator": 0.0,
+            "sla.AC.met_count": 0.0,
+            "sla.AC.on_time_rate": 0.0,
+            "sla.DC.censored_count": 0.0,
+            "sla.DC.cohort_size": 0.0,
+            "sla.DC.denominator": 0.0,
+            "sla.DC.met_count": 0.0,
+            "sla.DC.on_time_rate": 0.0,
+            "sla.censored_count": 0.0,
+            "sla.cohort_size": 0.0,
+            "sla.denominator": 0.0,
+            "sla.met_count": 0.0,
+            "sla.on_time_rate": 0.0,
+            "unmet_original_battery_kwh": 0.0,
+            "unmet_original_output_kwh": 0.0,
+            "unserved_count": 0.0
+          },
+          "delta_reasons": {
+            "charge_wait_mean_minutes": {
+              "code": "missing_data"
+            },
+            "charge_wait_p90_minutes": {
+              "code": "missing_data"
+            }
+          },
+          "feasible": false,
+          "affected_vehicles": [
+            {
+              "booking_id": "resident-demo",
+              "baseline_original": {
+                "target_soc": 90.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 42.091,
+                "remaining_output_kwh": 42.091
+              },
+              "patched_original": {
+                "target_soc": 90.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 42.091,
+                "remaining_output_kwh": 42.091
+              },
+              "patched_revised": {
+                "target_soc": 75.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 33.0715,
+                "remaining_output_kwh": 33.0715
+              },
+              "baseline_plug_in_at": null,
+              "patched_plug_in_at": null,
+              "baseline_first_charge_at": null,
+              "patched_first_charge_at": null,
+              "baseline_release_at": "2026-11-23T14:00:00+07:00",
+              "patched_release_at": "2026-11-23T14:00:00+07:00",
+              "initial_soc_pct": 20.0,
+              "baseline_final_soc_pct": 20.0,
+              "patched_final_soc_pct": 20.0,
+              "baseline_horizon_battery_kwh": 0.0,
+              "patched_horizon_battery_kwh": 0.0
+            }
+          ],
+          "assumptions": [
+            "Prospective known_at(T) boundary: live bookings are known through committed store membership at capture; synthetic bookings use created_at <= T in simulator time.",
+            "Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute <= as_of_minute) are visible to optimizer and sandbox physics.",
+            "Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).",
+            "Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.",
+            "Live runtime is never stepped, drained, or mutated during snapshot capture or sandbox rollout.",
+            "Delta is patched minus baseline on a shared full safe observation window and matching metric samples.",
+            "Station unmet energy is remaining energy to original targets at the observation cutoff.",
+            "Station SLA uses original commitments. Revised SLA is reported separately.",
+            "Remaining output equivalents use booking charging efficiency. Grid input denotes sampled station energy."
+          ]
+        },
+        "claims": [
+          {
+            "claim_id": "baseline:horizon_battery_kwh",
+            "subject": "CP-01",
+            "name": "horizon_battery_kwh",
+            "value": 114.002,
+            "unit": "kWh battery",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_battery_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_battery_kwh",
+            "subject": "CP-01",
+            "name": "horizon_battery_kwh",
+            "value": 114.002,
+            "unit": "kWh battery",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_battery_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_battery_kwh",
+            "subject": "CP-01",
+            "name": "horizon_battery_kwh",
+            "value": 0.0,
+            "unit": "kWh battery",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/horizon_battery_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:horizon_output_kwh",
+            "subject": "CP-01",
+            "name": "horizon_output_kwh",
+            "value": 116.328572,
+            "unit": "kWh charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_output_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_output_kwh",
+            "subject": "CP-01",
+            "name": "horizon_output_kwh",
+            "value": 116.328572,
+            "unit": "kWh charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_output_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_output_kwh",
+            "subject": "CP-01",
+            "name": "horizon_output_kwh",
+            "value": 0.0,
+            "unit": "kWh charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/horizon_output_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:horizon_grid_input_kwh",
+            "subject": "CP-01",
+            "name": "horizon_grid_input_kwh",
+            "value": 122.451128,
+            "unit": "kWh grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_grid_input_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_grid_input_kwh",
+            "subject": "CP-01",
+            "name": "horizon_grid_input_kwh",
+            "value": 122.451128,
+            "unit": "kWh grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_grid_input_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_grid_input_kwh",
+            "subject": "CP-01",
+            "name": "horizon_grid_input_kwh",
+            "value": 0.0,
+            "unit": "kWh grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_grid_input_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_grid_input_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/horizon_grid_input_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:horizon_energy_cost_vnd",
+            "subject": "CP-01",
+            "name": "horizon_energy_cost_vnd",
+            "value": 244902.26,
+            "unit": "VND",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_energy_cost_vnd"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_energy_cost_vnd",
+            "subject": "CP-01",
+            "name": "horizon_energy_cost_vnd",
+            "value": 244902.26,
+            "unit": "VND",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_energy_cost_vnd"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_energy_cost_vnd",
+            "subject": "CP-01",
+            "name": "horizon_energy_cost_vnd",
+            "value": 0.0,
+            "unit": "VND",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/horizon_energy_cost_vnd",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/horizon_energy_cost_vnd",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/horizon_energy_cost_vnd"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:peak_charger_output_kw",
+            "subject": "CP-01",
+            "name": "peak_charger_output_kw",
+            "value": 100.0,
+            "unit": "kW charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/peak_charger_output_kw"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:peak_charger_output_kw",
+            "subject": "CP-01",
+            "name": "peak_charger_output_kw",
+            "value": 100.0,
+            "unit": "kW charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/peak_charger_output_kw"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:peak_charger_output_kw",
+            "subject": "CP-01",
+            "name": "peak_charger_output_kw",
+            "value": 0.0,
+            "unit": "kW charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/peak_charger_output_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/peak_charger_output_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/peak_charger_output_kw"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:peak_grid_input_kw",
+            "subject": "CP-01",
+            "name": "peak_grid_input_kw",
+            "value": 105.263158,
+            "unit": "kW grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/peak_grid_input_kw"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:peak_grid_input_kw",
+            "subject": "CP-01",
+            "name": "peak_grid_input_kw",
+            "value": 105.263158,
+            "unit": "kW grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/peak_grid_input_kw"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:peak_grid_input_kw",
+            "subject": "CP-01",
+            "name": "peak_grid_input_kw",
+            "value": 0.0,
+            "unit": "kW grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/peak_grid_input_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/peak_grid_input_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/peak_grid_input_kw"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:unmet_original_battery_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_battery_kwh",
+            "value": 70.767666,
+            "unit": "kWh battery at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/unmet_original_battery_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:unmet_original_battery_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_battery_kwh",
+            "value": 70.767666,
+            "unit": "kWh battery at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/unmet_original_battery_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:unmet_original_battery_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_battery_kwh",
+            "value": 0.0,
+            "unit": "kWh battery at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/unmet_original_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/unmet_original_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/unmet_original_battery_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:unmet_original_output_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_output_kwh",
+            "value": 70.767666,
+            "unit": "kWh charger output at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/unmet_original_output_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:unmet_original_output_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_output_kwh",
+            "value": 70.767666,
+            "unit": "kWh charger output at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/unmet_original_output_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:unmet_original_output_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_output_kwh",
+            "value": 0.0,
+            "unit": "kWh charger output at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/unmet_original_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/unmet_original_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/unmet_original_output_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:plug_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_mean_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/plug_wait_mean_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:plug_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_mean_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/plug_wait_mean_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:plug_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_mean_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/plug_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/plug_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/plug_wait_mean_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:plug_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_p90_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/plug_wait_p90_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:plug_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_p90_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/plug_wait_p90_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:plug_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_p90_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/plug_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/plug_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/plug_wait_p90_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:charge_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_mean_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/charge_wait_mean_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:charge_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_mean_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/charge_wait_mean_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:charge_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_mean_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/charge_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/charge_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/charge_wait_mean_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": "missing_data",
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:charge_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_p90_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/charge_wait_p90_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:charge_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_p90_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/charge_wait_p90_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:charge_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_p90_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/charge_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/charge_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/charge_wait_p90_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": "missing_data",
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:service_coverage_rate",
+            "subject": "CP-01",
+            "name": "service_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/service_coverage_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:service_coverage_rate",
+            "subject": "CP-01",
+            "name": "service_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/service_coverage_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:service_coverage_rate",
+            "subject": "CP-01",
+            "name": "service_coverage_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/service_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/service_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/service_coverage_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:charged_coverage_rate",
+            "subject": "CP-01",
+            "name": "charged_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/charged_coverage_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:charged_coverage_rate",
+            "subject": "CP-01",
+            "name": "charged_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/charged_coverage_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:charged_coverage_rate",
+            "subject": "CP-01",
+            "name": "charged_coverage_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/charged_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/charged_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/charged_coverage_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:sla.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.on_time_rate",
+            "value": 0.666667,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/sla/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:sla.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.on_time_rate",
+            "value": 0.666667,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/sla/on_time_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:sla.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/sla/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/sla/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/sla.on_time_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:sla.AC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.AC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/by_zone/AC/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:sla.AC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.AC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/by_zone/AC/on_time_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:sla.AC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.AC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/by_zone/AC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/by_zone/AC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/sla.AC.on_time_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:sla.DC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.DC.on_time_rate",
+            "value": 1.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/by_zone/DC/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:sla.DC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.DC.on_time_rate",
+            "value": 1.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/by_zone/DC/on_time_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:sla.DC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.DC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/baseline/metrics/by_zone/DC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/patched/metrics/by_zone/DC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:163807de42ae4f5a8531e9214a7cd80c#/delta/sla.DC.on_time_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          }
+        ],
+        "summary": "Đã mô phỏng hai nhánh. Kết quả chỉ dùng để tham khảo."
+      },
+      "applied": false
+    },
+    "parse_source": "deterministic"
+  },
+  "operator_outage": {
+    "question": "Nếu một cổng DC bị lỗi trong 30 phút thì sao?",
+    "http": 202,
+    "kind": "job",
+    "job": {
+      "job_id": "880cf3f1448d4fee8255dac88d0ac193",
+      "job_kind": "what_if",
+      "status": "succeeded",
+      "error": null,
+      "result": {
+        "kind": "what_if",
+        "result": {
+          "applied": false,
+          "status": "completed",
+          "snapshot_id": "snap-7210a9303ad14a52",
+          "snapshot_digest": "f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88",
+          "snapshot_time": "2026-11-23T12:01:00+07:00",
+          "state_version": 20,
+          "experiment_fingerprint": "908e98767707ed211e1396a6d3b3b8957e7daa3b0ea8363976e23ad63f439dbe",
+          "event_manifest_sha256": "d3a7e46a1d439e16f3dcccd92160c869a3a4fcfcea47aaf2e97fd96c9381fbfe",
+          "horizon_end": "2026-11-23T14:01:00+07:00",
+          "horizon_minutes": 120,
+          "known_booking_count": 5,
+          "known_limit_event_count": 0,
+          "patch": {
+            "op": "outage",
+            "connector_id": "DC-01-1",
+            "starts_at": "2026-11-23T05:01:00Z",
+            "duration_minutes": 30
+          },
+          "patch_sha256": "83d1750d8ae4593f651a8933c77989f4cb72018ab1914b399a5d5fe18ac73f03",
+          "hypothetical_infrastructure": false,
+          "baseline": {
+            "run_id": "4c448b8c78434d7ca20c6229298447d3",
+            "input_sha256": "f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88",
+            "config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+            "final_physics_sha256": "3938989b0df7adcbbaab96a5c2ec171552a0f969171341d66eeb0e35fb4bccfe",
+            "status": "completed",
+            "observed_until": "2026-11-23T14:01:00+07:00",
+            "metrics": {
+              "cohort_size": 5,
+              "sla": {
+                "cohort_size": 5,
+                "denominator": 3,
+                "met_count": 2,
+                "on_time_rate": 0.666667,
+                "censored_count": 2
+              },
+              "by_zone": {
+                "AC": {
+                  "cohort_size": 3,
+                  "denominator": 1,
+                  "met_count": 0,
+                  "on_time_rate": 0.0,
+                  "censored_count": 2
+                },
+                "DC": {
+                  "cohort_size": 2,
+                  "denominator": 2,
+                  "met_count": 2,
+                  "on_time_rate": 1.0,
+                  "censored_count": 0
+                }
+              },
+              "service_coverage_denominator": 5,
+              "service_coverage_rate": 0.8,
+              "charged_coverage_rate": 0.8,
+              "unserved_count": 1,
+              "plug_wait_observed_count": 4,
+              "plug_wait_censored_count": 1,
+              "plug_wait_unknown_count": 0,
+              "plug_wait_mean_minutes": 0.0,
+              "plug_wait_p90_minutes": 0.0,
+              "charge_wait_observed_count": 0,
+              "charge_wait_censored_count": 1,
+              "charge_wait_unknown_count": 4,
+              "charge_wait_mean_minutes": null,
+              "charge_wait_p90_minutes": null,
+              "horizon_battery_kwh": 114.002,
+              "horizon_output_kwh": 116.328572,
+              "horizon_grid_input_kwh": 122.451128,
+              "horizon_energy_cost_vnd": 244902.26,
+              "unmet_original_battery_kwh": 70.767666,
+              "unmet_original_output_kwh": 70.767666,
+              "peak_charger_output_kw": 100.0,
+              "peak_grid_input_kw": 105.263158
+            },
+            "hard_violations": 0,
+            "rejected_allocations": 0,
+            "sampled_grid_over_limit_minutes": 0,
+            "unresolved_safety_count": 0,
+            "blocked_commands": 0,
+            "pending_approvals": 0,
+            "pending_approval_commands": 0
+          },
+          "patched": {
+            "run_id": "5649e81f9e7a4516992deaa306a25cd4",
+            "input_sha256": "403252c26a75f253bf30f0ee58b14bea6f1fec0a81f9fb5d2d27c31852663960",
+            "config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+            "final_physics_sha256": "c2d89a9ca531e53d0c9ece1965a0c1d903e4abaccf20a8c392ccf83d07f2fc1f",
+            "status": "completed",
+            "observed_until": "2026-11-23T14:01:00+07:00",
+            "metrics": {
+              "cohort_size": 5,
+              "sla": {
+                "cohort_size": 5,
+                "denominator": 3,
+                "met_count": 1,
+                "on_time_rate": 0.333333,
+                "censored_count": 2
+              },
+              "by_zone": {
+                "AC": {
+                  "cohort_size": 3,
+                  "denominator": 1,
+                  "met_count": 0,
+                  "on_time_rate": 0.0,
+                  "censored_count": 2
+                },
+                "DC": {
+                  "cohort_size": 2,
+                  "denominator": 2,
+                  "met_count": 1,
+                  "on_time_rate": 0.5,
+                  "censored_count": 0
+                }
+              },
+              "service_coverage_denominator": 5,
+              "service_coverage_rate": 0.8,
+              "charged_coverage_rate": 0.8,
+              "unserved_count": 1,
+              "plug_wait_observed_count": 4,
+              "plug_wait_censored_count": 1,
+              "plug_wait_unknown_count": 0,
+              "plug_wait_mean_minutes": 0.0,
+              "plug_wait_p90_minutes": 0.0,
+              "charge_wait_observed_count": 0,
+              "charge_wait_censored_count": 1,
+              "charge_wait_unknown_count": 4,
+              "charge_wait_mean_minutes": null,
+              "charge_wait_p90_minutes": null,
+              "horizon_battery_kwh": 114.00181,
+              "horizon_output_kwh": 116.328378,
+              "horizon_grid_input_kwh": 122.450924,
+              "horizon_energy_cost_vnd": 244901.85,
+              "unmet_original_battery_kwh": 70.767856,
+              "unmet_original_output_kwh": 70.767856,
+              "peak_charger_output_kw": 99.999,
+              "peak_grid_input_kw": 105.262105
+            },
+            "hard_violations": 0,
+            "rejected_allocations": 0,
+            "sampled_grid_over_limit_minutes": 0,
+            "unresolved_safety_count": 0,
+            "blocked_commands": 0,
+            "pending_approvals": 0,
+            "pending_approval_commands": 0
+          },
+          "delta": {
+            "charge_wait_censored_count": 0.0,
+            "charge_wait_mean_minutes": null,
+            "charge_wait_observed_count": 0.0,
+            "charge_wait_p90_minutes": null,
+            "charge_wait_unknown_count": 0.0,
+            "charged_coverage_rate": 0.0,
+            "cohort_size": 0.0,
+            "horizon_battery_kwh": -0.00019,
+            "horizon_energy_cost_vnd": -0.41,
+            "horizon_grid_input_kwh": -0.000204,
+            "horizon_output_kwh": -0.000194,
+            "peak_charger_output_kw": -0.001,
+            "peak_grid_input_kw": -0.001053,
+            "plug_wait_censored_count": 0.0,
+            "plug_wait_mean_minutes": 0.0,
+            "plug_wait_observed_count": 0.0,
+            "plug_wait_p90_minutes": 0.0,
+            "plug_wait_unknown_count": 0.0,
+            "service_coverage_denominator": 0.0,
+            "service_coverage_rate": 0.0,
+            "sla.AC.censored_count": 0.0,
+            "sla.AC.cohort_size": 0.0,
+            "sla.AC.denominator": 0.0,
+            "sla.AC.met_count": 0.0,
+            "sla.AC.on_time_rate": 0.0,
+            "sla.DC.censored_count": 0.0,
+            "sla.DC.cohort_size": 0.0,
+            "sla.DC.denominator": 0.0,
+            "sla.DC.met_count": -1.0,
+            "sla.DC.on_time_rate": -0.5,
+            "sla.censored_count": 0.0,
+            "sla.cohort_size": 0.0,
+            "sla.denominator": 0.0,
+            "sla.met_count": -1.0,
+            "sla.on_time_rate": -0.333334,
+            "unmet_original_battery_kwh": 0.00019,
+            "unmet_original_output_kwh": 0.00019,
+            "unserved_count": 0.0
+          },
+          "delta_reasons": {
+            "charge_wait_mean_minutes": {
+              "code": "missing_data"
+            },
+            "charge_wait_p90_minutes": {
+              "code": "missing_data"
+            }
+          },
+          "feasible": null,
+          "affected_vehicles": [
+            {
+              "booking_id": "operator-dc",
+              "baseline_original": {
+                "target_soc": 80.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": "2026-11-23T13:02:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              },
+              "patched_original": {
+                "target_soc": 80.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": "2026-11-23T13:36:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              },
+              "patched_revised": null,
+              "baseline_plug_in_at": "2026-11-23T12:00:00+07:00",
+              "patched_plug_in_at": "2026-11-23T12:00:00+07:00",
+              "baseline_first_charge_at": null,
+              "patched_first_charge_at": null,
+              "baseline_release_at": "2026-11-23T13:07:00+07:00",
+              "patched_release_at": "2026-11-23T13:41:00+07:00",
+              "initial_soc_pct": 21.059371,
+              "baseline_final_soc_pct": 80.0,
+              "patched_final_soc_pct": 80.0,
+              "baseline_horizon_battery_kwh": 35.441,
+              "patched_horizon_battery_kwh": 35.441
+            },
+            {
+              "booking_id": "operator-dc-second",
+              "baseline_original": {
+                "target_soc": 80.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": "2026-11-23T13:02:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              },
+              "patched_original": {
+                "target_soc": 80.0,
+                "deadline": "2026-11-23T14:00:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.00019,
+                "remaining_output_kwh": 0.00019
+              },
+              "patched_revised": null,
+              "baseline_plug_in_at": "2026-11-23T12:00:00+07:00",
+              "patched_plug_in_at": "2026-11-23T12:00:00+07:00",
+              "baseline_first_charge_at": null,
+              "patched_first_charge_at": null,
+              "baseline_release_at": "2026-11-23T13:07:00+07:00",
+              "patched_release_at": "2026-11-23T14:00:00+07:00",
+              "initial_soc_pct": 21.059371,
+              "baseline_final_soc_pct": 80.0,
+              "patched_final_soc_pct": 79.999684,
+              "baseline_horizon_battery_kwh": 35.441,
+              "patched_horizon_battery_kwh": 35.44081
+            }
+          ],
+          "assumptions": [
+            "Prospective known_at(T) boundary: live bookings are known through committed store membership at capture; synthetic bookings use created_at <= T in simulator time.",
+            "Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute <= as_of_minute) are visible to optimizer and sandbox physics.",
+            "Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).",
+            "Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.",
+            "Live runtime is never stepped, drained, or mutated during snapshot capture or sandbox rollout.",
+            "Delta is patched minus baseline on a shared full safe observation window and matching metric samples.",
+            "Station unmet energy is remaining energy to original targets at the observation cutoff.",
+            "Station SLA uses original commitments. Revised SLA is reported separately.",
+            "Remaining output equivalents use booking charging efficiency. Grid input denotes sampled station energy.",
+            "The patch-owned fault was restored at the end of its declared interval."
+          ]
+        },
+        "claims": [
+          {
+            "claim_id": "baseline:horizon_battery_kwh",
+            "subject": "CP-01",
+            "name": "horizon_battery_kwh",
+            "value": 114.002,
+            "unit": "kWh battery",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_battery_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_battery_kwh",
+            "subject": "CP-01",
+            "name": "horizon_battery_kwh",
+            "value": 114.00181,
+            "unit": "kWh battery",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_battery_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_battery_kwh",
+            "subject": "CP-01",
+            "name": "horizon_battery_kwh",
+            "value": -0.00019,
+            "unit": "kWh battery",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/horizon_battery_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:horizon_output_kwh",
+            "subject": "CP-01",
+            "name": "horizon_output_kwh",
+            "value": 116.328572,
+            "unit": "kWh charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_output_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_output_kwh",
+            "subject": "CP-01",
+            "name": "horizon_output_kwh",
+            "value": 116.328378,
+            "unit": "kWh charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_output_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_output_kwh",
+            "subject": "CP-01",
+            "name": "horizon_output_kwh",
+            "value": -0.000194,
+            "unit": "kWh charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/horizon_output_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:horizon_grid_input_kwh",
+            "subject": "CP-01",
+            "name": "horizon_grid_input_kwh",
+            "value": 122.451128,
+            "unit": "kWh grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_grid_input_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_grid_input_kwh",
+            "subject": "CP-01",
+            "name": "horizon_grid_input_kwh",
+            "value": 122.450924,
+            "unit": "kWh grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_grid_input_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_grid_input_kwh",
+            "subject": "CP-01",
+            "name": "horizon_grid_input_kwh",
+            "value": -0.000204,
+            "unit": "kWh grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_grid_input_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_grid_input_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/horizon_grid_input_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:horizon_energy_cost_vnd",
+            "subject": "CP-01",
+            "name": "horizon_energy_cost_vnd",
+            "value": 244902.26,
+            "unit": "VND",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_energy_cost_vnd"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:horizon_energy_cost_vnd",
+            "subject": "CP-01",
+            "name": "horizon_energy_cost_vnd",
+            "value": 244901.85,
+            "unit": "VND",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_energy_cost_vnd"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:horizon_energy_cost_vnd",
+            "subject": "CP-01",
+            "name": "horizon_energy_cost_vnd",
+            "value": -0.41,
+            "unit": "VND",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/horizon_energy_cost_vnd",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/horizon_energy_cost_vnd",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/horizon_energy_cost_vnd"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:peak_charger_output_kw",
+            "subject": "CP-01",
+            "name": "peak_charger_output_kw",
+            "value": 100.0,
+            "unit": "kW charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/peak_charger_output_kw"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:peak_charger_output_kw",
+            "subject": "CP-01",
+            "name": "peak_charger_output_kw",
+            "value": 99.999,
+            "unit": "kW charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/peak_charger_output_kw"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:peak_charger_output_kw",
+            "subject": "CP-01",
+            "name": "peak_charger_output_kw",
+            "value": -0.001,
+            "unit": "kW charger output",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/peak_charger_output_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/peak_charger_output_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/peak_charger_output_kw"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:peak_grid_input_kw",
+            "subject": "CP-01",
+            "name": "peak_grid_input_kw",
+            "value": 105.263158,
+            "unit": "kW grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/peak_grid_input_kw"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:peak_grid_input_kw",
+            "subject": "CP-01",
+            "name": "peak_grid_input_kw",
+            "value": 105.262105,
+            "unit": "kW grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/peak_grid_input_kw"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:peak_grid_input_kw",
+            "subject": "CP-01",
+            "name": "peak_grid_input_kw",
+            "value": -0.001053,
+            "unit": "kW grid input",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/peak_grid_input_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/peak_grid_input_kw",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/peak_grid_input_kw"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:unmet_original_battery_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_battery_kwh",
+            "value": 70.767666,
+            "unit": "kWh battery at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/unmet_original_battery_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:unmet_original_battery_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_battery_kwh",
+            "value": 70.767856,
+            "unit": "kWh battery at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/unmet_original_battery_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:unmet_original_battery_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_battery_kwh",
+            "value": 0.00019,
+            "unit": "kWh battery at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/unmet_original_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/unmet_original_battery_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/unmet_original_battery_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:unmet_original_output_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_output_kwh",
+            "value": 70.767666,
+            "unit": "kWh charger output at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/unmet_original_output_kwh"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:unmet_original_output_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_output_kwh",
+            "value": 70.767856,
+            "unit": "kWh charger output at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/unmet_original_output_kwh"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:unmet_original_output_kwh",
+            "subject": "CP-01",
+            "name": "unmet_original_output_kwh",
+            "value": 0.00019,
+            "unit": "kWh charger output at cutoff",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/unmet_original_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/unmet_original_output_kwh",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/unmet_original_output_kwh"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:plug_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_mean_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/plug_wait_mean_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:plug_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_mean_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/plug_wait_mean_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:plug_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_mean_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/plug_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/plug_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/plug_wait_mean_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:plug_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_p90_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/plug_wait_p90_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:plug_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_p90_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/plug_wait_p90_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:plug_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "plug_wait_p90_minutes",
+            "value": 0.0,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/plug_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/plug_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/plug_wait_p90_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:charge_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_mean_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/charge_wait_mean_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:charge_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_mean_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/charge_wait_mean_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:charge_wait_mean_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_mean_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/charge_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/charge_wait_mean_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/charge_wait_mean_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": "missing_data",
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:charge_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_p90_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/charge_wait_p90_minutes"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:charge_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_p90_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/charge_wait_p90_minutes"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:charge_wait_p90_minutes",
+            "subject": "CP-01",
+            "name": "charge_wait_p90_minutes",
+            "value": null,
+            "unit": "min",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/charge_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/charge_wait_p90_minutes",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/charge_wait_p90_minutes"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": "missing_data",
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:service_coverage_rate",
+            "subject": "CP-01",
+            "name": "service_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/service_coverage_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:service_coverage_rate",
+            "subject": "CP-01",
+            "name": "service_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/service_coverage_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:service_coverage_rate",
+            "subject": "CP-01",
+            "name": "service_coverage_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/service_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/service_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/service_coverage_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:charged_coverage_rate",
+            "subject": "CP-01",
+            "name": "charged_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/charged_coverage_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:charged_coverage_rate",
+            "subject": "CP-01",
+            "name": "charged_coverage_rate",
+            "value": 0.8,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/charged_coverage_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:charged_coverage_rate",
+            "subject": "CP-01",
+            "name": "charged_coverage_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/charged_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/charged_coverage_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/charged_coverage_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:sla.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.on_time_rate",
+            "value": 0.666667,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/sla/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:sla.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.on_time_rate",
+            "value": 0.333333,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/sla/on_time_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:sla.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.on_time_rate",
+            "value": -0.333334,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/sla/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/sla/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/sla.on_time_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:sla.AC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.AC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/by_zone/AC/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:sla.AC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.AC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/by_zone/AC/on_time_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:sla.AC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.AC.on_time_rate",
+            "value": 0.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/by_zone/AC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/by_zone/AC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/sla.AC.on_time_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:sla.DC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.DC.on_time_rate",
+            "value": 1.0,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/by_zone/DC/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "patched:sla.DC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.DC.on_time_rate",
+            "value": 0.5,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/by_zone/DC/on_time_rate"
+            ],
+            "branch": "patched",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "delta:sla.DC.on_time_rate",
+            "subject": "CP-01",
+            "name": "sla.DC.on_time_rate",
+            "value": -0.5,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:01:00+07:00",
+            "interval_start": "2026-11-23T12:01:00+07:00",
+            "interval_end": "2026-11-23T14:01:00+07:00",
+            "evidence_refs": [
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/baseline/metrics/by_zone/DC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/patched/metrics/by_zone/DC/on_time_rate",
+              "what-if:f715cfe27d45772074682b434302b06841745b50825ad9326bc44680c11c9a88:5649e81f9e7a4516992deaa306a25cd4#/delta/sla.DC.on_time_rate"
+            ],
+            "branch": "delta",
+            "direction": "patched_minus_baseline",
+            "reason_code": null,
+            "reason_category": null
+          }
+        ],
+        "summary": "Đã mô phỏng hai nhánh. Kết quả chỉ dùng để tham khảo."
+      },
+      "applied": false
+    },
+    "parse_source": "deterministic"
+  },
+  "operator_site_limit": {
+    "job_id": "c9be7ee57df944b19b76e01857d8b396",
+    "job_kind": "what_if",
+    "status": "succeeded",
+    "error": null,
+    "result": {
+      "kind": "what_if",
+      "result": {
+        "applied": false,
+        "status": "completed",
+        "snapshot_id": "snap-105b01988c36451c",
+        "snapshot_digest": "cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13",
+        "snapshot_time": "2026-11-23T12:01:00+07:00",
+        "state_version": 20,
+        "experiment_fingerprint": "908e98767707ed211e1396a6d3b3b8957e7daa3b0ea8363976e23ad63f439dbe",
+        "event_manifest_sha256": "45d1bd646e38b1fa9396242063b09ca33ae742604a0cecfadb4ef346c17aa4b6",
+        "horizon_end": "2026-11-23T12:09:00+07:00",
+        "horizon_minutes": 8,
+        "known_booking_count": 5,
+        "known_limit_event_count": 0,
+        "patch": {
+          "op": "site_limit",
+          "grid_input_kw": 15.0,
+          "hypothetical_infrastructure": false
+        },
+        "patch_sha256": "b4793c8994fe057f9bec308bbc0e270424d1a787958217e9e2ee8df71e40737b",
+        "hypothetical_infrastructure": false,
+        "baseline": {
+          "run_id": "05f931f1cf5a4534b8c280494f89669d",
+          "input_sha256": "cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13",
+          "config_sha256": "111018acefe0d9e01547702e5d7385d72c7254b3a28f54cd9bb197871f8091e6",
+          "final_physics_sha256": "5e14a3cce139f3fa828b4e3049e7d7e391ce6b57a87f8d613747bf357864f059",
+          "status": "completed",
+          "observed_until": "2026-11-23T12:09:00+07:00",
+          "metrics": {
+            "cohort_size": 5,
+            "sla": {
+              "cohort_size": 5,
+              "denominator": 0,
+              "met_count": 0,
+              "on_time_rate": null,
+              "censored_count": 5
+            },
+            "by_zone": {
+              "AC": {
+                "cohort_size": 3,
+                "denominator": 0,
+                "met_count": 0,
+                "on_time_rate": null,
+                "censored_count": 3
+              },
+              "DC": {
+                "cohort_size": 2,
+                "denominator": 0,
+                "met_count": 0,
+                "on_time_rate": null,
+                "censored_count": 2
+              }
+            },
+            "service_coverage_denominator": 5,
+            "service_coverage_rate": 0.8,
+            "charged_coverage_rate": 0.8,
+            "unserved_count": 0,
+            "plug_wait_observed_count": 4,
+            "plug_wait_censored_count": 1,
+            "plug_wait_unknown_count": 0,
+            "plug_wait_mean_minutes": 0.0,
+            "plug_wait_p90_minutes": 0.0,
+            "charge_wait_observed_count": 0,
+            "charge_wait_censored_count": 1,
+            "charge_wait_unknown_count": 4,
+            "charge_wait_mean_minutes": null,
+            "charge_wait_p90_minutes": null,
+            "horizon_battery_kwh": 13.066666,
+            "horizon_output_kwh": 13.333334,
+            "horizon_grid_input_kwh": 14.035088,
+            "horizon_energy_cost_vnd": 28070.18,
+            "unmet_original_battery_kwh": 171.703,
+            "unmet_original_output_kwh": 171.703,
+            "peak_charger_output_kw": 100.0,
+            "peak_grid_input_kw": 105.263158
+          },
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "sampled_grid_over_limit_minutes": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0
+        },
+        "patched": {
+          "run_id": "35a60804159745a4b9b29bfa5765d6d4",
+          "input_sha256": "3c6b50c6313491963b1d23ce2970383546284fa9776479b0387917179e94bcf2",
+          "config_sha256": "823238a41f4e7a46771e0e3e03859d27efb90a8e28d846a2aaf8ee49be6e8819",
+          "final_physics_sha256": "31c718fa48392775c58b868ba011599514c48ef73a7e908e9ee787c582e8b06e",
+          "status": "completed",
+          "observed_until": "2026-11-23T12:09:00+07:00",
+          "metrics": {
+            "cohort_size": 5,
+            "sla": {
+              "cohort_size": 5,
+              "denominator": 0,
+              "met_count": 0,
+              "on_time_rate": null,
+              "censored_count": 5
+            },
+            "by_zone": {
+              "AC": {
+                "cohort_size": 3,
+                "denominator": 0,
+                "met_count": 0,
+                "on_time_rate": null,
+                "censored_count": 3
+              },
+              "DC": {
+                "cohort_size": 2,
+                "denominator": 0,
+                "met_count": 0,
+                "on_time_rate": null,
+                "censored_count": 2
+              }
+            },
+            "service_coverage_denominator": 5,
+            "service_coverage_rate": 0.8,
+            "charged_coverage_rate": 0.8,
+            "unserved_count": 0,
+            "plug_wait_observed_count": 4,
+            "plug_wait_censored_count": 1,
+            "plug_wait_unknown_count": 0,
+            "plug_wait_mean_minutes": 0.0,
+            "plug_wait_p90_minutes": 0.0,
+            "charge_wait_observed_count": 0,
+            "charge_wait_censored_count": 1,
+            "charge_wait_unknown_count": 4,
+            "charge_wait_mean_minutes": null,
+            "charge_wait_p90_minutes": null,
+            "horizon_battery_kwh": 1.86174,
+            "horizon_output_kwh": 1.899732,
+            "horizon_grid_input_kwh": 1.99972,
+            "horizon_energy_cost_vnd": 3999.44,
+            "unmet_original_battery_kwh": 182.907928,
+            "unmet_original_output_kwh": 182.907928,
+            "peak_charger_output_kw": 14.248,
+            "peak_grid_input_kw": 14.997895
+          },
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "sampled_grid_over_limit_minutes": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0
+        },
+        "delta": {
+          "charge_wait_censored_count": 0.0,
+          "charge_wait_mean_minutes": null,
+          "charge_wait_observed_count": 0.0,
+          "charge_wait_p90_minutes": null,
+          "charge_wait_unknown_count": 0.0,
+          "charged_coverage_rate": 0.0,
+          "cohort_size": 0.0,
+          "horizon_battery_kwh": -11.204926,
+          "horizon_energy_cost_vnd": -24070.74,
+          "horizon_grid_input_kwh": -12.035368,
+          "horizon_output_kwh": -11.433602,
+          "peak_charger_output_kw": -85.752,
+          "peak_grid_input_kw": -90.265263,
+          "plug_wait_censored_count": 0.0,
+          "plug_wait_mean_minutes": 0.0,
+          "plug_wait_observed_count": 0.0,
+          "plug_wait_p90_minutes": 0.0,
+          "plug_wait_unknown_count": 0.0,
+          "service_coverage_denominator": 0.0,
+          "service_coverage_rate": 0.0,
+          "sla.AC.censored_count": 0.0,
+          "sla.AC.cohort_size": 0.0,
+          "sla.AC.denominator": 0.0,
+          "sla.AC.met_count": 0.0,
+          "sla.AC.on_time_rate": null,
+          "sla.DC.censored_count": 0.0,
+          "sla.DC.cohort_size": 0.0,
+          "sla.DC.denominator": 0.0,
+          "sla.DC.met_count": 0.0,
+          "sla.DC.on_time_rate": null,
+          "sla.censored_count": 0.0,
+          "sla.cohort_size": 0.0,
+          "sla.denominator": 0.0,
+          "sla.met_count": 0.0,
+          "sla.on_time_rate": null,
+          "unmet_original_battery_kwh": 11.204928,
+          "unmet_original_output_kwh": 11.204928,
+          "unserved_count": 0.0
+        },
+        "delta_reasons": {
+          "charge_wait_mean_minutes": {
+            "code": "missing_data"
+          },
+          "charge_wait_p90_minutes": {
+            "code": "missing_data"
+          },
+          "sla.AC.on_time_rate": {
+            "code": "missing_data"
+          },
+          "sla.DC.on_time_rate": {
+            "code": "missing_data"
+          },
+          "sla.on_time_rate": {
+            "code": "missing_data"
+          }
+        },
+        "feasible": null,
+        "affected_vehicles": [
+          {
+            "booking_id": "operator-dc",
+            "baseline_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T14:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 30.345,
+              "remaining_output_kwh": 30.345
+            },
+            "patched_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T14:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 34.714885,
+              "remaining_output_kwh": 34.714885
+            },
+            "patched_revised": null,
+            "baseline_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "patched_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "baseline_first_charge_at": null,
+            "patched_first_charge_at": null,
+            "baseline_release_at": null,
+            "patched_release_at": null,
+            "initial_soc_pct": 21.059371,
+            "baseline_final_soc_pct": 29.534342,
+            "patched_final_soc_pct": 22.266946,
+            "baseline_horizon_battery_kwh": 5.096,
+            "patched_horizon_battery_kwh": 0.726115
+          },
+          {
+            "booking_id": "operator-dc-second",
+            "baseline_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T14:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 30.345,
+              "remaining_output_kwh": 30.345
+            },
+            "patched_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T14:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 34.714885,
+              "remaining_output_kwh": 34.714885
+            },
+            "patched_revised": null,
+            "baseline_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "patched_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "baseline_first_charge_at": null,
+            "patched_first_charge_at": null,
+            "baseline_release_at": null,
+            "patched_release_at": null,
+            "initial_soc_pct": 21.059371,
+            "baseline_final_soc_pct": 29.534342,
+            "patched_final_soc_pct": 22.266946,
+            "baseline_horizon_battery_kwh": 5.096,
+            "patched_horizon_battery_kwh": 0.726115
+          },
+          {
+            "booking_id": "private-holder-a",
+            "baseline_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T22:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 34.461,
+              "remaining_output_kwh": 34.461
+            },
+            "patched_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T22:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 35.693579,
+              "remaining_output_kwh": 35.693579
+            },
+            "patched_revised": null,
+            "baseline_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "patched_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "baseline_first_charge_at": null,
+            "patched_first_charge_at": null,
+            "baseline_release_at": null,
+            "patched_release_at": null,
+            "initial_soc_pct": 20.298797,
+            "baseline_final_soc_pct": 22.689174,
+            "patched_final_soc_pct": 20.639317,
+            "baseline_horizon_battery_kwh": 1.437333,
+            "patched_horizon_battery_kwh": 0.204755
+          },
+          {
+            "booking_id": "private-holder-b",
+            "baseline_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T22:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 34.461,
+              "remaining_output_kwh": 34.461
+            },
+            "patched_original": {
+              "target_soc": 80.0,
+              "deadline": "2026-11-23T22:00:00+07:00",
+              "target_reached_at": null,
+              "already_satisfied_at_snapshot": false,
+              "met_deadline": null,
+              "remaining_battery_kwh": 35.693579,
+              "remaining_output_kwh": 35.693579
+            },
+            "patched_revised": null,
+            "baseline_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "patched_plug_in_at": "2026-11-23T12:00:00+07:00",
+            "baseline_first_charge_at": null,
+            "patched_first_charge_at": null,
+            "baseline_release_at": null,
+            "patched_release_at": null,
+            "initial_soc_pct": 20.298797,
+            "baseline_final_soc_pct": 22.689174,
+            "patched_final_soc_pct": 20.639317,
+            "baseline_horizon_battery_kwh": 1.437333,
+            "patched_horizon_battery_kwh": 0.204755
+          }
+        ],
+        "assumptions": [
+          "Prospective known_at(T) boundary: live bookings are known through committed store membership at capture; synthetic bookings use created_at <= T in simulator time.",
+          "Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute <= as_of_minute) are visible to optimizer and sandbox physics.",
+          "Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).",
+          "Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.",
+          "Live runtime is never stepped, drained, or mutated during snapshot capture or sandbox rollout.",
+          "Delta is patched minus baseline on a shared full safe observation window and matching metric samples.",
+          "Station unmet energy is remaining energy to original targets at the observation cutoff.",
+          "Station SLA uses original commitments. Revised SLA is reported separately.",
+          "Remaining output equivalents use booking charging efficiency. Grid input denotes sampled station energy.",
+          "The site patch replaces the captured runtime supply setting and caps later regimes. Announced grid and cabinet limits and existing equipment caps still apply."
+        ]
+      },
+      "claims": [
+        {
+          "claim_id": "baseline:horizon_battery_kwh",
+          "subject": "CP-01",
+          "name": "horizon_battery_kwh",
+          "value": 13.066666,
+          "unit": "kWh battery",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_battery_kwh"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:horizon_battery_kwh",
+          "subject": "CP-01",
+          "name": "horizon_battery_kwh",
+          "value": 1.86174,
+          "unit": "kWh battery",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_battery_kwh"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:horizon_battery_kwh",
+          "subject": "CP-01",
+          "name": "horizon_battery_kwh",
+          "value": -11.204926,
+          "unit": "kWh battery",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_battery_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_battery_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/horizon_battery_kwh"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:horizon_output_kwh",
+          "subject": "CP-01",
+          "name": "horizon_output_kwh",
+          "value": 13.333334,
+          "unit": "kWh charger output",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_output_kwh"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:horizon_output_kwh",
+          "subject": "CP-01",
+          "name": "horizon_output_kwh",
+          "value": 1.899732,
+          "unit": "kWh charger output",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_output_kwh"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:horizon_output_kwh",
+          "subject": "CP-01",
+          "name": "horizon_output_kwh",
+          "value": -11.433602,
+          "unit": "kWh charger output",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_output_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_output_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/horizon_output_kwh"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:horizon_grid_input_kwh",
+          "subject": "CP-01",
+          "name": "horizon_grid_input_kwh",
+          "value": 14.035088,
+          "unit": "kWh grid input",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_grid_input_kwh"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:horizon_grid_input_kwh",
+          "subject": "CP-01",
+          "name": "horizon_grid_input_kwh",
+          "value": 1.99972,
+          "unit": "kWh grid input",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_grid_input_kwh"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:horizon_grid_input_kwh",
+          "subject": "CP-01",
+          "name": "horizon_grid_input_kwh",
+          "value": -12.035368,
+          "unit": "kWh grid input",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_grid_input_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_grid_input_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/horizon_grid_input_kwh"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:horizon_energy_cost_vnd",
+          "subject": "CP-01",
+          "name": "horizon_energy_cost_vnd",
+          "value": 28070.18,
+          "unit": "VND",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_energy_cost_vnd"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:horizon_energy_cost_vnd",
+          "subject": "CP-01",
+          "name": "horizon_energy_cost_vnd",
+          "value": 3999.44,
+          "unit": "VND",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_energy_cost_vnd"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:horizon_energy_cost_vnd",
+          "subject": "CP-01",
+          "name": "horizon_energy_cost_vnd",
+          "value": -24070.74,
+          "unit": "VND",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/horizon_energy_cost_vnd",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/horizon_energy_cost_vnd",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/horizon_energy_cost_vnd"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:peak_charger_output_kw",
+          "subject": "CP-01",
+          "name": "peak_charger_output_kw",
+          "value": 100.0,
+          "unit": "kW charger output",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/peak_charger_output_kw"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:peak_charger_output_kw",
+          "subject": "CP-01",
+          "name": "peak_charger_output_kw",
+          "value": 14.248,
+          "unit": "kW charger output",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/peak_charger_output_kw"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:peak_charger_output_kw",
+          "subject": "CP-01",
+          "name": "peak_charger_output_kw",
+          "value": -85.752,
+          "unit": "kW charger output",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/peak_charger_output_kw",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/peak_charger_output_kw",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/peak_charger_output_kw"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:peak_grid_input_kw",
+          "subject": "CP-01",
+          "name": "peak_grid_input_kw",
+          "value": 105.263158,
+          "unit": "kW grid input",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/peak_grid_input_kw"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:peak_grid_input_kw",
+          "subject": "CP-01",
+          "name": "peak_grid_input_kw",
+          "value": 14.997895,
+          "unit": "kW grid input",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/peak_grid_input_kw"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:peak_grid_input_kw",
+          "subject": "CP-01",
+          "name": "peak_grid_input_kw",
+          "value": -90.265263,
+          "unit": "kW grid input",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/peak_grid_input_kw",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/peak_grid_input_kw",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/peak_grid_input_kw"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:unmet_original_battery_kwh",
+          "subject": "CP-01",
+          "name": "unmet_original_battery_kwh",
+          "value": 171.703,
+          "unit": "kWh battery at cutoff",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/unmet_original_battery_kwh"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:unmet_original_battery_kwh",
+          "subject": "CP-01",
+          "name": "unmet_original_battery_kwh",
+          "value": 182.907928,
+          "unit": "kWh battery at cutoff",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/unmet_original_battery_kwh"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:unmet_original_battery_kwh",
+          "subject": "CP-01",
+          "name": "unmet_original_battery_kwh",
+          "value": 11.204928,
+          "unit": "kWh battery at cutoff",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/unmet_original_battery_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/unmet_original_battery_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/unmet_original_battery_kwh"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:unmet_original_output_kwh",
+          "subject": "CP-01",
+          "name": "unmet_original_output_kwh",
+          "value": 171.703,
+          "unit": "kWh charger output at cutoff",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/unmet_original_output_kwh"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:unmet_original_output_kwh",
+          "subject": "CP-01",
+          "name": "unmet_original_output_kwh",
+          "value": 182.907928,
+          "unit": "kWh charger output at cutoff",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/unmet_original_output_kwh"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:unmet_original_output_kwh",
+          "subject": "CP-01",
+          "name": "unmet_original_output_kwh",
+          "value": 11.204928,
+          "unit": "kWh charger output at cutoff",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/unmet_original_output_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/unmet_original_output_kwh",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/unmet_original_output_kwh"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:plug_wait_mean_minutes",
+          "subject": "CP-01",
+          "name": "plug_wait_mean_minutes",
+          "value": 0.0,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/plug_wait_mean_minutes"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:plug_wait_mean_minutes",
+          "subject": "CP-01",
+          "name": "plug_wait_mean_minutes",
+          "value": 0.0,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/plug_wait_mean_minutes"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:plug_wait_mean_minutes",
+          "subject": "CP-01",
+          "name": "plug_wait_mean_minutes",
+          "value": 0.0,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/plug_wait_mean_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/plug_wait_mean_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/plug_wait_mean_minutes"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:plug_wait_p90_minutes",
+          "subject": "CP-01",
+          "name": "plug_wait_p90_minutes",
+          "value": 0.0,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/plug_wait_p90_minutes"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:plug_wait_p90_minutes",
+          "subject": "CP-01",
+          "name": "plug_wait_p90_minutes",
+          "value": 0.0,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/plug_wait_p90_minutes"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:plug_wait_p90_minutes",
+          "subject": "CP-01",
+          "name": "plug_wait_p90_minutes",
+          "value": 0.0,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/plug_wait_p90_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/plug_wait_p90_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/plug_wait_p90_minutes"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:charge_wait_mean_minutes",
+          "subject": "CP-01",
+          "name": "charge_wait_mean_minutes",
+          "value": null,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/charge_wait_mean_minutes"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:charge_wait_mean_minutes",
+          "subject": "CP-01",
+          "name": "charge_wait_mean_minutes",
+          "value": null,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/charge_wait_mean_minutes"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:charge_wait_mean_minutes",
+          "subject": "CP-01",
+          "name": "charge_wait_mean_minutes",
+          "value": null,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/charge_wait_mean_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/charge_wait_mean_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/charge_wait_mean_minutes"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": "missing_data",
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:charge_wait_p90_minutes",
+          "subject": "CP-01",
+          "name": "charge_wait_p90_minutes",
+          "value": null,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/charge_wait_p90_minutes"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:charge_wait_p90_minutes",
+          "subject": "CP-01",
+          "name": "charge_wait_p90_minutes",
+          "value": null,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/charge_wait_p90_minutes"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:charge_wait_p90_minutes",
+          "subject": "CP-01",
+          "name": "charge_wait_p90_minutes",
+          "value": null,
+          "unit": "min",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/charge_wait_p90_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/charge_wait_p90_minutes",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/charge_wait_p90_minutes"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": "missing_data",
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:service_coverage_rate",
+          "subject": "CP-01",
+          "name": "service_coverage_rate",
+          "value": 0.8,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/service_coverage_rate"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:service_coverage_rate",
+          "subject": "CP-01",
+          "name": "service_coverage_rate",
+          "value": 0.8,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/service_coverage_rate"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:service_coverage_rate",
+          "subject": "CP-01",
+          "name": "service_coverage_rate",
+          "value": 0.0,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/service_coverage_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/service_coverage_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/service_coverage_rate"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:charged_coverage_rate",
+          "subject": "CP-01",
+          "name": "charged_coverage_rate",
+          "value": 0.8,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/charged_coverage_rate"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:charged_coverage_rate",
+          "subject": "CP-01",
+          "name": "charged_coverage_rate",
+          "value": 0.8,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/charged_coverage_rate"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:charged_coverage_rate",
+          "subject": "CP-01",
+          "name": "charged_coverage_rate",
+          "value": 0.0,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/charged_coverage_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/charged_coverage_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/charged_coverage_rate"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:sla.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/sla/on_time_rate"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:sla.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/sla/on_time_rate"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:sla.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/sla/on_time_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/sla/on_time_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/sla.on_time_rate"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": "missing_data",
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:sla.AC.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.AC.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/by_zone/AC/on_time_rate"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:sla.AC.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.AC.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/by_zone/AC/on_time_rate"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:sla.AC.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.AC.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/by_zone/AC/on_time_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/by_zone/AC/on_time_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/sla.AC.on_time_rate"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": "missing_data",
+          "reason_category": null
+        },
+        {
+          "claim_id": "baseline:sla.DC.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.DC.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/by_zone/DC/on_time_rate"
+          ],
+          "branch": "baseline",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "patched:sla.DC.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.DC.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/by_zone/DC/on_time_rate"
+          ],
+          "branch": "patched",
+          "direction": null,
+          "reason_code": null,
+          "reason_category": null
+        },
+        {
+          "claim_id": "delta:sla.DC.on_time_rate",
+          "subject": "CP-01",
+          "name": "sla.DC.on_time_rate",
+          "value": null,
+          "unit": "fraction",
+          "stage": "simulated",
+          "observed_at": "2026-11-23T12:09:00+07:00",
+          "interval_start": "2026-11-23T12:01:00+07:00",
+          "interval_end": "2026-11-23T12:09:00+07:00",
+          "evidence_refs": [
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/baseline/metrics/by_zone/DC/on_time_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/patched/metrics/by_zone/DC/on_time_rate",
+            "what-if:cfb3305cca7473b6711ca6b2a273949a9a95d8477a8fda6dbff86694444cbe13:35a60804159745a4b9b29bfa5765d6d4#/delta/sla.DC.on_time_rate"
+          ],
+          "branch": "delta",
+          "direction": "patched_minus_baseline",
+          "reason_code": "missing_data",
+          "reason_category": null
+        }
+      ],
+      "summary": "Đã mô phỏng hai nhánh. Kết quả chỉ dùng để tham khảo."
+    },
+    "applied": false
+  },
+  "deferred_how_to": {
+    "question": "Cần tăng công suất nguồn lên bao nhiêu để tất cả xe sạc đúng hạn?",
+    "http": 200,
+    "kind": "notice",
+    "code": "feature_not_available",
+    "message": "Tính năng đề xuất phương án HOW-TO hiện chưa khả dụng.",
+    "field": null,
+    "intent": "how_to",
+    "parse_source": "deterministic"
+  }
+}

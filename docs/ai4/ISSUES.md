@@ -97,3 +97,13 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 [Báo cáo Gate 4](PHASE_4_2B_REPORT.md) · [Oracle calculations](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/oracle-calculations.md)
 
 **G4 — APPROVED.** Tech Lead đã nghiệm thu G4-F01–F03 tại mirror `eb5967ae720b46b089b09e03063aa2c727ca5fd8` với remediation-only patch `1cdb630cc10a4bfd1fb96d1ac2264dbd4a9515f3dbfe7153780f0c6fd33160bf`. Remediation candidate `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f` qua mandatory gate exit 0. PostgreSQL runtime vẫn PENDING. [Gate ledger](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/exit-codes.tsv)
+
+## Gate 6A (AI-4.4A) recovery & verification ledger
+
+| ID | Phân loại | Xử lý và bằng chứng |
+|---|---|---|
+| **G6A-R01** — Delayed/in-flight Copilot responses qua logout hoặc đổi tài khoản | **Confirmed frontend isolation gap → Fixed** | `CopilotPanel.tsx` của Codex đã tách `key={session.userId}`, nhưng chưa gắn `session.token`/`role` vào khóa phiên, chưa xóa `["copilot"]` trên `QueryClient` khi logout và chưa chặn callback `onSuccess` của `submit`/`cancel` đang bay khi phiên cũ unmount. Đã bổ sung `actorKey`, `{ signal }`, dọn cache khi logout/unmount, `mountedRef` + `submitEpochRef`, kiểm chứng bằng Vitest (`35/35` PASS) và Chromium smoke chuyển tài khoản cùng tab (`exit 0`). |
+| **G6A-R02** — Turbopack build restriction | **Environment / sandbox restriction (Confirmed)** | Lỗi `binding to a port — Operation not permitted` ở phiên chạy Codex là hạn chế chặn bind socket của sandbox đó; trên cây `/tmp` dùng symlink `node_modules` xuyên phân vùng, Turbopack từ chối symlink ngoài workspace root. Cổng `verify.sh` hỗ trợ `G6A_WEBPACK=1` (`next build --webpack` PASS `exit 0`), đồng thời `next build` (Turbopack) trên `P-019/frontend` với `node_modules` trực tiếp cũng xác nhận PASS `exit 0`. |
+| **R08 (G6A scope)** — Real LLM provider & PostgreSQL runtime | **PENDING (không có key / dịch vụ trong môi trường)** | `provider-status.json` xác nhận không có API key được cấp phép và không có local LLM server tại `localhost:11434`; demo và browser smoke dùng `LLM_PROVIDER=mock` (deterministic fallback), tách bạch rõ với kiểm thử LLM thật và PostgreSQL thuộc G7. |
+
+[Báo cáo Gate 6A](PHASE_4_4A_REPORT.md) · [G6A Recovery](G6A_RECOVERY_STATE.md) · [Backend exits](../../eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/backend/backend-exits.tsv) · [Frontend exits](../../eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/frontend/frontend-exits.tsv)

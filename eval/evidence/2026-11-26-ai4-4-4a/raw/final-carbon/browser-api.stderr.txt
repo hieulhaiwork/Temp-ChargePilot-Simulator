@@ -1,0 +1,22 @@
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+INFO:     Started server process [828]
+INFO:     Waiting for application startup.
+WARNI [src.services.auth] SEED_USERS_JSON trống — không seed tài khoản demo
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+WARNI [src.services.auth] JWT_SECRET trống — dùng secret ngẫu nhiên của process (chỉ dev/test; token mất khi restart)
+INFO:     127.0.0.1:50518 - "WebSocket /api/v1/ws/resident" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:55216 - "WebSocket /api/v1/ws/resident" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:55236 - "WebSocket /api/v1/ws/operator" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [828]

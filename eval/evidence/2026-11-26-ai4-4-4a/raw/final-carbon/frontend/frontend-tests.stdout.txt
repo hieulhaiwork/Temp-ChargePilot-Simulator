@@ -1,0 +1,21 @@
+cwd=/tmp/p019-g6a-clean-verify/frontend
+$ timeout -k 5s 180s npm test 
+
+> chargepilot-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 /tmp/p019-g6a-clean-verify/frontend
+
+ ✓ src/test/api-client.test.ts (6 tests) 7ms
+ ✓ src/test/ws-client.test.ts (12 tests) 22ms
+ ✓ src/test/site-map.test.tsx (4 tests) 205ms
+ ✓ src/test/not-implemented.test.tsx (6 tests) 155ms
+ ✓ src/test/simulation-policies.test.tsx (2 tests) 256ms
+ ✓ src/test/copilot.test.tsx (5 tests) 361ms
+
+ Test Files  6 passed (6)
+      Tests  35 passed (35)
+   Start at  16:54:48
+   Duration  2.23s (environment 72%, import 16%, tests 10%, transform 2%, worker 1%)
+

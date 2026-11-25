@@ -1,0 +1,6 @@
+cwd=/tmp/p019-g6a-clean-verify/frontend
+$ timeout -k 5s 180s npm run lint 
+
+> chargepilot-web@0.1.0 lint
+> eslint
+

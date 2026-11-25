@@ -1,0 +1,27 @@
+{
+  "browser": "136.0.7103.25",
+  "resident_why": {
+    "status": 200,
+    "result": "partial",
+    "evidence": 9
+  },
+  "resident_soc": {
+    "original_target": 90,
+    "revised_target": 75,
+    "status": "completed"
+  },
+  "same_tab_account_switch": {
+    "prior_booking_visible": false,
+    "prior_results_visible": false
+  },
+  "operator_outage": {
+    "status": "completed",
+    "connector": "DC-01-1",
+    "minutes": 30
+  },
+  "operator_how_to": {
+    "status": 200,
+    "code": "feature_not_available"
+  },
+  "apply_button_count": 0
+}

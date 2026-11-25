@@ -50,6 +50,27 @@ try {
   await resident.panel.getByText("Cam kết sửa", { exact: true }).waitFor();
   assert.equal(soc.result.affected_vehicles[0].baseline_original.target_soc, 90);
   assert.equal(soc.result.affected_vehicles[0].patched_revised.target_soc, 75);
+  assert.equal(await resident.panel.getByRole("button", { name: /áp dụng/i }).count(), 0);
+
+  // Verify zero cross-account cache or reply leakage when switching resident account in the SAME tab.
+  const bookingSelect = resident.panel.getByLabel("Lịch sạc");
+  assert.equal(await bookingSelect.locator("option", { hasText: "resident-demo" }).count(), 1);
+  const logoutBtn = resident.page.getByRole("button", { name: /đăng xuất/i });
+  if ((await logoutBtn.count()) > 0) {
+    await logoutBtn.first().click();
+    await resident.page.waitForURL((url) => url.pathname === "/login");
+  } else {
+    await resident.page.evaluate(() => window.sessionStorage.clear());
+    await resident.page.goto(`${base}/login`);
+  }
+  await resident.page.getByLabel("Email").fill("second-resident@g6a.example");
+  await resident.page.getByLabel("Mật khẩu").fill("fixture-only-passphrase");
+  await resident.page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await resident.page.waitForURL("**/resident");
+  await resident.panel.waitFor();
+  assert.equal(await resident.panel.getByRole("region", { name: "Kết quả WHAT-IF" }).count(), 0);
+  assert.equal(await resident.panel.getByRole("region", { name: "Kết quả WHY" }).count(), 0);
+  assert.equal(await resident.panel.getByLabel("Lịch sạc").locator("option", { hasText: "resident-demo" }).count(), 0);
 
   const operator = await login("operator", "operator@g6a.example");
   await operator.panel.getByLabel("Đầu nối").selectOption("DC-01-1");
@@ -66,8 +87,10 @@ try {
     browser: browser.version(),
     resident_why: { status: whyStatus, result: why.result.status, evidence: why.claims.length },
     resident_soc: { original_target: 90, revised_target: 75, status: soc.result.status },
+    same_tab_account_switch: { prior_booking_visible: false, prior_results_visible: false },
     operator_outage: { status: outage.result.status, connector: outage.result.patch.connector_id, minutes: 30 },
     operator_how_to: { status: howStatus, code: how.code },
+    apply_button_count: 0,
   }, null, 2));
 } finally {
   await browser.close();

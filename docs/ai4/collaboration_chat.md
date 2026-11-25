@@ -38,3 +38,10 @@
 ## 6. Gate 6A (AI-4.4A — Shared Integration Foundation)
 
 - **AUTHORIZED** cho WHY và WHAT-IF end-to-end. G5, G6B và G7 giữ thứ tự và phạm vi đã duyệt. [Recovery](G6A_RECOVERY_STATE.md)
+- **Codex interruption (`1a07b5ea0fbd4b9dc8a4a1a76a989f8356f2268c`):** Hết quota sau khi cập nhật 5 tệp và thêm `browser_smoke.mjs` sau patch `eb773daf282482e67adce09689ff5f6559db1ea4f82143bec31f39daf5014048`.
+- **Carbon recovery & final handoff (`G6A — READY_FOR_REVIEW`, chưa nghiệm thu):**
+  - Giữ toàn bộ phần triển khai của Codex, gia cố cô lập phản hồi trễ/in-flight khi logout/đổi tài khoản trong `CopilotPanel.tsx` + Vitest (`35/35`) + Chromium smoke cùng tab (`exit 0`).
+  - Final G6A candidate patch SHA-256: `218ef89b033a155542deccb7cfbeb9f8380c9ed97ff402cfb6ff05b81d91f706` (356/356 byte parity trên cây sạch, 0 thay đổi trên Unified Core & G2–G4 engines).
+  - Backend mandatory gate: **12/12 PASS** (`777 passed, 8 forecast skipped`, `9/9` G6A API, `91` F1 legacy, `128` G2–G4 regressions, `8/8` G3 eval).
+  - Frontend mandatory gate: **6/6 PASS** (`G6A_WEBPACK=1` trên cây sạch; `next build` Turbopack trên `P-019/frontend` cũng PASS `exit 0`).
+  - Real LLM provider smoke: **PENDING (`PENDING_NO_AUTHORIZED_KEY`)**; PostgreSQL runtime: **PENDING**. [Báo cáo Gate 6A](PHASE_4_4A_REPORT.md) · [Demo](G6A_DEMO.md)

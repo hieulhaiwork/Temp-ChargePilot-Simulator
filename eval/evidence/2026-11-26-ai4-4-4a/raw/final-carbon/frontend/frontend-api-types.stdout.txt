@@ -1,0 +1,4 @@
+cwd=/tmp/p019-g6a-clean-verify/frontend
+$ timeout -k 5s 90s node_modules/.bin/openapi-typescript ./openapi.json -o /tmp/p019-g6a-schema.zwKq9f 
+✨ openapi-typescript 7.13.0
+🚀 ./openapi.json → /tmp/p019-g6a-schema.zwKq9f [271.9ms]

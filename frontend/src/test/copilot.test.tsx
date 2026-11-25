@@ -6,7 +6,11 @@ import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 
 const calls = vi.hoisted(() => ({
   get: vi.fn(), post: vi.fn(), cancel: vi.fn(),
-  session: { userId: "resident-1", role: "resident" },
+  session: { userId: "resident-1", role: "resident", token: "tok-1" } as {
+    userId: string;
+    role: string;
+    token?: string;
+  } | null,
 }));
 
 vi.mock("@/lib/api/client", () => ({
@@ -26,11 +30,14 @@ const job = (status: string, result?: unknown) => ({
 });
 
 function show(role: "resident" | "operator") {
-  calls.session.role = role;
+  calls.session = { userId: calls.session?.userId ?? "resident-1", role, token: calls.session?.token ?? "tok-1" };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<CopilotPanel role={role} />, {
-    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
-  });
+  return {
+    client,
+    ...render(<CopilotPanel role={role} />, {
+      wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+    }),
+  };
 }
 
 function ask(text: string) {
@@ -39,7 +46,7 @@ function ask(text: string) {
 }
 
 beforeEach(() => {
-  calls.session.userId = "resident-1";
+  calls.session = { userId: "resident-1", role: "resident", token: "tok-1" };
   calls.get.mockReset().mockImplementation(async (path) => path.endsWith("context") ? context : job("running"));
   calls.post.mockReset();
   calls.cancel.mockReset();
@@ -48,18 +55,70 @@ afterEach(cleanup);
 
 it("clears prior reply and keeps context cache isolated across resident sessions", async () => {
   calls.get.mockImplementation(async () => ({
-    ...context, booking_ids: [calls.session.userId === "resident-1" ? "B1" : "B2"],
+    ...context, booking_ids: [calls.session?.userId === "resident-1" ? "B1" : "B2"],
   }));
   calls.post.mockResolvedValueOnce({ kind: "notice", code: "unsupported", message: "Phản hồi phiên trước" });
   const screenRoot = show("resident");
   expect(await screen.findByRole("option", { name: "B1" })).toBeTruthy();
   ask("Một câu hỏi");
   expect(await screen.findByText("Phản hồi phiên trước")).toBeTruthy();
-  calls.session.userId = "resident-2";
+  calls.session = { userId: "resident-2", role: "resident", token: "tok-2" };
   screenRoot.rerender(<CopilotPanel role="resident" />);
   expect(screen.queryByRole("option", { name: "B1" })).toBeNull();
   expect(screen.queryByText("Phản hồi phiên trước")).toBeNull();
   expect(await screen.findByRole("option", { name: "B2" })).toBeTruthy();
+});
+
+it("drops delayed in-flight query and cancel responses across logout and re-login", async () => {
+  let resolveSlowPost!: (value: unknown) => void;
+  let resolveSlowCancel!: (value: unknown) => void;
+  calls.get.mockImplementation(async () => ({
+    ...context,
+    booking_ids: [calls.session?.userId === "resident-2" ? "B2-FRESH" : "B1-STALE"],
+  }));
+  calls.post
+    .mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveSlowPost = resolve;
+      }),
+    )
+    .mockResolvedValueOnce(job("queued"));
+  calls.cancel.mockImplementationOnce(
+    () => new Promise((resolve) => {
+      resolveSlowCancel = resolve;
+    }),
+  );
+
+  const screenRoot = show("resident");
+  expect(await screen.findByRole("option", { name: "B1-STALE" })).toBeTruthy();
+
+  // Trigger an in-flight query for resident-1, then logout and log back in as resident-2 BEFORE it resolves.
+  ask("Câu hỏi trễ của resident-1");
+  await waitFor(() => expect(calls.post).toHaveBeenCalledTimes(1));
+  calls.session = null;
+  screenRoot.rerender(<CopilotPanel role="resident" />);
+  expect(screenRoot.client.getQueriesData({ queryKey: ["copilot"] })).toHaveLength(0);
+
+  calls.session = { userId: "resident-2", role: "resident", token: "tok-2" };
+  screenRoot.rerender(<CopilotPanel role="resident" />);
+  expect(await screen.findByRole("option", { name: "B2-FRESH" })).toBeTruthy();
+
+  resolveSlowPost({ kind: "notice", code: "unsupported", message: "Rò rỉ từ phiên đã đăng xuất" });
+  await Promise.resolve();
+  expect(screen.queryByText("Rò rỉ từ phiên đã đăng xuất")).toBeNull();
+  expect(screen.queryByRole("option", { name: "B1-STALE" })).toBeNull();
+
+  // Trigger a job + in-flight cancel for resident-2, then logout and re-login as resident-1 with a new token.
+  ask("Nếu sạc đến 75% thì sao?");
+  expect(await screen.findByRole("button", { name: "Hủy mô phỏng" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Hủy mô phỏng" }));
+  await waitFor(() => expect(calls.cancel).toHaveBeenCalledTimes(1));
+
+  calls.session = { userId: "resident-1", role: "resident", token: "tok-1-new" };
+  screenRoot.rerender(<CopilotPanel role="resident" />);
+  resolveSlowCancel(job("cancelled"));
+  await Promise.resolve();
+  expect(screen.queryByText("Đã hủy")).toBeNull();
 });
 
 it("opens the structured form after fallback and submits the station timestamp", async () => {

@@ -1,0 +1,40 @@
+{
+  "total_cases": 8,
+  "passed_cases": 8,
+  "mutations_total": 6,
+  "mutations_caught": 6,
+  "cases": [
+    {
+      "case": "paired_noop_vinfast_interleaved",
+      "passed": true
+    },
+    {
+      "case": "oracle_pre_vs_post_energy_and_dc_unplug",
+      "passed": true
+    },
+    {
+      "case": "oracle_plug_in_vs_first_charge_separation",
+      "passed": true
+    },
+    {
+      "case": "oracle_not_arrived_censored_and_empty_sla_none",
+      "passed": true
+    },
+    {
+      "case": "oracle_unserved_session_zero_sla",
+      "passed": true
+    },
+    {
+      "case": "known_at_t_excludes_future_arrivals_and_unannounced_limits",
+      "passed": true
+    },
+    {
+      "case": "safety_hold_and_rejected_consent_parity",
+      "passed": true
+    },
+    {
+      "case": "unresolved_safety_blocks_capture_cleanly",
+      "passed": true
+    }
+  ]
+}

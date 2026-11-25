@@ -1,0 +1,9 @@
+218ef89b033a155542deccb7cfbeb9f8380c9ed97ff402cfb6ff05b81d91f706  eval/evidence/2026-11-26-ai4-4-4a/candidate.patch
+218ef89b033a155542deccb7cfbeb9f8380c9ed97ff402cfb6ff05b81d91f706  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/candidate.patch
+6ec4d4d3717ed39d10ff9982d9c743ad518ae5829a26acd2ce58cb0ae4da5cd7  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/candidate-provenance.log
+701663f93a0cc60b92d50dcd90cadc23053eaf33ae1e2ef4b0c2e6ff6bb3cd6c  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/backend/backend-exits.tsv
+3e73afde5be4291d2a38ea279268ca6bfebc5940690288b76848a7398947ae22  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/frontend/frontend-exits.tsv
+f91ca0fbbd16ea9ec1088d8204c2388ff70a1cf2bf89dfb00a314fa2915a21fc  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/browser-smoke.stdout.txt
+17bca5ce46aefb8a54415feaa70d76c46a0b4dd64a5d8ce254929354a25e8fa1  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/browser-smoke-provenance.txt
+c5beab795e716b6fffa4b3bc692877f75abbde8dac0cee0e9bd93a3e9bfe50ed  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/provider-status.json
+b9faa46cf0991c026d5bda228ed8a03590f3dec148f6828f962e37b955286b59  eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/turbopack-probe/workspace-turbopack.stdout.txt

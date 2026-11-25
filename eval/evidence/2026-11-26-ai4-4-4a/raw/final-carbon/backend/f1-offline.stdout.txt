@@ -1,0 +1,13 @@
+cwd=/tmp/p019-g6a-clean-verify
+$ isolated python eval/run_agent_eval.py --offline --out /home/lehieu/Projects/P-019/eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/backend/f1-offline 
+Dataset: charging_requests.jsonl — 55 câu hợp lệ (mục tiêu PRD §8: ≥ 50)
+  extract       22
+  missing       10
+  ambiguous     5
+  invalid       4
+  infeasible    4
+  out_of_scope  3
+  injection     4
+  followup      3
+==> Đã ghi /home/lehieu/Projects/P-019/eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/backend/f1-offline/summary.json
+OK — dataset và ngưỡng hợp lệ.

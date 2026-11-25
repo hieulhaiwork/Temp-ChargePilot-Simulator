@@ -1,9 +1,9 @@
 diff --git a/docs/ai4/G6A_DEMO.md b/docs/ai4/G6A_DEMO.md
 new file mode 100644
-index 0000000..4b4cb6e
+index 0000000..61e8780
 --- /dev/null
 +++ b/docs/ai4/G6A_DEMO.md
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,60 @@
 +# Demo AI-4.4A · WHY và WHAT-IF
 +
 +Demo chạy trên SQLite tạm với DecisionTrace và booking tổng hợp. Giải thích, chỉ số và kết quả được tạo từ WHY Engine G2 và WHAT-IF Engine G4. Runtime dùng đồng hồ mô phỏng và fixture chung với integration tests.
@@ -38,7 +38,8 @@ index 0000000..4b4cb6e
 +
 +| Vai trò | Email fixture | Dashboard |
 +|---|---|---|
-+| Resident | `res-resident-demo@g6a.example` | `/resident` |
++| Resident (có lịch chờ) | `res-resident-demo@g6a.example` | `/resident` |
++| Resident 2 (kiểm cô lập tài khoản) | `second-resident@g6a.example` | `/resident` |
 +| Operator | `operator@g6a.example` | `/operator` |
 +
 +1. Resident hỏi **Tại sao xe của tôi vẫn chưa được sạc?** Mở Bằng chứng để xem decision time, stage và refs của WHY.
@@ -63,6 +64,109 @@ index 0000000..4b4cb6e
 +Ứng dụng trả 401 khi thiếu JWT và 404 khi truy cập job của actor khác. `clarify`, `unsupported`, `structured_fallback` và `feature_not_available` là notices có code. Tác vụ chạy trong bộ nhớ một worker. Cancellation dừng coroutine và chặn work tiếp theo, trong khi native solver call đã bắt đầu có thể chạy đến hết.
 +
 +Ở lần chạy demo này provider dùng deterministic fallback. UI cũng có biểu mẫu WHY/WHAT-IF với cùng engine và validation. [OpenAPI](../../frontend/openapi.json)
+diff --git a/eval/evidence/2026-11-26-ai4-4-4a/browser_smoke.mjs b/eval/evidence/2026-11-26-ai4-4-4a/browser_smoke.mjs
+new file mode 100644
+index 0000000..12096c0
+--- /dev/null
++++ b/eval/evidence/2026-11-26-ai4-4-4a/browser_smoke.mjs
+@@ -0,0 +1,97 @@
++// Run with the fixture-backed API and the built frontend listening on loopback.
++import assert from "node:assert/strict";
++import { resolve } from "node:path";
++import { pathToFileURL } from "node:url";
++
++const toolkit = process.argv[2];
++assert.ok(toolkit, "Pass the directory containing the temporary Playwright installation.");
++const { chromium } = await import(pathToFileURL(resolve(toolkit, "node_modules/playwright/index.mjs")).href);
++const base = process.argv[3] ?? "http://localhost:3000";
++const browser = await chromium.launch({ headless: true });
++
++async function login(role, email) {
++  const page = await browser.newPage();
++  await page.goto(`${base}/login`);
++  await page.getByLabel("Email").fill(email);
++  await page.getByLabel("Mật khẩu").fill("fixture-only-passphrase");
++  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
++  await page.waitForURL(`**/${role}`);
++  return { page, panel: page.getByRole("region", { name: "Copilot trạm sạc" }) };
++}
++
++async function ask(page, panel, question) {
++  await panel.getByLabel("Câu hỏi").fill(question);
++  const received = page.waitForResponse((response) => response.url().endsWith("/api/v1/copilot/query"));
++  await panel.getByRole("button", { name: "Gửi câu hỏi" }).click();
++  const response = await received;
++  return [response.status(), await response.json()];
++}
++
++async function completedJob(page, panel, question) {
++  const completed = page.waitForResponse(async (response) => {
++    if (!response.url().includes("/api/v1/copilot/jobs/") || !response.ok()) return false;
++    return (await response.json()).job.status === "succeeded";
++  });
++  const [status, submitted] = await ask(page, panel, question);
++  assert.equal(status, 202);
++  const result = (await (await completed).json()).job.result.result;
++  assert.equal(result.applied, false);
++  await panel.getByRole("region", { name: "Kết quả WHAT-IF" }).waitFor();
++  return { parse_source: submitted.parse_source, result };
++}
++
++try {
++  const resident = await login("resident", "res-resident-demo@g6a.example");
++  const [whyStatus, why] = await ask(resident.page, resident.panel, "Tại sao xe của tôi vẫn chưa được sạc?");
++  assert.equal(whyStatus, 200);
++  assert.equal(why.kind, "why");
++  await resident.panel.getByText(/Xe đang chờ vì vùng AC/).first().waitFor();
++  const soc = await completedJob(resident.page, resident.panel, "Nếu tôi chỉ cần sạc đến 75% thay vì 90% thì sao?");
++  await resident.panel.getByText("Cam kết sửa", { exact: true }).waitFor();
++  assert.equal(soc.result.affected_vehicles[0].baseline_original.target_soc, 90);
++  assert.equal(soc.result.affected_vehicles[0].patched_revised.target_soc, 75);
++  assert.equal(await resident.panel.getByRole("button", { name: /áp dụng/i }).count(), 0);
++
++  // Verify zero cross-account cache or reply leakage when switching resident account in the SAME tab.
++  const bookingSelect = resident.panel.getByLabel("Lịch sạc");
++  assert.equal(await bookingSelect.locator("option", { hasText: "resident-demo" }).count(), 1);
++  const logoutBtn = resident.page.getByRole("button", { name: /đăng xuất/i });
++  if ((await logoutBtn.count()) > 0) {
++    await logoutBtn.first().click();
++    await resident.page.waitForURL((url) => url.pathname === "/login");
++  } else {
++    await resident.page.evaluate(() => window.sessionStorage.clear());
++    await resident.page.goto(`${base}/login`);
++  }
++  await resident.page.getByLabel("Email").fill("second-resident@g6a.example");
++  await resident.page.getByLabel("Mật khẩu").fill("fixture-only-passphrase");
++  await resident.page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
++  await resident.page.waitForURL("**/resident");
++  await resident.panel.waitFor();
++  assert.equal(await resident.panel.getByRole("region", { name: "Kết quả WHAT-IF" }).count(), 0);
++  assert.equal(await resident.panel.getByRole("region", { name: "Kết quả WHY" }).count(), 0);
++  assert.equal(await resident.panel.getByLabel("Lịch sạc").locator("option", { hasText: "resident-demo" }).count(), 0);
++
++  const operator = await login("operator", "operator@g6a.example");
++  await operator.panel.getByLabel("Đầu nối").selectOption("DC-01-1");
++  const outage = await completedJob(operator.page, operator.panel, "Nếu một cổng DC bị lỗi trong 30 phút thì sao?");
++  await operator.panel.getByRole("rowheader", { name: "operator-dc-second", exact: true }).waitFor();
++  assert.equal(outage.result.patch.duration_minutes, 30);
++  const [howStatus, how] = await ask(operator.page, operator.panel, "Cần tăng công suất nguồn lên bao nhiêu để tất cả xe sạc đúng hạn?");
++  assert.equal(howStatus, 200);
++  assert.equal(how.code, "feature_not_available");
++  await operator.panel.getByText(/HOW-TO hiện chưa khả dụng/).waitFor();
++  assert.equal(await operator.panel.getByRole("button", { name: /áp dụng/i }).count(), 0);
++
++  console.log(JSON.stringify({
++    browser: browser.version(),
++    resident_why: { status: whyStatus, result: why.result.status, evidence: why.claims.length },
++    resident_soc: { original_target: 90, revised_target: 75, status: soc.result.status },
++    same_tab_account_switch: { prior_booking_visible: false, prior_results_visible: false },
++    operator_outage: { status: outage.result.status, connector: outage.result.patch.connector_id, minutes: 30 },
++    operator_how_to: { status: howStatus, code: how.code },
++    apply_button_count: 0,
++  }, null, 2));
++} finally {
++  await browser.close();
++}
 diff --git a/eval/evidence/2026-11-26-ai4-4-4a/run_demo.py b/eval/evidence/2026-11-26-ai4-4-4a/run_demo.py
 new file mode 100644
 index 0000000..0a78ff5
@@ -181,10 +285,10 @@ index 0000000..0a78ff5
 +    main()
 diff --git a/eval/evidence/2026-11-26-ai4-4-4a/verify.sh b/eval/evidence/2026-11-26-ai4-4-4a/verify.sh
 new file mode 100644
-index 0000000..6108344
+index 0000000..72228a7
 --- /dev/null
 +++ b/eval/evidence/2026-11-26-ai4-4-4a/verify.sh
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,68 @@
 +#!/usr/bin/env bash
 +# Usage: bash verify.sh <backend|frontend> <source-tree> <raw-dir> <toolkit-bin>
 +set -euo pipefail
@@ -240,7 +344,11 @@ index 0000000..6108344
 +check frontend-lint timeout -k 5s 180s npm run lint || failed=1
 +check frontend-typecheck timeout -k 5s 180s npm run typecheck || failed=1
 +check frontend-tests timeout -k 5s 180s npm test || failed=1
-+check frontend-build timeout -k 5s 240s npm run build || failed=1
++build_args=()
++if [[ ${G6A_WEBPACK:-0} == 1 ]]; then
++    build_args=(-- --webpack)
++fi
++check frontend-build timeout -k 5s 240s npm run build "${build_args[@]}" || failed=1
 +generated=$(mktemp /tmp/p019-g6a-schema.XXXXXX)
 +if check frontend-api-types timeout -k 5s 90s \
 +    node_modules/.bin/openapi-typescript ./openapi.json -o "$generated"; then
@@ -7901,19 +8009,20 @@ index a6bfad4..38c80d5 100644
            <Panel label="Hàng chờ">
 diff --git a/frontend/src/components/copilot/CopilotPanel.tsx b/frontend/src/components/copilot/CopilotPanel.tsx
 new file mode 100644
-index 0000000..fcd3ffc
+index 0000000..6925f65
 --- /dev/null
 +++ b/frontend/src/components/copilot/CopilotPanel.tsx
-@@ -0,0 +1,345 @@
+@@ -0,0 +1,389 @@
 +"use client";
 +
 +import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-+import { useId, useState, type FormEvent } from "react";
++import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 +
 +import { ErrorPanel } from "@/components/system/ErrorPanel";
 +import { Notice, Panel, SectionHead, Tag } from "@/components/ui/blocks";
 +import { api, unwrap } from "@/lib/api/client";
 +import type { components } from "@/lib/api/schema";
++import { useSession } from "@/lib/auth/session";
 +
 +type Schema = components["schemas"];
 +type Reply = Schema["WhyReply"] | Schema["JobReply"] | Schema["CopilotNotice"];
@@ -8094,28 +8203,69 @@ index 0000000..fcd3ffc
 +}
 +
 +export function CopilotPanel({ role }: { role: Schema["CopilotContext"]["role"] }) {
++  const session = useSession();
++  const cache = useQueryClient();
++  const sessionToken = session?.token ?? "";
++  useEffect(() => {
++    if (!session) {
++      void cache.cancelQueries({ queryKey: ["copilot"] });
++      cache.removeQueries({ queryKey: ["copilot"] });
++    }
++  }, [cache, session]);
++  if (!session || session.role !== role) return null;
++  const actorKey = `${role}:${session.userId}:${sessionToken}`;
++  return <CopilotForActor key={actorKey} role={role} userId={session.userId} actorKey={actorKey} />;
++}
++
++function CopilotForActor({
++  role,
++  userId,
++  actorKey,
++}: {
++  role: Schema["CopilotContext"]["role"];
++  userId: string;
++  actorKey: string;
++}) {
 +  const id = useId();
 +  const cache = useQueryClient();
++  const mountedRef = useRef(true);
++  const submitEpochRef = useRef(0);
 +  const [reply, setReply] = useState<Reply>();
 +  const [message, setMessage] = useState("");
 +  const [booking, setBooking] = useState("");
 +  const [connector, setConnector] = useState("");
 +  const [mode, setMode] = useState<FormMode>("why");
 +  const [formOpen, setFormOpen] = useState(false);
++  useEffect(() => {
++    mountedRef.current = true;
++    return () => {
++      mountedRef.current = false;
++      submitEpochRef.current += 1;
++      void cache.cancelQueries({ queryKey: ["copilot", "context", role, userId, actorKey] });
++      void cache.cancelQueries({ queryKey: ["copilot", "job", userId, actorKey] });
++      cache.removeQueries({ queryKey: ["copilot", "context", role, userId, actorKey] });
++      cache.removeQueries({ queryKey: ["copilot", "job", userId, actorKey] });
++    };
++  }, [actorKey, cache, role, userId]);
 +  const context = useQuery({
-+    queryKey: ["copilot", "context", role],
-+    queryFn: () => unwrap(api.GET("/api/v1/copilot/context")),
++    queryKey: ["copilot", "context", role, userId, actorKey],
++    queryFn: ({ signal }) => unwrap(api.GET("/api/v1/copilot/context", { signal })),
 +  });
 +  const submit = useMutation({
-+    mutationFn: (request: () => Promise<Reply>) => request(),
-+    onSuccess(result) {
++    mutationFn: async (request: () => Promise<Reply>) => {
++      const epoch = ++submitEpochRef.current;
++      const result = await request();
++      return { epoch, result };
++    },
++    onSuccess({ epoch, result }) {
++      if (!mountedRef.current || epoch !== submitEpochRef.current) return;
 +      setReply(result);
 +      if (result.kind === "notice" && result.code === "structured_fallback") setFormOpen(true);
 +    },
 +  });
 +  const initial = reply?.kind === "job" ? reply : undefined;
 +  const jobId = initial?.job.job_id ?? "";
-+  const jobKey = ["copilot", "job", jobId] as const;
++  const jobKey = ["copilot", "job", userId, actorKey, jobId] as const;
 +  const poll = useQuery({
 +    queryKey: jobKey,
 +    enabled: active(initial?.job),
@@ -8127,7 +8277,9 @@ index 0000000..fcd3ffc
 +  const job = (poll.data ?? initial)?.job;
 +  const cancel = useMutation({
 +    mutationFn: () => unwrap(api.DELETE("/api/v1/copilot/jobs/{job_id}", { params: { path: { job_id: jobId } } })),
-+    onSuccess: (result) => cache.setQueryData(jobKey, result),
++    onSuccess: (result) => {
++      if (mountedRef.current) cache.setQueryData(jobKey, result);
++    },
 +  });
 +  const timezone = context.data?.timezone ?? "Asia/Ho_Chi_Minh";
 +  const choices = context.data;
@@ -9799,22 +9951,30 @@ index 774aa77..61653b8 100644
              query?: never;
 diff --git a/frontend/src/test/copilot.test.tsx b/frontend/src/test/copilot.test.tsx
 new file mode 100644
-index 0000000..b89fd9c
+index 0000000..fac03a8
 --- /dev/null
 +++ b/frontend/src/test/copilot.test.tsx
-@@ -0,0 +1,103 @@
+@@ -0,0 +1,186 @@
 +import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 +import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 +import { afterEach, beforeEach, expect, it, vi } from "vitest";
 +
 +import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 +
-+const calls = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), cancel: vi.fn() }));
++const calls = vi.hoisted(() => ({
++  get: vi.fn(), post: vi.fn(), cancel: vi.fn(),
++  session: { userId: "resident-1", role: "resident", token: "tok-1" } as {
++    userId: string;
++    role: string;
++    token?: string;
++  } | null,
++}));
 +
 +vi.mock("@/lib/api/client", () => ({
 +  api: { GET: calls.get, POST: calls.post, DELETE: calls.cancel },
 +  unwrap: (call: Promise<unknown>) => call,
 +}));
++vi.mock("@/lib/auth/session", () => ({ useSession: () => calls.session }));
 +
 +const when = "2026-11-23T12:01:00+07:00";
 +const context = {
@@ -9827,8 +9987,14 @@ index 0000000..b89fd9c
 +});
 +
 +function show(role: "resident" | "operator") {
++  calls.session = { userId: calls.session?.userId ?? "resident-1", role, token: calls.session?.token ?? "tok-1" };
 +  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-+  return render(<QueryClientProvider client={client}><CopilotPanel role={role} /></QueryClientProvider>);
++  return {
++    client,
++    ...render(<CopilotPanel role={role} />, {
++      wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
++    }),
++  };
 +}
 +
 +function ask(text: string) {
@@ -9837,11 +10003,80 @@ index 0000000..b89fd9c
 +}
 +
 +beforeEach(() => {
++  calls.session = { userId: "resident-1", role: "resident", token: "tok-1" };
 +  calls.get.mockReset().mockImplementation(async (path) => path.endsWith("context") ? context : job("running"));
 +  calls.post.mockReset();
 +  calls.cancel.mockReset();
 +});
 +afterEach(cleanup);
++
++it("clears prior reply and keeps context cache isolated across resident sessions", async () => {
++  calls.get.mockImplementation(async () => ({
++    ...context, booking_ids: [calls.session?.userId === "resident-1" ? "B1" : "B2"],
++  }));
++  calls.post.mockResolvedValueOnce({ kind: "notice", code: "unsupported", message: "Phản hồi phiên trước" });
++  const screenRoot = show("resident");
++  expect(await screen.findByRole("option", { name: "B1" })).toBeTruthy();
++  ask("Một câu hỏi");
++  expect(await screen.findByText("Phản hồi phiên trước")).toBeTruthy();
++  calls.session = { userId: "resident-2", role: "resident", token: "tok-2" };
++  screenRoot.rerender(<CopilotPanel role="resident" />);
++  expect(screen.queryByRole("option", { name: "B1" })).toBeNull();
++  expect(screen.queryByText("Phản hồi phiên trước")).toBeNull();
++  expect(await screen.findByRole("option", { name: "B2" })).toBeTruthy();
++});
++
++it("drops delayed in-flight query and cancel responses across logout and re-login", async () => {
++  let resolveSlowPost!: (value: unknown) => void;
++  let resolveSlowCancel!: (value: unknown) => void;
++  calls.get.mockImplementation(async () => ({
++    ...context,
++    booking_ids: [calls.session?.userId === "resident-2" ? "B2-FRESH" : "B1-STALE"],
++  }));
++  calls.post
++    .mockImplementationOnce(
++      () => new Promise((resolve) => {
++        resolveSlowPost = resolve;
++      }),
++    )
++    .mockResolvedValueOnce(job("queued"));
++  calls.cancel.mockImplementationOnce(
++    () => new Promise((resolve) => {
++      resolveSlowCancel = resolve;
++    }),
++  );
++
++  const screenRoot = show("resident");
++  expect(await screen.findByRole("option", { name: "B1-STALE" })).toBeTruthy();
++
++  // Trigger an in-flight query for resident-1, then logout and log back in as resident-2 BEFORE it resolves.
++  ask("Câu hỏi trễ của resident-1");
++  await waitFor(() => expect(calls.post).toHaveBeenCalledTimes(1));
++  calls.session = null;
++  screenRoot.rerender(<CopilotPanel role="resident" />);
++  expect(screenRoot.client.getQueriesData({ queryKey: ["copilot"] })).toHaveLength(0);
++
++  calls.session = { userId: "resident-2", role: "resident", token: "tok-2" };
++  screenRoot.rerender(<CopilotPanel role="resident" />);
++  expect(await screen.findByRole("option", { name: "B2-FRESH" })).toBeTruthy();
++
++  resolveSlowPost({ kind: "notice", code: "unsupported", message: "Rò rỉ từ phiên đã đăng xuất" });
++  await Promise.resolve();
++  expect(screen.queryByText("Rò rỉ từ phiên đã đăng xuất")).toBeNull();
++  expect(screen.queryByRole("option", { name: "B1-STALE" })).toBeNull();
++
++  // Trigger a job + in-flight cancel for resident-2, then logout and re-login as resident-1 with a new token.
++  ask("Nếu sạc đến 75% thì sao?");
++  expect(await screen.findByRole("button", { name: "Hủy mô phỏng" })).toBeTruthy();
++  fireEvent.click(screen.getByRole("button", { name: "Hủy mô phỏng" }));
++  await waitFor(() => expect(calls.cancel).toHaveBeenCalledTimes(1));
++
++  calls.session = { userId: "resident-1", role: "resident", token: "tok-1-new" };
++  screenRoot.rerender(<CopilotPanel role="resident" />);
++  resolveSlowCancel(job("cancelled"));
++  await Promise.resolve();
++  expect(screen.queryByText("Đã hủy")).toBeNull();
++});
 +
 +it("opens the structured form after fallback and submits the station timestamp", async () => {
 +  calls.post.mockResolvedValueOnce({ kind: "notice", code: "structured_fallback", message: "Chọn biểu mẫu" });
@@ -10117,7 +10352,7 @@ index 0000000..82e9dab
 +    return WhatIfReply(result=result, claims=gate.claims, summary=summary)
 diff --git a/src/agents/copilot_intent.py b/src/agents/copilot_intent.py
 new file mode 100644
-index 0000000..622f170
+index 0000000..6c8418b
 --- /dev/null
 +++ b/src/agents/copilot_intent.py
 @@ -0,0 +1,289 @@
@@ -10194,7 +10429,7 @@ index 0000000..622f170
 +_GRID = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*kw\b")
 +_GRID_SUBJECT = re.compile(r"\b(?:grid(?: input)?|dau vao|luoi|nguon)\b")
 +_OUTPUT = re.compile(r"\b(?:dau ra|output)\b")
-+_HYPOTHETICAL = re.compile(r"\b(?:gia dinh ha tang|ha tang gia dinh|hypothetical infrastructure)\b")
++_HYPOTHETICAL = re.compile(r"\b(?:gia dinh (?:nang cap )?ha tang|ha tang gia dinh|hypothetical infrastructure)\b")
 +_DURATION = re.compile(r"\b(?:trong|keo dai|for)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
 +_HORIZON = re.compile(r"\b(?:horizon|cua so mo phong|mo phong trong)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
 +_RELATIVE = re.compile(r"\b(sau|truoc|in)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
@@ -11223,10 +11458,10 @@ index 58fe674..4cca51c 100644
  }
 diff --git a/tests/test_api/test_copilot.py b/tests/test_api/test_copilot.py
 new file mode 100644
-index 0000000..c2e6d00
+index 0000000..4d13155
 --- /dev/null
 +++ b/tests/test_api/test_copilot.py
-@@ -0,0 +1,479 @@
+@@ -0,0 +1,508 @@
 +"""G6A HTTP tests use real JWT, DecisionTrace and sandbox engines."""
 +
 +import asyncio
@@ -11425,11 +11660,22 @@ index 0000000..c2e6d00
 +
 +async def test_operator_outage_offline_site_limit_and_deferred_how_to(demo_api, monkeypatch):
 +    client, rt, _, dc, resident, _, operator = demo_api
++    site_question = "Nếu đặt công suất đầu vào lưới lên 120 kW với giả định nâng cấp hạ tầng thì sao?"
 +    install_parser(
 +        monkeypatch,
 +        {
 +            OUTAGE: RuntimeError("provider unavailable"),
 +            HOW_TO: {"intent": {"kind": "how_to", "goal": "min_tested_site_limit_for_sla"}},
++            site_question: {
++                "intent": {
++                    "kind": "what_if",
++                    "change": {
++                        "op": "site_limit",
++                        "grid_input_kw": 120,
++                        "hypothetical_infrastructure": True,
++                    },
++                }
++            },
 +        },
 +    )
 +    assert (await client.get(f"{PREFIX}/context")).status_code == 401
@@ -11462,6 +11708,11 @@ index 0000000..c2e6d00
 +    assert limited.status_code == 202
 +    site = await wait_job(client, operator, limited.json()["job"]["job_id"])
 +    assert site["result"]["result"]["patched"]["metrics"]["peak_grid_input_kw"] <= 15
++    nl_site = await client.post(f"{PREFIX}/query", headers=operator, json={"message": site_question})
++    assert nl_site.status_code == 202 and nl_site.json()["parse_source"] == "provider"
++    upgraded = await wait_job(client, operator, nl_site.json()["job"]["job_id"])
++    assert upgraded["result"]["result"]["hypothetical_infrastructure"] is True
++    assert upgraded["result"]["result"]["patch"]["grid_input_kw"] == 120
 +    deferred = await client.post(f"{PREFIX}/query", headers=operator, json={"message": HOW_TO})
 +    assert deferred.status_code == 200
 +    assert deferred.json()["intent"] == "how_to" and deferred.json()["code"] == "feature_not_available"
@@ -11471,6 +11722,8 @@ index 0000000..c2e6d00
 +async def test_off_grid_relative_time_roles_and_hostile_provider_output(demo_api, monkeypatch):
 +    client, rt, own, _, resident, _, operator = demo_api
 +    relative = "Nếu đổi hạn lấy xe sau 25 phút thì sao?"
++    off_grid = (rt.simulator.now + timedelta(minutes=7, seconds=30)).isoformat()
++    absolute = f"Nếu đổi hạn lấy xe đến {off_grid} thì sao?"
 +    unknown = "Kiểm tra giúp yêu cầu này"
 +    timeout = "Chỉ cho tôi dữ kiện hữu ích"
 +    seen = install_parser(
@@ -11482,6 +11735,15 @@ index 0000000..c2e6d00
 +                    "change": {
 +                        "op": "revise_vehicle",
 +                        "deadline": {"kind": "relative", "offset_minutes": 25},
++                    },
++                }
++            },
++            absolute: {
++                "intent": {
++                    "kind": "what_if",
++                    "change": {
++                        "op": "revise_vehicle",
++                        "deadline": {"kind": "absolute", "timestamp": off_grid},
 +                    },
 +                }
 +            },
@@ -11513,7 +11775,9 @@ index 0000000..c2e6d00
 +    ):
 +        reply = (await client.post(f"{PREFIX}/query", headers=operator, json={"message": message})).json()
 +        assert reply["code"] == code and reply["field"] == field, reply
-+    assert len(seen) == 3
++    explicit = await client.post(f"{PREFIX}/query", headers=resident, json={"message": absolute})
++    assert explicit.status_code == 422 and explicit.json()["code"] == "copilot_invalid_patch"
++    assert len(seen) == 4
 +    typed = {
 +        "patch": {
 +            "op": "revise_vehicle",

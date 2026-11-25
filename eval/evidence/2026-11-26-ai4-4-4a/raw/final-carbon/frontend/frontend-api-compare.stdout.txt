@@ -1,0 +1,2 @@
+cwd=/tmp/p019-g6a-clean-verify/frontend
+$ cmp /tmp/p019-g6a-schema.zwKq9f src/lib/api/schema.d.ts 
