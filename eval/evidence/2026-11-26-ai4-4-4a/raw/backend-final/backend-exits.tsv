@@ -1,0 +1,13 @@
+check	exit	status
+focused-g6a	0	PASS
+demo-fallback	0	PASS
+legacy-f1	0	PASS
+regression-g2-g3-g4	0	PASS
+g3-eval	0	PASS
+architecture	0	PASS
+backend-tests	0	PASS
+ruff-lint	0	PASS
+ruff-format	0	PASS
+docs	0	PASS
+openapi	0	PASS
+f1-offline	0	PASS

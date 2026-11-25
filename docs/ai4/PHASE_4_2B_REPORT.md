@@ -1,6 +1,6 @@
 # AI-4.2B — WHAT-IF Engine · Gate 4
 
-**G4 — READY_FOR_FINAL_ACCEPTANCE**
+**G4 — APPROVED.** Tech Lead final acceptance tại mirror `eb5967ae720b46b089b09e03063aa2c727ca5fd8`. Review xác nhận 5/5 remediation files và 12/12 candidate blob hash prefixes. PostgreSQL runtime vẫn PENDING.
 
 ## Final remediation
 
@@ -55,7 +55,7 @@ Final timing probe lặp mỗi operation ba lần trên fixture B0 AC 25 phút. 
 
 ### G6A readiness
 
-WHY đã được nghiệm thu ở G2. WHAT-IF đã qua final local verification và chờ Tech Lead final acceptance ở G4. G6A dùng hai engine này cho shared integration foundation và WHY/WHAT-IF end-to-end sau authorization riêng. Trình tự sau đó là G5 → G6B → G7. HOW-TO giữ toàn bộ approved scope và acceptance criteria. Shared intent, jobs, grounding và announced replay constraints được ghi trong Master Plan. [Roadmap handoff](AI-4_MASTER_IMPLEMENTATION_PLAN.md)
+WHY đã được nghiệm thu ở G2. WHAT-IF đã được nghiệm thu ở G4 và Tech Lead đã cấp authorization cho G6A. G6A dùng hai engine này cho shared integration foundation và WHY/WHAT-IF end-to-end sau authorization riêng. Trình tự sau đó là G5 → G6B → G7. HOW-TO giữ toàn bộ approved scope và acceptance criteria. Shared intent, jobs, grounding và announced replay constraints được ghi trong Master Plan. [Roadmap handoff](AI-4_MASTER_IMPLEMENTATION_PLAN.md)
 
 ## Candidate đã review (Gate 02)
 
@@ -138,5 +138,5 @@ Gate 01 qua bộ test ban đầu. Oracle bổ sung tái hiện lỗi khi cap gi�
 - Từ local baseline, dùng accepted G3 patch và G4 patch trong evidence directory mới. Chạy `bash eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh <new-scratch> <new-evidence-dir>`. Runner tự kiểm G3 SHA, tạo clone LF và CRLF rồi áp hai patch tương ứng. Lệnh thực, cwd, stdout, stderr và từng exit đều có trong ledger.
 - Để kiểm rollback G4, dùng `git apply --reverse --check <G4 candidate.patch>` trong clone candidate. Đảo riêng G4 delta trên cây kiểm tra trả code về accepted G3. Project Owner xem từng hunk nếu rollback trong workspace đang có thay đổi của thành viên khác. Giữ báo cáo phê duyệt và toàn bộ evidence.
 
-**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 4)**
+**Gate 4 đã đóng với verdict APPROVED.** [G6A recovery](G6A_RECOVERY_STATE.md)
 

@@ -1,0 +1,4 @@
+cwd=/home/lehieu/Projects/P-019/frontend
+$ timeout -k 5s 90s node_modules/.bin/openapi-typescript ./openapi.json -o /tmp/p019-g6a-schema.J5FGYA 
+✨ openapi-typescript 7.13.0
+🚀 ./openapi.json → /tmp/p019-g6a-schema.J5FGYA [240.3ms]

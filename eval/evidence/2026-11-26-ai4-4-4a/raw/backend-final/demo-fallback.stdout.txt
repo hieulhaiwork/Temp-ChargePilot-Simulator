@@ -1,0 +1,2 @@
+cwd=/tmp/p019-g6a.9b5n96
+$ isolated timeout -k 3s 60s python eval/evidence/2026-11-26-ai4-4-4a/run_demo.py --out /home/lehieu/Projects/P-019/eval/evidence/2026-11-26-ai4-4-4a/raw/backend-final/demo-output.json 

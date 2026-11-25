@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019/frontend
+$ cmp /tmp/p019-g6a-schema.gtADCa src/lib/api/schema.d.ts 

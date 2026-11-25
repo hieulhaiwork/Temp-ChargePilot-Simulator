@@ -29,6 +29,9 @@ class ErrorCode(StrEnum):
     NO_PENDING_CONFIRMATION = "no_pending_confirmation"  # 409 — /chat/resume khi phiên không còn chờ
     NOT_IMPLEMENTED = "not_implemented"  # 501 — stub [Txx]
     LLM_UNAVAILABLE = "llm_unavailable"  # 503 — frontend chuyển sang form (NFR khả dụng)
+    COPILOT_INVALID_PATCH = "copilot_invalid_patch"
+    COPILOT_CAPACITY = "copilot_capacity"
+    COPILOT_NOT_READY = "copilot_not_ready"
     DATABASE_UNAVAILABLE = "database_unavailable"  # 503
     INTERNAL_ERROR = "internal_error"  # 500
     HTTP_ERROR = "http_error"  # mã HTTP khác do framework sinh (405, 413…) — không có nghĩa nghiệp vụ riêng

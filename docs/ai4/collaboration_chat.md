@@ -33,4 +33,8 @@
 - **Mentor demo tối 25/11/2026.** Tech Lead duyệt thứ tự G4 remediation → G4 final acceptance → G6A → G5 → G6B → G7. G6A gồm shared integration foundation cùng WHY/WHAT-IF end-to-end. Đây là mốc review riêng trong G6. HOW-TO vẫn là MUST, với toàn bộ AC cho G5, G6B và G7. G6A chờ Tech Lead review candidate G4 và cấp authorization riêng. [Roadmap và integration handoff](AI-4_MASTER_IMPLEMENTATION_PLAN.md)
 - **Implementation handoff G4 — READY_FOR_FINAL_ACCEPTANCE.** G4-F01–F03 đã xử lý. Final candidate SHA-256 `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f`. Mandatory gate exit 0, WHAT-IF 47, backend 768 + 8 forecast skips, standalone 180, Golden 38/38, frozen 100/100. PostgreSQL runtime PENDING. [Phase Report](PHASE_4_2B_REPORT.md)
 
-**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 4)**
+- **Final decision G4 — APPROVED** tại mirror `eb5967ae720b46b089b09e03063aa2c727ca5fd8`. Accepted candidate `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f` và remediation-only `1cdb630cc10a4bfd1fb96d1ac2264dbd4a9515f3dbfe7153780f0c6fd33160bf`. PostgreSQL runtime PENDING.
+
+## 6. Gate 6A (AI-4.4A — Shared Integration Foundation)
+
+- **AUTHORIZED** cho WHY và WHAT-IF end-to-end. G5, G6B và G7 giữ thứ tự và phạm vi đã duyệt. [Recovery](G6A_RECOVERY_STATE.md)

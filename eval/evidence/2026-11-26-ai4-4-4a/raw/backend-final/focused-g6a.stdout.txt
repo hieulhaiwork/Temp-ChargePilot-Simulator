@@ -1,0 +1,22 @@
+cwd=/tmp/p019-g6a.9b5n96
+$ isolated timeout -k 3s 100s python -m pytest -vv tests/test_api/test_copilot.py 
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/lehieu/Projects/P-019/.simulator/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/p019-g6a.9b5n96
+configfile: pytest.ini
+plugins: asyncio-1.5.0, typeguard-4.6.0, langsmith-0.15.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 9 items
+
+tests/test_api/test_copilot.py::test_resident_why_and_what_if_uses_real_engines_and_preserves_live_state PASSED [ 11%]
+tests/test_api/test_copilot.py::test_operator_outage_offline_site_limit_and_deferred_how_to PASSED [ 22%]
+tests/test_api/test_copilot.py::test_off_grid_relative_time_roles_and_hostile_provider_output PASSED [ 33%]
+tests/test_api/test_copilot.py::test_job_cancellation_expiry_and_shutdown_ownership PASSED [ 44%]
+tests/test_api/test_copilot.py::test_playground_does_not_bypass_copilot_jwt PASSED [ 55%]
+tests/test_api/test_copilot.py::test_grounding_rejects_wrong_number_subject_time_unit_stage_and_delta PASSED [ 66%]
+tests/test_api/test_copilot.py::test_unsafe_paired_engine_returns_no_delta PASSED [ 77%]
+tests/test_api/test_copilot.py::test_non_comparable_actual_wait_samples_keep_coverage PASSED [ 88%]
+tests/test_api/test_copilot.py::test_real_timeout_is_bounded_and_uses_deterministic_rule PASSED [100%]
+
+============================== 9 passed in 6.30s ===============================

@@ -1,0 +1,127 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import { CopilotPanel } from "@/components/copilot/CopilotPanel";
+
+const calls = vi.hoisted(() => ({
+  get: vi.fn(), post: vi.fn(), cancel: vi.fn(),
+  session: { userId: "resident-1", role: "resident" },
+}));
+
+vi.mock("@/lib/api/client", () => ({
+  api: { GET: calls.get, POST: calls.post, DELETE: calls.cancel },
+  unwrap: (call: Promise<unknown>) => call,
+}));
+vi.mock("@/lib/auth/session", () => ({ useSession: () => calls.session }));
+
+const when = "2026-11-23T12:01:00+07:00";
+const context = {
+  as_of: when, timezone: "Asia/Ho_Chi_Minh", booking_ids: ["B1"],
+  connectors: [{ connector_id: "DC-01-1", zone: "DC" }],
+  default_horizon_minutes: 120, max_horizon_minutes: 1440,
+};
+const job = (status: string, result?: unknown) => ({
+  kind: "job", job: { job_id: "id1", job_kind: "what_if", status, applied: false, result },
+});
+
+function show(role: "resident" | "operator") {
+  calls.session.role = role;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(<CopilotPanel role={role} />, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  });
+}
+
+function ask(text: string) {
+  fireEvent.change(screen.getByLabelText("Câu hỏi"), { target: { value: text } });
+  fireEvent.click(screen.getByRole("button", { name: "Gửi câu hỏi" }));
+}
+
+beforeEach(() => {
+  calls.session.userId = "resident-1";
+  calls.get.mockReset().mockImplementation(async (path) => path.endsWith("context") ? context : job("running"));
+  calls.post.mockReset();
+  calls.cancel.mockReset();
+});
+afterEach(cleanup);
+
+it("clears prior reply and keeps context cache isolated across resident sessions", async () => {
+  calls.get.mockImplementation(async () => ({
+    ...context, booking_ids: [calls.session.userId === "resident-1" ? "B1" : "B2"],
+  }));
+  calls.post.mockResolvedValueOnce({ kind: "notice", code: "unsupported", message: "Phản hồi phiên trước" });
+  const screenRoot = show("resident");
+  expect(await screen.findByRole("option", { name: "B1" })).toBeTruthy();
+  ask("Một câu hỏi");
+  expect(await screen.findByText("Phản hồi phiên trước")).toBeTruthy();
+  calls.session.userId = "resident-2";
+  screenRoot.rerender(<CopilotPanel role="resident" />);
+  expect(screen.queryByRole("option", { name: "B1" })).toBeNull();
+  expect(screen.queryByText("Phản hồi phiên trước")).toBeNull();
+  expect(await screen.findByRole("option", { name: "B2" })).toBeTruthy();
+});
+
+it("opens the structured form after fallback and submits the station timestamp", async () => {
+  calls.post.mockResolvedValueOnce({ kind: "notice", code: "structured_fallback", message: "Chọn biểu mẫu" });
+  calls.post.mockResolvedValueOnce({
+    kind: "why", summary: "Có bằng chứng",
+    claims: [{ claim_id: "f1", name: "queue", value: 2, stage: "planned", observed_at: when, evidence_refs: ["trace#queue"] }],
+    result: { missing_evidence: [] },
+  });
+  show("resident");
+  ask("Yêu cầu không rõ");
+  expect(await screen.findByText("Chọn biểu mẫu")).toBeTruthy();
+  fireEvent.click(await screen.findByRole("button", { name: "Xem bằng chứng" }));
+  await waitFor(() => expect(calls.post).toHaveBeenLastCalledWith("/api/v1/copilot/why", {
+    body: { at: when, topic: "queue", limit: 20, subject_scope: "own_booking", booking_id: null },
+  }));
+  expect(await screen.findByText("trace#queue")).toBeTruthy();
+  expect(screen.getByText(/Kế hoạch/)).toBeTruthy();
+  expect(screen.queryByLabelText("Đầu nối")).toBeNull();
+});
+
+it("polls and renders the non-comparable sample and original/revised commitments", async () => {
+  const original = { target_soc: 90, deadline: when, met_deadline: null };
+  calls.post.mockResolvedValueOnce(job("queued"));
+  calls.get.mockImplementation(async (path) => path.endsWith("context") ? context : job("succeeded", {
+    kind: "what_if", summary: "Đã mô phỏng hai nhánh.",
+    claims: [
+      { claim_id: "baseline:plug_wait_mean_minutes", value: 30, unit: "min" },
+      { claim_id: "patched:plug_wait_mean_minutes", value: 15, unit: "min" },
+      { claim_id: "delta:plug_wait_mean_minutes", value: null, reason_code: "non_comparable_sample" },
+    ],
+    result: {
+      status: "completed", snapshot_time: when, horizon_end: when, horizon_minutes: 15,
+      baseline: {}, patched: {}, assumptions: [],
+      affected_vehicles: [{
+        booking_id: "B1", baseline_original: original, patched_original: original,
+        patched_revised: { ...original, target_soc: 75, met_deadline: true },
+      }],
+    },
+  }));
+  show("resident");
+  ask("Nếu sạc đến 75% thì sao?");
+  expect(await screen.findByText("Khác tập booking")).toBeTruthy();
+  expect(screen.getByText("75% · Đúng hạn")).toBeTruthy();
+  expect(screen.getAllByText("90% · Chưa xác định SLA")).toHaveLength(2);
+  expect(calls.get).toHaveBeenCalledWith("/api/v1/copilot/jobs/{job_id}", expect.anything());
+  expect(screen.queryByRole("button", { name: /áp dụng/i })).toBeNull();
+});
+
+it("rules clarify connector selection, cancel a job and show HOW-TO unavailable", async () => {
+  calls.post.mockResolvedValueOnce(job("queued"));
+  calls.cancel.mockResolvedValueOnce(job("cancelled"));
+  calls.post.mockResolvedValueOnce({ kind: "notice", code: "feature_not_available", message: "HOW-TO hiện chưa khả dụng." });
+  show("operator");
+  const connector = await screen.findByLabelText("Đầu nối");
+  await screen.findByRole("option", { name: "DC-01-1" });
+  fireEvent.change(connector, { target: { value: "DC-01-1" } });
+  ask("Nếu một cổng DC bị lỗi trong 30 phút thì sao?");
+  expect(await screen.findByRole("button", { name: "Hủy mô phỏng" })).toBeTruthy();
+  expect(calls.post.mock.calls[0][1].body.selected_connector_id).toBe("DC-01-1");
+  fireEvent.click(screen.getByRole("button", { name: "Hủy mô phỏng" }));
+  expect(await screen.findByText("Đã hủy")).toBeTruthy();
+  ask("Cần tăng công suất nguồn lên bao nhiêu?");
+  expect(await screen.findByText("HOW-TO hiện chưa khả dụng.")).toBeTruthy();
+});

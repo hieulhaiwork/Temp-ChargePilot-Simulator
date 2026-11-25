@@ -101,6 +101,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/copilot/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Context
+         * @description Station clock and authorized choices for structured input.
+         */
+        get: operations["context_api_v1_copilot_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copilot/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job
+         * @description Poll a caller-owned job.
+         */
+        get: operations["get_job_api_v1_copilot_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Job
+         * @description Request cancellation of a caller-owned job.
+         */
+        delete: operations["cancel_job_api_v1_copilot_jobs__job_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copilot/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query
+         * @description Route a question or retrieve the authorized result of a job follow-up.
+         */
+        post: operations["query_api_v1_copilot_query_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copilot/what-if": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What If
+         * @description Submit a bounded sandbox simulation.
+         */
+        post: operations["what_if_api_v1_copilot_what_if_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copilot/why": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Why
+         * @description Read authorized deterministic WHY evidence.
+         */
+        post: operations["why_api_v1_copilot_why_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/energy/estimate": {
         parameters: {
             query?: never;
@@ -1197,6 +1301,26 @@ export interface components {
          * @enum {string}
          */
         CommandType: "set_power" | "start" | "stop" | "assign_connector";
+        /** CommitmentOutcome */
+        CommitmentOutcome: {
+            /** Already Satisfied At Snapshot */
+            already_satisfied_at_snapshot: boolean;
+            /**
+             * Deadline
+             * Format: date-time
+             */
+            deadline: string;
+            /** Met Deadline */
+            met_deadline: boolean | null;
+            /** Remaining Battery Kwh */
+            remaining_battery_kwh: number;
+            /** Remaining Output Kwh */
+            remaining_output_kwh: number;
+            /** Target Reached At */
+            target_reached_at: string | null;
+            /** Target Soc */
+            target_soc: number;
+        };
         /**
          * ConnectorDetail
          * @description S5 — popup khi vận hành bấm vào một cột sạc.
@@ -1289,6 +1413,110 @@ export interface components {
              */
             max_start_delay_minutes: number;
         };
+        /** CopilotConnector */
+        CopilotConnector: {
+            /** Connector Id */
+            connector_id: string;
+            /**
+             * Zone
+             * @enum {string}
+             */
+            zone: "AC" | "DC";
+        };
+        /** CopilotContext */
+        CopilotContext: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Booking Ids */
+            booking_ids: string[];
+            /** Connectors */
+            connectors: components["schemas"]["CopilotConnector"][];
+            /**
+             * Default Horizon Minutes
+             * @default 120
+             */
+            default_horizon_minutes: number;
+            /**
+             * Max Horizon Minutes
+             * @default 1440
+             */
+            max_horizon_minutes: number;
+            role: components["schemas"]["Role"];
+            /** Station Id */
+            station_id: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** CopilotJob */
+        CopilotJob: {
+            /**
+             * Applied
+             * @default false
+             * @constant
+             */
+            applied: false;
+            /** Error */
+            error?: ("timeout" | "execution_failed" | "grounding_failed") | null;
+            /** Job Id */
+            job_id: string;
+            /**
+             * Job Kind
+             * @constant
+             */
+            job_kind: "what_if";
+            /** Result */
+            result?: (components["schemas"]["WhyReply"] | components["schemas"]["WhatIfReply"]) | null;
+            status: components["schemas"]["WhatIfJobStatus"];
+        };
+        /** CopilotNotice */
+        CopilotNotice: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "clarify" | "unsupported" | "feature_not_available" | "structured_fallback";
+            /** Field */
+            field?: ("intent" | "booking" | "connector" | "time" | "duration" | "target" | "grid_input" | "infrastructure") | null;
+            /** Intent */
+            intent?: "how_to" | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "notice";
+            /** Message */
+            message: string;
+            /** Parse Source */
+            parse_source?: ("provider" | "deterministic") | null;
+        };
+        /** CopilotQueryRequest */
+        CopilotQueryRequest: {
+            /** Job Id */
+            job_id?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Selected Booking Id */
+            selected_booking_id?: string | null;
+            /** Selected Connector Id */
+            selected_connector_id?: string | null;
+        };
+        /** CopilotRequestFieldError */
+        CopilotRequestFieldError: {
+            /** Loc */
+            loc: (string | number)[];
+            /** Msg */
+            msg: string;
+            /** Type */
+            type: string;
+        };
+        /** CopilotRequestValidation */
+        CopilotRequestValidation: {
+            /** Detail */
+            detail: components["schemas"]["CopilotRequestFieldError"][];
+        };
         /**
          * DecisionLogEntry
          * @description FR14 — ai/thành phần nào đề xuất, Guard kết luận gì, ai duyệt, lúc nào, có thực thi không.
@@ -1315,6 +1543,19 @@ export interface components {
             timestamp: string;
             verdict?: components["schemas"]["GuardVerdict"] | null;
         };
+        /** DeltaUnavailableReason */
+        DeltaUnavailableReason: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "missing_data" | "non_comparable_sample";
+        };
+        /**
+         * DerivationOp
+         * @enum {string}
+         */
+        DerivationOp: "sum" | "count" | "average" | "time_integration" | "efficiency_conversion" | "soc_conversion" | "hardware_bound";
         /**
          * EnergyEstimate
          * @description Kết quả FR3 — do CODE tính (src/services/energy.py), LLM không tự tính.
@@ -1356,7 +1597,7 @@ export interface components {
          * @description Mã lỗi ổn định cho frontend switch (ADR-008) — không dò chuỗi `detail`.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "forbidden" | "not_found" | "booking_conflict" | "idempotency_mismatch" | "approval_already_decided" | "proposal_expired" | "no_pending_confirmation" | "not_implemented" | "llm_unavailable" | "database_unavailable" | "internal_error" | "http_error";
+        ErrorCode: "unauthenticated" | "forbidden" | "not_found" | "booking_conflict" | "idempotency_mismatch" | "approval_already_decided" | "proposal_expired" | "no_pending_confirmation" | "not_implemented" | "llm_unavailable" | "copilot_invalid_patch" | "copilot_capacity" | "copilot_not_ready" | "database_unavailable" | "internal_error" | "http_error";
         /**
          * ErrorResponse
          * @description Envelope lỗi chung (ADR-008). 422 giữ nguyên dạng mặc định của FastAPI.
@@ -1388,6 +1629,51 @@ export interface components {
          */
         EventType: "tick" | "vehicle_arrived" | "vehicle_departed" | "booking_created" | "booking_changed" | "booking_cancelled" | "connector_fault" | "connector_restored" | "power_limit_changed" | "charge_completed" | "replan_requested" | "hard_limit_violated";
         /**
+         * EvidenceCategory
+         * @enum {string}
+         */
+        EvidenceCategory: "observed" | "policy_reason" | "binding_constraint" | "inference_bound";
+        /**
+         * EvidenceRef
+         * @description Stable, dereferenceable evidence pointer scoped to an authorized subject and trace.
+         */
+        EvidenceRef: {
+            /** Correlation Id */
+            correlation_id: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            /** Interval End */
+            interval_end?: string | null;
+            /** Interval Start */
+            interval_start?: string | null;
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Ref Id */
+            ref_id: string;
+            /** Source Path */
+            source_path: string;
+            /** Subject */
+            subject: string;
+            time_scope?: components["schemas"]["TemporalBasis"] | null;
+            /** Trace Schema */
+            trace_schema: string;
+        };
+        /**
+         * FactDerivationKind
+         * @enum {string}
+         */
+        FactDerivationKind: "direct" | "derived";
+        /**
+         * FactStage
+         * @enum {string}
+         */
+        FactStage: "observed" | "planned" | "approved" | "dispatched" | "effective_setpoint" | "measured" | "config";
+        /**
          * FieldProvenance
          * @description Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).
          */
@@ -1402,6 +1688,39 @@ export interface components {
              * @enum {string}
              */
             status: "verified" | "oem_claim" | "proxy" | "assumed" | "synthetic" | "unverified";
+        };
+        /** GroundedClaim */
+        GroundedClaim: {
+            /** Branch */
+            branch?: ("baseline" | "patched" | "delta") | null;
+            /** Claim Id */
+            claim_id: string;
+            /** Direction */
+            direction?: ("patched_minus_baseline" | "baseline_minus_patched") | null;
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /** Interval End */
+            interval_end?: string | null;
+            /** Interval Start */
+            interval_start?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            reason_category?: components["schemas"]["EvidenceCategory"] | null;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Stage */
+            stage: components["schemas"]["FactStage"] | "simulated";
+            /** Subject */
+            subject: string;
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value: boolean | number | string | null;
         };
         /**
          * GuardRule
@@ -1512,6 +1831,17 @@ export interface components {
          * @enum {string}
          */
         IncidentType: "connector_fault" | "connector_restored" | "power_limit_change";
+        /** JobReply */
+        JobReply: {
+            job: components["schemas"]["CopilotJob"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "job";
+            /** Parse Source */
+            parse_source?: ("provider" | "deterministic") | null;
+        };
         /**
          * KpiReport
          * @description KPI theo PRD §2 (MT1–MT6) và AC7 — định nghĩa chi tiết ở src/simulator/kpi.py.
@@ -1659,6 +1989,20 @@ export interface components {
              * @description λ_u = hệ số × giá cao nhất — điện thiếu trội tuyệt đối
              */
             unmet_penalty_factor: number;
+        };
+        /** Outage */
+        Outage: {
+            /** Connector Id */
+            connector_id: string;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "outage";
+            /** Starts At */
+            starts_at?: string | null;
         };
         /**
          * PlanningPolicyConfig
@@ -1895,6 +2239,20 @@ export interface components {
             resume: string;
             /** Session Id */
             session_id: string;
+        };
+        /** ReviseVehicle */
+        ReviseVehicle: {
+            /** Booking Id */
+            booking_id: string;
+            /** Deadline */
+            deadline?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "revise_vehicle";
+            /** Target Soc */
+            target_soc?: number | null;
         };
         /**
          * Role
@@ -2160,6 +2518,34 @@ export interface components {
             /** @description Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5) */
             violations?: components["schemas"]["ViolationCounts"] | null;
         };
+        /** SiteLimit */
+        SiteLimit: {
+            /** Grid Input Kw */
+            grid_input_kw: number;
+            /**
+             * Hypothetical Infrastructure
+             * @default false
+             */
+            hypothetical_infrastructure: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "site_limit";
+        };
+        /** SlaMetrics */
+        SlaMetrics: {
+            /** Censored Count */
+            censored_count: number;
+            /** Cohort Size */
+            cohort_size: number;
+            /** Denominator */
+            denominator: number;
+            /** Met Count */
+            met_count: number;
+            /** On Time Rate */
+            on_time_rate: number | null;
+        };
         /**
          * StationConfig
          * @description Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).
@@ -2279,6 +2665,66 @@ export interface components {
             violation_booking_ids?: string[];
             /** Violation Kinds */
             violation_kinds?: components["schemas"]["ViolationKind"][];
+        };
+        /** StationMetrics */
+        StationMetrics: {
+            /** By Zone */
+            by_zone: {
+                [key: string]: components["schemas"]["SlaMetrics"];
+            };
+            /** Charge Wait Censored Count */
+            charge_wait_censored_count: number;
+            /** Charge Wait Mean Minutes */
+            charge_wait_mean_minutes: number | null;
+            /** Charge Wait Observed Count */
+            charge_wait_observed_count: number;
+            /** Charge Wait P90 Minutes */
+            charge_wait_p90_minutes: number | null;
+            /** Charge Wait Unknown Count */
+            charge_wait_unknown_count: number;
+            /** Charged Coverage Rate */
+            charged_coverage_rate: number | null;
+            /** Cohort Size */
+            cohort_size: number;
+            /** Horizon Battery Kwh */
+            horizon_battery_kwh: number;
+            /** Horizon Energy Cost Vnd */
+            horizon_energy_cost_vnd: number;
+            /** Horizon Grid Input Kwh */
+            horizon_grid_input_kwh: number;
+            /** Horizon Output Kwh */
+            horizon_output_kwh: number;
+            /** Peak Charger Output Kw */
+            peak_charger_output_kw: number;
+            /** Peak Grid Input Kw */
+            peak_grid_input_kw: number;
+            /** Plug Wait Censored Count */
+            plug_wait_censored_count: number;
+            /** Plug Wait Mean Minutes */
+            plug_wait_mean_minutes: number | null;
+            /** Plug Wait Observed Count */
+            plug_wait_observed_count: number;
+            /** Plug Wait P90 Minutes */
+            plug_wait_p90_minutes: number | null;
+            /** Plug Wait Unknown Count */
+            plug_wait_unknown_count: number;
+            /** Service Coverage Denominator */
+            service_coverage_denominator: number;
+            /** Service Coverage Rate */
+            service_coverage_rate: number | null;
+            sla: components["schemas"]["SlaMetrics"];
+            /**
+             * Unmet Original Battery Kwh
+             * @description Energy remaining to original targets at observation cutoff.
+             */
+            unmet_original_battery_kwh: number;
+            /**
+             * Unmet Original Output Kwh
+             * @description Charger-output equivalent of remaining battery energy at cutoff.
+             */
+            unmet_original_output_kwh: number;
+            /** Unserved Count */
+            unserved_count: number;
         };
         /**
          * StationOverview
@@ -2400,6 +2846,27 @@ export interface components {
              */
             start: string;
         };
+        /**
+         * TemporalBasis
+         * @enum {string}
+         */
+        TemporalBasis: "decision_snapshot" | "planned_interval" | "effective_interval" | "measured_coverage" | "derivation_interval" | "sample_interval" | "query_window";
+        /**
+         * TimeWindow
+         * @description Half-open, timezone-aware query interval [start, end).
+         */
+        TimeWindow: {
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+        };
         /** TokenResponse */
         TokenResponse: {
             /** Access Token */
@@ -2415,6 +2882,55 @@ export interface components {
             token_type: "bearer";
             /** User Id */
             user_id: string;
+        };
+        /**
+         * TraceProvenance
+         * @description Temporal and policy provenance for one resolved DecisionTrace.
+         */
+        TraceProvenance: {
+            /** Closed */
+            closed: boolean;
+            /** Correlation Id */
+            correlation_id: string;
+            /** Coverage Status */
+            coverage_status: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            /** Effective End */
+            effective_end?: string | null;
+            /**
+             * Effective Start
+             * Format: date-time
+             */
+            effective_start: string;
+            /** Measured End */
+            measured_end?: string | null;
+            /** Measured Start */
+            measured_start?: string | null;
+            /** Planned Interval End */
+            planned_interval_end?: string | null;
+            /** Planned Interval Start */
+            planned_interval_start?: string | null;
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Post Apply Status */
+            post_apply_status: string;
+            /** Schedule Version */
+            schedule_version: number;
+            /**
+             * Stale After Restart
+             * @default false
+             */
+            stale_after_restart: boolean;
+            /** State Version */
+            state_version?: number | null;
+            /** Trace Schema */
+            trace_schema: string;
         };
         /**
          * UserProfile
@@ -2545,6 +3061,340 @@ export interface components {
          * @enum {string}
          */
         ViolationKind: "aggregate_power" | "charging_model" | "acceptance";
+        /** WhatIfBranch */
+        WhatIfBranch: {
+            /** Blocked Commands */
+            blocked_commands: number;
+            /** Config Sha256 */
+            config_sha256: string;
+            /** Final Physics Sha256 */
+            final_physics_sha256: string;
+            /** Hard Violations */
+            hard_violations: number;
+            /** Input Sha256 */
+            input_sha256: string;
+            metrics: components["schemas"]["StationMetrics"];
+            /**
+             * Observed Until
+             * Format: date-time
+             */
+            observed_until: string;
+            /** Pending Approval Commands */
+            pending_approval_commands: number;
+            /** Pending Approvals */
+            pending_approvals: number;
+            /** Rejected Allocations */
+            rejected_allocations: number;
+            /** Run Id */
+            run_id: string;
+            /** Sampled Grid Over Limit Minutes */
+            sampled_grid_over_limit_minutes: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "completed" | "unsafe" | "unresolved_safety";
+            /** Unresolved Safety Count */
+            unresolved_safety_count: number;
+        };
+        /**
+         * WhatIfJobStatus
+         * @enum {string}
+         */
+        WhatIfJobStatus: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "expired";
+        /** WhatIfReply */
+        WhatIfReply: {
+            /** Claims */
+            claims: components["schemas"]["GroundedClaim"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "what_if";
+            result: components["schemas"]["WhatIfResult"];
+            /** Summary */
+            summary: string;
+        };
+        /** WhatIfRequest */
+        WhatIfRequest: {
+            /**
+             * Horizon Minutes
+             * @default 120
+             */
+            horizon_minutes: number;
+            /** Patch */
+            patch: components["schemas"]["ReviseVehicle"] | components["schemas"]["SiteLimit"] | components["schemas"]["Outage"];
+        };
+        /** WhatIfResult */
+        WhatIfResult: {
+            /** Affected Vehicles */
+            affected_vehicles: components["schemas"]["WhatIfVehicleOutcome"][];
+            /**
+             * Applied
+             * @default false
+             * @constant
+             */
+            applied: false;
+            /** Assumptions */
+            assumptions: string[];
+            baseline: components["schemas"]["WhatIfBranch"];
+            /** Delta */
+            delta: {
+                [key: string]: number | null;
+            } | null;
+            /** Delta Reasons */
+            delta_reasons?: {
+                [key: string]: components["schemas"]["DeltaUnavailableReason"];
+            } | null;
+            /** Event Manifest Sha256 */
+            event_manifest_sha256: string;
+            /** Experiment Fingerprint */
+            experiment_fingerprint: string;
+            /** Feasible */
+            feasible: boolean | null;
+            /**
+             * Horizon End
+             * Format: date-time
+             */
+            horizon_end: string;
+            /** Horizon Minutes */
+            horizon_minutes: number;
+            /** Hypothetical Infrastructure */
+            hypothetical_infrastructure: boolean;
+            /** Known Booking Count */
+            known_booking_count: number;
+            /** Known Limit Event Count */
+            known_limit_event_count: number;
+            /** Patch */
+            patch: components["schemas"]["ReviseVehicle"] | components["schemas"]["SiteLimit"] | components["schemas"]["Outage"];
+            /** Patch Sha256 */
+            patch_sha256: string;
+            patched: components["schemas"]["WhatIfBranch"];
+            /** Snapshot Digest */
+            snapshot_digest: string;
+            /** Snapshot Id */
+            snapshot_id: string;
+            /**
+             * Snapshot Time
+             * Format: date-time
+             */
+            snapshot_time: string;
+            /** State Version */
+            state_version: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "completed" | "unsafe" | "incomplete";
+        };
+        /** WhatIfVehicleOutcome */
+        WhatIfVehicleOutcome: {
+            /** Baseline Final Soc Pct */
+            baseline_final_soc_pct: number;
+            /** Baseline First Charge At */
+            baseline_first_charge_at: string | null;
+            /** Baseline Horizon Battery Kwh */
+            baseline_horizon_battery_kwh: number;
+            baseline_original: components["schemas"]["CommitmentOutcome"];
+            /** Baseline Plug In At */
+            baseline_plug_in_at: string | null;
+            /** Baseline Release At */
+            baseline_release_at: string | null;
+            /** Booking Id */
+            booking_id: string;
+            /** Initial Soc Pct */
+            initial_soc_pct: number;
+            /** Patched Final Soc Pct */
+            patched_final_soc_pct: number;
+            /** Patched First Charge At */
+            patched_first_charge_at: string | null;
+            /** Patched Horizon Battery Kwh */
+            patched_horizon_battery_kwh: number;
+            patched_original: components["schemas"]["CommitmentOutcome"];
+            /** Patched Plug In At */
+            patched_plug_in_at: string | null;
+            /** Patched Release At */
+            patched_release_at: string | null;
+            patched_revised: components["schemas"]["CommitmentOutcome"] | null;
+        };
+        /**
+         * WhyAnswer
+         * @description Structured output of the deterministic WHY Engine.
+         *
+         *     For multi-trace windows, per-fact/per-reason provenance carries exact correlation_id,
+         *     policy_id, policy_version and decided_at; top-level decision_time/state_version are only
+         *     populated when a single trace is resolved, and top-level policy_id/policy_version only
+         *     when unambiguous across all resolved traces.
+         */
+        WhyAnswer: {
+            /** Assumptions */
+            assumptions?: string[];
+            /** Decision Time */
+            decision_time?: string | null;
+            /** Evidence Refs */
+            evidence_refs?: components["schemas"]["EvidenceRef"][];
+            /** Facts */
+            facts?: components["schemas"]["WhyFact"][];
+            /** Missing Evidence */
+            missing_evidence?: string[];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Policy Id */
+            policy_id?: string | null;
+            /** Policy Version */
+            policy_version?: string | null;
+            /** Query At */
+            query_at?: string | null;
+            query_window?: components["schemas"]["TimeWindow"] | null;
+            /** Reasons */
+            reasons?: components["schemas"]["WhyReason"][];
+            /** State Version */
+            state_version?: number | null;
+            status: components["schemas"]["WhyStatus"];
+            /** Subject Id */
+            subject_id?: string | null;
+            subject_scope: components["schemas"]["WhySubjectScope"];
+            /** Topic */
+            topic: string;
+            /** Traces */
+            traces?: components["schemas"]["TraceProvenance"][];
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+        };
+        /**
+         * WhyFact
+         * @description One atomic, typed fact grounded in a specific DecisionTrace and temporal boundary.
+         */
+        WhyFact: {
+            /** Correlation Id */
+            correlation_id: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            /** @default direct */
+            derivation_kind: components["schemas"]["FactDerivationKind"];
+            derivation_op?: components["schemas"]["DerivationOp"] | null;
+            /** Derivation Params */
+            derivation_params?: {
+                [key: string]: number | string | boolean | null;
+            };
+            /** Evidence Ref */
+            evidence_ref: string;
+            /** Fact Id */
+            fact_id: string;
+            /** Input Evidence Refs */
+            input_evidence_refs?: string[];
+            /** Interval End */
+            interval_end?: string | null;
+            /** Interval Start */
+            interval_start?: string | null;
+            /** Name */
+            name: string;
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Source Path */
+            source_path: string;
+            stage: components["schemas"]["FactStage"];
+            /** Subject */
+            subject: string;
+            /** @default decision_snapshot */
+            time_scope: components["schemas"]["TemporalBasis"];
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value?: number | string | boolean | null;
+        };
+        /**
+         * WhyQuery
+         * @description Typed query for the deterministic WHY Engine.
+         *
+         *     Invalid structure (naive timestamps, contradictory time selection, invalid scope/booking
+         *     combination, unknown fields) raises ValidationError. An unknown topic string is accepted
+         *     by schema so the service can return `WhyStatus.UNSUPPORTED` cleanly.
+         */
+        WhyQuery: {
+            /** At */
+            at?: string | null;
+            /** Booking Id */
+            booking_id?: string | null;
+            /** Cursor */
+            cursor?: string | null;
+            /**
+             * Limit
+             * @default 20
+             */
+            limit: number;
+            subject_scope: components["schemas"]["WhySubjectScope"];
+            /** Topic */
+            topic: string;
+            window?: components["schemas"]["TimeWindow"] | null;
+        };
+        /**
+         * WhyReason
+         * @description One deterministic, evidence-backed reason referencing facts and evidence pointers.
+         */
+        WhyReason: {
+            category: components["schemas"]["EvidenceCategory"];
+            /** Code */
+            code: string;
+            /** Correlation Id */
+            correlation_id: string;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            /** Evidence Refs */
+            evidence_refs?: string[];
+            /** Fact Refs */
+            fact_refs?: string[];
+            /** Params */
+            params?: {
+                [key: string]: number | string | boolean | null;
+            };
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Subject */
+            subject: string;
+            /** Summary */
+            summary: string;
+            /** Template Key */
+            template_key: string;
+        };
+        /** WhyReply */
+        WhyReply: {
+            /** Claims */
+            claims: components["schemas"]["GroundedClaim"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "why";
+            /** Parse Source */
+            parse_source?: ("provider" | "deterministic") | null;
+            result: components["schemas"]["WhyAnswer"];
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * WhyStatus
+         * @enum {string}
+         */
+        WhyStatus: "ok" | "partial" | "no_data" | "forbidden" | "unsupported";
+        /**
+         * WhySubjectScope
+         * @enum {string}
+         */
+        WhySubjectScope: "own_booking" | "booking" | "station";
     };
     responses: never;
     parameters: never;
@@ -2909,6 +3759,538 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    context_api_v1_copilot_context_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotContext"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_job_api_v1_copilot_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReply"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancel_job_api_v1_copilot_jobs__job_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReply"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    query_api_v1_copilot_query_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhyReply"] | components["schemas"]["JobReply"] | components["schemas"]["CopilotNotice"];
+                };
+            };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReply"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid hypothetical operation or fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["CopilotRequestValidation"];
+                };
+            };
+            /** @description Copilot workload is at capacity */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    what_if_api_v1_copilot_what_if_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatIfRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReply"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid hypothetical operation or fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["CopilotRequestValidation"];
+                };
+            };
+            /** @description Copilot workload is at capacity */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    why_api_v1_copilot_why_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhyQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhyReply"];
                 };
             };
             /** @description Unauthorized */

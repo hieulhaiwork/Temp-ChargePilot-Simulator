@@ -15,6 +15,7 @@ from src.models.control import Role
 from src.services import auth as auth_service
 
 _bearer = HTTPBearer(auto_error=False)
+_BearerCredentials = Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]
 
 DEMO_RESIDENT = UserProfile(
     user_id="demo-resident",
@@ -25,16 +26,22 @@ DEMO_RESIDENT = UserProfile(
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    credentials: _BearerCredentials,
 ) -> UserProfile:
     if get_settings().agent_playground and (credentials is None or credentials.credentials == "demo"):
         return DEMO_RESIDENT
+    return await get_authenticated_user(credentials)
+
+
+async def get_authenticated_user(credentials: _BearerCredentials) -> UserProfile:
+    """Require JWT even when the legacy chat playground is enabled."""
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Thiếu Bearer token", headers={"WWW-Authenticate": "Bearer"})
     return auth_service.decode_token(credentials.credentials)
 
 
 CurrentUser = Annotated[UserProfile, Depends(get_current_user)]
+AuthenticatedUser = Annotated[UserProfile, Depends(get_authenticated_user)]
 
 
 async def require_resident(user: CurrentUser) -> UserProfile:

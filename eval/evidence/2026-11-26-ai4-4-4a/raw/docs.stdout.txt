@@ -1,0 +1,4 @@
+cwd=/tmp/p019-g6a.9b5n96
+$ isolated python scripts/check_docs.py 
+Checked 50 md files, 131 internal links.
+✅ doc-check PASS — links, models, template paths đều khớp.

@@ -1,0 +1,6 @@
+cwd=/home/lehieu/Projects/P-019/frontend
+$ timeout -k 5s 180s npm run lint 
+
+> chargepilot-web@0.1.0 lint
+> eslint
+

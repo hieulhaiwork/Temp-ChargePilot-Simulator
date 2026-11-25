@@ -17,13 +17,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.api import auth, catalog, operations, resident, simulation, ws
+from src.api import auth, catalog, copilot, operations, resident, simulation, ws
 from src.api.routes import router
 from src.config import get_settings
 from src.models.api import ErrorCode, ErrorResponse, ReadinessReport
 from src.services import auth as auth_service
 from src.services import catalog as catalog_service
 from src.services import control_loop, repository, runtime
+from src.services.copilot.integration import CopilotIntegration
 from src.services.errors import DomainError
 
 API_PREFIX = "/api/v1"
@@ -53,13 +54,23 @@ async def lifespan(app: FastAPI):
     background: asyncio.Task | None = None
     if settings.control_loop_enabled:
         background = asyncio.create_task(control_loop.run_forever(stop, runtime.get_runtime()))
-    yield
-    stop.set()
-    if background is not None:
-        await background
-    runtime.register_app_loop(None)
-    repository.dispose()
-    logger.info("Shutting down")
+    integration = CopilotIntegration()
+    app.state.copilot = integration
+    try:
+        yield
+    finally:
+        stop.set()
+        try:
+            await integration.close()
+        finally:
+            del app.state.copilot
+            try:
+                if background is not None:
+                    await background
+            finally:
+                runtime.register_app_loop(None)
+                repository.dispose()
+                logger.info("Shutting down")
 
 
 _ERROR = {"model": ErrorResponse}
@@ -149,7 +160,15 @@ async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResp
 
 
 app.include_router(router, prefix=API_PREFIX)  # F1 chat: /chat, /chat/resume, /status
-for feature_router in (auth.router, catalog.router, resident.router, operations.router, simulation.router, ws.router):
+for feature_router in (
+    auth.router,
+    catalog.router,
+    resident.router,
+    operations.router,
+    simulation.router,
+    ws.router,
+    copilot.router,
+):
     app.include_router(feature_router, prefix=API_PREFIX)
 
 

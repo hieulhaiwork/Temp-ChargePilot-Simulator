@@ -1,0 +1,7 @@
+check	exit	status
+frontend-lint	0	PASS
+frontend-typecheck	0	PASS
+frontend-tests	0	PASS
+frontend-build	1	FAIL
+frontend-api-types	0	PASS
+frontend-api-compare	0	PASS

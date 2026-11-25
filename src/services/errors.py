@@ -22,6 +22,9 @@ HTTP_STATUS: dict[ErrorCode, int] = {
     ErrorCode.NO_PENDING_CONFIRMATION: 409,
     ErrorCode.NOT_IMPLEMENTED: 501,
     ErrorCode.LLM_UNAVAILABLE: 503,
+    ErrorCode.COPILOT_INVALID_PATCH: 422,
+    ErrorCode.COPILOT_CAPACITY: 429,
+    ErrorCode.COPILOT_NOT_READY: 503,
     ErrorCode.DATABASE_UNAVAILABLE: 503,
     ErrorCode.INTERNAL_ERROR: 500,
 }

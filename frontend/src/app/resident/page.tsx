@@ -7,6 +7,7 @@
  */
 import Link from "next/link";
 
+import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 import { ChatPanel } from "@/components/resident/ChatPanel";
 import { DataBlock } from "@/components/system/DataBlock";
 import { EmptyState, KeyValues, PageHead, Panel, SectionHead, Tag } from "@/components/ui/blocks";
@@ -80,6 +81,7 @@ export default function ResidentHomePage() {
             </DataBlock>
           </Panel>
           <ChatPanel />
+          <CopilotPanel role="resident" />
         </div>
         <aside className="stack">
           <Panel label="Hàng chờ">

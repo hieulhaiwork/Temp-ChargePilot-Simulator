@@ -819,6 +819,68 @@
         "title": "CommandType",
         "type": "string"
       },
+      "CommitmentOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "already_satisfied_at_snapshot": {
+            "title": "Already Satisfied At Snapshot",
+            "type": "boolean"
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "met_deadline": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Met Deadline"
+          },
+          "remaining_battery_kwh": {
+            "title": "Remaining Battery Kwh",
+            "type": "number"
+          },
+          "remaining_output_kwh": {
+            "title": "Remaining Output Kwh",
+            "type": "number"
+          },
+          "target_reached_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Reached At"
+          },
+          "target_soc": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Target Soc",
+            "type": "number"
+          }
+        },
+        "required": [
+          "target_soc",
+          "deadline",
+          "target_reached_at",
+          "already_satisfied_at_snapshot",
+          "met_deadline",
+          "remaining_battery_kwh",
+          "remaining_output_kwh"
+        ],
+        "title": "CommitmentOutcome",
+        "type": "object"
+      },
       "ConnectorDetail": {
         "description": "S5 — popup khi vận hành bấm vào một cột sạc.",
         "properties": {
@@ -991,6 +1053,341 @@
         "title": "ConsentScope",
         "type": "object"
       },
+      "CopilotConnector": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "zone": {
+            "enum": [
+              "AC",
+              "DC"
+            ],
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector_id",
+          "zone"
+        ],
+        "title": "CopilotConnector",
+        "type": "object"
+      },
+      "CopilotContext": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "booking_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Booking Ids",
+            "type": "array"
+          },
+          "connectors": {
+            "items": {
+              "$ref": "#/components/schemas/CopilotConnector"
+            },
+            "title": "Connectors",
+            "type": "array"
+          },
+          "default_horizon_minutes": {
+            "default": 120,
+            "title": "Default Horizon Minutes",
+            "type": "integer"
+          },
+          "max_horizon_minutes": {
+            "default": 1440,
+            "title": "Max Horizon Minutes",
+            "type": "integer"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "role",
+          "timezone",
+          "as_of",
+          "booking_ids",
+          "connectors"
+        ],
+        "title": "CopilotContext",
+        "type": "object"
+      },
+      "CopilotJob": {
+        "additionalProperties": false,
+        "properties": {
+          "applied": {
+            "const": false,
+            "default": false,
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "enum": [
+                  "timeout",
+                  "execution_failed",
+                  "grounding_failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_kind": {
+            "const": "what_if",
+            "title": "Job Kind",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "what_if": "#/components/schemas/WhatIfReply",
+                    "why": "#/components/schemas/WhyReply"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/WhyReply"
+                  },
+                  {
+                    "$ref": "#/components/schemas/WhatIfReply"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WhatIfJobStatus"
+          }
+        },
+        "required": [
+          "job_id",
+          "job_kind",
+          "status"
+        ],
+        "title": "CopilotJob",
+        "type": "object"
+      },
+      "CopilotNotice": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "clarify",
+              "unsupported",
+              "feature_not_available",
+              "structured_fallback"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "enum": [
+                  "intent",
+                  "booking",
+                  "connector",
+                  "time",
+                  "duration",
+                  "target",
+                  "grid_input",
+                  "infrastructure"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "const": "how_to",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent"
+          },
+          "kind": {
+            "const": "notice",
+            "default": "notice",
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "parse_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "provider",
+                  "deterministic"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Source"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "CopilotNotice",
+        "type": "object"
+      },
+      "CopilotQueryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "selected_booking_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Booking Id"
+          },
+          "selected_connector_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Connector Id"
+          }
+        },
+        "title": "CopilotQueryRequest",
+        "type": "object"
+      },
+      "CopilotRequestFieldError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Loc",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Msg",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "CopilotRequestFieldError",
+        "type": "object"
+      },
+      "CopilotRequestValidation": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/CopilotRequestFieldError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "CopilotRequestValidation",
+        "type": "object"
+      },
       "DecisionLogEntry": {
         "description": "FR14 — ai/thành phần nào đề xuất, Guard kết luận gì, ai duyệt, lúc nào, có thực thi không.",
         "properties": {
@@ -1055,6 +1452,37 @@
         ],
         "title": "DecisionLogEntry",
         "type": "object"
+      },
+      "DeltaUnavailableReason": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "missing_data",
+              "non_comparable_sample"
+            ],
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "DeltaUnavailableReason",
+        "type": "object"
+      },
+      "DerivationOp": {
+        "enum": [
+          "sum",
+          "count",
+          "average",
+          "time_integration",
+          "efficiency_conversion",
+          "soc_conversion",
+          "hardware_bound"
+        ],
+        "title": "DerivationOp",
+        "type": "string"
       },
       "EnergyEstimate": {
         "description": "Kết quả FR3 — do CODE tính (src/services/energy.py), LLM không tự tính.",
@@ -1143,6 +1571,9 @@
           "no_pending_confirmation",
           "not_implemented",
           "llm_unavailable",
+          "copilot_invalid_patch",
+          "copilot_capacity",
+          "copilot_not_ready",
           "database_unavailable",
           "internal_error",
           "http_error"
@@ -1224,6 +1655,130 @@
         "title": "EventType",
         "type": "string"
       },
+      "EvidenceCategory": {
+        "enum": [
+          "observed",
+          "policy_reason",
+          "binding_constraint",
+          "inference_bound"
+        ],
+        "title": "EvidenceCategory",
+        "type": "string"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "description": "Stable, dereferenceable evidence pointer scoped to an authorized subject and trace.",
+        "properties": {
+          "correlation_id": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "interval_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval End"
+          },
+          "interval_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Start"
+          },
+          "policy_id": {
+            "minLength": 1,
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "ref_id": {
+            "minLength": 1,
+            "title": "Ref Id",
+            "type": "string"
+          },
+          "source_path": {
+            "minLength": 1,
+            "title": "Source Path",
+            "type": "string"
+          },
+          "subject": {
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "time_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemporalBasis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace_schema": {
+            "minLength": 1,
+            "title": "Trace Schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref_id",
+          "correlation_id",
+          "trace_schema",
+          "source_path",
+          "subject",
+          "decided_at",
+          "policy_id",
+          "policy_version"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "FactDerivationKind": {
+        "enum": [
+          "direct",
+          "derived"
+        ],
+        "title": "FactDerivationKind",
+        "type": "string"
+      },
+      "FactStage": {
+        "enum": [
+          "observed",
+          "planned",
+          "approved",
+          "dispatched",
+          "effective_setpoint",
+          "measured",
+          "config"
+        ],
+        "title": "FactStage",
+        "type": "string"
+      },
       "FieldProvenance": {
         "description": "Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).",
         "properties": {
@@ -1251,6 +1806,165 @@
           "status"
         ],
         "title": "FieldProvenance",
+        "type": "object"
+      },
+      "GroundedClaim": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "enum": [
+                  "baseline",
+                  "patched",
+                  "delta"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "claim_id": {
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "patched_minus_baseline",
+                  "baseline_minus_patched"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "interval_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval End"
+          },
+          "interval_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Start"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "reason_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactStage"
+              },
+              {
+                "const": "simulated",
+                "type": "string"
+              }
+            ],
+            "title": "Stage"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "claim_id",
+          "subject",
+          "name",
+          "value",
+          "stage",
+          "observed_at",
+          "evidence_refs"
+        ],
+        "title": "GroundedClaim",
         "type": "object"
       },
       "GuardRule": {
@@ -1443,6 +2157,40 @@
         ],
         "title": "IncidentType",
         "type": "string"
+      },
+      "JobReply": {
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/CopilotJob"
+          },
+          "kind": {
+            "const": "job",
+            "default": "job",
+            "title": "Kind",
+            "type": "string"
+          },
+          "parse_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "provider",
+                  "deterministic"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Source"
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "title": "JobReply",
+        "type": "object"
       },
       "KpiReport": {
         "description": "KPI theo PRD §2 (MT1–MT6) và AC7 — định nghĩa chi tiết ở src/simulator/kpi.py.",
@@ -1702,6 +2450,47 @@
           "smoothing_factor"
         ],
         "title": "OptimizerSettings",
+        "type": "object"
+      },
+      "Outage": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "duration_minutes": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1440.0,
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "op": {
+            "const": "outage",
+            "title": "Op",
+            "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "required": [
+          "op",
+          "connector_id",
+          "duration_minutes"
+        ],
+        "title": "Outage",
         "type": "object"
       },
       "PlanningPolicyConfig": {
@@ -2226,6 +3015,53 @@
           "resume"
         ],
         "title": "ResumeRequest",
+        "type": "object"
+      },
+      "ReviseVehicle": {
+        "additionalProperties": false,
+        "properties": {
+          "booking_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "op": {
+            "const": "revise_vehicle",
+            "title": "Op",
+            "type": "string"
+          },
+          "target_soc": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Soc"
+          }
+        },
+        "required": [
+          "op",
+          "booking_id"
+        ],
+        "title": "ReviseVehicle",
         "type": "object"
       },
       "Role": {
@@ -2859,6 +3695,73 @@
         "title": "SimulationRunResult",
         "type": "object"
       },
+      "SiteLimit": {
+        "additionalProperties": false,
+        "properties": {
+          "grid_input_kw": {
+            "exclusiveMinimum": 0.0,
+            "title": "Grid Input Kw",
+            "type": "number"
+          },
+          "hypothetical_infrastructure": {
+            "default": false,
+            "title": "Hypothetical Infrastructure",
+            "type": "boolean"
+          },
+          "op": {
+            "const": "site_limit",
+            "title": "Op",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "grid_input_kw"
+        ],
+        "title": "SiteLimit",
+        "type": "object"
+      },
+      "SlaMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "censored_count": {
+            "title": "Censored Count",
+            "type": "integer"
+          },
+          "cohort_size": {
+            "title": "Cohort Size",
+            "type": "integer"
+          },
+          "denominator": {
+            "title": "Denominator",
+            "type": "integer"
+          },
+          "met_count": {
+            "title": "Met Count",
+            "type": "integer"
+          },
+          "on_time_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Time Rate"
+          }
+        },
+        "required": [
+          "cohort_size",
+          "denominator",
+          "met_count",
+          "on_time_rate",
+          "censored_count"
+        ],
+        "title": "SlaMetrics",
+        "type": "object"
+      },
       "StationConfig": {
         "description": "Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).\n\nRàng buộc ba tầng (ADR-010), cùng nghĩa với `EffectiveLimits` của HybridSimulator (ADR-017):\ncổng ≤ max_power_kw; Σ cổng của tủ ≤ output_limit_kw; Σ vùng ≤ trần vùng (physical_zone_cap_kw, vắng thì\nzone_budgets_kw); nguồn chung: Σ cổng / η ≤ grid_input_limit_kw, nguồn độc lập: Σ vùng / η ≤\nindependent_grid_input_limit_kw[vùng]. Các field mới đều có default để config / client cũ vẫn nạp được.",
         "properties": {
@@ -3112,6 +4015,186 @@
         "title": "StationEvent",
         "type": "object"
       },
+      "StationMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "by_zone": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SlaMetrics"
+            },
+            "title": "By Zone",
+            "type": "object"
+          },
+          "charge_wait_censored_count": {
+            "title": "Charge Wait Censored Count",
+            "type": "integer"
+          },
+          "charge_wait_mean_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charge Wait Mean Minutes"
+          },
+          "charge_wait_observed_count": {
+            "title": "Charge Wait Observed Count",
+            "type": "integer"
+          },
+          "charge_wait_p90_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charge Wait P90 Minutes"
+          },
+          "charge_wait_unknown_count": {
+            "title": "Charge Wait Unknown Count",
+            "type": "integer"
+          },
+          "charged_coverage_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charged Coverage Rate"
+          },
+          "cohort_size": {
+            "title": "Cohort Size",
+            "type": "integer"
+          },
+          "horizon_battery_kwh": {
+            "title": "Horizon Battery Kwh",
+            "type": "number"
+          },
+          "horizon_energy_cost_vnd": {
+            "title": "Horizon Energy Cost Vnd",
+            "type": "number"
+          },
+          "horizon_grid_input_kwh": {
+            "title": "Horizon Grid Input Kwh",
+            "type": "number"
+          },
+          "horizon_output_kwh": {
+            "title": "Horizon Output Kwh",
+            "type": "number"
+          },
+          "peak_charger_output_kw": {
+            "title": "Peak Charger Output Kw",
+            "type": "number"
+          },
+          "peak_grid_input_kw": {
+            "title": "Peak Grid Input Kw",
+            "type": "number"
+          },
+          "plug_wait_censored_count": {
+            "title": "Plug Wait Censored Count",
+            "type": "integer"
+          },
+          "plug_wait_mean_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plug Wait Mean Minutes"
+          },
+          "plug_wait_observed_count": {
+            "title": "Plug Wait Observed Count",
+            "type": "integer"
+          },
+          "plug_wait_p90_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plug Wait P90 Minutes"
+          },
+          "plug_wait_unknown_count": {
+            "title": "Plug Wait Unknown Count",
+            "type": "integer"
+          },
+          "service_coverage_denominator": {
+            "title": "Service Coverage Denominator",
+            "type": "integer"
+          },
+          "service_coverage_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Coverage Rate"
+          },
+          "sla": {
+            "$ref": "#/components/schemas/SlaMetrics"
+          },
+          "unmet_original_battery_kwh": {
+            "description": "Energy remaining to original targets at observation cutoff.",
+            "title": "Unmet Original Battery Kwh",
+            "type": "number"
+          },
+          "unmet_original_output_kwh": {
+            "description": "Charger-output equivalent of remaining battery energy at cutoff.",
+            "title": "Unmet Original Output Kwh",
+            "type": "number"
+          },
+          "unserved_count": {
+            "title": "Unserved Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cohort_size",
+          "sla",
+          "by_zone",
+          "service_coverage_denominator",
+          "service_coverage_rate",
+          "charged_coverage_rate",
+          "unserved_count",
+          "plug_wait_observed_count",
+          "plug_wait_censored_count",
+          "plug_wait_unknown_count",
+          "plug_wait_mean_minutes",
+          "plug_wait_p90_minutes",
+          "charge_wait_observed_count",
+          "charge_wait_censored_count",
+          "charge_wait_unknown_count",
+          "charge_wait_mean_minutes",
+          "charge_wait_p90_minutes",
+          "horizon_battery_kwh",
+          "horizon_output_kwh",
+          "horizon_grid_input_kwh",
+          "horizon_energy_cost_vnd",
+          "unmet_original_battery_kwh",
+          "unmet_original_output_kwh",
+          "peak_charger_output_kw",
+          "peak_grid_input_kw"
+        ],
+        "title": "StationMetrics",
+        "type": "object"
+      },
       "StationOverview": {
         "description": "S5 — thanh KPI + lưới cột sạc.",
         "properties": {
@@ -3326,6 +4409,41 @@
         "title": "TariffPeriod",
         "type": "object"
       },
+      "TemporalBasis": {
+        "enum": [
+          "decision_snapshot",
+          "planned_interval",
+          "effective_interval",
+          "measured_coverage",
+          "derivation_interval",
+          "sample_interval",
+          "query_window"
+        ],
+        "title": "TemporalBasis",
+        "type": "string"
+      },
+      "TimeWindow": {
+        "additionalProperties": false,
+        "description": "Half-open, timezone-aware query interval [start, end).",
+        "properties": {
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "TimeWindow",
+        "type": "object"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
@@ -3357,6 +4475,151 @@
           "display_name"
         ],
         "title": "TokenResponse",
+        "type": "object"
+      },
+      "TraceProvenance": {
+        "additionalProperties": false,
+        "description": "Temporal and policy provenance for one resolved DecisionTrace.",
+        "properties": {
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "correlation_id": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "coverage_status": {
+            "minLength": 1,
+            "title": "Coverage Status",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "effective_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective End"
+          },
+          "effective_start": {
+            "format": "date-time",
+            "title": "Effective Start",
+            "type": "string"
+          },
+          "measured_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured End"
+          },
+          "measured_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Start"
+          },
+          "planned_interval_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Interval End"
+          },
+          "planned_interval_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Interval Start"
+          },
+          "policy_id": {
+            "minLength": 1,
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "post_apply_status": {
+            "minLength": 1,
+            "title": "Post Apply Status",
+            "type": "string"
+          },
+          "schedule_version": {
+            "title": "Schedule Version",
+            "type": "integer"
+          },
+          "stale_after_restart": {
+            "default": false,
+            "title": "Stale After Restart",
+            "type": "boolean"
+          },
+          "state_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Version"
+          },
+          "trace_schema": {
+            "minLength": 1,
+            "title": "Trace Schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correlation_id",
+          "trace_schema",
+          "decided_at",
+          "policy_id",
+          "policy_version",
+          "schedule_version",
+          "closed",
+          "effective_start",
+          "coverage_status",
+          "post_apply_status"
+        ],
+        "title": "TraceProvenance",
         "type": "object"
       },
       "UserProfile": {
@@ -3584,6 +4847,1066 @@
           "acceptance"
         ],
         "title": "ViolationKind",
+        "type": "string"
+      },
+      "WhatIfBranch": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_commands": {
+            "title": "Blocked Commands",
+            "type": "integer"
+          },
+          "config_sha256": {
+            "title": "Config Sha256",
+            "type": "string"
+          },
+          "final_physics_sha256": {
+            "title": "Final Physics Sha256",
+            "type": "string"
+          },
+          "hard_violations": {
+            "title": "Hard Violations",
+            "type": "integer"
+          },
+          "input_sha256": {
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/StationMetrics"
+          },
+          "observed_until": {
+            "format": "date-time",
+            "title": "Observed Until",
+            "type": "string"
+          },
+          "pending_approval_commands": {
+            "title": "Pending Approval Commands",
+            "type": "integer"
+          },
+          "pending_approvals": {
+            "title": "Pending Approvals",
+            "type": "integer"
+          },
+          "rejected_allocations": {
+            "title": "Rejected Allocations",
+            "type": "integer"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "sampled_grid_over_limit_minutes": {
+            "title": "Sampled Grid Over Limit Minutes",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "unsafe",
+              "unresolved_safety"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "unresolved_safety_count": {
+            "title": "Unresolved Safety Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "run_id",
+          "input_sha256",
+          "config_sha256",
+          "final_physics_sha256",
+          "status",
+          "observed_until",
+          "metrics",
+          "hard_violations",
+          "rejected_allocations",
+          "sampled_grid_over_limit_minutes",
+          "unresolved_safety_count",
+          "blocked_commands",
+          "pending_approvals",
+          "pending_approval_commands"
+        ],
+        "title": "WhatIfBranch",
+        "type": "object"
+      },
+      "WhatIfJobStatus": {
+        "enum": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "expired"
+        ],
+        "title": "WhatIfJobStatus",
+        "type": "string"
+      },
+      "WhatIfReply": {
+        "additionalProperties": false,
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/GroundedClaim"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "kind": {
+            "const": "what_if",
+            "default": "what_if",
+            "title": "Kind",
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/WhatIfResult"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "claims",
+          "summary"
+        ],
+        "title": "WhatIfReply",
+        "type": "object"
+      },
+      "WhatIfRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "horizon_minutes": {
+            "default": 120,
+            "exclusiveMinimum": 0.0,
+            "maximum": 1440.0,
+            "title": "Horizon Minutes",
+            "type": "integer"
+          },
+          "patch": {
+            "discriminator": {
+              "mapping": {
+                "outage": "#/components/schemas/Outage",
+                "revise_vehicle": "#/components/schemas/ReviseVehicle",
+                "site_limit": "#/components/schemas/SiteLimit"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviseVehicle"
+              },
+              {
+                "$ref": "#/components/schemas/SiteLimit"
+              },
+              {
+                "$ref": "#/components/schemas/Outage"
+              }
+            ],
+            "title": "Patch"
+          }
+        },
+        "required": [
+          "patch"
+        ],
+        "title": "WhatIfRequest",
+        "type": "object"
+      },
+      "WhatIfResult": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_vehicles": {
+            "items": {
+              "$ref": "#/components/schemas/WhatIfVehicleOutcome"
+            },
+            "title": "Affected Vehicles",
+            "type": "array"
+          },
+          "applied": {
+            "const": false,
+            "default": false,
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/WhatIfBranch"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta"
+          },
+          "delta_reasons": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/DeltaUnavailableReason"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Reasons"
+          },
+          "event_manifest_sha256": {
+            "title": "Event Manifest Sha256",
+            "type": "string"
+          },
+          "experiment_fingerprint": {
+            "title": "Experiment Fingerprint",
+            "type": "string"
+          },
+          "feasible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feasible"
+          },
+          "horizon_end": {
+            "format": "date-time",
+            "title": "Horizon End",
+            "type": "string"
+          },
+          "horizon_minutes": {
+            "title": "Horizon Minutes",
+            "type": "integer"
+          },
+          "hypothetical_infrastructure": {
+            "title": "Hypothetical Infrastructure",
+            "type": "boolean"
+          },
+          "known_booking_count": {
+            "title": "Known Booking Count",
+            "type": "integer"
+          },
+          "known_limit_event_count": {
+            "title": "Known Limit Event Count",
+            "type": "integer"
+          },
+          "patch": {
+            "discriminator": {
+              "mapping": {
+                "outage": "#/components/schemas/Outage",
+                "revise_vehicle": "#/components/schemas/ReviseVehicle",
+                "site_limit": "#/components/schemas/SiteLimit"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviseVehicle"
+              },
+              {
+                "$ref": "#/components/schemas/SiteLimit"
+              },
+              {
+                "$ref": "#/components/schemas/Outage"
+              }
+            ],
+            "title": "Patch"
+          },
+          "patch_sha256": {
+            "title": "Patch Sha256",
+            "type": "string"
+          },
+          "patched": {
+            "$ref": "#/components/schemas/WhatIfBranch"
+          },
+          "snapshot_digest": {
+            "title": "Snapshot Digest",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "snapshot_time": {
+            "format": "date-time",
+            "title": "Snapshot Time",
+            "type": "string"
+          },
+          "state_version": {
+            "title": "State Version",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "unsafe",
+              "incomplete"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "snapshot_id",
+          "snapshot_digest",
+          "snapshot_time",
+          "state_version",
+          "experiment_fingerprint",
+          "event_manifest_sha256",
+          "horizon_end",
+          "horizon_minutes",
+          "known_booking_count",
+          "known_limit_event_count",
+          "patch",
+          "patch_sha256",
+          "hypothetical_infrastructure",
+          "baseline",
+          "patched",
+          "delta",
+          "feasible",
+          "affected_vehicles",
+          "assumptions"
+        ],
+        "title": "WhatIfResult",
+        "type": "object"
+      },
+      "WhatIfVehicleOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline_final_soc_pct": {
+            "title": "Baseline Final Soc Pct",
+            "type": "number"
+          },
+          "baseline_first_charge_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline First Charge At"
+          },
+          "baseline_horizon_battery_kwh": {
+            "title": "Baseline Horizon Battery Kwh",
+            "type": "number"
+          },
+          "baseline_original": {
+            "$ref": "#/components/schemas/CommitmentOutcome"
+          },
+          "baseline_plug_in_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Plug In At"
+          },
+          "baseline_release_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Release At"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "initial_soc_pct": {
+            "title": "Initial Soc Pct",
+            "type": "number"
+          },
+          "patched_final_soc_pct": {
+            "title": "Patched Final Soc Pct",
+            "type": "number"
+          },
+          "patched_first_charge_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patched First Charge At"
+          },
+          "patched_horizon_battery_kwh": {
+            "title": "Patched Horizon Battery Kwh",
+            "type": "number"
+          },
+          "patched_original": {
+            "$ref": "#/components/schemas/CommitmentOutcome"
+          },
+          "patched_plug_in_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patched Plug In At"
+          },
+          "patched_release_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patched Release At"
+          },
+          "patched_revised": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommitmentOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "booking_id",
+          "baseline_original",
+          "patched_original",
+          "patched_revised",
+          "baseline_plug_in_at",
+          "patched_plug_in_at",
+          "baseline_first_charge_at",
+          "patched_first_charge_at",
+          "baseline_release_at",
+          "patched_release_at",
+          "initial_soc_pct",
+          "baseline_final_soc_pct",
+          "patched_final_soc_pct",
+          "baseline_horizon_battery_kwh",
+          "patched_horizon_battery_kwh"
+        ],
+        "title": "WhatIfVehicleOutcome",
+        "type": "object"
+      },
+      "WhyAnswer": {
+        "additionalProperties": false,
+        "description": "Structured output of the deterministic WHY Engine.\n\nFor multi-trace windows, per-fact/per-reason provenance carries exact correlation_id,\npolicy_id, policy_version and decided_at; top-level decision_time/state_version are only\npopulated when a single trace is resolved, and top-level policy_id/policy_version only\nwhen unambiguous across all resolved traces.",
+        "properties": {
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "decision_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Time"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/WhyFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "missing_evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Evidence",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Version"
+          },
+          "query_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query At"
+          },
+          "query_window": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/WhyReason"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "state_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Version"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WhyStatus"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "subject_scope": {
+            "$ref": "#/components/schemas/WhySubjectScope"
+          },
+          "topic": {
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "traces": {
+            "items": {
+              "$ref": "#/components/schemas/TraceProvenance"
+            },
+            "title": "Traces",
+            "type": "array"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "topic",
+          "subject_scope"
+        ],
+        "title": "WhyAnswer",
+        "type": "object"
+      },
+      "WhyFact": {
+        "additionalProperties": false,
+        "description": "One atomic, typed fact grounded in a specific DecisionTrace and temporal boundary.",
+        "properties": {
+          "correlation_id": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "derivation_kind": {
+            "$ref": "#/components/schemas/FactDerivationKind",
+            "default": "direct"
+          },
+          "derivation_op": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DerivationOp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "derivation_params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Derivation Params",
+            "type": "object"
+          },
+          "evidence_ref": {
+            "minLength": 1,
+            "title": "Evidence Ref",
+            "type": "string"
+          },
+          "fact_id": {
+            "minLength": 1,
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "input_evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Evidence Refs",
+            "type": "array"
+          },
+          "interval_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval End"
+          },
+          "interval_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Start"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "policy_id": {
+            "minLength": 1,
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "source_path": {
+            "minLength": 1,
+            "title": "Source Path",
+            "type": "string"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/FactStage"
+          },
+          "subject": {
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "time_scope": {
+            "$ref": "#/components/schemas/TemporalBasis",
+            "default": "decision_snapshot"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "fact_id",
+          "name",
+          "subject",
+          "stage",
+          "correlation_id",
+          "policy_id",
+          "policy_version",
+          "decided_at",
+          "source_path",
+          "evidence_ref"
+        ],
+        "title": "WhyFact",
+        "type": "object"
+      },
+      "WhyQuery": {
+        "additionalProperties": false,
+        "description": "Typed query for the deterministic WHY Engine.\n\nInvalid structure (naive timestamps, contradictory time selection, invalid scope/booking\ncombination, unknown fields) raises ValidationError. An unknown topic string is accepted\nby schema so the service can return `WhyStatus.UNSUPPORTED` cleanly.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "booking_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor"
+          },
+          "limit": {
+            "default": 20,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "subject_scope": {
+            "$ref": "#/components/schemas/WhySubjectScope"
+          },
+          "topic": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "window": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "subject_scope",
+          "topic"
+        ],
+        "title": "WhyQuery",
+        "type": "object"
+      },
+      "WhyReason": {
+        "additionalProperties": false,
+        "description": "One deterministic, evidence-backed reason referencing facts and evidence pointers.",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/EvidenceCategory"
+          },
+          "code": {
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "fact_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fact Refs",
+            "type": "array"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "policy_id": {
+            "minLength": 1,
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "subject": {
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "summary": {
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "template_key": {
+            "minLength": 1,
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "category",
+          "subject",
+          "correlation_id",
+          "policy_id",
+          "policy_version",
+          "decided_at",
+          "template_key",
+          "summary"
+        ],
+        "title": "WhyReason",
+        "type": "object"
+      },
+      "WhyReply": {
+        "additionalProperties": false,
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/GroundedClaim"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "kind": {
+            "const": "why",
+            "default": "why",
+            "title": "Kind",
+            "type": "string"
+          },
+          "parse_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "provider",
+                  "deterministic"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Source"
+          },
+          "result": {
+            "$ref": "#/components/schemas/WhyAnswer"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "claims",
+          "summary"
+        ],
+        "title": "WhyReply",
+        "type": "object"
+      },
+      "WhyStatus": {
+        "enum": [
+          "ok",
+          "partial",
+          "no_data",
+          "forbidden",
+          "unsupported"
+        ],
+        "title": "WhyStatus",
+        "type": "string"
+      },
+      "WhySubjectScope": {
+        "enum": [
+          "own_booking",
+          "booking",
+          "station"
+        ],
+        "title": "WhySubjectScope",
         "type": "string"
       }
     },
@@ -4097,6 +6420,695 @@
           }
         ],
         "summary": "Chat Stream"
+      }
+    },
+    "/api/v1/copilot/context": {
+      "get": {
+        "description": "Station clock and authorized choices for structured input.",
+        "operationId": "context_api_v1_copilot_context_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Context",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/v1/copilot/jobs/{job_id}": {
+      "delete": {
+        "description": "Request cancellation of a caller-owned job.",
+        "operationId": "cancel_job_api_v1_copilot_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Job",
+        "tags": [
+          "copilot"
+        ]
+      },
+      "get": {
+        "description": "Poll a caller-owned job.",
+        "operationId": "get_job_api_v1_copilot_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/v1/copilot/query": {
+      "post": {
+        "description": "Route a question or retrieve the authorized result of a job follow-up.",
+        "operationId": "query_api_v1_copilot_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopilotQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "job": "#/components/schemas/JobReply",
+                      "notice": "#/components/schemas/CopilotNotice",
+                      "why": "#/components/schemas/WhyReply"
+                    },
+                    "propertyName": "kind"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/WhyReply"
+                    },
+                    {
+                      "$ref": "#/components/schemas/JobReply"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CopilotNotice"
+                    }
+                  ],
+                  "title": "Response Query Api V1 Copilot Query Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReply"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CopilotRequestValidation"
+                    }
+                  ],
+                  "title": "Response 422 Query Api V1 Copilot Query Post"
+                }
+              }
+            },
+            "description": "Invalid hypothetical operation or fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Copilot workload is at capacity"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Query",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/v1/copilot/what-if": {
+      "post": {
+        "description": "Submit a bounded sandbox simulation.",
+        "operationId": "what_if_api_v1_copilot_what_if_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatIfRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CopilotRequestValidation"
+                    }
+                  ],
+                  "title": "Response 422 What If Api V1 Copilot What If Post"
+                }
+              }
+            },
+            "description": "Invalid hypothetical operation or fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Copilot workload is at capacity"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "What If",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/v1/copilot/why": {
+      "post": {
+        "description": "Read authorized deterministic WHY evidence.",
+        "operationId": "why_api_v1_copilot_why_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhyQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhyReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Why",
+        "tags": [
+          "copilot"
+        ]
       }
     },
     "/api/v1/energy/estimate": {

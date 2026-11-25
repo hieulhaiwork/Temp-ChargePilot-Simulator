@@ -1,0 +1,3 @@
+cwd=/tmp/p019-g6a.9b5n96
+$ isolated ruff check src tests scripts/refactor eval 
+All checks passed!

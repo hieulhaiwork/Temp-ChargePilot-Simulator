@@ -96,4 +96,4 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 
 [Báo cáo Gate 4](PHASE_4_2B_REPORT.md) · [Oracle calculations](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/oracle-calculations.md)
 
-**G4 — READY_FOR_FINAL_ACCEPTANCE.** Remediation candidate `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f` qua mandatory gate exit 0. Cả ba findings chờ Tech Lead final acceptance. PostgreSQL runtime vẫn PENDING. [Gate ledger](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/exit-codes.tsv)
+**G4 — APPROVED.** Tech Lead đã nghiệm thu G4-F01–F03 tại mirror `eb5967ae720b46b089b09e03063aa2c727ca5fd8` với remediation-only patch `1cdb630cc10a4bfd1fb96d1ac2264dbd4a9515f3dbfe7153780f0c6fd33160bf`. Remediation candidate `e8ae5cedbbe5af0a0a05d63f3dbb4ea6ac22fda40a4628a2cf7abca82be10d0f` qua mandatory gate exit 0. PostgreSQL runtime vẫn PENDING. [Gate ledger](../../eval/evidence/2026-11-25-ai4-4-2b/recovery/final/gate/exit-codes.tsv)
