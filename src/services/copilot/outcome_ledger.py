@@ -106,6 +106,7 @@ class OutcomeTracker:
         horizon_minutes: int,
         known_bookings: tuple[Booking, ...],
         station: HybridStation,
+        revised_booking_id: str | None = None,
     ) -> None:
         self._config = station_config
         self._tariff = tariff
@@ -113,6 +114,7 @@ class OutcomeTracker:
         self._as_of = as_of
         self._horizon_minutes = horizon_minutes
         self._horizon_end = as_of + timedelta(minutes=horizon_minutes)
+        self._revised_booking_id = revised_booking_id
 
         initial_phys = station.snapshot_physics_state()
         self._initial_applied_violations = int(
@@ -287,12 +289,13 @@ class OutcomeTracker:
                 if rec.pre_output_kwh <= ENERGY_EPS_KWH:
                     rec.first_charge_at = step_start_dt
 
-            if (
-                s["completed_at"] is not None
-                and rec.target_reached_at is None
-                and not rec.already_completed_at_snapshot
-            ):
-                rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
+            if rec.target_reached_at is None and not rec.already_completed_at_snapshot:
+                if vid == self._revised_booking_id:
+                    target_kwh = rec.usable_capacity_kwh * rec.booking.request.soc_target / 100
+                    if rec.arrived_at is not None and float(s["current_capacity_kwh"]) >= target_kwh - ENERGY_EPS_KWH:
+                        rec.target_reached_at = station.now
+                elif s["completed_at"] is not None:
+                    rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
 
             if s["departed_at"] is not None and rec.release_or_departure_at is None:
                 rec.release_or_departure_at = datetime.fromisoformat(s["departed_at"])
@@ -341,7 +344,7 @@ class OutcomeTracker:
                 final_cap_kwh = float(s["current_capacity_kwh"])
                 if rec.arrived_at is None and final_state != "NOT_ARRIVED":
                     rec.arrived_at = datetime.fromisoformat(s["arrival_at"])
-                if s["completed_at"] is not None and rec.target_reached_at is None:
+                if vid != self._revised_booking_id and s["completed_at"] is not None and rec.target_reached_at is None:
                     rec.target_reached_at = datetime.fromisoformat(s["completed_at"])
                 if s["departed_at"] is not None and rec.release_or_departure_at is None:
                     rec.release_or_departure_at = datetime.fromisoformat(s["departed_at"])

@@ -1,0 +1,34 @@
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_site_cap_equal_to_current_still_limits_future_announced_increase _____
+
+    async def test_site_cap_equal_to_current_still_limits_future_announced_increase():
+        rt = _rt()
+        _add(rt)
+        rt.simulator.inject_incident(Incident(type=IncidentType.POWER_LIMIT_CHANGE, new_power_limit_kw=8))
+        rt.simulator.kernel.scenario = replace(rt.simulator.scenario, limit_events=(LimitEvent(4, 0, 20, {}),))
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
+        result = await run_what_if(snap, _actor(rt), {"op": "site_limit", "grid_input_kw": 8})
+        assert result.status == "completed"
+>       assert result.patched.metrics.peak_grid_input_kw == pytest.approx(0.22 * 8, abs=0.002)
+E       assert 4.4 == 1.76 ± 0.002
+E         
+E         comparison failed
+E         Obtained: 4.4
+E         Expected: 1.76 ± 0.002
+
+tests/test_services/test_what_if.py:495: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+=========================== short test summary info ============================
+FAILED tests/test_services/test_what_if.py::test_site_cap_equal_to_current_still_limits_future_announced_increase
+1 failed, 29 deselected in 1.05s

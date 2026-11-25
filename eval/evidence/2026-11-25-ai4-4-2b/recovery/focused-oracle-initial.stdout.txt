@@ -1,0 +1,88 @@
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F..F...F.................                                                [100%]
+=================================== FAILURES ===================================
+___________ test_target_soc_oracle_compares_original_and_revised_sla ___________
+
+    async def test_target_soc_oracle_compares_original_and_revised_sla():
+        rt = _rt()
+        b = _add(rt, hours=0.5)
+        await _replan(rt)
+        at = rt.clock()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=35)
+        operator = _actor(rt)
+        res = await run_what_if(snap, operator, _target(b, 21))
+        assert res.applied is False and res.status == "completed"
+        (row,) = res.affected_vehicles
+        cap = catalog.get_vehicle("VF8_NEW_2026").usable_capacity_kwh
+        required = cap / 100
+        usable_per_minute = 11 * 0.98 / 60
+        expected_minute = next(i for i in range(1, 30) if usable_per_minute * i >= required)
+        assert row.baseline_original.target_soc == row.patched_original.target_soc == 80
+        assert row.patched_revised.target_soc == 21
+>       assert row.patched_revised.target_reached_at == at + timedelta(minutes=expected_minute)
+E       AssertionError: assert datetime.datetime(2026, 11, 23, 12, 16, tzinfo=zoneinfo.ZoneInfo(key='Asia/Ho_Chi_Minh')) == (datetime.datetime(2026, 11, 23, 12, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/Ho_Chi_Minh')) + datetime.timedelta(seconds=240))
+E        +  where datetime.datetime(2026, 11, 23, 12, 16, tzinfo=zoneinfo.ZoneInfo(key='Asia/Ho_Chi_Minh')) = CommitmentOutcome(target_soc=21.0, deadline=datetime.datetime(2026, 11, 23, 12, 30, tzinfo=zoneinfo.ZoneInfo(key='Asia...i_Minh')), already_satisfied_at_snapshot=False, met_deadline=True, remaining_battery_kwh=0.0, remaining_output_kwh=0.0).target_reached_at
+E        +    where CommitmentOutcome(target_soc=21.0, deadline=datetime.datetime(2026, 11, 23, 12, 30, tzinfo=zoneinfo.ZoneInfo(key='Asia...i_Minh')), already_satisfied_at_snapshot=False, met_deadline=True, remaining_battery_kwh=0.0, remaining_output_kwh=0.0) = WhatIfVehicleOutcome(booking_id='a', baseline_original=CommitmentOutcome(target_soc=80.0, deadline=datetime.datetime(2...me.timezone(datetime.timedelta(seconds=25200))), baseline_horizon_battery_kwh=5.39, patched_horizon_battery_kwh=0.6013).patched_revised
+E        +  and   datetime.timedelta(seconds=240) = timedelta(minutes=4)
+
+tests/test_services/test_what_if.py:74: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 0001 -> 0002, decision traces (ADR-019 Phase 4, quyết định 6)
+INFO  [alembic.runtime.migration] Running upgrade 0002 -> 0003, xoá lịch cũ của chiến lược LP A–D đã bỏ
+INFO  [alembic.runtime.migration] Running upgrade 0003 -> 0004, Versioned backend DecisionTrace evidence and booking lookup.
+_____ test_target_increase_tracks_original_crossing_before_revised_target ______
+
+    async def test_target_increase_tracks_original_crossing_before_revised_target():
+        rt = _rt()
+        # Same fixture holds a small original target without changing the EV's initial SOC.
+        b = _add(rt, hours=2)
+        b.request.soc_target = 21
+        rt.simulator.upsert_vehicle(visit_of(b, rt.clock()))
+        await _replan(rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=15)
+        (row,) = (await run_what_if(snap, _actor(rt), _target(b, 22))).affected_vehicles
+>       assert row.patched_original.met_deadline and row.patched_revised.met_deadline
+E       AssertionError: assert (True and None)
+E        +  where True = CommitmentOutcome(target_soc=21.0, deadline=datetime.datetime(2026, 11, 23, 14, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/...i_Minh')), already_satisfied_at_snapshot=False, met_deadline=True, remaining_battery_kwh=0.0, remaining_output_kwh=0.0).met_deadline
+E        +    where CommitmentOutcome(target_soc=21.0, deadline=datetime.datetime(2026, 11, 23, 14, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/...i_Minh')), already_satisfied_at_snapshot=False, met_deadline=True, remaining_battery_kwh=0.0, remaining_output_kwh=0.0) = WhatIfVehicleOutcome(booking_id='a', baseline_original=CommitmentOutcome(target_soc=21.0, deadline=datetime.datetime(2...ne_release_at=None, patched_release_at=None, baseline_horizon_battery_kwh=0.60123, patched_horizon_battery_kwh=1.20246).patched_original
+E        +  and   None = CommitmentOutcome(target_soc=22.0, deadline=datetime.datetime(2026, 11, 23, 14, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/...e, already_satisfied_at_snapshot=False, met_deadline=None, remaining_battery_kwh=0.00014, remaining_output_kwh=0.00014).met_deadline
+E        +    where CommitmentOutcome(target_soc=22.0, deadline=datetime.datetime(2026, 11, 23, 14, 0, tzinfo=zoneinfo.ZoneInfo(key='Asia/...e, already_satisfied_at_snapshot=False, met_deadline=None, remaining_battery_kwh=0.00014, remaining_output_kwh=0.00014) = WhatIfVehicleOutcome(booking_id='a', baseline_original=CommitmentOutcome(target_soc=21.0, deadline=datetime.datetime(2...ne_release_at=None, patched_release_at=None, baseline_horizon_battery_kwh=0.60123, patched_horizon_battery_kwh=1.20246).patched_revised
+
+tests/test_services/test_what_if.py:116: AssertionError
+_____________ test_site_limit_units_known_events_and_copy_on_write _____________
+
+    async def test_site_limit_units_known_events_and_copy_on_write():
+        rt = _rt()
+        _add(rt)
+        cap_event = LimitEvent(4, 0, 5.0, {"AC-01": 11.0})
+        rt.simulator.kernel.scenario = replace(rt.simulator.scenario, limit_events=(cap_event,))
+        await _replan(rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
+        baseline_fork = build_sandbox_runtime(snap)
+        local_state = rt.simulator.snapshot_physics_state()
+        actor = _actor(rt)
+        op = {"op": "site_limit", "grid_input_kw": 8}
+        res = await run_what_if(snap, actor, op)
+        repeat = await run_what_if(snap, actor, op)
+        assert res.status == "completed"
+        assert res.delta == repeat.delta
+        # 8 kW grid initially, then the known 5 kW cap. AC setpoints are quantized to 0.01 kW.
+>       assert res.patched.metrics.horizon_grid_input_kwh == pytest.approx((8 + 5) * 4 / 60, abs=0.002)
+E       assert 0.190667 == 0.8666666666666667 ± 0.002
+E         
+E         comparison failed
+E         Obtained: 0.190667
+E         Expected: 0.8666666666666667 ± 0.002
+
+tests/test_services/test_what_if.py:177: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_services/test_what_if.py::test_target_soc_oracle_compares_original_and_revised_sla
+FAILED tests/test_services/test_what_if.py::test_target_increase_tracks_original_crossing_before_revised_target
+FAILED tests/test_services/test_what_if.py::test_site_limit_units_known_events_and_copy_on_write
+3 failed, 22 passed in 1.35s

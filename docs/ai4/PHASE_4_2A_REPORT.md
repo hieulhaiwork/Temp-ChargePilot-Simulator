@@ -1,5 +1,7 @@
 # AI-4.2A — Counterfactual Foundation · Gate 3
 
+**APPROVED.** Accepted mirror `d0fcf5d11cfd75b677eeaed00e5b5264ab828744` và candidate patch SHA-256 `59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d`. Tech Lead chấp nhận G3-F01–F08 cùng kết quả gate đã ghi. PostgreSQL runtime vẫn PENDING.
+
 ## Candidate và provenance
 
 | Hạng mục | Giá trị |
@@ -48,7 +50,7 @@ Patch mirror áp được trên local baseline và khớp từng byte với chí
 
 ## Verification và nghiệm thu
 
-Candidate **READY_FOR_REVIEW**. Gate runner ghi lại từng mục với overall exit **0**. Mỗi stdout có command và cwd. Mã thoát 1 của fail-before F01 được xác nhận là đúng ba regression failures. Trên reviewed Neon, nhóm probe mở rộng có 17 failures và một pass. Full backend gate đầu có 26 failures vì exact class check giữ reference cũ sau registry reload. Lookup qua module hiện hành sửa lỗi này. [Gate 01](../../eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-01/exit-codes.tsv) · [Gate 02](../../eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/exit-codes.tsv)
+Gate runner ghi lại từng mục với overall exit **0**. Mỗi stdout có command và cwd. Mã thoát 1 của fail-before F01 được xác nhận là đúng ba regression failures. Trên reviewed Neon, nhóm probe mở rộng có 17 failures và một pass. Full backend gate đầu có 26 failures vì exact class check giữ reference cũ sau registry reload. Lookup qua module hiện hành sửa lỗi này. [Gate 01](../../eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-01/exit-codes.tsv) · [Gate 02](../../eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/exit-codes.tsv)
 
 | Gate | Kết quả thực chạy |
 |---|---|
@@ -76,7 +78,7 @@ Candidate **READY_FOR_REVIEW**. Gate runner ghi lại từng mục với overall
 - [x] Timeout, explicit cancellation, exception cleanup và smoke test live replan contention. Probe bổ sung xác nhận stop và safety ACK trên runtime đại diện live trong lúc sandbox giữ solver worker.
 - [x] Mandatory verification và Unified Core regression trên đúng candidate.
 - [ ] PostgreSQL runtime verification, tiếp tục PENDING theo G7.
-- [ ] Tech Lead Gate 3 review.
+- [x] Tech Lead Gate 3 approval.
 
 [Live safety probe](../../eval/evidence/2026-11-24-ai4-4-2a/recovery/live-safety-under-load.stdout.txt) · [PostgreSQL availability](../../eval/evidence/2026-11-24-ai4-4-2a/recovery/gate-02/postgres-runtime.stderr.txt)
 
@@ -86,4 +88,4 @@ Candidate **READY_FOR_REVIEW**. Gate runner ghi lại từng mục với overall
 - Reproduce fail-before mở rộng bằng clone sạch local baseline, áp `reviewed-product.patch`, rồi copy đúng hai tệp G3 test từ candidate. Chạy `python -m pytest tests/test_services/test_counterfactual_foundation.py tests/test_services/test_g3_runtime_readiness.py -q -k 'handles_hard_safety or altered_branch or untracked_present or rollout_hard_safety or historical_charge_start or reaps_peer or cancelled_during_delivery or missing_physical_update or vehicle_safety_readback or live_store_clock'`. Kỳ vọng exit 1 và 17 lỗi trước sửa.
 - Để kiểm tra rollback, dựng candidate trong cây mới và kiểm `git apply --reverse --check --include='src/**' --include='tests/**' <candidate.patch>`. Chạy rollback trên cây kiểm tra rồi dùng `reviewed-product.patch` để tái lập trạng thái Neon nếu mục tiêu chỉ là bỏ remediation. Trong workspace, Project Owner duyệt từng hunk cần rollback sau khi đối chiếu thay đổi thành viên khác. Giữ lại docs và evidence để phục vụ review.
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 3)**
+Gate 3 được đóng sau khi Tech Lead phê duyệt và cấp quyền triển khai Gate 4.

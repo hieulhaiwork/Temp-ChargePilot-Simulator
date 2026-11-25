@@ -440,11 +440,8 @@ async def capture_atomic_snapshot(
     return replace(snapshot, envelope=envelope.model_copy(update={"snapshot_digest": digest}))
 
 
-def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
-    """Materialize a completely isolated in-memory `StationRuntime` fork from `snapshot`.
-
-    Uses no-op `DispatchSinks` and an in-memory `RuntimeStore` (`live=False`, zero DB/WS/file I/O).
-    """
+def verify_snapshot_integrity(snapshot: CapturedSnapshot) -> None:
+    """Validate the materialized known-at inputs and the detached execution state."""
     try:
         manifest_digest = _manifest_digest(snapshot.event_manifest)
         valid = (
@@ -455,6 +452,11 @@ def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
         raise ValueError("Snapshot integrity check failed") from exc
     if not valid:
         raise ValueError("Snapshot integrity check failed")
+
+
+def build_sandbox_runtime(snapshot: CapturedSnapshot) -> StationRuntime:
+    """Materialize an isolated, in-memory fork with no live sinks."""
+    verify_snapshot_integrity(snapshot)
     fork_station = HybridStation.from_physics_seed(snapshot.station_config, snapshot._physics_seed)
 
     params = _thaw_json_tree(snapshot.scheduler_parameters) or None

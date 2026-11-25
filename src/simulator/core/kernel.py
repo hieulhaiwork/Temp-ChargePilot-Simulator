@@ -100,6 +100,7 @@ class StationKernel:
         self.setpoints: dict[str, float] = {}  # vehicle -> held charger-output kW (until the next approved value)
         self.faults: set[str] = set()  # ports out of service: never offered to dispatch
         self.grid_input_override_kw: float | None = None  # backend power incident (immediately effective)
+        self.sandbox_grid_cap_kw: float | None = None
         self.output_kwh: dict[str, float] = {}  # charger-output energy (backend meaning)
         self.output_by_deadline_kwh: dict[str, float] = {}
         # Planning memo of the last approved decision. Not physical state: does not bump state_version.
@@ -178,6 +179,8 @@ class StationKernel:
         )
         if self.grid_input_override_kw is not None:
             limits = replace(limits, grid_input_kw=self.grid_input_override_kw)
+        if self.sandbox_grid_cap_kw is not None:
+            limits = replace(limits, grid_input_kw=min(limits.grid_input_kw, self.sandbox_grid_cap_kw))
         return limits
 
     def boundary(
@@ -283,7 +286,7 @@ class StationKernel:
             self.now,
             zone,
             empty,
-            tuple(self.queue.waiting[zone]),
+            tuple(vid for vid in self.queue.waiting[zone] if self.queue.sessions[vid].state == "QUEUED"),
             self._view(),
             MappingProxyType(limits),
             self.scenario.efficiency,

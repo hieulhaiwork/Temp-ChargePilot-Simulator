@@ -17,6 +17,7 @@ import time
 import weakref
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
+from typing import Protocol
 
 from src.models.control import DecisionLogEntry
 from src.models.copilot import PairedNoOpResult, SandboxBranchResult
@@ -24,6 +25,7 @@ from src.models.events import StationEvent
 from src.services import control_loop
 from src.services.copilot.outcome_ledger import OutcomeTracker
 from src.services.copilot.snapshot import CapturedSnapshot, build_sandbox_runtime, canonical_sha256
+from src.services.runtime import StationRuntime
 
 # Per-event-loop Semaphore(1) so multiple sandbox rollouts never flood the single-worker HiGHS
 # solver executor ahead of live replans, without binding one Semaphore across closed event loops.
@@ -49,6 +51,16 @@ class SandboxCancelledError(asyncio.CancelledError):
 
 StepHook = Callable[[str, int], Awaitable[None] | None]
 LiveBusyProbe = Callable[[], bool]
+
+
+class BranchIntervention(Protocol):
+    """Internal seam for a validated WHAT-IF intervention."""
+
+    revised_booking_id: str | None
+
+    def at_minute(self, runtime: StationRuntime, *, terminal: bool = False) -> list[StationEvent]: ...
+
+    def after_step(self, runtime: StationRuntime) -> None: ...
 
 
 def _check_cancel(cancel_event: asyncio.Event | None) -> None:
@@ -80,6 +92,7 @@ async def _execute_branch(
     cancel_event: asyncio.Event | None,
     step_hook: StepHook | None,
     live_busy_probe: LiveBusyProbe | None,
+    intervention: BranchIntervention | None,
 ) -> SandboxBranchResult:
     started = time.perf_counter()
     _check_cancel(cancel_event)
@@ -108,8 +121,9 @@ async def _execute_branch(
         tariff=frt.tariff,
         as_of=snapshot.envelope.as_of,
         horizon_minutes=snapshot.envelope.horizon_minutes,
-        known_bookings=snapshot.known_bookings,
+        known_bookings=tuple(b.model_copy(deep=True) for b in snapshot.known_bookings),
         station=sim,
+        revised_booking_id=intervention.revised_booking_id if intervention is not None else None,
     )
 
     events: list[StationEvent] = list(frt.take_events())
@@ -122,6 +136,16 @@ async def _execute_branch(
         async with _minute_gate():
             _check_cancel(cancel_event)
             minute_entries.clear()
+            if intervention is not None:
+                if frt.has_pending_safety():
+                    await control_loop.on_minute(frt, events)
+                    await control_loop.settle_rollout_safety(frt)
+                    if frt.has_pending_safety():
+                        tracker.observe_after_dispatch(sim, minute_entries)
+                        break
+                    events = []
+                _check_cancel(cancel_event)
+                events.extend(intervention.at_minute(frt))
             await control_loop.on_minute(frt, events)
             await control_loop.settle_rollout_safety(frt)
             _check_cancel(cancel_event)
@@ -136,11 +160,15 @@ async def _execute_branch(
                 step_start_dt=current_dt,
                 emitted_events=events,
             )
+            if intervention is not None:
+                intervention.after_step(frt)
             if sim.minute == end_minute and frt.has_pending_safety():
                 minute_entries.clear()
                 await control_loop.on_minute(frt, events)
                 await control_loop.settle_rollout_safety(frt)
                 tracker.observe_after_dispatch(sim, minute_entries)
+            if intervention is not None and sim.minute == end_minute and not frt.has_pending_safety():
+                intervention.at_minute(frt, terminal=True)
 
         if step_hook is not None:
             maybe_coro = step_hook(branch_label, sim.minute)
@@ -194,6 +222,7 @@ async def run_sandbox_branch(
     cancel_event: asyncio.Event | None = None,
     step_hook: StepHook | None = None,
     live_busy_probe: LiveBusyProbe | None = None,
+    intervention: BranchIntervention | None = None,
 ) -> SandboxBranchResult:
     """Run one isolated counterfactual branch from `snapshot` with optional timeout and cancellation."""
     if timeout_s is not None and timeout_s <= 0:
@@ -211,6 +240,7 @@ async def run_sandbox_branch(
                 cancel_event=cancel_event,
                 step_hook=step_hook,
                 live_busy_probe=live_busy_probe,
+                intervention=intervention,
             )
     finally:
         _LOOP_ACTIVE_BRANCHES[loop] -= 1

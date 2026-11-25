@@ -1,0 +1,40 @@
+/home/lehieu/Projects/P-019/.simulator/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.......F................................................................ [ 71%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+_____________ test_site_limit_units_known_events_and_copy_on_write _____________
+
+    async def test_site_limit_units_known_events_and_copy_on_write():
+        rt = _rt()
+        _add(rt)
+        cap_event = LimitEvent(4, 0, 5.0, {"AC-01": 11.0})
+        rt.simulator.kernel.scenario = replace(rt.simulator.scenario, limit_events=(cap_event,))
+        await _replan(rt)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=8)
+        baseline_fork = build_sandbox_runtime(snap)
+        local_state = rt.simulator.snapshot_physics_state()
+        actor = _actor(rt)
+        op = {"op": "site_limit", "grid_input_kw": 8}
+        res = await run_what_if(snap, actor, op)
+        repeat = await run_what_if(snap, actor, op)
+        assert res.status == "completed"
+        assert res.delta == repeat.delta
+        # B0 fixed shares reserve 22% of charger output for AC, even with no DC load.
+        assert res.patched.metrics.horizon_grid_input_kwh == pytest.approx((8 + 5) * 0.22 * 4 / 60, abs=0.002)
+        assert res.patched.metrics.peak_grid_input_kw == pytest.approx(8 * 0.22, abs=0.015)
+        assert res.patched.metrics.peak_charger_output_kw == pytest.approx(8 * 0.22 * 0.95, abs=0.015)
+        expected_cost = res.patched.metrics.horizon_grid_input_kwh * rt.tariff.price_at(rt.clock().time())
+        assert res.patched.metrics.horizon_energy_cost_vnd == pytest.approx(expected_cost, abs=0.03)
+        assert res.baseline.config_sha256 != res.patched.config_sha256
+        assert rt.simulator.snapshot_physics_state() == local_state
+>       assert baseline_fork.scenario.limit_events[0].cabinet_output_kw["AC-01"] == 11
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'StationRuntime' object has no attribute 'scenario'
+
+tests/test_services/test_what_if.py:186: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_services/test_what_if.py::test_site_limit_units_known_events_and_copy_on_write
+1 failed, 100 passed in 8.77s

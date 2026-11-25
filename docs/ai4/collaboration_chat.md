@@ -23,4 +23,9 @@
 
 - **Tech Lead review trước remediation** tại mirror `49b6fec00e90c1f5c6f504abfb038969f2d6c64c`. Verdict `CHANGES REQUIRED`, các mục G3-F01–F08.
 - **Implementation handoff** `READY_FOR_REVIEW`. Patch SHA-256 `59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d`. Focused 213, backend 721 với 8 forecast skips, standalone 180, Golden CRLF 38/38, frozen benchmark 100/100, independent evaluator 8/8 và 6/6 mutations.
-- **Pending** Tech Lead review và PostgreSQL runtime. G4 giữ các MUST operation dưới `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit` và `outage`; khởi động sau khi G3 được phê duyệt. [Báo cáo Gate 3](PHASE_4_2A_REPORT.md)
+- **Final decision APPROVED** tại mirror `d0fcf5d11cfd75b677eeaed00e5b5264ab828744` với accepted patch `59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d`. Tech Lead chấp nhận G3-F01–F08, regression và overall gate exit 0. PostgreSQL runtime vẫn PENDING. [Báo cáo Gate 3](PHASE_4_2A_REPORT.md)
+
+## 5. Gate 4 (AI-4.2B — WHAT-IF Engine)
+
+- **AUTHORIZED**. Scope gồm `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit`, `outage`, paired evaluation và internal jobs.
+- **Implementation handoff READY_FOR_REVIEW**. Patch SHA-256 `ec99050de22414c7f3b964c6ae898458db15a169119bc05ae5ba5abaa92491bf`, overall mandatory gate exit 0. PostgreSQL runtime PENDING. [Báo cáo Gate 4](PHASE_4_2B_REPORT.md)

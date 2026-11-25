@@ -1,0 +1,6 @@
+cwd=/tmp/chargepilot-g4-gate-01/code
+$ isolated timeout -k 5s 120s env PYTHONPATH=. python eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-01/g4-latency.json 
+target_soc: 3/3 repeated signatures, median=52.307 ms, max=56.498 ms
+deadline: 3/3 repeated signatures, median=53.886 ms, max=54.769 ms
+site_limit: 3/3 repeated signatures, median=43.338 ms, max=47.803 ms
+outage: 3/3 repeated signatures, median=55.387 ms, max=56.304 ms

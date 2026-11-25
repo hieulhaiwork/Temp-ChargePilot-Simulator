@@ -1,0 +1,3 @@
+cwd=/tmp/chargepilot-g4-gate-01/code
+$ isolated python scripts/refactor/compare_backend_benchmark.py eval/evidence/2026-11-24-unified-core-frozen-baseline/benchmark.json /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-01/backend-benchmark/benchmark.json 
+backend benchmark: OK - 100 baseline runs, 100 candidate runs, 0 problems

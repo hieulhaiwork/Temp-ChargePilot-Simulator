@@ -369,6 +369,8 @@ class HybridStation:
 
     @property
     def available_power_kw(self) -> float:
+        if self.kernel.sandbox_grid_cap_kw is not None:
+            return self.kernel.effective_limits().grid_input_kw
         return self._available_power_kw
 
     @available_power_kw.setter
@@ -421,7 +423,9 @@ class HybridStation:
     @_locked
     def state(self) -> StationState:
         sessions = []
-        queued = [vid for zone in self.queue.waiting.values() for vid in zone]
+        queued = [
+            vid for zone in self.queue.waiting.values() for vid in zone if self.queue.sessions[vid].state == "QUEUED"
+        ]
         for vid, s in self.queue.sessions.items():
             if s.state in ("NOT_ARRIVED", "DEPARTED"):
                 continue
@@ -555,6 +559,78 @@ class HybridStation:
                 detail=f"Đầu nối {connector_id} hoạt động lại",
             )
         ]
+
+    @_locked
+    def revise_sandbox_vehicle(
+        self, booking_id: str, *, target: float, deadline: datetime, required_output_kwh: float
+    ) -> StationEvent:
+        """Change the hypothetical commitment, leaving the EV and physical history in place."""
+        if not self.is_fork:
+            raise ValueError("Vehicle revisions require an isolated simulator")
+        session = self.queue.sessions[booking_id]
+        departure = self.minute_of(deadline)
+        if session.state == "DEPARTED" or departure <= max(self.minute, session.vehicle.arrival):
+            raise ValueError("Revised departure must follow current time and arrival")
+
+        vehicle = replace(session.vehicle, target=target, departure=departure)
+        session.vehicle = vehicle
+        self.kernel.scenario = replace(
+            self.scenario, vehicles=tuple(vehicle if row.id == booking_id else row for row in self.scenario.vehicles)
+        )
+        ev = self.adapter.models[booking_id]
+        ev.desired_capacity = vehicle.battery_kwh * target
+        ev.time_of_departure = departure - self.scenario.start
+        if booking_id in self._visits:
+            self._visits[booking_id] = replace(
+                self._visits[booking_id],
+                departure_time=deadline,
+                required_kwh=required_output_kwh,
+                soc_target=target,
+            )
+        if session.state != "NOT_ARRIVED":
+            attained = self.adapter.soc(booking_id) >= target - SOC_TOL
+            if attained and session.state != "FINISHED":
+                session.state = "FINISHED"
+                # An occupied DC connector starts its normal release delay now.
+                if session.connector is not None:
+                    session.completed_at = self.minute
+            elif not attained and session.state == "FINISHED":
+                session.state, session.completed_at = "CHARGING", None
+        self.kernel.state_version += 1
+        return StationEvent(type=EventType.BOOKING_CHANGED, occurred_at=self.now, booking_id=booking_id)
+
+    @_locked
+    def set_sandbox_grid_limit(self, grid_input_kw: float) -> None:
+        """Set hypothetical supply using copy-on-write; retain announced limit events."""
+        if not self.is_fork or self.scenario.independent_grid_input_limit_kw is not None:
+            raise ValueError("Site limit requires an isolated simulator with shared supply")
+        if not math.isfinite(grid_input_kw) or grid_input_kw <= 0:
+            raise ValueError("Site grid input limit must be positive and finite")
+        self.kernel.scenario = replace(self.scenario, grid_kw=grid_input_kw)
+        self.kernel.grid_input_override_kw = None
+        self.kernel.sandbox_grid_cap_kw = grid_input_kw
+        self.kernel.state_version += 1
+
+    @_locked
+    def replay_sandbox_grid_limit(self, grid_input_kw: float) -> StationEvent:
+        """Apply an announced source event at its effective minute on either WHAT-IF fork."""
+        if not self.is_fork or not math.isfinite(grid_input_kw) or grid_input_kw < 0:
+            raise ValueError("Announced source events require an isolated simulator and a finite nonnegative limit")
+        self.available_power_kw = grid_input_kw
+        self.kernel.state_version += 1
+        return StationEvent(
+            type=EventType.POWER_LIMIT_CHANGED,
+            occurred_at=self.now,
+            new_power_limit_kw=self.effective_grid_limit_kw(),
+            detail="Announced grid input limit",
+        )
+
+    @_locked
+    def set_sandbox_connector_fault(self, connector_id: str, *, faulted: bool) -> list[StationEvent]:
+        if not self.is_fork:
+            raise ValueError("Outages require an isolated simulator")
+        kind = IncidentType.CONNECTOR_FAULT if faulted else IncidentType.CONNECTOR_RESTORED
+        return self.inject_incident(Incident(type=kind, connector_id=connector_id))
 
     @_locked
     def upsert_vehicle(self, visit: VehicleVisit) -> list[StationEvent]:

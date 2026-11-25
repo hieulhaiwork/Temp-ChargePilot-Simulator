@@ -1,0 +1,11 @@
+cwd=/tmp/chargepilot-g4-gate-01/code
+$ isolated timeout -k 5s 180s env PYTHONPATH=. python eval/evidence/2026-11-24-ai4-4-2a/run_g3_eval.py /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-01/g3-eval 
+G3 counterfactual eval: 8/8 cases passed; mutations caught: 6/6
+  [PASS] paired_noop_vinfast_interleaved
+  [PASS] oracle_pre_vs_post_energy_and_dc_unplug
+  [PASS] oracle_plug_in_vs_first_charge_separation
+  [PASS] oracle_not_arrived_censored_and_empty_sla_none
+  [PASS] oracle_unserved_session_zero_sla
+  [PASS] known_at_t_excludes_future_arrivals_and_unannounced_limits
+  [PASS] safety_hold_and_rejected_consent_parity
+  [PASS] unresolved_safety_blocks_capture_cleanly

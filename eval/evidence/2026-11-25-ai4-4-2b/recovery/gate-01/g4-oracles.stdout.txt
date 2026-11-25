@@ -1,0 +1,43 @@
+cwd=/tmp/chargepilot-g4-gate-01/code
+$ isolated timeout -k 5s 120s python -m pytest tests/test_services/test_what_if.py -vv --junitxml /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-01/g4-oracles.xml 
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/lehieu/Projects/P-019/.simulator/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/chargepilot-g4-gate-01/code
+configfile: pytest.ini
+plugins: asyncio-1.5.0, typeguard-4.6.0, langsmith-0.15.0, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 29 items
+
+tests/test_services/test_what_if.py::test_target_soc_oracle_compares_original_and_revised_sla PASSED [  3%]
+tests/test_services/test_what_if.py::test_already_satisfied_preserves_soc_energy_and_release[AC] PASSED [  6%]
+tests/test_services/test_what_if.py::test_already_satisfied_preserves_soc_energy_and_release[DC] PASSED [ 10%]
+tests/test_services/test_what_if.py::test_target_increase_tracks_original_crossing_before_revised_target PASSED [ 13%]
+tests/test_services/test_what_if.py::test_deadline_oracle_energy_and_actual_release[7] PASSED [ 17%]
+tests/test_services/test_what_if.py::test_deadline_oracle_energy_and_actual_release[23] PASSED [ 20%]
+tests/test_services/test_what_if.py::test_reservation_censoring_and_noop_equality PASSED [ 24%]
+tests/test_services/test_what_if.py::test_site_limit_units_known_events_and_copy_on_write PASSED [ 27%]
+tests/test_services/test_what_if.py::test_site_infrastructure_and_independent_validation PASSED [ 31%]
+tests/test_services/test_what_if.py::test_outage_oracle_one_connector_and_restore_at_boundary[False] PASSED [ 34%]
+tests/test_services/test_what_if.py::test_outage_oracle_one_connector_and_restore_at_boundary[True] PASSED [ 37%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad0] PASSED [ 41%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad1] PASSED [ 44%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad2] PASSED [ 48%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad3] PASSED [ 51%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad4] PASSED [ 55%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad5] PASSED [ 58%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad6] PASSED [ 62%]
+tests/test_services/test_what_if.py::test_strict_business_patch_schema[bad7] PASSED [ 65%]
+tests/test_services/test_what_if.py::test_authorization_and_resident_projection PASSED [ 68%]
+tests/test_services/test_what_if.py::test_unresolved_safety_suppresses_unequal_window_deltas PASSED [ 72%]
+tests/test_services/test_what_if.py::test_tampered_snapshot_and_live_intervention_attempt_are_rejected PASSED [ 75%]
+tests/test_services/test_what_if.py::test_jobs_owner_single_worker_capacity_and_cancellation PASSED [ 79%]
+tests/test_services/test_what_if.py::test_job_timeout_and_ttl PASSED     [ 82%]
+tests/test_services/test_what_if.py::test_job_result_detached_from_polling_client PASSED [ 86%]
+tests/test_services/test_what_if.py::test_finished_ac_session_can_resume_and_keeps_historical_completion PASSED [ 89%]
+tests/test_services/test_what_if.py::test_attained_queued_vehicle_uses_no_connector PASSED [ 93%]
+tests/test_services/test_what_if.py::test_outage_rejects_past_misaligned_and_unknown_connector PASSED [ 96%]
+tests/test_services/test_what_if.py::test_g4_patch_uses_only_sandbox_sinks PASSED [100%]
+
+- generated xml file: /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-01/g4-oracles.xml -
+============================== 29 passed in 2.29s ==============================

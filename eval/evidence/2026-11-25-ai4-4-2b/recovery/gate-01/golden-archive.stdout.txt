@@ -1,0 +1,2 @@
+cwd=/tmp/chargepilot-g4-gate-01/crlf
+$ tar -czf /home/lehieu/Projects/P-019/eval/evidence/2026-11-25-ai4-4-2b/recovery/gate-01/golden-crlf-candidate.tar.gz -C /tmp/chargepilot-g4-gate-01 golden-candidate 

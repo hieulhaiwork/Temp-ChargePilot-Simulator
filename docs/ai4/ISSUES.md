@@ -62,6 +62,8 @@ R01–R04 và hai ca barrier R07 fail trên code trước sửa ở đúng hành
 
 ## Gate 3 (AI-4.2A) remediation ledger
 
+G3-F01–F08 được Tech Lead phê duyệt tại mirror `d0fcf5d11cfd75b677eeaed00e5b5264ab828744` với candidate patch SHA-256 `59a92d326cfaae6cd8bb3d2b94b4124765b3efdcb3551b2c48d36e60ca73dc5d`. PostgreSQL runtime vẫn PENDING.
+
 | ID | Phân loại | Xử lý |
 |---|---|---|
 | G3-F01 | Confirmed bug | Giữ bản sửa của Neon cho fork và fingerprint. Readiness đã qua 3/3 trên candidate Neon. |
@@ -77,5 +79,12 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 
 ## Backlog sau AI-4.2A
 
-- G4 MUST gồm `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit` và `outage`. G4 chỉ bắt đầu sau khi Tech Lead phê duyệt G3.
+- G4 MUST gồm `revise_vehicle.target_soc`, `revise_vehicle.deadline`, `site_limit` và `outage`. Tech Lead đã cấp quyền triển khai G4.
 - G5–G7 giữ bounded HOW-TO, production grounding, LLM integration và PostgreSQL runtime verification theo Master Plan.
+
+## Gate 4 (AI-4.2B) verification ledger
+
+- **R06 G4 READY_FOR_REVIEW.** Bốn WHAT-IF operation, paired deltas và owner-scoped jobs đã qua local gates. Ca site cap bằng nguồn hiện tại trước đợt tăng nguồn có fail-before và pass-after.
+- **R10/R11.** G4 dùng station grid input đo trong horizon, charger output và battery energy riêng. Original và revised SLA có cutoff và denominator. R10 billing giữ phạm vi đã duyệt.
+- **Remaining.** PostgreSQL runtime verification. Native solver call đã bắt đầu có thể tiếp tục sau khi job bị hủy. G4 probe xác nhận job bị hủy ở baseline không submit patched branch.
+- [Báo cáo Gate 4](PHASE_4_2B_REPORT.md)

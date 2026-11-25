@@ -12,6 +12,7 @@ from src.services.copilot.counterfactual import (
     run_paired_noop,
     run_sandbox_branch,
 )
+from src.services.copilot.jobs import WhatIfJobs
 from src.services.copilot.outcome_ledger import OutcomeTracker
 from src.services.copilot.snapshot import (
     CapturedSnapshot,
@@ -21,6 +22,7 @@ from src.services.copilot.snapshot import (
     canonical_sha256,
     capture_atomic_snapshot,
 )
+from src.services.copilot.what_if import run_what_if
 from src.services.copilot.why import explain_why
 
 __all__ = [
@@ -28,6 +30,7 @@ __all__ = [
     "OutcomeTracker",
     "SandboxCancelledError",
     "SnapshotNotReadyError",
+    "WhatIfJobs",
     "build_known_at_manifest",
     "build_sandbox_runtime",
     "canonical_sha256",
@@ -36,4 +39,5 @@ __all__ = [
     "non_timing_branch_signature",
     "run_paired_noop",
     "run_sandbox_branch",
+    "run_what_if",
 ]

@@ -1,0 +1,26 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-g4-gate-01/code status --short --untracked-files=all 
+ M docs/ai4/FOUNDATION_CONTRACT.md
+ M docs/ai4/ISSUES.md
+ M src/models/copilot.py
+ M src/services/admission.py
+ M src/services/charging_service.py
+ M src/services/control_loop.py
+ M src/services/copilot/__init__.py
+ M src/services/runtime.py
+ M src/services/simulation_service.py
+ M src/simulator/core/kernel.py
+ M src/simulator/hybrid_station.py
+?? eval/evidence/2026-11-24-ai4-4-2a/run_g3_eval.py
+?? eval/evidence/2026-11-24-ai4-4-2a/run_gate.sh
+?? eval/evidence/2026-11-25-ai4-4-2b/measure_what_if.py
+?? eval/evidence/2026-11-25-ai4-4-2b/run_gate.sh
+?? src/models/what_if.py
+?? src/services/copilot/counterfactual.py
+?? src/services/copilot/jobs.py
+?? src/services/copilot/outcome_ledger.py
+?? src/services/copilot/snapshot.py
+?? src/services/copilot/what_if.py
+?? tests/test_services/test_counterfactual_foundation.py
+?? tests/test_services/test_g3_runtime_readiness.py
+?? tests/test_services/test_what_if.py

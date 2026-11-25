@@ -1,0 +1,4 @@
+cwd=/tmp/chargepilot-g4-gate-02/code
+$ bash -c $'\n        for exe in postgres pg_isready initdb; do command -v "$exe" || true; done\n        if command -v docker >/dev/null; then timeout -k 2s 10s docker info --format "{{.ServerVersion}}" || true; fi\n        printf "PostgreSQL runtime verification is pending.\\n"\n        exit 77\n    ' 
+
+PostgreSQL runtime verification is pending.

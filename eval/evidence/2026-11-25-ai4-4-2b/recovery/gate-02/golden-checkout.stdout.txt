@@ -1,0 +1,2 @@
+cwd=/home/lehieu/Projects/P-019
+$ git -C /tmp/chargepilot-g4-gate-02/crlf -c core.autocrlf=true checkout --quiet --detach 4658b1f068350c130ed5ed1a744c19a7b8cd522c 

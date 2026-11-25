@@ -1,0 +1,6 @@
+cwd=/tmp/chargepilot-g4-gate-02/code
+$ isolated timeout -k 5s 180s python -m pytest -q tests/test_services/test_what_if.py tests/test_services/test_counterfactual_foundation.py tests/test_services/test_g3_runtime_readiness.py tests/test_services/test_fork_isolation.py tests/test_services/test_safety_event_delivery.py tests/test_services/test_admission_consistency.py tests/test_refactor/test_registry_extension.py tests/test_architecture.py 
+........................................................................ [ 42%]
+........................................................................ [ 85%]
+.........................                                                [100%]
+169 passed in 40.92s
