@@ -1,0 +1,240 @@
+[
+  {
+    "test": "test_max_soc_deadline_positive_actual_oracle",
+    "goal": "max_soc_by_deadline",
+    "search_status": "found",
+    "planned": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 4,
+    "selected": 21.0,
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 97.671,
+    "basis": {
+      "snapshot_sha256": "c3363e9b29d45ee6d4ddcdc6532a5b5643d49c75cb1c1736af0c55597617120e",
+      "manifest_sha256": "bacd1360c525976c5f8c8e783c33442007a1abca26be9e7e039241f8ee23fa23",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:50:00+07:00"
+    }
+  },
+  {
+    "test": "test_max_soc_deadline_negative_actual_oracle",
+    "goal": "max_soc_by_deadline",
+    "search_status": "no_feasible_in_tested_set",
+    "planned": 2,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 3,
+    "selected": null,
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 53.06,
+    "basis": {
+      "snapshot_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+      "manifest_sha256": "5771500a3cd559cb969ff585bac16abdb592acb1fee3c99a1fa002a588e20957",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:35:00+07:00"
+    }
+  },
+  {
+    "test": "test_earliest_completion_uses_actual_crossing_and_stable_tie",
+    "goal": "earliest_completion_for_target",
+    "search_status": "found",
+    "planned": 5,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 6,
+    "selected": "2026-11-23T05:23:00Z",
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 138.993,
+    "basis": {
+      "snapshot_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+      "manifest_sha256": "5771500a3cd559cb969ff585bac16abdb592acb1fee3c99a1fa002a588e20957",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:35:00+07:00"
+    }
+  },
+  {
+    "test": "test_earliest_completion_negative_actual_oracle",
+    "goal": "earliest_completion_for_target",
+    "search_status": "no_feasible_in_tested_set",
+    "planned": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 4,
+    "selected": null,
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 84.219,
+    "basis": {
+      "snapshot_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+      "manifest_sha256": "5771500a3cd559cb969ff585bac16abdb592acb1fee3c99a1fa002a588e20957",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:35:00+07:00"
+    }
+  },
+  {
+    "test": "test_site_minimum_actual_oracle_and_budget",
+    "goal": "min_tested_site_limit_for_sla",
+    "search_status": "found",
+    "planned": 8,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 9,
+    "selected": 10.0,
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 129.124,
+    "basis": {
+      "snapshot_sha256": "b736f50b2fc405382d31bf1239d626dc78f1167f3b5c37eb1cdf3d13cb6f3271",
+      "manifest_sha256": "291b9e30555022536ab4bee0c460ef977c706ab3a6b6203cb69db1d8ed483db7",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:19:00+07:00"
+    }
+  },
+  {
+    "test": "test_site_extra_supply_cannot_remove_ac_connector_bottleneck",
+    "goal": "min_tested_site_limit_for_sla",
+    "search_status": "no_feasible_in_tested_set",
+    "planned": 8,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 9,
+    "selected": null,
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 135.219,
+    "basis": {
+      "snapshot_sha256": "2023c8fbd8e0e1128acdd7a8b51fa3d9abeac52eba7b347bdd0a4a51e76e6ddd",
+      "manifest_sha256": "c52a57a67ee6993ea6321aee4576c8aa94b26b6bc2037792a00572ea24bde4b4",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:22:00+07:00"
+    }
+  },
+  {
+    "test": "test_site_unknown_does_not_shrink_denominator",
+    "goal": "min_tested_site_limit_for_sla",
+    "search_status": "partial",
+    "planned": 1,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 2,
+    "selected": null,
+    "candidate_failures_and_skips": [],
+    "elapsed_ms": 40.452,
+    "basis": {
+      "snapshot_sha256": "c5c5f5f6efe5f55a10907e0b9b422abef285b4f6707bb7902e2d21199ef49147",
+      "manifest_sha256": "6086e859f4400cdfcdf89c080bac7dc188ce476d84ccd2f129de37891281985c",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:35:00+07:00"
+    }
+  },
+  {
+    "test": "test_partial_retains_prior_feasible_and_records_failures[timeout]",
+    "goal": "earliest_completion_for_target",
+    "search_status": "partial",
+    "planned": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 3,
+    "selected": "2026-11-23T05:20:00Z",
+    "candidate_failures_and_skips": [
+      [
+        "2026-11-23T05:21:00Z",
+        "failed",
+        "timeout"
+      ],
+      [
+        "2026-11-23T05:22:00Z",
+        "skipped",
+        "timeout"
+      ]
+    ],
+    "elapsed_ms": 39.555,
+    "basis": {
+      "snapshot_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+      "manifest_sha256": "690291b94f69b16684d79539cb087c95e6b7aee8115810ffeb785d09f7004cb5",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:34:00+07:00"
+    }
+  },
+  {
+    "test": "test_partial_retains_prior_feasible_and_records_failures[cancelled]",
+    "goal": "earliest_completion_for_target",
+    "search_status": "partial",
+    "planned": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 3,
+    "selected": "2026-11-23T05:20:00Z",
+    "candidate_failures_and_skips": [
+      [
+        "2026-11-23T05:21:00Z",
+        "failed",
+        "cancelled"
+      ],
+      [
+        "2026-11-23T05:22:00Z",
+        "skipped",
+        "cancelled"
+      ]
+    ],
+    "elapsed_ms": 37.385,
+    "basis": {
+      "snapshot_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+      "manifest_sha256": "690291b94f69b16684d79539cb087c95e6b7aee8115810ffeb785d09f7004cb5",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:34:00+07:00"
+    }
+  },
+  {
+    "test": "test_partial_retains_prior_feasible_and_records_failures[execution_failed]",
+    "goal": "earliest_completion_for_target",
+    "search_status": "partial",
+    "planned": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 4,
+    "selected": "2026-11-23T05:22:00Z",
+    "candidate_failures_and_skips": [
+      [
+        "2026-11-23T05:21:00Z",
+        "failed",
+        "execution_failed"
+      ]
+    ],
+    "elapsed_ms": 58.563,
+    "basis": {
+      "snapshot_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+      "manifest_sha256": "690291b94f69b16684d79539cb087c95e6b7aee8115810ffeb785d09f7004cb5",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+      "policy_id": "B0",
+      "policy_version": "1",
+      "known_at": "2026-11-23T12:00:00+07:00",
+      "horizon_end": "2026-11-23T12:34:00+07:00"
+    }
+  }
+]

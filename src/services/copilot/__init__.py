@@ -14,6 +14,7 @@ from src.services.copilot.counterfactual import (
 )
 from src.services.copilot.jobs import WhatIfJobs
 from src.services.copilot.outcome_ledger import OutcomeTracker
+from src.services.copilot.recommendation import run_recommendation
 from src.services.copilot.snapshot import (
     CapturedSnapshot,
     SnapshotNotReadyError,
@@ -38,6 +39,7 @@ __all__ = [
     "explain_why",
     "non_timing_branch_signature",
     "run_paired_noop",
+    "run_recommendation",
     "run_sandbox_branch",
     "run_what_if",
 ]

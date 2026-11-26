@@ -12,6 +12,9 @@
 > Chạy lại ngày 2026-11-24 bởi agent soạn registry: backend 604 đạt / 8 bỏ qua / 0 lỗi; simulator 180 đạt;
 > frontend 30 đạt. Môi trường: Windows, SQLite tạm, LLM giả lập (mock) — xem §0.
 >
+> **Mốc bổ sung F6/F8 (26/11):** develop `0f877f1` và HOW-TO candidate cùng patch đã ghi. Hồi quy trên bản xuất sạch.
+> [Báo cáo Gate 5](ai4/PHASE_4_3_REPORT.md)
+>
 > **Người soạn:** Implementation Agent (Claude), 2026-11-24. Review độc lập lần 1 (Codex, 24/11):
 > [`docs/handoff/REVIEW_PHASE1_RESULT.md`](handoff/REVIEW_PHASE1_RESULT.md) — chưa đủ điều kiện đóng (F1–F5).
 > **Remediation 2026-11-25** (Claude, chỉ sửa tài liệu, code vẫn `ce23136`): bằng chứng từng phát hiện ở
@@ -111,9 +114,9 @@ Ba hệ mã đang tồn tại song song:
 | **F3** | Phản ứng khi giới hạn điện thay đổi / sự cố, tính lại ngay | Must | XONG (theo yêu cầu kỹ thuật) | Tested | Chỉ mô phỏng; nhiều worker chưa hỗ trợ |
 | **F4** | Cổng kiểm soát an toàn (Guard) + phê duyệt của người + nhật ký | Must | MỘT PHẦN | Tested | Phê duyệt theo phạm vi đồng ý đã có; vòng đời đề nghị của AI-1 và bảng audit đầy đủ (FR16) chưa có |
 | **F5** | Web cho cư dân và vận hành | Must | MỘT PHẦN | Tested (30 test đơn vị FE) | Nhánh nối giao diện chưa gộp; CI frontend trên `develop` đỏ (22/11); thiếu thẻ đề nghị AI-1, ô Copilot |
-| **F6** | Ghi lại lý do mỗi quyết định (DecisionTrace) + thử giả định cách ly (sandbox) | Must | MỘT PHẦN | Tested (phần trace) | Trace có; sandbox chỉ dùng nội bộ cho báo giá; Patch có schema (FR21) chưa có |
+| **F6** | Ghi lại lý do mỗi quyết định và thử giả định cách ly | Must | MỘT PHẦN | Tested 26/11 | DecisionTrace, atomic snapshot và WHAT-IF có schema đã chạy trên merged baseline. PostgreSQL runtime PENDING. [Bằng chứng](ai4/PHASE_4_3_REPORT.md) |
 | **F7** | AI-1: phát hiện xe sắp trễ, đề xuất thay đổi, xin chủ xe đồng ý | Must | **ĐANG HOÃN** (Human 25/11, Q1 — không loại khỏi roadmap) | Planned | Mở lại khi phạm vi và năng lực triển khai được đánh giá (§6) |
-| **F8** | AI-4: trả lời "vì sao" và "nếu… thì sao" dựa trên trace | Must | CHƯA LÀM — **ưu tiên WHY** (Human 25/11, Q1) | Planned | Chỉ có API giải thích đơn giản từ nhật ký (`/resident/explanation`), không phải Copilot |
+| **F8** | AI-4: WHY, WHAT-IF và gợi ý HOW-TO hữu hạn | Must (amendment HOW-TO chờ duyệt) | MỘT PHẦN | Tested 26/11 | WHY/WHAT-IF có đường standalone. HOW-TO có service advisory, chờ review G5. Typed tools trong Chat Agent thuộc G6B. [Báo cáo](ai4/PHASE_4_3_REPORT.md) |
 | Lớp LLM | LLM chỉ ở hai đầu, kiểm từng câu với dữ kiện, chạy được khi không có LLM | Must | MỘT PHẦN | Tested (`MOCK`) | Kiểm dữ kiện (FR32) mới kiểm số kWh / mã cổng, chưa kiểm từng câu; chế độ offline mâu thuẫn với cấu hình production (§6, D-3) |
 | **F9** | Benchmark so sánh chính sách trên kịch bản sự cố | Should | XONG (công cụ) | Tested + LỊCH SỬ @`a9def2f` | Baseline đóng băng 100 run = **regression refactor**, không phải nghiệm thu: 40/160 sự cố bị bỏ (toàn bộ hỏng cổng), 3/5 kịch bản legacy, `connector_failure` trùng KPI `peak_evening` (§3.1) |
 | **F10** | Cá nhân hoá (xe mặc định, mức pin, phạm vi đồng ý) | Could | MỘT PHẦN | Tested (service) | `test_service_contracts.py::test_profile_update_and_unknown_vehicle` ĐẠT 24/11; màn hồ sơ trên web chưa kiểm |
@@ -181,10 +184,10 @@ policy. Chi tiết: [`docs/handoff/REMEDIATION_PHASE1.md`](handoff/REMEDIATION_P
 | FR17 web cư dân | F5 | `frontend/src/app/resident/` | Không có test màn cư dân. Chỉ phần dùng chung: `frontend/src/test/site-map.test.tsx` (chế độ cư dân không lộ xe người khác), `ws-client.test.ts`, `api-client.test.ts`, `not-implemented.test.tsx` | KHÔNG TEST (màn hình) · thành phần dùng chung ĐẠT 24/11 · MỘT PHẦN |
 | FR18 web vận hành | F5 | `frontend/src/app/operator/` | `frontend/src/test/site-map.test.tsx` (S5 ConnectorGrid, S9 SiteMap), `simulation-policies.test.tsx` (S8) | ĐẠT 24/11 cho S5 / S8 / S9 · các màn khác KHÔNG TEST · MỘT PHẦN · CI develop đỏ |
 | FR19 DecisionTrace | F6 | `src/services/decision_trace.py`, migration `0002` | `tests/test_services/test_decision_trace.py` | ĐẠT 24/11 |
-| FR20 sandbox cách ly | F6 | `src/services/admission.py` (fork), `src/simulator/core/isolation.py` | `tests/test_services/test_fork_isolation.py`, `src/simulator/tests/test_fork_isolation.py` | ĐẠT 24/11 · MỘT PHẦN (chưa có WHAT-IF cho người dùng) |
-| FR21 Patch có schema | F6 | — | — | KHÔNG CODE |
-| FR22–FR27 AI-1 | F7 | — (`src/agents/` rỗng) | — | KHÔNG CODE |
-| FR28–FR30b AI-4 | F8 | — (có `charging_service.explain` đơn giản) | — | KHÔNG CODE |
+| FR20 sandbox cách ly | F6 | `src/services/copilot/{snapshot,counterfactual}.py`, admission và kernel fork | `tests/test_services/test_counterfactual_foundation.py`, `tests/test_services/test_fork_isolation.py` | ĐẠT 26/11 trên merged baseline |
+| FR21 Patch có schema | F6 | `src/models/what_if.py` | `tests/test_services/test_what_if.py` | ĐẠT 26/11 · revise vehicle, site limit, outage |
+| FR22–FR27 AI-1 | F7 | — | — | AI-1 ĐANG HOÃN |
+| FR28–FR30b AI-4 | F8 | `src/services/copilot/`, `src/api/copilot.py` | `tests/test_api/test_copilot.py`, `tests/test_services/test_why_engine.py`, `tests/test_services/test_recommendation.py` | ĐẠT 26/11 trong phạm vi G2/G3/G4/G6A và G5 service. FR30a hoãn. [Báo cáo](ai4/PHASE_4_3_REPORT.md) |
 | FR31 LLM chỉ ở hai đầu | Lớp LLM | `src/llm_chat/`, `src/services/llm.py` | `tests/test_architecture.py`, `tests/test_llm_chat/*` | ĐẠT 24/11 · MỘT PHẦN (đầu ra chưa có grounding) |
 | FR32 grounding gate | Lớp LLM | `src/llm_chat/guardrails.py` (`check_grounded_numbers`: chỉ kiểm số kWh và mã đầu nối trong câu trả lời chat) | `tests/test_llm_chat/test_agent_modes.py` (`test_check_grounded_numbers_validates_kwh_and_connector`, `test_finalize_node_enforces_grounded_numbers`) | ĐẠT 24/11 · MỘT PHẦN (PRD đòi kiểm từng câu với `facts` / `reason_codes` / `evidence_refs`) |
 | FR33 chế độ offline xác định | Lớp LLM | `src/llm_chat/mock_llm.py` | `tests/test_llm_chat/test_agent_modes.py` | ĐẠT 24/11 · mâu thuẫn production (D-3) |
@@ -243,7 +246,8 @@ deploy) và người duyệt. Mọi test dưới đây: ĐẠT 24/11 @ `ce23136`
 | PRD MT1 / AC3: "tỷ lệ đúng hạn" một nghĩa | Backend `compute_kpis` (năng lượng tới deadline, mẫu = xe "khả thi từng xe") ≠ simulator `evaluation/extended.py` (`completed_at ≤ departure`, mọi xe) (audit B4) | Số đúng hạn backend và R&D không so trực tiếp được (D-4, R-2) |
 
 Chức năng bị **loại / hoãn** (đều theo ADR-015 — chưa duyệt): F12, F13, HOW-TO tối ưu, FR30a, AI-2 ML, AI-3. Chức năng
-bị **thu hẹp**: F14 chỉ hiển thị trạng thái (bỏ nhắc dời xe, phí).
+bị **thu hẹp**: F14 chỉ hiển thị trạng thái (bỏ nhắc dời xe, phí). HOW-TO một biến trên tập hữu hạn đã được nhóm
+chọn cho AI-4 và có đề xuất amendment riêng để đồng bộ PRD/ADR-015. [Master Plan](ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md)
 
 ---
 

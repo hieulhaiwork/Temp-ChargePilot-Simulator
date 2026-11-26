@@ -107,3 +107,19 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 | **R08 (G6A scope)** — Real LLM provider & PostgreSQL runtime | **PENDING (không có key / dịch vụ trong môi trường)** | `provider-status.json` xác nhận không có API key được cấp phép và không có local LLM server tại `localhost:11434`; demo và browser smoke dùng `LLM_PROVIDER=mock` (deterministic fallback), tách bạch rõ với kiểm thử LLM thật và PostgreSQL thuộc G7. |
 
 [Báo cáo Gate 6A](PHASE_4_4A_REPORT.md) · [G6A Recovery](G6A_RECOVERY_STATE.md) · [Backend exits](../../eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/backend/backend-exits.tsv) · [Frontend exits](../../eval/evidence/2026-11-26-ai4-4-4a/raw/final-carbon/frontend/frontend-exits.tsv)
+
+
+## Merged develop và Gate 5 (2026-11-26)
+
+| ID | Phân loại | Kết quả / người xử lý |
+|---|---|---|
+| G5-A01 | RECOVERABLE, checkpoint cũ | Local branch và develop cùng `0f877f1`, khớp cây mã nguồn mirror `20bb246`. Giá trị checkpoint Phase 1 giữ làm lịch sử. |
+| G5-A02 | Nhiễu workspace | Architecture quét cây R&D cũ bị Git bỏ qua dưới `src/simulator/claude_rd/`. Bản xuất sạch từ Git dùng architecture nguyên gốc và pass. |
+| G5-A03 | Hạn chế môi trường test | Sandbox không đánh thức vòng lặp asyncio kịp sau khi thread solver trả kết quả. Trace thấy future đã hoàn tất. Chạy lại ngoài sandbox, với env tối thiểu và SQLite tạm. Baseline backend pass. |
+| G5-A04 | Golden provenance | Golden LF lệch hash file scenario ở 11 phép so sánh. Hai fixture được xuất CRLF trong bản sao tạm, khớp hash lịch sử. Gate 38/38, comparator giữ nguyên. |
+| G5-R01 | Amendment chờ duyệt | Nhóm chọn Chat Agent thống nhất. Đề xuất cập nhật PRD v0.4 và ADR bổ sung cho bounded HOW-TO MUST, AI-1 backlog, G6A fallback và G6B typed tools. [Master Plan](AI-4_MASTER_IMPLEMENTATION_PLAN.md) |
+| G6A-F01 | PENDING G6B | Raw JWT trong cache key. |
+| G6A-F02 | PENDING G6B | Phản hồi 401 trễ khi đổi phiên. |
+| G6A-F03 | PENDING G6B | Parser semantic correctness. |
+
+G5 **READY_FOR_REVIEW**. Oracle và gate candidate đã qua. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)

@@ -1,6 +1,6 @@
 # ChargePilot SC-16 — AI-4 Master Implementation Plan
 
-**Ngày:** 2026-11-24 | **Baseline review:** mirror `main@4f1477e84ac818549a69a74eb00e4b827fae230e` | **Trạng thái:** đề xuất Tech Lead, chờ nghiệm thu từng phase.
+**Ngày:** 2026-11-24 · cập nhật roadmap 2026-11-26 | **Baseline review:** mirror `main@4f1477e84ac818549a69a74eb00e4b827fae230e` | **Trạng thái:** đề xuất Tech Lead, chờ nghiệm thu từng phase.
 
 **Đối tượng:** Codex (Implementation Engineer). Người dùng/Tech Lead duyệt từng gate. Đây là kế hoạch triển khai, không phải báo cáo đã hoàn thành. Không tự nhận quyền thay đổi phạm vi sản phẩm.
 
@@ -18,9 +18,9 @@
 
 ### 1.1. Phase gate
 
-Thứ tự đã duyệt là G0 → G1 → G2 → G3 → G4 final acceptance → G6A → G5 → G6B → G7. Mỗi lượt chỉ thực hiện phase người dùng chỉ định và dừng chờ Tech Lead ở mỗi gate. G4 remediation kết thúc tại **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 4)**. Tech Lead có quyền yêu cầu patch cùng phase và review lại. Không merge main/push nếu người dùng chưa cho phép; khi được yêu cầu push, push đúng branch đã duyệt, không force-push. Không stash/reset/xóa thay đổi của người khác. Không cài deps không cần thiết hoặc đổi lockfile ngoài scope.
+Các mốc G0–G4 và G6A bên dưới lưu lịch sử nghiệm thu và tích hợp. Từ merged develop, thứ tự thực thi là **Merged baseline readiness → G5 HOW-TO Engine → G6B Unified Agent Tool Integration → G7 Comprehensive Evaluation**. Chỉ merged baseline readiness và G5 được giao trong lượt này. Dừng ở từng gate để Tech Lead review và cấp quyền riêng cho phase kế tiếp. Commit, merge và push cần quyền riêng.
 
-P0 trước hết đọc `git status --short`, `git rev-parse HEAD`, `git branch --show-current`, `git log -5 --oneline`; nếu repo local P-019 là nguồn chính, xác định commit local tương đương mirror bằng diff/hash file; không mặc định cùng hash (mirror được đồng bộ khác lịch sử). Nếu có drift, ghi báo cáo và dừng trước sửa code. Chỉ tạo branch sau khi baseline xác định, ví dụ `feature/ai-4` từ baseline được duyệt. Các phase tiếp theo tạo commit nhỏ, reviewable trên branch AI-4; có thể dùng nhánh con nếu nhóm quy định. Thành viên MVP-3.5 phát triển độc lập `feature/mvp-3.5` (tên đề xuất), không sửa frozen policy hoặc các contract chung nếu chưa phối hợp. Không tự merge branch optimizer mới trong quá trình AI-4.
+Ở mỗi baseline, đọc `git status --short`, `git rev-parse HEAD`, `git branch --show-current`, `git log -5 --oneline`; nếu repo local P-019 là nguồn chính, xác định commit local tương đương mirror bằng diff/hash file; không mặc định cùng hash (mirror được đồng bộ khác lịch sử). Nếu có drift, ghi báo cáo và dừng trước sửa code. Baseline G5 là merged local develop `0f877f196db7b89759af08aab825f0fff82f7c3c`, được đối chiếu với mirror `20bb246477a9ffa9b8a7b222bd430ba4a7d92b25`. Nhánh G5 xuất phát từ develop đã xác minh. Thành viên MVP-3.5 phát triển độc lập `feature/mvp-3.5` (tên đề xuất), không sửa frozen policy hoặc các contract chung nếu chưa phối hợp. Không tự merge branch optimizer mới trong quá trình AI-4.
 
 ### 1.2. Kiến trúc và file ownership
 
@@ -57,11 +57,14 @@ P0 trước hết đọc `git status --short`, `git rev-parse HEAD`, `git branch
 | 4.2A | Snapshot/fork atomic, paired runner no-op | G3 |
 | 4.2B | 4 loại patch, KPI delta, job isolation, remediation G4-F01–F03, Tech Lead final acceptance | G4 |
 | 4.4A | Shared integration foundation, WHY và WHAT-IF end-to-end | G6A |
+| Merged baseline readiness | Đối chiếu Git và mirror, hồi quy WHY/WHAT-IF/G6A cùng shared runtime | A (G5) |
 | 4.3 | Bounded recommendation search | G5 |
-| 4.4B | HOW-TO end-to-end trên foundation đã có | G6B |
+| 4.4B | Unified Agent Tool Integration cho WHY, WHAT-IF và HOW-TO trong `llm_chat` | G6B |
 | 4.5 | Eval độc lập, E2E, release candidate | G7 |
 
-Tech Lead duyệt đổi thứ tự cho demo mentor tối 25/11/2026. Sau remediation, G4 dừng chờ final acceptance. G6A cần authorization riêng từ Tech Lead sau khi review candidate G4. HOW-TO vẫn là MUST với toàn bộ requirements và acceptance criteria của G5, G6B và G7. G6 chỉ hoàn tất khi G6A và G6B đáp ứng toàn bộ AC G6.
+G6A standalone tiếp tục phục vụ typed API và structured fallback cho WHY/WHAT-IF, đồng thời làm tham chiếu migration. Project Owner và nhóm chọn Chat Agent hiện có làm điểm vào hội thoại thống nhất. G6B chỉ bắt đầu sau review và phân quyền cho gate đó.
+
+**Đề xuất amendment PRD v0.4 và ADR-015 cho nhóm duyệt.** PRD §5, §6.9 và §11 coi HOW-TO có điều kiện là Should, dựa vào phương án AI-1. ADR-015 §1 để AI-1 HITL trong sprint và hoãn HOW-TO tìm mức tối thiểu khi chưa chứng minh đơn điệu. Đề xuất bổ sung HOW-TO một biến, tập hữu hạn cho ba mục tiêu MUST, dùng kết quả đã thử và giữ advisory-only. AI-1 chuyển backlog. Điểm vào hội thoại chính là Chat Agent, cùng typed fallback G6A trong thời gian chuyển tiếp. Giữ phạm vi hoãn cho binary search thiếu chứng minh, tìm kiếm đa chiều và các mục hoãn khác. Đề xuất ghi bằng bản PRD mới và ADR bổ sung tham chiếu ADR-015 và [ADR AI-4](ADR_AI4_SCOPE.md). Bản PRD và ADR lịch sử tiếp tục là nguồn đối chiếu.
 
 ## Phase P0 — Baseline Verification (G0)
 
@@ -160,9 +163,9 @@ Discriminated union, `extra=forbid`, strict units/validations, actor auth server
 
 **Must goals:**
 
-- Resident `max_soc_by_deadline`: giữ departure time mong muốn, thử target SOC candidates (explicit user bounds, current SOC, original target; grid bước đề xuất 5 điểm % + boundaries, có cap). Chọn target cao nhất trong tập đã thử, original SLA reporting. Nếu deadline mới khác, giữ cố định deadline đó cho toàn candidate set; đây là goal với một biến search, không phải search hai chiều.
+- Resident `max_soc_by_deadline`: giữ departure time mong muốn, thử target SOC candidates (explicit user bounds, current SOC, original target; grid bước đề xuất 5 điểm % + boundaries, có cap). Chọn target cao nhất đã thử và đạt theo SOC vật lý đúng phút deadline. Báo original SLA riêng. Nếu deadline mới khác, giữ cố định deadline đó cho toàn candidate set; đây là goal với một biến search, không phải search hai chiều.
 - Resident `earliest_completion_for_target`: giữ target, thử deadline candidates trong time window, xếp hạng thời điểm đạt target thực theo simulation, không dùng deadline làm proxy; nếu chỉ một run chứng minh đạt sớm hơn có thể report như evidence, không coi đổi deadline luôn cải thiện. Phân biệt charge completion vs unplug/release. Nếu horizon không đủ, no conclusion.
-- Operator `min_tested_site_limit_for_sla`: giữ yêu cầu gốc toàn cohort, thử site input limits trong bounds, chọn mức thấp nhất trong candidates đạt mục tiêu và không vi phạm Guard. Nguồn vượt installed chỉ explicit hypothetical infrastructure, không khuyến nghị vận hành thật; independent supply unsupported. Không yêu cầu 100% nếu physically infeasible; không bịa alternative. Optional no-worsening AC constraint áp trên từng booking originally on time, không chỉ aggregate.
+- Operator `min_tested_site_limit_for_sla`: giữ yêu cầu gốc toàn cohort, thử site input limits trong bounds, chọn mức thấp nhất trong candidates đạt mục tiêu và không vi phạm Guard. Nguồn vượt installed chỉ explicit hypothetical infrastructure, không khuyến nghị vận hành thật; independent supply unsupported. Ngưỡng SLA đến từ goal. Đánh giá toàn bộ cohort theo commitment gốc, giữ unknown ngoài kết quả đạt. Optional no-worsening AC constraint áp trên từng booking originally on time, không chỉ aggregate.
 
 **Search contract:** `RecommendationGoal` (goal enum, typed constraints, explicit allowed sacrifices/bounds), `CandidateSet` deterministic and versioned, `RecommendationResult` (snapshot ID, baseline, tried candidate values/count, completed/skipped/failed, feasibility per candidate, evidence/whatif run IDs, chosen option(s), objective ranking tie-break, assumptions, search_status `found|no_feasible_in_tested_set|partial|unsupported`, applied=false). Default cap đề xuất 8 candidates + 1 baseline, configurable hard cap (duyệt G0), timeout đo thật; nếu truncated/failed chỉ kết luận trên candidates evaluated; không tuyên bố không có nghiệm toàn cục. No LLM candidate creation/ranking at this phase. Candidate search không dùng binary search khi chưa chứng minh monotonic. Hard constraints/consent/policy violation: không recommend unsafe/unknown; pending approvals label conditional, không coi verified unconditional. Tie-break stable, user preference explicit; không âm thầm đánh đổi target/deadline hoặc chọn chi phí thấp khi SLA gốc bị hy sinh trái yêu cầu. Return up to 3 options nếu có; report all attempted values trong evidence. HOW-TO chỉ advisory, không thay booking.
 
@@ -182,27 +185,27 @@ Discriminated union, `extra=forbid`, strict units/validations, actor auth server
 - Giữ deterministic engine độc lập với HTTP, LLM và UI. Handoff phải giữ khả năng G5 tái sử dụng một baseline trong bounded candidate search và dùng chung semantics announced-event replay. Grounding contract có thể nhận HOW-TO evidence và candidate results khi có engine.
 - Demo dùng dữ liệu và kết quả thực từ deterministic services. Giữ đầy đủ safety, authorization, grounding và sandbox isolation. Mọi kết quả là advisory, `applied=false`. API apply và tự sửa live booking nằm ngoài phạm vi.
 
-### G6B — AI-4.4B · HOW-TO integration
+### G6B — AI-4.4B · Unified Agent Tool Integration
 
-Sau khi G5 được nghiệm thu và G6B được cấp phép, nối HOW-TO đã duyệt vào router, typed jobs, grounding, API và UI. Chạy E2E cả hai role, kiểm candidates và grounding evidence, cùng toàn bộ AC G6 dưới đây. G7 vẫn giữ đầy đủ AC release.
+Sau review G5 và authorization G6B, expose WHY, WHAT-IF và HOW-TO thành typed tools trong Chat Agent `llm_chat`. Tool adapters gọi approved deterministic services. Graph hiện có tiếp tục sở hữu vòng hội thoại và HITL. Dùng chung job lifecycle, queue bounds, cancellation, TTL, owner checks và single-worker solver cho WHAT-IF/HOW-TO. KHÔNG tạo orchestration LLM lồng nhau hoặc bản sao optimizer, simulator, job manager. Architecture gate hiện hành cấm `llm_chat` import trực tiếp `src/agents`, simulator, Guard, optimizer hoặc DB.
 
-### A. Intent và routing
+### A. Ý định, phân quyền và dữ liệu trả về
 
-- `src/agents/` chứa AI-4, provider chung `src/services/llm.py`; giữ `src/llm_chat/` và resident booking flow hiện có. Dùng structured output (Pydantic schema) cho `CopilotIntent`: `why|what_if|how_to|clarify|unsupported`, query/patch/goal tương ứng, không dùng arbitrary tool name. LLM chỉ parse subject alias/thời điểm/đơn vị/giá trị và mục tiêu; server resolve booking/connector từ catalog/context đã auth. Không cho model gán role/owner/snapshot ID/authorization hoặc chọn code thực thi. Dùng timezone station, resolve giờ tương đối từ server clock, không đoán AM/PM/đơn vị/xe không rõ. Trích xuất nhiều điều kiện trong phạm vi whitelist; nếu vượt support, trả unsupported/clarify, không tự bỏ điều kiện.
-- Deterministic router validate schema, authorize trước retrieval/rollout và gọi workflow bounded tương ứng. WHAT-IF dùng jobs 4.2B, HOW-TO dùng cùng workload bounds và single-worker solver khi tích hợp ở G6B. LLM timeout/budget/retry theo cấu hình chung; không chạy ReAct loop tùy ý, không cho LLM gọi arbitrary SQL, Python, URLs hay simulator mutator. Tách parse LLM latency khỏi simulation và final rendering. Mock/fixture mode và structured API/form deterministic fallback khi LLM unavailable; không coi mock là eval LLM thật.
-- Hội thoại tối thiểu: hỏi lại trường thiếu, cho phép follow-up tham chiếu kết quả theo ID do server phát và kiểm ownership/TTL; lưu context ngắn đã redact. Không đọc raw system prompts hoặc hidden state. Không tự thực hiện AI-1. Test Việt/Anh (tiếng Việt trọng tâm), typo, relative dates, mơ hồ, injection qua user text/metadata, query nhiều mục tiêu unsupported, model output invalid. Intent handler server-only tests (LLM mock trả role operator vẫn không được escalate).
+- Role, station và actor đến từ context phía server. Tool schemas chỉ nhận truy vấn, patch, goal và tham chiếu theo quyền. Server giải alias booking, phút đồng hồ trạm và các đơn vị. Nếu thiếu hoặc mơ hồ, hỏi lại theo schema. Nếu vượt whitelist, trả unsupported.
+- Graph gọi service trực tiếp qua tool adapter. Typed chat result và stream payload phải giữ kind, job status, result, provenance, stale/partial và lỗi đã lọc. Poll, cancel và follow-up dùng job ID được cấp, kiểm owner và TTL.
+- Giữ flow đặt lịch, quyền và HITL hiện có. G6B cần xử lý G6A-F01 raw JWT trong cache key, G6A-F02 delayed 401 và G6A-F03 parser semantic correctness. Giữ bằng chứng offline và real provider riêng. Real LLM smoke và PostgreSQL runtime còn PENDING khi thiếu môi trường được phép.
 
 ### B. Grounded explanation
 
 - LLM chỉ nhận structured evidence đã lọc theo role, assumptions, tried candidates, results. Dùng output schema gồm `claims` (claim type, subject, value, unit, time, evidence_refs), explanation/summary theo template hoặc constrained rendering. Mọi câu có số liệu, causal claim, trade-off phải gắn evidence ID. `GroundingGate` xác thực exact fact value hoặc rounding do code quy định, đơn vị, đối tượng, thời điểm, stage, delta direction, reason-code semantics, evidence existence, role. Không chỉ check một con số xuất hiện ở đâu đó trong trace. Free-text prose không được tạo đường bypass: đề xuất dựng câu định lượng/nhân quả từ verified claim objects bằng template; LLM sinh phần ngôn ngữ không factual mới hoặc phải verify được. Nếu không qua, deterministic fallback/no_data; không gửi partial unverified claim. Explicitly label simulated/conditional/hypothetical/partial, no guarantee, applied=false. Không cho model hứa thời điểm sạc chắc chắn.
 - Resident không thấy IDs hoặc trạng thái chi tiết xe khác qua claim, job status, logs, error response, history hoặc prompt. Operator có thể xem detail trong scope station. Prompt injection trong booking labels/evidence xử lý như untrusted data. Tests đối kháng: đúng số sai xe, đúng số sai phút, đúng số sai đơn vị, sai stage power, đảo dấu delta, gán causal reason không có, evidence ref giả, unauthorized lookup, model tự chèn câu ở free-text, missing provenance, failed simulation. Tất cả phải block/fallback.
 
-### C. API và UI tối thiểu
+### C. Typed fallback và giao diện
 
-- Đề xuất API `/api/v1/copilot/query` cho NL, `/api/v1/copilot/why` typed offline, `/api/v1/copilot/what-if`, `/api/v1/copilot/how-to` tạo job typed; `GET /api/v1/copilot/jobs/{job_id}`, optional cancellation nếu đã support; dùng router prefix chuẩn repo (xác minh trước code). Dùng JWT actor/deps hiện có cho hai role, server-side ownership, rate limit/bounded queue. Long operations trả 202/job ID; frontend poll có backoff, show progress/error/stale/expired; không expose raw stack. Không route nào có apply/booking mutation. Status codes tương thích repo DomainError, OpenAPI regenerated. API design được duyệt ở G0, tên ở đây là đề xuất, không tự tạo endpoint trùng.
-- Giao diện tối thiểu ở resident/operator hiện có (owner frontend phối hợp, không thay toàn UI): input NL, ví dụ câu hỏi, clarify/fallback, WHY facts + reason + evidence/time; WHAT-IF baseline vs patch table, KPI delta, assumptions và nhãn chỉ mô phỏng; HOW-TO hiển thị candidates checked, lựa chọn, trade-off/no feasible/partial. Không có nút Apply; AI-1 sau. Resident only own + aggregate; Operator có affected IDs theo quyền. Không hardcode KPI/mock result production. Reuse typed OpenAPI client, loading/error/offline handling. Giữ các luồng booking, approval và simulation dashboard hiện tại chạy bình thường.
+- G6A standalone `/api/v1/copilot` có typed WHY/WHAT-IF và job endpoints. Giữ làm structured fallback và migration reference. Mọi endpoint bổ sung và thay đổi OpenAPI/UI thuộc G6B có review theo phạm vi.
+- Tích hợp vào hội thoại hiện có ở hai role. UI hiển thị kết quả xác thực từ service, trạng thái job, căn cứ, giới hạn giả định và lựa chọn HOW-TO. Giữ loading/error/offline handling và HITL của booking. Recommendations mang `applied=false`.
 
-**AC G6:** real service + mocked LLM E2E ở cả hai role; 3 intent, clarification, offline fallback, WHAT-IF/HOW-TO job lifecycle, grounded claim gate và auth adversarial suite pass; no live mutations; frontend tests + build, schema generation + API contract pass. Nếu có key, chạy smoke LLM thật nhỏ và record cost/latency, nhưng full eval ở 4.5. Không có key không claim LLM integration passed thật; ghi pending. STOP.
+**AC G6B:** real service + mocked LLM E2E cả hai role với ba intent, structured fallback, job lifecycle dùng chung, typed chat result/stream, grounding và authorization adverse cases. Chạy architecture, OpenAPI, frontend tests/build và regression booking/HITL. Evidence provider thật được ghi riêng khi được phép. STOP.
 
 ## Phase AI-4.5 — Evaluation & Integration (G7)
 

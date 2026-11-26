@@ -45,3 +45,13 @@
   - Backend mandatory gate: **12/12 PASS** (`777 passed, 8 forecast skipped`, `9/9` G6A API, `91` F1 legacy, `128` G2–G4 regressions, `8/8` G3 eval).
   - Frontend mandatory gate: **6/6 PASS** (`G6A_WEBPACK=1` trên cây sạch; `next build` Turbopack trên `P-019/frontend` cũng PASS `exit 0`).
   - Real LLM provider smoke: **PENDING (`PENDING_NO_AUTHORIZED_KEY`)**; PostgreSQL runtime: **PENDING**. [Báo cáo Gate 6A](PHASE_4_4A_REPORT.md) · [Demo](G6A_DEMO.md)
+
+
+## 7. Merged baseline và G5 (26/11/2026)
+
+- **Quyết định được Project Owner chuyển tiếp.** Tích hợp Decision Copilot vào LLM Chat Agent hiện có. Thứ tự là merged baseline readiness → G5 → G6B Unified Agent Tool Integration → G7 Comprehensive Evaluation. G6A standalone giữ typed API và structured fallback cùng vai trò tham chiếu migration.
+- **Phạm vi lượt này.** Kiểm merged develop và triển khai G5 dưới tầng service. G6B giữ role-aware actor, typed chat results/streams, lifecycle công việc dùng chung, grounding và HITL. Không tạo orchestration LLM lồng nhau hoặc bản sao optimizer, simulator, job manager.
+- **Chờ nhóm duyệt amendment.** PRD/ADR-015 còn mô tả gợi ý HOW-TO từ AI-1 và hoãn tìm mức tối thiểu. Đề xuất cụ thể trong [Master Plan](AI-4_MASTER_IMPLEMENTATION_PLAN.md). Giữ lịch sử ADR.
+- **G5 READY_FOR_REVIEW · HANDOFF_READY.** Merge baseline `0f877f1`, mirror `20bb246`. Patch cuối qua 24 tests G5, 180 hồi quy focused và 832 backend pass + 8 forecast skips. [Báo cáo](PHASE_4_3_REPORT.md) G6A-F01/F02/F03 dành cho G6B. Real LLM và PostgreSQL runtime PENDING. [Recovery](G5_RECOVERY_STATE.md)
+
+**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5)**

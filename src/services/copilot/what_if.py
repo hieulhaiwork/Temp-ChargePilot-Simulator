@@ -458,6 +458,15 @@ def _metrics_delta(
     return delta, reasons
 
 
+def _announced_grid_limits(snapshot: CapturedSnapshot) -> dict[int, float]:
+    capture_minute = snapshot.envelope.sim_minute
+    return {
+        max(capture_minute, event.effective_minute): event.grid_input_kw
+        for event in snapshot.event_manifest.known_limit_events
+        if event.grid_input_kw is not None and event.effective_minute < snapshot.event_manifest.horizon_end_minute
+    }
+
+
 async def run_what_if(
     snapshot: CapturedSnapshot,
     actor: ActorContext,
@@ -472,11 +481,7 @@ async def run_what_if(
         raise ValueError("WHAT-IF timeout must be in (0, 600] seconds")
     prepared = _prepare_patch(snapshot, actor, patch)
     capture_minute = snapshot.envelope.sim_minute
-    announced_grid = {
-        max(capture_minute, event.effective_minute): event.grid_input_kw
-        for event in snapshot.event_manifest.known_limit_events
-        if event.grid_input_kw is not None and event.effective_minute < snapshot.event_manifest.horizon_end_minute
-    }
+    announced_grid = _announced_grid_limits(snapshot)
     intervention = _WhatIfIntervention(prepared, announced_grid, capture_minute=capture_minute)
     async with asyncio.timeout(timeout_s):
         baseline = await run_sandbox_branch(

@@ -82,6 +82,10 @@ tầng, triage ADR, cổng kiểm soát tối thiểu, review độc lập, cơ 
 Readiness: READY_FOR_HUMAN_CONFIRMATION** — không còn blocker kỹ thuật hay quyết định bắt buộc nào treo; chỉ còn chỉ thị
 đóng P1-14 của Human (chưa cho phép ở lượt này). C-1 commit: chưa cho phép. Phase 1 **chưa đóng**.
 
+**Checkpoint mới 2026-11-26.** Project Owner giao merged baseline readiness và AI-4.3 HOW-TO Engine trên local
+`develop` đã gộp. Handoff cho lượt này ở [AI-4](../ai4/PROJECT_STATE.md). Các bảng governance Phase 1 bên dưới
+vẫn ghi nhận trạng thái của lượt 25/11.
+
 ### 1.2 Kế hoạch và phạm vi đã được duyệt
 
 Nguồn: tin nhắn của Human Supervisor trong phiên Claude Code ngày 2026-11-24 (duyệt Giai đoạn 1 có điều kiện; sau đó
@@ -111,7 +115,14 @@ duyệt cơ chế chuyển giao). Tóm tắt yêu cầu đã duyệt:
 production; tự duyệt ADR; xây thêm framework / nền tảng quản trị; commit / push / merge (chưa được duyệt cho Phase này);
 tạo tài liệu song song thay vì sửa tài liệu cũ.
 
+**Phạm vi lượt 26/11.** Chỉ baseline merged và G5, gồm service deterministic, oracle, verification và tài liệu roadmap.
+Đề xuất đồng bộ PRD/ADR-015 chờ nhóm duyệt. Dừng trước G6B. [Master Plan](../ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md)
+
 ### 1.3 Task Phase 1
+
+**G5 (26/11) — READY_FOR_REVIEW · HANDOFF_READY.** Checkpoint A–E đạt ở phạm vi cục bộ. Tech Lead nhận review.
+[Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
+
 
 | ID | Task | Tiêu chí hoàn thành | Trạng thái | Bằng chứng / nơi |
 |---|---|---|---|---|
@@ -144,6 +155,10 @@ Ngoài task: HACP (protocol giao tiếp) đã áp dụng trước Phase 1 —
 `docs/communication/HUMAN_AGENT_COMMUNICATION.md`, `docs/communication/RESPONSE_TEST_CASES.md`.
 
 ### 1.4 Kiểm thử và bằng chứng
+
+**Merged develop `0f877f1`, Codex, 26/11.** Focused 399 pass, backend 808 pass + 8 forecast skips, standalone 180,
+frontend 59, Golden 38/38 và frozen backend 100/100. **Patch G5** qua 24 focused, 180 regression G2/G3/G4/G6A,
+832 backend + 8 forecast skips, standalone 180 và mọi cổng trong runner. [Evidence G5](../../eval/evidence/2026-11-26-ai4-g5/raw)
 
 | Kiểm | Kết quả | Khi / ai | Commit code | Hiệu lực |
 |---|---|---|---|---|
@@ -229,7 +244,11 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 | Baseline benchmark có thể bị trình bày như nghiệm thu (đúng hạn, an toàn sự cố, policy rẻ nhất) | Quyết định sai về policy / phạm vi an toàn | Registry §3.1 đã ghi "chỉ regression"; R-1…R-3 trong backlog DEFERRED (registry §6.1) |
 | Consent backend (B1) làm backend có thể khác simulator R&D | Khẳng định "backend = simulator" quá mức | Ghi ở registry §4; D-6 PROVISIONAL (backend), xét lại sau R-4; không sửa code |
 
-### 1.8 Trạng thái Git (tại checkpoint mới nhất)
+### 1.8 Trạng thái Git
+
+- **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
+  Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
+  provenance ở [báo cáo](../ai4/PHASE_4_3_REPORT.md).
 
 - Repo `D:\VIN\P-019`, branch `feature/unified-core`, HEAD `ce23136` — trùng `origin/feature/unified-core`.
 - **Thay đổi chưa commit của Phase 1** (chỉ tài liệu, không được reset / ghi đè):
@@ -259,6 +278,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.9 Agent và khoá chỉnh sửa
 
+**AI-4 G5 (2026-11-26).** Codex nhận khoá implementation, tests, roadmap và evidence G5 trên `feature/ai-4-how-to` tại merged develop `0f877f1`. Đã nhả khoá sau HANDOFF_READY. Review độc lập chuyển Tech Lead. [Checkpoint G5](../ai4/PROJECT_STATE.md)
+
 **X-02 (2026-11-25): Codex đã nhả khóa báo cáo `CROSS_BRANCH_INDEPENDENT_REVIEW.md` và checkpoint sau khi hoàn tất HANDOFF_READY. Không giữ khóa implementation hoặc tài liệu đã nghiệm thu; chưa có Agent nhận remediation X-02.**
 
 | Vai | Agent | Thời điểm | Code đã kiểm |
@@ -286,6 +307,9 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.10 Việc Agent tiếp theo cần làm
 
+**G5.** Tech Lead review candidate, đối chiếu patch SHA-256 và oracle. Nhóm duyệt đề xuất đồng bộ PRD/ADR-015.
+G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5)**.
+
 1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
    (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
    nhắc trước hoặc cùng lúc đóng vì tài liệu chưa commit có rủi ro mất — §1.7).
@@ -296,6 +320,9 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
    (chỉ kế hoạch, implementation chưa duyệt).
 
 ### 1.11 Nhật ký checkpoint
+
+**26/11, Codex.** Đã khôi phục checkpoint từ merged develop, ghi quyết định roadmap, triển khai G5 và xác minh patch cuối.
+**HANDOFF_READY**, nhả khoá và dừng chờ Tech Lead. [Báo cáo G5](../ai4/PHASE_4_3_REPORT.md)
 
 | Thời điểm | Agent | Sự kiện |
 |---|---|---|

@@ -1,0 +1,33 @@
+{
+  "schema_version": "chargepilot.copilot_snapshot/1",
+  "snapshot_id": "snap-24f42c911c014d35",
+  "status": "ready",
+  "station_id": "CP-01",
+  "as_of": "2026-11-23T12:00:00+07:00",
+  "sim_minute": 0,
+  "horizon_minutes": 45,
+  "booking_version": 0,
+  "plan_version": 1,
+  "state_version": 12,
+  "schedule_version": 1,
+  "policy_id": "M3a",
+  "policy_version": "1",
+  "dc_charging_model_name": "vinfast_profiles_v0_1",
+  "time_config": {
+    "physics_step_minutes": 1,
+    "decision_interval_minutes": 15,
+    "planning_horizon_minutes": null
+  },
+  "station_config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+  "tariff_sha256": "3a4ef38aae48b59647635f9771fa977002dd39370811e2b4655468aab0094786",
+  "experiment_fingerprint": "c67e6ff7b65d6206528bb803c5d5b6609905eeec4e64d15ad2aa85b0a0bf5b8b",
+  "event_manifest_sha256": "9161ddb38a964cef1c52bd73a585c4d6ad7c05b6cf533dcdfb17ceb03e8d9f7a",
+  "stateful_components_sha256": "c921556cd7549c710649ec4a155bf14363770ff6236d2024b75df54a2819aa9a",
+  "snapshot_digest": "e46297e9504c5f19d697f772f0e235014ed6812eb14ca20322840ca855362b2d",
+  "known_booking_count": 3,
+  "safety_hold_booking_ids": [],
+  "rejected_booking_ids": [],
+  "pending_approval_ids": [],
+  "recent_command_count": 6,
+  "undelivered_ordinary_outbox_count": 0
+}

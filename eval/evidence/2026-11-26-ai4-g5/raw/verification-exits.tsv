@@ -1,0 +1,12 @@
+check	exit
+baseline-focused-native	0
+candidate-g5	1
+candidate-g2-g3-g4-g6a	0
+candidate-g3-eval	0
+candidate-backend	1
+candidate-standalone	0
+candidate-ruff-lint	0
+candidate-ruff-format	0
+candidate-docs	0
+candidate-openapi	0
+candidate-offline-f1	0
