@@ -1,0 +1,299 @@
+[
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "AC-A",
+    "zone": "AC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "AC-B",
+    "zone": "AC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "AC-C",
+    "zone": "AC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "AC-D",
+    "zone": "AC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "DC-A",
+    "zone": "DC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "DC-B",
+    "zone": "DC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "DC-C",
+    "zone": "DC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "DC-D",
+    "zone": "DC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "ARRIVED",
+    "car_id": "DC-E",
+    "zone": "DC"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "PLUGGED_IN",
+    "car_id": "AC-A",
+    "zone": "AC",
+    "connector": "AC-01/P1"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "PLUGGED_IN",
+    "car_id": "AC-B",
+    "zone": "AC",
+    "connector": "AC-02/P1"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "PLUGGED_IN",
+    "car_id": "DC-A",
+    "zone": "DC",
+    "connector": "DC-01/P1"
+  },
+  {
+    "minute": 1080,
+    "time": "18:00",
+    "event": "PLUGGED_IN",
+    "car_id": "DC-B",
+    "zone": "DC",
+    "connector": "DC-01/P2"
+  },
+  {
+    "minute": 1108,
+    "time": "18:28",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "DC-B",
+    "zone": "DC",
+    "connector": "DC-01/P2",
+    "effective_time": "18:28"
+  },
+  {
+    "minute": 1113,
+    "time": "18:33",
+    "event": "UNPLUGGED",
+    "car_id": "DC-B",
+    "zone": "DC",
+    "connector": "DC-01/P2",
+    "completed": true,
+    "reason": "dc_unplug_delay"
+  },
+  {
+    "minute": 1113,
+    "time": "18:33",
+    "event": "PLUGGED_IN",
+    "car_id": "DC-C",
+    "zone": "DC",
+    "connector": "DC-01/P2"
+  },
+  {
+    "minute": 1117,
+    "time": "18:37",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "DC-A",
+    "zone": "DC",
+    "connector": "DC-01/P1",
+    "effective_time": "18:37"
+  },
+  {
+    "minute": 1122,
+    "time": "18:42",
+    "event": "UNPLUGGED",
+    "car_id": "DC-A",
+    "zone": "DC",
+    "connector": "DC-01/P1",
+    "completed": true,
+    "reason": "dc_unplug_delay"
+  },
+  {
+    "minute": 1122,
+    "time": "18:42",
+    "event": "PLUGGED_IN",
+    "car_id": "DC-D",
+    "zone": "DC",
+    "connector": "DC-01/P1"
+  },
+  {
+    "minute": 1148,
+    "time": "19:08",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "DC-C",
+    "zone": "DC",
+    "connector": "DC-01/P2",
+    "effective_time": "19:08"
+  },
+  {
+    "minute": 1153,
+    "time": "19:13",
+    "event": "UNPLUGGED",
+    "car_id": "DC-C",
+    "zone": "DC",
+    "connector": "DC-01/P2",
+    "completed": true,
+    "reason": "dc_unplug_delay"
+  },
+  {
+    "minute": 1153,
+    "time": "19:13",
+    "event": "PLUGGED_IN",
+    "car_id": "DC-E",
+    "zone": "DC",
+    "connector": "DC-01/P2"
+  },
+  {
+    "minute": 1155,
+    "time": "19:15",
+    "event": "UNPLUGGED",
+    "car_id": "DC-D",
+    "zone": "DC",
+    "connector": "DC-01/P1",
+    "completed": false,
+    "reason": "declared_departure"
+  },
+  {
+    "minute": 1158,
+    "time": "19:18",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "AC-B",
+    "zone": "AC",
+    "connector": "AC-02/P1",
+    "effective_time": "19:18"
+  },
+  {
+    "minute": 1164,
+    "time": "19:24",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "AC-A",
+    "zone": "AC",
+    "connector": "AC-01/P1",
+    "effective_time": "19:24"
+  },
+  {
+    "minute": 1186,
+    "time": "19:46",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "DC-E",
+    "zone": "DC",
+    "connector": "DC-01/P2",
+    "effective_time": "19:46"
+  },
+  {
+    "minute": 1191,
+    "time": "19:51",
+    "event": "UNPLUGGED",
+    "car_id": "DC-E",
+    "zone": "DC",
+    "connector": "DC-01/P2",
+    "completed": true,
+    "reason": "dc_unplug_delay"
+  },
+  {
+    "minute": 1200,
+    "time": "20:00",
+    "event": "UNPLUGGED",
+    "car_id": "AC-A",
+    "zone": "AC",
+    "connector": "AC-01/P1",
+    "completed": true,
+    "reason": "declared_departure"
+  },
+  {
+    "minute": 1200,
+    "time": "20:00",
+    "event": "PLUGGED_IN",
+    "car_id": "AC-C",
+    "zone": "AC",
+    "connector": "AC-01/P1"
+  },
+  {
+    "minute": 1215,
+    "time": "20:15",
+    "event": "UNPLUGGED",
+    "car_id": "AC-B",
+    "zone": "AC",
+    "connector": "AC-02/P1",
+    "completed": true,
+    "reason": "declared_departure"
+  },
+  {
+    "minute": 1215,
+    "time": "20:15",
+    "event": "PLUGGED_IN",
+    "car_id": "AC-D",
+    "zone": "AC",
+    "connector": "AC-02/P1"
+  },
+  {
+    "minute": 1327,
+    "time": "22:07",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "AC-D",
+    "zone": "AC",
+    "connector": "AC-02/P1",
+    "effective_time": "22:07"
+  },
+  {
+    "minute": 1337,
+    "time": "22:17",
+    "event": "CHARGE_COMPLETED",
+    "car_id": "AC-C",
+    "zone": "AC",
+    "connector": "AC-01/P1",
+    "effective_time": "22:17"
+  },
+  {
+    "minute": 1395,
+    "time": "23:15",
+    "event": "UNPLUGGED",
+    "car_id": "AC-C",
+    "zone": "AC",
+    "connector": "AC-01/P1",
+    "completed": true,
+    "reason": "declared_departure"
+  },
+  {
+    "minute": 1410,
+    "time": "23:30",
+    "event": "UNPLUGGED",
+    "car_id": "AC-D",
+    "zone": "AC",
+    "connector": "AC-02/P1",
+    "completed": true,
+    "reason": "declared_departure"
+  }
+]

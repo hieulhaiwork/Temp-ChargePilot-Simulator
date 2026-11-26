@@ -52,15 +52,24 @@ function normalizeEvTranscript(raw: string): string {
     .trim();
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
+function blobToBase64(blob: Blob, onReader?: (reader: FileReader | null) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    onReader?.(reader);
     reader.onloadend = () => {
+      onReader?.(null);
       const result = typeof reader.result === "string" ? reader.result : "";
       const comma = result.indexOf(",");
       resolve(comma >= 0 ? result.slice(comma + 1) : result);
     };
-    reader.onerror = () => reject(new Error("Không đọc được bản ghi âm."));
+    reader.onerror = () => {
+      onReader?.(null);
+      reject(new Error("Không đọc được bản ghi âm."));
+    };
+    reader.onabort = () => {
+      onReader?.(null);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
     reader.readAsDataURL(blob);
   });
 }
@@ -77,8 +86,12 @@ export function ChatPanel(props: ChatPanelProps = {}) {
 
 function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatPanelProps) {
   const resident = role === "resident";
+  const mountedRef = useRef(true);
   const streamAbort = useRef<AbortController | null>(null);
-  useEffect(() => () => streamAbort.current?.abort(), []);
+  const voiceEpochRef = useRef(0);
+  const transcribeAbortRef = useRef<AbortController | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const fileReaderRef = useRef<FileReader | null>(null);
   const [lines, setLines] = useState<Line[]>(() =>
     initialConfirmingSession
       ? [
@@ -112,10 +125,69 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const speechRecRef = useRef<{ stop: () => void } | null>(null);
+  const speechRecRef = useRef<{
+    stop: () => void;
+    onresult?: unknown;
+    onerror?: unknown;
+    onend?: unknown;
+  } | null>(null);
   const [preferBrowserSpeech, setPreferBrowserSpeech] = useState(false);
   const chunksRef = useRef<Blob[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  function cleanupVoiceResources() {
+    voiceEpochRef.current += 1;
+    transcribeAbortRef.current?.abort();
+    transcribeAbortRef.current = null;
+    try {
+      fileReaderRef.current?.abort?.();
+    } catch {
+      // ignore
+    }
+    fileReaderRef.current = null;
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    if (rec) {
+      rec.ondataavailable = null;
+      rec.onstop = null;
+      try {
+        if (rec.state !== "inactive") rec.stop();
+      } catch {
+        // ignore
+      }
+    }
+    const activeStream = mediaStreamRef.current;
+    mediaStreamRef.current = null;
+    activeStream?.getTracks().forEach((t) => {
+      try {
+        t.stop();
+      } catch {
+        // ignore
+      }
+    });
+    const sr = speechRecRef.current;
+    speechRecRef.current = null;
+    if (sr) {
+      sr.onresult = null;
+      sr.onerror = null;
+      sr.onend = null;
+      try {
+        sr.stop();
+      } catch {
+        // ignore
+      }
+    }
+    chunksRef.current = [];
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      streamAbort.current?.abort();
+      cleanupVoiceResources();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isRecording) return;
@@ -136,11 +208,13 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
 
   const send = useMutation({
     mutationFn: async ({ message, botLineId }: { message: string; botLineId: string }) => {
+      const requestSession = getSession();
+      const requestGeneration = requestSession?.generation;
+      const isTurnCurrent = () => mountedRef.current && getSession()?.generation === requestGeneration;
       setIsStreaming(true);
       setStreamError(null);
       setVoiceNotice(null);
       setStreamStatus("Đang gửi yêu cầu…");
-      const requestSession = getSession();
       const controller = new AbortController();
       streamAbort.current = controller;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -152,7 +226,7 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
         body: JSON.stringify({ message, session_id: sessionId }),
         signal: controller.signal,
       });
-      if (res.status === 401) clearSessionIfCurrent(requestSession?.generation);
+      if (res.status === 401) clearSessionIfCurrent(requestGeneration);
       if (!res.ok || !res.body) {
         const body = await res.json().catch(() => null);
         throw toApiError(res.status, body, res.headers.get("X-Request-ID"));
@@ -165,12 +239,13 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done || !isTurnCurrent()) break;
         buffer += decoder.decode(value, { stream: true });
         const events = buffer.split("\n\n");
         buffer = events.pop() ?? "";
 
         for (const rawEvent of events) {
+          if (!isTurnCurrent()) break;
           const dataLine = rawEvent
             .split("\n")
             .find((line) => line.startsWith("data: "));
@@ -207,32 +282,39 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
           }
         }
       }
+      if (!isTurnCurrent()) return null;
       if (!finalReply) {
         throw new ApiError({ status: 500, code: "internal_error", detail: "Luồng phản hồi kết thúc bất ngờ." });
       }
       return finalReply;
     },
     onError: (err) => {
+      if (!mountedRef.current || (err instanceof DOMException && err.name === "AbortError")) return;
       setStreamError(err instanceof Error ? err : new Error(String(err)));
     },
     onSettled: () => {
-      setIsStreaming(false);
+      if (mountedRef.current) setIsStreaming(false);
     },
   });
 
   const resume = useMutation({
-    mutationFn: (decision: "approve" | "reject") =>
-      unwrap(
+    mutationFn: async (decision: "approve" | "reject") => {
+      const requestGeneration = getSession()?.generation;
+      const reply = await unwrap(
         api.PATCH("/api/v1/chat/sessions/{session_id}", {
           params: { path: { session_id: sessionId ?? "" } },
           body: { resume: decision },
         }),
-      ),
-    onSuccess: (reply) =>
-      setLines((prev) => [...prev, { id: crypto.randomUUID(), who: "bot", text: reply.response, reply }]),
+      );
+      return { reply, requestGeneration };
+    },
+    onSuccess: ({ reply, requestGeneration }) => {
+      if (!mountedRef.current || getSession()?.generation !== requestGeneration) return;
+      setLines((prev) => [...prev, { id: crypto.randomUUID(), who: "bot", text: reply.response, reply }]);
+    },
   });
 
-  function startBrowserSpeech(): boolean {
+  function startBrowserSpeech(epoch: number, capturedGeneration: number | undefined): boolean {
     if (typeof window === "undefined") return false;
     type SpeechRecCtor = new () => {
       lang: string;
@@ -247,12 +329,15 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
     const w = window as unknown as { SpeechRecognition?: SpeechRecCtor; webkitSpeechRecognition?: SpeechRecCtor };
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Ctor) return false;
+    const isVoiceCurrent = () =>
+      mountedRef.current && voiceEpochRef.current === epoch && getSession()?.generation === capturedGeneration;
     try {
       const rec = new Ctor();
       rec.lang = "vi-VN";
       rec.interimResults = false;
       rec.maxAlternatives = 1;
       rec.onresult = (ev) => {
+        if (!isVoiceCurrent()) return;
         const rawTranscript = ev.results?.[0]?.[0]?.transcript?.trim() ?? "";
         const transcript = normalizeEvTranscript(rawTranscript);
         if (transcript) {
@@ -262,9 +347,11 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
         }
       };
       rec.onerror = () => {
+        if (!isVoiceCurrent()) return;
         setVoiceNotice("Không nhận dạng được giọng nói lúc này. Bạn vui lòng nhập văn bản trực tiếp nhé.");
       };
       rec.onend = () => {
+        if (!isVoiceCurrent()) return;
         setIsRecording(false);
         speechRecRef.current = null;
       };
@@ -286,17 +373,34 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
       setIsRecording(false);
       return;
     }
-    if (preferBrowserSpeech && startBrowserSpeech()) {
+    const capturedSession = getSession();
+    const capturedGeneration = capturedSession?.generation;
+    const epoch = ++voiceEpochRef.current;
+    const isVoiceCurrent = () =>
+      mountedRef.current && voiceEpochRef.current === epoch && getSession()?.generation === capturedGeneration;
+
+    if (preferBrowserSpeech && startBrowserSpeech(epoch, capturedGeneration)) {
       return;
     }
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      if (!startBrowserSpeech()) {
+      if (!startBrowserSpeech(epoch, capturedGeneration) && isVoiceCurrent()) {
         setVoiceNotice("Trình duyệt chưa hỗ trợ ghi âm trực tiếp. Bạn có thể nhập văn bản bên dưới.");
       }
       return;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!isVoiceCurrent()) {
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+        return;
+      }
+      mediaStreamRef.current = stream;
       const preferredMime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/mp4")
@@ -305,10 +409,20 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
       const recorder = new MediaRecorder(stream, { mimeType: preferredMime });
       chunksRef.current = [];
       recorder.ondataavailable = (ev) => {
+        if (!isVoiceCurrent()) return;
         if (ev.data.size > 0) chunksRef.current.push(ev.data);
       };
       recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            // ignore
+          }
+        });
+        if (mediaStreamRef.current === stream) mediaStreamRef.current = null;
+        if (recorderRef.current === recorder) recorderRef.current = null;
+        if (!isVoiceCurrent()) return;
         const blob = new Blob(chunksRef.current, { type: preferredMime });
         if (blob.size < 100) {
           setVoiceNotice("Bản ghi âm quá ngắn, vui lòng nói lại.");
@@ -319,18 +433,27 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
           return;
         }
         setIsTranscribing(true);
+        let controller: AbortController | null = null;
         try {
-          const audioBase64 = await blobToBase64(blob);
-          const requestSession = getSession();
-          const headers: Record<string, string> = { "Content-Type": "application/json" };
-          if (requestSession) headers.Authorization = `Bearer ${requestSession.token}`;
+          const audioBase64 = await blobToBase64(blob, (reader) => {
+            fileReaderRef.current = reader;
+          });
+          if (!isVoiceCurrent() || !capturedSession) return;
+          controller = new AbortController();
+          transcribeAbortRef.current = controller;
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${capturedSession.token}`,
+          };
           const res = await fetch(`${API_URL}/api/v1/chat/transcribe`, {
             method: "POST",
             headers,
             body: JSON.stringify({ audio_base64: audioBase64, mime_type: preferredMime }),
+            signal: controller.signal,
           });
           const body = await res.json().catch(() => null);
-          if (res.status === 401) clearSessionIfCurrent(requestSession?.generation);
+          if (res.status === 401) clearSessionIfCurrent(capturedGeneration);
+          if (!isVoiceCurrent()) return;
           if (!res.ok) {
             throw toApiError(res.status, body, res.headers.get("X-Request-ID"));
           }
@@ -343,6 +466,7 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
             setVoiceNotice("Chưa nghe rõ lời nói, vui lòng thử lại.");
           }
         } catch (err) {
+          if (!isVoiceCurrent() || (err instanceof DOMException && err.name === "AbortError")) return;
           const w = typeof window !== "undefined" ? (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }) : null;
           const hasBrowserStt = Boolean(w?.SpeechRecognition ?? w?.webkitSpeechRecognition);
           if (hasBrowserStt) {
@@ -353,7 +477,12 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
             setVoiceNotice(msg);
           }
         } finally {
-          setIsTranscribing(false);
+          if (controller && transcribeAbortRef.current === controller) {
+            transcribeAbortRef.current = null;
+          }
+          if (mountedRef.current && voiceEpochRef.current === epoch) {
+            setIsTranscribing(false);
+          }
         }
       };
       recorderRef.current = recorder;
@@ -361,7 +490,8 @@ function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatP
       setIsRecording(true);
       recorder.start();
     } catch {
-      if (!startBrowserSpeech()) {
+      if (!isVoiceCurrent()) return;
+      if (!startBrowserSpeech(epoch, capturedGeneration)) {
         setVoiceNotice("Chưa được cấp quyền micro. Vui lòng cho phép micro hoặc nhập chữ.");
       }
     }

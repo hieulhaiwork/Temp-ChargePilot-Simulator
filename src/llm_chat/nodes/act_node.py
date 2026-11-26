@@ -71,8 +71,19 @@ async def _advisory(
     elif context is None:
         result = CopilotNotice(code="structured_fallback", message="Cần phiên đăng nhập để chạy phân tích.")
     else:
+        prior_users = tuple(
+            entry["content"]
+            for entry in (state.get("history") or ())[:-1]
+            if entry.get("role") == "user" and isinstance(entry.get("content"), str)
+        )
         try:
-            result = await invoke_copilot_tool(name, args, context, message=state.get("query", ""))
+            result = await invoke_copilot_tool(
+                name,
+                args,
+                context,
+                message=state.get("query", ""),
+                prior_user_messages=prior_users,
+            )
         except ValidationError:
             result = CopilotNotice(code="clarify", message="Thông số phân tích còn thiếu hoặc không hợp lệ.")
         except DomainError as exc:

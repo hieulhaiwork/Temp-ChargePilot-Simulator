@@ -1,14 +1,18 @@
 """Server-owned decision routing and lifecycle adapter for G6A."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
 from src.agents.copilot_grounding import GroundingError, render_how_to, render_what_if, render_why
-from src.agents.copilot_intent import CopilotIntentParser, conflicts_with_simulation
+from src.agents.copilot_intent import (
+    CopilotIntentParser,
+    conflicts_with_simulation,
+    why_conflicts_with_message,
+)
 from src.models.api import ErrorCode, UserProfile
 from src.models.control import Role
 from src.models.copilot import ActorContext, WhyQuery, WhyStatus
@@ -109,7 +113,7 @@ class CopilotIntegration:
         self._get_runtime = get_runtime
         self._parser = parser or CopilotIntentParser()
         self._capture = asyncio.Lock()
-        self._jobs = jobs if jobs is not None else WhatIfJobs(live_busy_probe=self._live_busy)
+        self._jobs = jobs if jobs is not None else WhatIfJobs(live_busy_probe=self._live_busy, max_active_per_actor=1)
 
     def _live_busy(self) -> bool:
         rt = self._get_runtime()
@@ -206,6 +210,7 @@ class CopilotIntegration:
             )
         try:
             async with self._capture:
+                self._jobs.check_admission(actor, session=session)
                 async with asyncio.timeout(5):
                     snapshot = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
                 workload = workload_at_snapshot(snapshot)
@@ -259,14 +264,45 @@ class CopilotIntegration:
     def clarification(field: ClarifyField) -> CopilotNotice:
         return _clarify(field, None)
 
-    async def agent_why(self, user: UserProfile, intent: WhyIntent) -> WhyReply | CopilotNotice:
+    async def agent_why(
+        self,
+        user: UserProfile,
+        intent: WhyIntent,
+        *,
+        message: str = "",
+        prior_user_messages: Sequence[str] = (),
+    ) -> WhyReply | CopilotNotice:
         rt = self._get_runtime()
         if user.role == Role.RESIDENT and intent.subject == "station":
             raise _forbidden()
         if intent.subject == "station" and intent.booking_id is not None:
             return _clarify("booking", None)
+        why_issue = why_conflicts_with_message(
+            message,
+            intent,
+            now=rt.simulator.now,
+            timezone=rt.config.timezone,
+            prior_user_messages=prior_user_messages,
+        )
+        if why_issue == "unsupported":
+            return CopilotNotice(
+                code="unsupported",
+                message="Tham số giải thích không khớp với thời điểm hoặc đối tượng bạn đã nêu.",
+            )
+        if why_issue in _CLARIFICATIONS:
+            return _clarify(why_issue, None)  # type: ignore[arg-type]
+        if intent.booking_id is not None and user.role == Role.OPERATOR:
+            corpus = "\n".join((*prior_user_messages, message)).casefold()
+            if corpus.strip() and intent.booking_id.casefold() not in corpus:
+                return _clarify("booking", None)
         if user.role == Role.RESIDENT and intent.subject != "station":
             actor = ActorContext.from_user(user, rt.config.station_id)
+            if intent.booking_id is not None:
+                corpus = "\n".join((*prior_user_messages, message)).casefold()
+                bookings = await asyncio.to_thread(rt.store.active_bookings)
+                owned = [b.booking_id for b in bookings if b.resident_id == actor.actor_id]
+                if len(owned) > 1 and corpus.strip() and intent.booking_id.casefold() not in corpus:
+                    return _clarify("booking", None)
             try:
                 booking_id = await self._booking(rt, actor, intent.booking_id)
                 intent = intent.model_copy(update={"subject": "booking", "booking_id": booking_id})
@@ -278,42 +314,86 @@ class CopilotIntegration:
             return _clarify(exc.field, None)
 
     @staticmethod
-    def _constraint_notice(message: str, workload: WhatIfIntent | RecommendationGoal) -> CopilotNotice | None:
-        issue = conflicts_with_simulation(message, workload)
+    def _constraint_notice(
+        message: str,
+        workload: WhatIfIntent | RecommendationGoal | HowToRequest,
+        *,
+        now: datetime | None = None,
+        timezone: str = "Asia/Ho_Chi_Minh",
+        prior_user_messages: Sequence[str] = (),
+    ) -> CopilotNotice | None:
+        issue = conflicts_with_simulation(
+            message,
+            workload,
+            now=now,
+            timezone=timezone,
+            prior_user_messages=prior_user_messages,
+        )
         if issue == "unsupported":
             return CopilotNotice(
-                code="unsupported", message="Yêu cầu có điều kiện kết hợp chưa được biểu diễn trong mô phỏng."
+                code="unsupported",
+                message="Thông số hoặc điều kiện kết hợp không khớp với yêu cầu đã nêu để mô phỏng an toàn.",
             )
-        if issue in ("sacrifices", "infrastructure"):
-            return _clarify(issue, None)
+        if issue in _CLARIFICATIONS:
+            return _clarify(issue, None)  # type: ignore[arg-type]
         return None
 
     async def agent_what_if(
-        self, user: UserProfile, intent: WhatIfIntent, session: str, *, message: str
+        self,
+        user: UserProfile,
+        intent: WhatIfIntent,
+        session: str,
+        *,
+        message: str,
+        prior_user_messages: Sequence[str] = (),
     ) -> JobReply | CopilotNotice:
         is_vehicle = isinstance(intent.change, VehicleChange)
         if is_vehicle != (user.role == Role.RESIDENT):
             raise _forbidden()
-        notice = self._constraint_notice(message, intent)
+        rt = self._get_runtime()
+        notice = self._constraint_notice(
+            message,
+            intent,
+            now=rt.simulator.now,
+            timezone=rt.config.timezone,
+            prior_user_messages=prior_user_messages,
+        )
         if notice:
             return notice
         try:
-            return await self._what_if_intent(user, self._get_runtime(), intent, None, None, session=session)
+            return await self._what_if_intent(user, rt, intent, None, None, session=session)
         except _ClarificationError as exc:
             return _clarify(exc.field, None)
 
     async def agent_how_to(
-        self, user: UserProfile, request: HowToRequest, session: str, *, message: str
+        self,
+        user: UserProfile,
+        request: HowToRequest,
+        session: str,
+        *,
+        message: str,
+        prior_user_messages: Sequence[str] = (),
     ) -> JobReply | CopilotNotice:
         rt = self._get_runtime()
         actor = ActorContext.from_user(user, rt.config.station_id)
         is_site = isinstance(request.goal, MinTestedSiteLimitForSla)
         if is_site != (actor.role == Role.OPERATOR):
             raise _forbidden()
-        notice = self._constraint_notice(message, request.goal)
+        notice = self._constraint_notice(
+            message,
+            request,
+            now=rt.simulator.now,
+            timezone=rt.config.timezone,
+            prior_user_messages=prior_user_messages,
+        )
         if notice:
             return notice
         if not is_site:
+            corpus = "\n".join((*prior_user_messages, message)).casefold()
+            bookings = await asyncio.to_thread(rt.store.active_bookings)
+            owned = [b.booking_id for b in bookings if b.resident_id == actor.actor_id]
+            if len(owned) > 1 and corpus.strip() and request.goal.booking_id.casefold() not in corpus:
+                return _clarify("booking", None)
             await self._booking(rt, actor, request.goal.booking_id)
         return await self._submit(rt, actor, request.horizon_minutes, lambda _: request.goal, session=session)
 

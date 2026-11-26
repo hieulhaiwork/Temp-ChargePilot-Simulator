@@ -1,0 +1,10 @@
+{
+  "configured_provider": "openai",
+  "model_classify": "gpt-4o-mini",
+  "model_generate": "gpt-4o",
+  "openai_api_key_configured": false,
+  "gemini_api_key_configured": false,
+  "openrouter_api_key_configured": false,
+  "local_ollama_11434_reachable": false,
+  "real_llm_smoke_status": "PENDING_NO_AUTHORIZED_KEY"
+}

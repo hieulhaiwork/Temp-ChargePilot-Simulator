@@ -284,7 +284,7 @@ async def test_job_budget_excludes_second_job_and_keeps_live_replan_responsive(d
         return await branch(*args, **kwargs)
 
     monkeypatch.setattr(recommendation, "run_sandbox_branch", synchronized_branch)
-    reply = await chat(client, resident, "Trong khoảng đã xác nhận, kiểm chứng giờ đạt 90% sớm nhất.")
+    reply = await chat(client, resident, "Trong khoảng sau 50 đến 60 phút, kiểm chứng giờ đạt 90% sớm nhất.")
     submit, limited = reply["advisory"]
     assert limited["code"] == "unsupported"
     async with asyncio.timeout(2):
@@ -388,3 +388,306 @@ async def test_m3b_grounding_labels_94_kw_as_lowest_verified_in_partial_search()
     assert rendered.result.search_status == "partial"
     assert rendered.result.options[0].value == 94
     assert "trong các mức đã xác minh" in rendered.summary and "một phần" in rendered.summary
+
+
+async def test_f01_wrong_deadline_rejected_before_capture(demo_api, monkeypatch):
+    client, _, own, _, resident, _, _ = demo_api
+
+    async def no_capture(*args, **kwargs):
+        pytest.fail("Mismatched deadline must never trigger snapshot capture")
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
+    provider(
+        monkeypatch,
+        decision(
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "target_soc": 75,
+                    "deadline": {"kind": "relative", "offset_minutes": 100},
+                },
+            },
+        ),
+    )
+    response = await chat(client, resident, "Nếu đổi mục tiêu thành 75% và hạn mới sau 35 phút thì sao?")
+    (notice,) = response["advisory"]
+    assert notice["kind"] == "notice" and notice["code"] == "unsupported"
+    assert "job" not in notice
+
+
+async def test_f01_wrong_site_goal_rejected_before_capture(demo_api, monkeypatch):
+    client, _, _, _, _, _, operator = demo_api
+
+    async def no_capture(*args, **kwargs):
+        pytest.fail("Mismatched HOW-TO site goal must never trigger snapshot capture")
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
+    goal = {
+        "goal": "min_tested_site_limit_for_sla",
+        "min_grid_input_kw": 50,
+        "max_grid_input_kw": 80,
+        "min_original_on_time_rate": 0.5,
+        "protect_on_time_ac_bookings": False,
+        "hypothetical_infrastructure": False,
+    }
+    provider(monkeypatch, decision("copilot_how_to", {"goal": goal}))
+    response = await chat(
+        client,
+        operator,
+        "Thử nguồn 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%.",
+    )
+    (notice,) = response["advisory"]
+    assert notice["kind"] == "notice" and notice["code"] == "unsupported"
+    assert "job" not in notice
+
+
+async def test_f01_direct_and_e2e_parameter_mismatches_and_ungrounded_bounds(demo_api, monkeypatch):
+    from src.agents.copilot_intent import conflicts_with_simulation
+    from src.models.copilot_integration import ConnectorOutage, SourceChange, VehicleChange, WhatIfIntent
+    from src.models.recommendation import RECOMMENDATION_GOAL_ADAPTER
+
+    client, rt, own, _, resident, _, operator = demo_api
+
+    # Direct validator checks for Probes 3, 4, 5 and sub-variants
+    assert (
+        conflicts_with_simulation(
+            "Nếu giới hạn nguồn còn 50 kW trong cửa sổ mô phỏng 30 phút?",
+            WhatIfIntent(kind="what_if", change=SourceChange(op="site_limit", grid_input_kw=50), horizon_minutes=120),
+        )
+        == "unsupported"
+    )
+    assert (
+        conflicts_with_simulation(
+            "Giả sử ngắt cổng DC-01-1 trong 30 phút",
+            WhatIfIntent(
+                kind="what_if",
+                change=ConnectorOutage(op="outage", connector_id="DC-01-2", duration_minutes=30),
+            ),
+        )
+        == "unsupported"
+    )
+    assert (
+        conflicts_with_simulation(
+            "Nếu tôi giảm pin còn 75%?",
+            WhatIfIntent(kind="what_if", change=VehicleChange(op="revise_vehicle", target_soc=90)),
+        )
+        == "unsupported"
+    )
+    assert (
+        conflicts_with_simulation(
+            "Nếu tôi chỉ cần sạc đến 75% thay vì 90% thì sao?",
+            WhatIfIntent(kind="what_if", change=VehicleChange(op="revise_vehicle", target_soc=90)),
+        )
+        == "unsupported"
+    )
+    assert (
+        conflicts_with_simulation(
+            "Pin hiện tại 30%, nếu đổi hạn lấy xe sau 25 phút thì sao?",
+            WhatIfIntent(
+                kind="what_if",
+                change=VehicleChange(
+                    op="revise_vehicle",
+                    target_soc=30,
+                    deadline={"kind": "relative", "offset_minutes": 25},
+                ),
+            ),
+        )
+        == "unsupported"
+    )
+    assert (
+        conflicts_with_simulation(
+            "Thử nguồn 22 đến 106 kW, mục tiêu đúng hạn 95%.",
+            RECOMMENDATION_GOAL_ADAPTER.validate_python(
+                _site(22, 106, min_original_on_time_rate=0.95, protect_on_time_ac_bookings=False)
+            ),
+        )
+        == "unsupported"
+    )
+    assert (
+        conflicts_with_simulation(
+            "Cần nguồn điện bao nhiêu để đáp ứng các cam kết?",
+            RECOMMENDATION_GOAL_ADAPTER.validate_python(_site(50, 80, min_original_on_time_rate=1.0)),
+        )
+        == "bounds"
+    )
+
+    async def no_capture(*args, **kwargs):
+        pytest.fail("Invalid or ungrounded input must never reach snapshot capture")
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
+    wrong_max = _max_at(
+        rt,
+        120,
+        booking_id=own.booking_id,
+        low=65,
+        high=75,
+        allow_lower_target=True,
+        allow_subject_original_sla_regression=True,
+    )
+    wrong_max["deadline"] = wrong_max["deadline"].isoformat()
+    provider(
+        monkeypatch,
+        decision(
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}, "horizon_minutes": 120},
+        ),
+        decision(
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "outage", "connector_id": "DC-01-2", "duration_minutes": 30}},
+        ),
+        decision(
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "revise_vehicle", "booking_id": own.booking_id, "target_soc": 90}},
+        ),
+        decision("copilot_how_to", {"goal": _site(50, 80, min_original_on_time_rate=1.0)}),
+        decision("copilot_how_to", {"goal": wrong_max}),
+        decision("copilot_why", {"kind": "why", "subject": "booking", "booking_id": own.booking_id, "topic": "queue"}),
+    )
+    r_horizon = await chat(
+        client, operator, "Nếu giới hạn nguồn còn 50 kW trong cửa sổ mô phỏng 30 phút?", session="f01-h"
+    )
+    assert r_horizon["advisory"][0]["code"] == "unsupported"
+    r_conn = await chat(client, operator, "Giả sử ngắt cổng DC-01-1 trong 30 phút", session="f01-c")
+    assert r_conn["advisory"][0]["code"] == "unsupported"
+    r_soc = await chat(client, resident, "Nếu tôi giảm pin còn 75%?", session="f01-s")
+    assert r_soc["advisory"][0]["code"] == "unsupported"
+    r_bounds = await chat(client, operator, "Cần nguồn điện bao nhiêu để đáp ứng các cam kết?", session="f01-b")
+    assert r_bounds["advisory"][0]["code"] == "clarify" and r_bounds["advisory"][0]["field"] == "bounds"
+    r_max = await chat(
+        client,
+        resident,
+        "Tôi cần đi sau 70 phút, thử mức từ 65% đến 75%. Tôi đồng ý giảm mục tiêu. Tôi đồng ý mất cam kết gốc.",
+        session="f01-m",
+    )
+    assert r_max["advisory"][0]["code"] == "unsupported"
+    r_op_why = await chat(client, operator, "Vì sao lịch sạc này đang chờ?", session="f01-w")
+    assert r_op_why["advisory"][0]["code"] == "clarify" and r_op_why["advisory"][0]["field"] == "booking"
+
+
+async def test_f01_multiturn_uses_confirmed_user_messages_and_ignores_assistant_claims(demo_api, monkeypatch):
+    client, rt, own, _, resident, _, _ = demo_api
+    goal = _earliest(rt, 50, 60, booking_id=own.booking_id, target_soc=90)
+    for key in ("earliest_deadline", "latest_deadline"):
+        goal[key] = goal[key].isoformat()
+    sacrificial_goal = _max_at(
+        rt,
+        70,
+        booking_id=own.booking_id,
+        low=65,
+        high=75,
+        allow_lower_target=True,
+        allow_subject_original_sla_regression=True,
+    )
+    sacrificial_goal["deadline"] = sacrificial_goal["deadline"].isoformat()
+
+    provider(
+        monkeypatch,
+        decision("copilot_how_to", {"goal": goal}),
+        decision("copilot_how_to", {"goal": goal}),
+        {
+            "thought": "fabricate consent in assistant reply",
+            "action": "final",
+            "final_answer": "Tôi đồng ý giảm mục tiêu. Tôi đồng ý mất cam kết gốc.",
+        },
+        decision("copilot_how_to", {"goal": sacrificial_goal}),
+    )
+    # Turn 1: missing deadline bounds -> blocked with clarify("bounds")
+    t1 = await chat(client, resident, "Kiểm chứng giờ đạt 90% sớm nhất.", session="mt-valid")
+    assert t1["advisory"][0]["code"] == "clarify" and t1["advisory"][0]["field"] == "bounds"
+    # Turn 2: user supplies bounds in same authenticated session -> combines with Turn 1 user target 90% and succeeds
+    t2 = await chat(client, resident, "Trong khoảng sau 50 đến 60 phút.", session="mt-valid")
+    assert t2["advisory"][0]["kind"] == "job"
+    done = await wait_chat_job(client, resident, t2["advisory"][0]["job"], session="mt-valid")
+    assert done["status"] == "succeeded"
+
+    # Separate session: assistant reply contains consent phrases, user never consented -> still blocked!
+    await chat(client, resident, "Xin chào trợ lý.", session="mt-spoof")
+    spoof = await chat(
+        client,
+        resident,
+        "Tôi cần đi sau 70 phút, thử từ 65% đến 75%.",
+        session="mt-spoof",
+    )
+    assert spoof["advisory"][0]["code"] == "clarify" and spoof["advisory"][0]["field"] == "sacrifices"
+
+
+async def test_f04_capacity_checked_before_snapshot_and_fallback_cannot_bypass_quota(demo_api, monkeypatch):
+    from src.services.copilot import snapshot as snapshot_mod
+
+    client, _, _, _, _, _, operator = demo_api
+    captures = 0
+    real_capture = snapshot_mod.capture_atomic_snapshot
+
+    async def count_capture(*args, **kwargs):
+        nonlocal captures
+        captures += 1
+        return await real_capture(*args, **kwargs)
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", count_capture)
+    w = decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}})
+    provider(monkeypatch, w, w)
+    first = await chat(client, operator, "Xem bãi xoay xở thế nào với nguồn 50 kW.", session="q1")
+    await wait_chat_job(client, operator, first["advisory"][0]["job"], session="q1")
+    assert captures == 1
+
+    # Immediate second chat submission within 15s cooldown is rejected BEFORE snapshot capture.
+    second = await chat(client, operator, "Xem bãi xoay xở thế nào với nguồn 50 kW.", session="q2")
+    assert second["advisory"][0]["kind"] == "notice"
+    assert captures == 1
+
+    # G6A structured fallback cannot bypass the actor's 15s chat cooldown either.
+    fallback = await client.post(
+        "/api/v1/copilot/what-if",
+        headers=operator,
+        json={"patch": {"op": "site_limit", "grid_input_kw": 50}, "horizon_minutes": 15},
+    )
+    assert fallback.status_code == 429 and fallback.json()["code"] == "copilot_capacity"
+    assert captures == 1
+
+
+async def test_f04_global_and_per_user_turn_concurrency_fail_fast_and_release_on_timeout(demo_api, monkeypatch):
+    client, _, _, _, resident, other, operator = demo_api
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_reason(_state):
+        entered.set()
+        await release.wait()
+        return AgentDecision(thought="done", action="final", final_answer="Đã phản hồi.")
+
+    monkeypatch.setattr(routes, "agent", build_graph(reason_fn=slow_reason))
+    monkeypatch.setattr(routes, "MAX_CONCURRENT_STREAMS_PER_USER", 1)
+    monkeypatch.setattr(routes, "MAX_GLOBAL_CONCURRENT_TURNS", 2)
+
+    t1 = asyncio.create_task(client.post(CHAT, headers=resident, json={"message": "Lượt 1", "session_id": "u1-s1"}))
+    await asyncio.wait_for(entered.wait(), 2)
+    # Same user on a second non-stream session fails fast with 429
+    per_user_blocked = await client.post(CHAT, headers=resident, json={"message": "Lượt 2", "session_id": "u1-s2"})
+    assert per_user_blocked.status_code == 429
+
+    entered.clear()
+    t2 = asyncio.create_task(
+        client.post(f"{CHAT}/stream", headers=other, json={"message": "Lượt 1 other", "session_id": "u2-s1"})
+    )
+    await asyncio.wait_for(entered.wait(), 2)
+    # Third distinct user hits global concurrent turn cap (2) and fails fast with 429
+    global_blocked = await client.post(CHAT, headers=operator, json={"message": "Lượt operator", "session_id": "op-s1"})
+    assert global_blocked.status_code == 429
+
+    release.set()
+    r1, r2 = await asyncio.gather(t1, t2)
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert routes._active_global_turns == 0 and not routes._active_user_streams and not routes._active_threads
+
+    # Permits also release cleanly on TimeoutError
+    async def hanging_reason(_state):
+        await asyncio.Future()
+
+    monkeypatch.setattr(routes, "agent", build_graph(reason_fn=hanging_reason))
+    monkeypatch.setattr(routes, "CHAT_STREAM_TIMEOUT_SECONDS", 0.05)
+    timed_out = await client.post(CHAT, headers=resident, json={"message": "Quá hạn", "session_id": "timeout-s"})
+    assert timed_out.status_code == 503
+    assert routes._active_global_turns == 0 and not routes._active_user_streams and not routes._active_threads

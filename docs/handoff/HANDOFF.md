@@ -122,9 +122,9 @@ tạo tài liệu song song thay vì sửa tài liệu cũ.
 
 ### 1.3 Task Phase 1
 
-**G6B — IN_PROGRESS.** Codex ghi G5 APPROVED và đối chiếu baseline trước checkpoint A.
+**G6B (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Sau quyết định `CONDITIONAL PASS` tại mirror `2c72e2b`, Carbon đã bảo tồn toàn bộ công việc của Codex (`85ba2959...`), tái hiện fail-before và hoàn thành khắc phục F01–F05 qua đầy đủ các cổng backend (`855 passed + 8 skips`), standalone (`180`), frontend (`66 passed`, Webpack & Turbopack) và Chromium (`two-roles` & `--ranked`). Đã nhả khóa chờ Tech Lead nghiệm thu cuối. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) · [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 
-**G5 (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Targeted remediation F01–F04 đã qua 10 cổng. Tech Lead nhận nghiệm thu cuối.
+**G5 (26/11) — APPROVED (`42438430`).** Targeted remediation F01–F04 đã qua 10 cổng và được Tech Lead nghiệm thu chính thức.
 [Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
 
 
@@ -159,6 +159,8 @@ Ngoài task: HACP (protocol giao tiếp) đã áp dụng trước Phase 1 —
 `docs/communication/HUMAN_AGENT_COMMUNICATION.md`, `docs/communication/RESPONSE_TEST_CASES.md`.
 
 ### 1.4 Kiểm thử và bằng chứng
+
+**G6B targeted remediation trên `64c85f1`, Carbon, 26/11.** Cổng xuất sạch đạt `11/11` backend (`17` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture, `855` backend + `8` forecast skips, `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`), `7/7` frontend (`66` Vitest / 18 tệp, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack build) và `2/2` Chromium headless smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). `0 byte diff` trên Unified Core và G2–G5 engines. [Bundle G6B](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 
 **Merged develop `0f877f1`, Codex, 26/11.** Focused 399 pass, backend 808 pass + 8 forecast skips, standalone 180,
 frontend 59, Golden 38/38 và frozen backend 100/100. **Patch G5** qua 24 focused, 180 regression G2/G3/G4/G6A,
@@ -250,7 +252,7 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.8 Trạng thái Git
 
-**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận sạch. Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
+**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận từ Codex có 48 tệp delta G6B (lưu trữ tại `85ba2959...`); sau targeted remediation F01–F05 của Carbon gồm 50 tệp trong `candidate.patch` + gói `verification-bundle.zip` (ngoài ra có tệp chỉ thị review `G6B_TECH_LEAD_REVIEW_AND_CARBON_HANDOFF.md` ở gốc repo được giữ nguyên). Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
 
 - **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
   Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
@@ -285,6 +287,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.9 Agent và khoá chỉnh sửa
 
+**G6B targeted remediation (2026-11-26).** Carbon đã hoàn tất xử lý F01–F05 theo verdict `CONDITIONAL PASS` (`G6B_TECH_LEAD_REVIEW_AND_CARBON_HANDOFF.md`, mirror `2c72e2b`), xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
+
 **G6B (2026-11-26).** Codex nhận khoá cập nhật quyết định G5 và implementation G6B gồm chat, services/models, API, frontend tích hợp, tests và tài liệu AI-4. Baseline local `64c85f1`, cây ban đầu sạch, một worktree, các khoá G5 đã nhả. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 
 **G5 targeted remediation.** Codex đã nhận khoá F01–F04 theo review `9ecb1af`, đối chiếu đủ năm hash của patch cũ và chạy lại 10 cổng trên candidate mới. Chênh lệch checkpoint là RECOVERABLE. Đã nhả khoá sau HANDOFF_READY.
@@ -318,7 +322,7 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.10 Việc Agent tiếp theo cần làm
 
-**G5 APPROVED. G6B được giao.** Codex tiến hành checkpoint A–F theo [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md). G7 chờ chỉ thị riêng.
+**G6B — READY_FOR_FINAL_ACCEPTANCE.** Tech Lead thực hiện review nghiệm thu độc lập trên [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Không triển khai G7, không commit/push/merge khi chưa có quyết định mới của Project Owner và Tech Lead.
 
 1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
    (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
@@ -330,6 +334,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
    (chỉ kế hoạch, implementation chưa duyệt).
 
 ### 1.11 Nhật ký checkpoint
+
+**26/11, Carbon.** Tiếp quản G6B từ Codex sau review `CONDITIONAL PASS` (`2c72e2b`), bảo tồn patch `85ba2959...` và raw logs lịch sử, tái hiện fail-before và hoàn tất remediation G6B-F01–F05 qua `11/11` cổng backend, `7/7` cổng frontend và `2/2` Chromium smokes. Đóng gói `candidate.patch` + `verification-bundle.zip`, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
 
 **26/11, Codex.** Ghi Tech Lead APPROVED cho G5. Đối chiếu candidate G5 với local HEAD và nhận khoá G6B.
 

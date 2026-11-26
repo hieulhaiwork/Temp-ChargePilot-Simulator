@@ -70,3 +70,12 @@
 Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c49a76e4c6446530da`. Candidate SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle SHA-256 `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`. Tech Lead xác nhận 6/6 blob, 6/6 source hash, 26/26 checksum nội dung, oracle M3a/M3b, hai trường hợp có cải thiện và không cải thiện, G5-F01–F04 đã xử lý, 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, 180 standalone và 10/10 cổng exit 0. G5 đóng, chỉ xử lý blocker tích hợp đã xác nhận nếu có.
 
 Bắt đầu G6B trên local P-019, tích hợp vào Agent hiện có và giữ hai đường fallback G6A trong thời gian review. [Recovery](G6B_RECOVERY_STATE.md)
+
+## 10. Gate 6B — Tech Lead Review & Targeted Remediation (26/11/2026)
+
+- **Tech Lead review (`2c72e2b901815ef3a63513d576db9182b785c6f8`)**: `CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED` (G6B-F01–F05).
+- **Codex interrupted patch preserved**: `85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`.
+- **Final G6B candidate patch (`64c85f1` base)**: `dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2` (`50` files, `0` core diff).
+- **Verification summary**: Backend `11/11` exit `0` (`17` focused G6B, `167` G2–G5+G6A, `97` legacy/HITL, `43` architecture, `855 passed + 8 forecast skips` full BE, `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`); Frontend `7/7` exit `0` (`66/66` Vitest across 18 files, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack builds); Chromium `2/2` exit `0` (`two-roles` and `--ranked` M3b `94 kW`, `search_status=partial`, `applied=false`).
+- **Pending gates for G7**: Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`), PostgreSQL runtime (`PENDING`), held-out NL evaluation, 1,000-user load & `MemorySaver` retention.
+- **Status**: `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` (waiting for Tech Lead independent final acceptance).

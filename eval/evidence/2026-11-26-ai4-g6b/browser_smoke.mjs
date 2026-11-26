@@ -57,7 +57,15 @@ async function rankedOptions() {
   );
   assert.equal(result.job.result.result.options[0].value, 94);
   assert.equal(result.job.result.result.search_status, "partial");
-  await panel.getByRole("region", { name: "Kết quả HOW-TO" }).getByText("94 kW đầu vào lưới · Khả thi", { exact: true }).waitFor();
+  const howToRegion = panel.getByRole("region", { name: "Kết quả HOW-TO" });
+  await howToRegion
+    .locator("ol > li > strong")
+    .filter({ hasText: /^94 kW đầu vào lưới · Khả thi$/ })
+    .waitFor();
+  assert.equal(
+    await howToRegion.locator("details ul > li").filter({ hasText: /^94 kW đầu vào lưới · Khả thi$/ }).count(),
+    1,
+  );
   console.log(JSON.stringify({ browser: browser.version(), provider: "scripted fixture", result }, null, 2));
 }
 

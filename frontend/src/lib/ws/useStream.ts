@@ -37,7 +37,10 @@ export function useStream(role: Role): StreamState {
   const [state, setState] = useState<StreamState>({ status: "idle" });
 
   useEffect(() => {
-    const refresh = () => queryClient.invalidateQueries({ queryKey: [role] });
+    let active = true;
+    const refresh = () => {
+      if (active) void queryClient.invalidateQueries({ queryKey: [role] });
+    };
     const socket = new ReconnectingSocket({
       url: `${WS_URL}${API_PREFIX}/ws/${role}`,
       getToken: () => {
@@ -47,12 +50,16 @@ export function useStream(role: Role): StreamState {
       onMessage: refresh,
       onReconnect: refresh, // server không phát lại bản tin đã lỡ → làm mới qua REST
       onStatus: (status, detail) => {
+        if (!active) return;
         setState({ status, detail });
         if (status === "unauthorized") clearSessionIfCurrent(generation);
       },
     });
     socket.start();
-    return () => socket.stop();
+    return () => {
+      active = false;
+      socket.stop();
+    };
   }, [generation, queryClient, role]);
 
   return state;

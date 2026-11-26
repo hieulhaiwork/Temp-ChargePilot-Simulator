@@ -1,0 +1,1802 @@
+[
+  {
+    "minute": 1080,
+    "decision_ms": 0.4010700013168389,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1081,
+    "decision_ms": 0.17093099995690864,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1082,
+    "decision_ms": 0.14520900003844872,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1083,
+    "decision_ms": 0.13186299838707782,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1084,
+    "decision_ms": 0.17544999900565017,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1085,
+    "decision_ms": 0.139288000355009,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1086,
+    "decision_ms": 0.1972130012291018,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1087,
+    "decision_ms": 0.13488900003721938,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1088,
+    "decision_ms": 0.13717399997403845,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1089,
+    "decision_ms": 0.15130199972190894,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1090,
+    "decision_ms": 0.1609209994057892,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1091,
+    "decision_ms": 0.1588159993843874,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1092,
+    "decision_ms": 0.13366699931793846,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1093,
+    "decision_ms": 0.19977900046797004,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1094,
+    "decision_ms": 0.13674299952981528,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1095,
+    "decision_ms": 0.18633200124895666,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1096,
+    "decision_ms": 0.1359409998258343,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1097,
+    "decision_ms": 0.13952799963590223,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1098,
+    "decision_ms": 0.15422799879161175,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1099,
+    "decision_ms": 0.13812600082019344,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1100,
+    "decision_ms": 0.14249400010157842,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1101,
+    "decision_ms": 0.13474900151777547,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1102,
+    "decision_ms": 0.1602100001036888,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1103,
+    "decision_ms": 0.14930799989087973,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1104,
+    "decision_ms": 0.20747300004586577,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1105,
+    "decision_ms": 0.14534999900206458,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1106,
+    "decision_ms": 0.13748399942414835,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1107,
+    "decision_ms": 0.14245400052459445,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1108,
+    "decision_ms": 0.13735399988945574,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1109,
+    "decision_ms": 0.16537000010430347,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1110,
+    "decision_ms": 0.1359919988317415,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1111,
+    "decision_ms": 0.15644199993403163,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1112,
+    "decision_ms": 0.13179300003685057,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1113,
+    "decision_ms": 0.15434699889738113,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1114,
+    "decision_ms": 0.13571099952969234,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1115,
+    "decision_ms": 0.19672199960041326,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1116,
+    "decision_ms": 0.1393370002915617,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1117,
+    "decision_ms": 0.1306809990637703,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1118,
+    "decision_ms": 0.18024000019067898,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1119,
+    "decision_ms": 0.13411700092547107,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1120,
+    "decision_ms": 0.1508210007159505,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1121,
+    "decision_ms": 0.14260399984777905,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1122,
+    "decision_ms": 0.14465899948845617,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1123,
+    "decision_ms": 0.12996899931749795,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1124,
+    "decision_ms": 0.1770229991961969,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1125,
+    "decision_ms": 0.1394480004819343,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1126,
+    "decision_ms": 0.1942269991559442,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1127,
+    "decision_ms": 0.14341600035550073,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1128,
+    "decision_ms": 0.14226399980543647,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1129,
+    "decision_ms": 0.14757400094822515,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1130,
+    "decision_ms": 0.1501890001236461,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1131,
+    "decision_ms": 0.15371699919342063,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1132,
+    "decision_ms": 0.137704000735539,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1133,
+    "decision_ms": 0.15032000010251068,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1134,
+    "decision_ms": 0.15384700054710265,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1135,
+    "decision_ms": 0.17898700025398284,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1136,
+    "decision_ms": 0.13356700037547853,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1137,
+    "decision_ms": 0.16821600002003834,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1138,
+    "decision_ms": 0.15097199866431765,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1139,
+    "decision_ms": 0.1322130010521505,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1140,
+    "decision_ms": 0.15127199912967626,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1141,
+    "decision_ms": 0.13787500029138755,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1142,
+    "decision_ms": 0.1522839993413072,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1143,
+    "decision_ms": 0.1830750006774906,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1144,
+    "decision_ms": 0.19737299953703769,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1145,
+    "decision_ms": 0.13409799976216163,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1146,
+    "decision_ms": 0.13103099990985356,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1147,
+    "decision_ms": 0.17120099983003456,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1148,
+    "decision_ms": 0.13357599891605787,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1149,
+    "decision_ms": 0.15623199942638166,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1150,
+    "decision_ms": 0.14519899923470803,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1151,
+    "decision_ms": 0.1764919998095138,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1152,
+    "decision_ms": 0.13519999993150122,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1153,
+    "decision_ms": 0.134828998852754,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1154,
+    "decision_ms": 0.14566999925591517,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1155,
+    "decision_ms": 0.1333659984084079,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1156,
+    "decision_ms": 0.2265210005134577,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1157,
+    "decision_ms": 0.15120100033527706,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1158,
+    "decision_ms": 0.13661299999512266,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1159,
+    "decision_ms": 0.13661299999512266,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1160,
+    "decision_ms": 0.15026000073703472,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1161,
+    "decision_ms": 0.14499900134978816,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1162,
+    "decision_ms": 0.1586460002727108,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1163,
+    "decision_ms": 0.12978900122107007,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1164,
+    "decision_ms": 0.1440169999114005,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1165,
+    "decision_ms": 0.13893699906475376,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1166,
+    "decision_ms": 0.1871130007202737,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1167,
+    "decision_ms": 0.13022900020587258,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1168,
+    "decision_ms": 0.13571100134868175,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1169,
+    "decision_ms": 0.1700690008874517,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1170,
+    "decision_ms": 0.12417799916875083,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1171,
+    "decision_ms": 0.11661300050036516,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1172,
+    "decision_ms": 0.1440680007362971,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1173,
+    "decision_ms": 0.12508999861893244,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1174,
+    "decision_ms": 0.12588099889399018,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1175,
+    "decision_ms": 0.13917800060880836,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1176,
+    "decision_ms": 0.16204299936362077,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1177,
+    "decision_ms": 0.1942369999596849,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1178,
+    "decision_ms": 0.13986900012241676,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1179,
+    "decision_ms": 0.1985260005312739,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1180,
+    "decision_ms": 0.193014999240404,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1181,
+    "decision_ms": 0.13986900012241676,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1182,
+    "decision_ms": 0.11882699982379563,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1183,
+    "decision_ms": 0.20027000027766917,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1184,
+    "decision_ms": 0.15067999993334524,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1185,
+    "decision_ms": 0.1238470013049664,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1186,
+    "decision_ms": 0.1469730013923254,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1187,
+    "decision_ms": 0.12534999950730707,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1188,
+    "decision_ms": 0.14172200098983012,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1189,
+    "decision_ms": 0.1414420003129635,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1190,
+    "decision_ms": 0.12072099889337551,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1191,
+    "decision_ms": 0.13628200031234883,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1192,
+    "decision_ms": 0.13565099834522698,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1193,
+    "decision_ms": 0.12371699995128438,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1194,
+    "decision_ms": 0.12296599925321061,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1195,
+    "decision_ms": 0.1392579997627763,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1196,
+    "decision_ms": 0.12139300088165328,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1197,
+    "decision_ms": 0.1893780008686008,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1198,
+    "decision_ms": 0.15785499999765307,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1199,
+    "decision_ms": 0.11829600043711253,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1200,
+    "decision_ms": 0.1985360013350146,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1201,
+    "decision_ms": 0.15614199946867302,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1202,
+    "decision_ms": 0.12100100138923153,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1203,
+    "decision_ms": 0.14994900084275287,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1204,
+    "decision_ms": 0.1267730003746692,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1205,
+    "decision_ms": 0.16155299999809358,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1206,
+    "decision_ms": 0.1464929991925601,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1207,
+    "decision_ms": 0.11682299918902572,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1208,
+    "decision_ms": 0.11462899965408724,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1209,
+    "decision_ms": 0.1335159995505819,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1210,
+    "decision_ms": 0.11712399827956688,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1211,
+    "decision_ms": 0.11074100075347815,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1212,
+    "decision_ms": 0.14207300046109594,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1213,
+    "decision_ms": 0.1533960003143875,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1214,
+    "decision_ms": 0.11519999861775432,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1215,
+    "decision_ms": 0.14819600073678885,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1216,
+    "decision_ms": 0.1210410009662155,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1217,
+    "decision_ms": 0.11597100092330948,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1218,
+    "decision_ms": 0.13304500134836417,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1219,
+    "decision_ms": 0.15762399925733916,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1220,
+    "decision_ms": 0.1766420009516878,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1221,
+    "decision_ms": 0.12322600014158525,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1222,
+    "decision_ms": 0.14522999845212325,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1223,
+    "decision_ms": 0.13219399988884106,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1224,
+    "decision_ms": 0.11928800086025149,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1225,
+    "decision_ms": 0.1142979999713134,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1226,
+    "decision_ms": 0.13795599988952745,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1227,
+    "decision_ms": 0.12926800081913825,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1228,
+    "decision_ms": 0.11747399912565015,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1229,
+    "decision_ms": 0.1304300003539538,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1230,
+    "decision_ms": 0.1300490002904553,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1231,
+    "decision_ms": 0.11556100071175024,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1232,
+    "decision_ms": 0.13094200039631687,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1233,
+    "decision_ms": 0.11565099885046948,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1234,
+    "decision_ms": 0.10695400123950094,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1235,
+    "decision_ms": 0.12869700003648177,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1236,
+    "decision_ms": 0.11468800039438065,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1237,
+    "decision_ms": 0.1660009984334465,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1238,
+    "decision_ms": 0.1236770003743004,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1239,
+    "decision_ms": 0.11574099880817812,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1240,
+    "decision_ms": 0.14561100033461116,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1241,
+    "decision_ms": 0.12352600060694385,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1242,
+    "decision_ms": 0.11713299863913562,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1243,
+    "decision_ms": 0.19033000171475578,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1244,
+    "decision_ms": 0.11766500028898008,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1245,
+    "decision_ms": 0.12398700164339971,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1246,
+    "decision_ms": 0.1280249998671934,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1247,
+    "decision_ms": 0.11560100028873421,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1248,
+    "decision_ms": 0.1658809997024946,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1249,
+    "decision_ms": 0.12157199853390921,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1250,
+    "decision_ms": 0.11155299944221042,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1251,
+    "decision_ms": 0.16891700033738744,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1252,
+    "decision_ms": 0.13992899948789272,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1253,
+    "decision_ms": 0.11786499999288935,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1254,
+    "decision_ms": 0.17210400073963683,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1255,
+    "decision_ms": 0.12195299859740771,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1256,
+    "decision_ms": 0.11047000043618027,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1257,
+    "decision_ms": 0.17204300092998892,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1258,
+    "decision_ms": 0.15881699982855935,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1259,
+    "decision_ms": 0.11423700016166549,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1260,
+    "decision_ms": 0.17069000023184344,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1261,
+    "decision_ms": 0.12393700126267504,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1262,
+    "decision_ms": 0.1146790000348119,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1263,
+    "decision_ms": 0.1532460009912029,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1264,
+    "decision_ms": 0.11668300066958182,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1265,
+    "decision_ms": 0.1112019999709446,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1266,
+    "decision_ms": 0.1553290003357688,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1267,
+    "decision_ms": 0.11462899965408724,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1268,
+    "decision_ms": 0.11373699999239761,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1269,
+    "decision_ms": 0.13278500045998953,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1270,
+    "decision_ms": 0.11803599954873789,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1271,
+    "decision_ms": 0.10687299982237164,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1272,
+    "decision_ms": 0.13319599929673132,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1273,
+    "decision_ms": 0.11679300041578244,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1274,
+    "decision_ms": 0.20892700013064314,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1275,
+    "decision_ms": 0.1264729999093106,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1276,
+    "decision_ms": 0.11555099990800954,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1277,
+    "decision_ms": 0.18018000082520302,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1278,
+    "decision_ms": 0.11715400069078896,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1279,
+    "decision_ms": 0.12093100122001488,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1280,
+    "decision_ms": 0.13472899991029408,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1281,
+    "decision_ms": 0.11527000060596038,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1282,
+    "decision_ms": 0.1319839993811911,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1283,
+    "decision_ms": 0.13088100058666896,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1284,
+    "decision_ms": 0.11684299897751771,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1285,
+    "decision_ms": 0.11869700028910302,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1286,
+    "decision_ms": 0.12550999963423237,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1287,
+    "decision_ms": 0.11829600043711253,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1288,
+    "decision_ms": 0.10583099901850801,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1289,
+    "decision_ms": 0.1401800000166986,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1290,
+    "decision_ms": 0.21532999926421326,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1291,
+    "decision_ms": 0.12022000009892508,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1292,
+    "decision_ms": 0.12462799895729404,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1293,
+    "decision_ms": 0.12228400009917095,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1294,
+    "decision_ms": 0.29168200126150623,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1295,
+    "decision_ms": 0.22096999964560382,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1296,
+    "decision_ms": 0.1621529991098214,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1297,
+    "decision_ms": 0.1323140004387824,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1298,
+    "decision_ms": 0.11758500113501213,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1299,
+    "decision_ms": 0.11448799887148198,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1300,
+    "decision_ms": 0.1341379993391456,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1301,
+    "decision_ms": 0.11648300096567255,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1302,
+    "decision_ms": 0.12386699927446898,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1303,
+    "decision_ms": 0.13326599946594797,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1304,
+    "decision_ms": 0.11930800064874347,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1305,
+    "decision_ms": 0.11031000030925497,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1306,
+    "decision_ms": 0.23149200023908634,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1307,
+    "decision_ms": 0.1234459996339865,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1308,
+    "decision_ms": 0.11580099999264348,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1309,
+    "decision_ms": 0.13745400065090507,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1310,
+    "decision_ms": 0.12067100033164024,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1311,
+    "decision_ms": 0.20782499996130355,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1312,
+    "decision_ms": 0.12767499902111012,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1313,
+    "decision_ms": 0.12240400064911228,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1314,
+    "decision_ms": 0.1353699990431778,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1315,
+    "decision_ms": 0.1146790000348119,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1316,
+    "decision_ms": 0.11358700066921301,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1317,
+    "decision_ms": 0.1341679999313783,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1318,
+    "decision_ms": 0.12043000060657505,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1319,
+    "decision_ms": 0.1654700008657528,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1320,
+    "decision_ms": 0.12404799963405821,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1321,
+    "decision_ms": 0.14380699940375052,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1322,
+    "decision_ms": 0.1328450016444549,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1323,
+    "decision_ms": 0.11924799946427811,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1324,
+    "decision_ms": 0.14480899881164078,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1325,
+    "decision_ms": 0.17571099851920735,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1326,
+    "decision_ms": 0.12564100143208634,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1327,
+    "decision_ms": 0.11297600030957256,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1328,
+    "decision_ms": 0.12818600043829065,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1329,
+    "decision_ms": 0.11723399984475691,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1330,
+    "decision_ms": 0.1095789993996732,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1331,
+    "decision_ms": 0.19740399875445291,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1332,
+    "decision_ms": 0.15092100147739984,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1333,
+    "decision_ms": 0.11967799946432933,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1334,
+    "decision_ms": 0.10966899935738184,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1335,
+    "decision_ms": 0.13294600103108678,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1336,
+    "decision_ms": 0.11767499927373137,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1337,
+    "decision_ms": 0.15117099974304438,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1338,
+    "decision_ms": 0.12081100067007355,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1339,
+    "decision_ms": 0.09909699838317465,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1340,
+    "decision_ms": 0.10072100121760741,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1341,
+    "decision_ms": 0.14136199934000615,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1342,
+    "decision_ms": 0.10859699978027493,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1343,
+    "decision_ms": 0.09838599908107426,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1344,
+    "decision_ms": 0.09428900011698715,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1345,
+    "decision_ms": 0.11814599929493852,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1346,
+    "decision_ms": 0.10002899944083765,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1347,
+    "decision_ms": 0.09568099994794466,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1348,
+    "decision_ms": 0.15103199984878302,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1349,
+    "decision_ms": 0.10881799971684813,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1350,
+    "decision_ms": 0.09965800018107984,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1351,
+    "decision_ms": 0.09591199886926915,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1352,
+    "decision_ms": 0.1184170014312258,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1353,
+    "decision_ms": 0.101653000456281,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1354,
+    "decision_ms": 0.09876699914457276,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1355,
+    "decision_ms": 0.12241400145285297,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1356,
+    "decision_ms": 0.10991899944201577,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1357,
+    "decision_ms": 0.11931799963349476,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1358,
+    "decision_ms": 0.15443800111825112,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1359,
+    "decision_ms": 0.10536999980104156,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1360,
+    "decision_ms": 0.09477899948251434,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1361,
+    "decision_ms": 0.09732399848871864,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1362,
+    "decision_ms": 0.15158200039877556,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1363,
+    "decision_ms": 0.10146200111194048,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1364,
+    "decision_ms": 0.09718399996927474,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1365,
+    "decision_ms": 0.15085099948919378,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1366,
+    "decision_ms": 0.10666300113371108,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1367,
+    "decision_ms": 0.10163200022361707,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1368,
+    "decision_ms": 0.095460998636554,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1369,
+    "decision_ms": 0.12402799984556623,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1370,
+    "decision_ms": 0.1016629994410323,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1371,
+    "decision_ms": 0.09495999984210357,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1372,
+    "decision_ms": 0.09184299960907083,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1373,
+    "decision_ms": 0.12029999925289303,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1374,
+    "decision_ms": 0.10302500049874652,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1375,
+    "decision_ms": 0.09556999975757208,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1376,
+    "decision_ms": 0.11880700003530364,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1377,
+    "decision_ms": 0.10107200068887323,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1378,
+    "decision_ms": 0.16409700037911534,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1379,
+    "decision_ms": 0.10435799958941061,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1380,
+    "decision_ms": 0.11551099851203617,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1381,
+    "decision_ms": 0.12469899957068264,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1382,
+    "decision_ms": 0.13808600124320947,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1383,
+    "decision_ms": 0.12277499990887009,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1384,
+    "decision_ms": 0.10310499965271447,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1385,
+    "decision_ms": 0.09896699884848204,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1386,
+    "decision_ms": 0.09845699969446287,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1387,
+    "decision_ms": 0.1232960003108019,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1388,
+    "decision_ms": 0.10102100168296602,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1389,
+    "decision_ms": 0.11988900041615125,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1390,
+    "decision_ms": 0.12057999992975965,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1391,
+    "decision_ms": 0.09948799925041385,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1392,
+    "decision_ms": 0.13264399967738427,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1393,
+    "decision_ms": 0.15884700042079203,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1394,
+    "decision_ms": 0.1040679999277927,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1395,
+    "decision_ms": 0.11150299906148575,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1396,
+    "decision_ms": 0.09490899901720695,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1397,
+    "decision_ms": 0.11612199887167662,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1398,
+    "decision_ms": 0.1669529992796015,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1399,
+    "decision_ms": 0.10386699977971148,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1400,
+    "decision_ms": 0.16414700075984,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1401,
+    "decision_ms": 0.11126199933642056,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1402,
+    "decision_ms": 0.09325599967269227,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1403,
+    "decision_ms": 0.09781500011740718,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1404,
+    "decision_ms": 0.1366929991490906,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1405,
+    "decision_ms": 0.10547999954724219,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1406,
+    "decision_ms": 0.1012619995890418,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1407,
+    "decision_ms": 0.15279500075848773,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1408,
+    "decision_ms": 0.10113200005434919,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1409,
+    "decision_ms": 0.09686400153441355,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1410,
+    "decision_ms": 0.1102599999285303,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1411,
+    "decision_ms": 0.17637200107856188,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1412,
+    "decision_ms": 0.10593100159894675,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1413,
+    "decision_ms": 0.09510999916528817,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1414,
+    "decision_ms": 0.09411700011696666,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1415,
+    "decision_ms": 0.11677300062729046,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1416,
+    "decision_ms": 0.09786500049813185,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1417,
+    "decision_ms": 0.16283500008285046,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1418,
+    "decision_ms": 0.10244400073133875,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1419,
+    "decision_ms": 0.11789499876613263,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1420,
+    "decision_ms": 0.1034459983202396,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1421,
+    "decision_ms": 0.09263500032830052,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1422,
+    "decision_ms": 0.16216400035773404,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1423,
+    "decision_ms": 0.10042999929282814,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1424,
+    "decision_ms": 0.09535100070934277,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1425,
+    "decision_ms": 0.09465900075156242,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1426,
+    "decision_ms": 0.14682300025015138,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1427,
+    "decision_ms": 0.10123200081579853,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1428,
+    "decision_ms": 0.12046000119880773,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1429,
+    "decision_ms": 0.14738400022906717,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1430,
+    "decision_ms": 0.10218399984296411,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1431,
+    "decision_ms": 0.11305500083835796,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1432,
+    "decision_ms": 0.12099100058549084,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1433,
+    "decision_ms": 0.16160300037881825,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1434,
+    "decision_ms": 0.10542999916651752,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1435,
+    "decision_ms": 0.09542000043438748,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1436,
+    "decision_ms": 0.08937799975683447,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1437,
+    "decision_ms": 0.15214300037769135,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1438,
+    "decision_ms": 0.12025000069115777,
+    "solver_ms": {}
+  },
+  {
+    "minute": 1439,
+    "decision_ms": 0.09672300075180829,
+    "solver_ms": {}
+  }
+]

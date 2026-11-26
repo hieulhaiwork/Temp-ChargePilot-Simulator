@@ -9,4 +9,3 @@ Luôn điền `suggestions` gồm 0–3 nút trả lời ngắn gọn (tối đa
 - Khi thiếu `deadline`: dùng giờ 24h kèm `nay`/`mai` (vd: `"Lấy 07:00 mai"`, `"Lấy 06:30 mai"`), tuyệt đối không viết giờ mơ hồ kiểu `"8 giờ"`.
 - Sắp xếp thứ tự `AC`/`DC` theo quỹ thời gian còn lại (`deadline - now`), KHÔNG đoán theo % pin và KHÔNG tự chọn cổng:
   nếu `deadline - now` ≤ 2 giờ → đưa gợi ý `DC` lên đầu; nếu ≥ 4 giờ (qua đêm) → đưa gợi ý `AC` lên đầu.
-

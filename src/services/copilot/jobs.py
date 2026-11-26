@@ -56,14 +56,22 @@ class WhatIfJobs:
         *,
         max_queued: int = 4,
         max_retained: int = 64,
+        max_active_per_actor: int | None = None,
         ttl_s: float = 300,
         timeout_s: float = DEFAULT_WHAT_IF_TIMEOUT_S,
         live_busy_probe: LiveBusyProbe | None = None,
     ):
-        if not 1 <= max_queued < max_retained or not isfinite(ttl_s) or ttl_s <= 0 or not 0 < timeout_s <= 600:
+        if (
+            not 1 <= max_queued < max_retained
+            or (max_active_per_actor is not None and max_active_per_actor < 1)
+            or not isfinite(ttl_s)
+            or ttl_s <= 0
+            or not 0 < timeout_s <= 600
+        ):
             raise ValueError("Invalid WHAT-IF job bounds")
         self._max_queued = max_queued
         self._max_retained = max_retained
+        self._max_active_per_actor = max_active_per_actor
         self._ttl_s = ttl_s
         self._timeout_s = timeout_s
         self._live_busy_probe = live_busy_probe
@@ -104,6 +112,28 @@ class WhatIfJobs:
     ) -> SimulationJobView:
         return self._submit(actor, snapshot, goal, "how_to", session)
 
+    def check_admission(self, actor: ActorContext, *, session: str | None = None) -> float:
+        now = self._clock()
+        if self._closed:
+            raise RuntimeError("Simulation jobs service is closed")
+        self._purge(now)
+        if len(self._queue) >= self._max_queued or len(self._jobs) >= self._max_retained:
+            raise WhatIfCapacityError("Simulation job capacity exhausted")
+        if self._max_active_per_actor is not None:
+            active_for_actor = sum(1 for job in self._jobs.values() if job.actor == actor and job.expires_at is None)
+            if active_for_actor >= self._max_active_per_actor:
+                raise WhatIfCapacityError("Actor already has an active simulation")
+        if (session is not None or self._max_active_per_actor is not None) and any(
+            job.actor == actor
+            and (
+                (session is not None and job.expires_at is None)
+                or (job.session is not None and now - job.submitted_at < 15)
+            )
+            for job in self._jobs.values()
+        ):
+            raise WhatIfCapacityError("Actor already has an active or recent chat simulation")
+        return now
+
     def _submit(
         self,
         actor: ActorContext,
@@ -112,17 +142,7 @@ class WhatIfJobs:
         kind: Literal["what_if", "how_to"],
         session: str | None,
     ) -> SimulationJobView:
-        now = self._clock()
-        if self._closed:
-            raise RuntimeError("Simulation jobs service is closed")
-        self._purge(now)
-        if len(self._queue) >= self._max_queued or len(self._jobs) >= self._max_retained:
-            raise WhatIfCapacityError("Simulation job capacity exhausted")
-        if session is not None and any(
-            job.actor == actor and job.session is not None and (job.expires_at is None or now - job.submitted_at < 15)
-            for job in self._jobs.values()
-        ):
-            raise WhatIfCapacityError("Actor already has an active or recent chat simulation")
+        now = self.check_admission(actor, session=session)
         job_id = uuid4().hex
         view = SimulationJobView(job_id=job_id, job_kind=kind, status=WhatIfJobStatus.QUEUED)
         self._jobs[job_id] = _Job(actor.model_copy(), view, now + self._timeout_s, snapshot, workload, session, now)

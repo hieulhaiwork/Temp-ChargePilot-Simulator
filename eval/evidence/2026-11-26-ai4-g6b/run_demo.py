@@ -105,7 +105,7 @@ async def demo(port: int, ranked: bool) -> None:
             decision("copilot_why", OPERATOR_WHY_ARGS, done=False),
             decision(
                 "copilot_how_to",
-                {"goal": _site(22, 106, min_original_on_time_rate=1.0), "horizon_minutes": 45 if ranked else 120},
+                {"goal": _site(22, 106, min_original_on_time_rate=1.0), "horizon_minutes": 120},
             ),
         ),
     }

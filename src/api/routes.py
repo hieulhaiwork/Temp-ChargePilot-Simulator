@@ -45,7 +45,9 @@ router = APIRouter()
 
 CHAT_STREAM_TIMEOUT_SECONDS = 60.0
 MAX_CONCURRENT_STREAMS_PER_USER = 3
+MAX_GLOBAL_CONCURRENT_TURNS = 8
 _active_user_streams: dict[str, int] = defaultdict(int)
+_active_global_turns = 0
 _active_threads: set[str] = set()
 
 
@@ -75,9 +77,33 @@ def _turn_context(context: ChatContext) -> dict:
 
 
 def _reserve_thread(context: ChatContext) -> None:
+    global _active_global_turns
+    user_id = context.user.user_id
+    if _active_user_streams.get(user_id, 0) >= MAX_CONCURRENT_STREAMS_PER_USER:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Bạn đang mở quá nhiều luồng chat đồng thời. Vui lòng đợi phản hồi hiện tại hoàn tất.",
+        )
+    if _active_global_turns >= MAX_GLOBAL_CONCURRENT_TURNS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Trợ lý đang xử lý tối đa số lượt đồng thời. Vui lòng thử lại sau giây lát.",
+        )
     if context.session in _active_threads:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phiên chat đang xử lý một yêu cầu.")
     _active_threads.add(context.session)
+    _active_user_streams[user_id] += 1
+    _active_global_turns += 1
+
+
+def _release_thread(context: ChatContext) -> None:
+    global _active_global_turns
+    user_id = context.user.user_id
+    _active_threads.discard(context.session)
+    _active_user_streams[user_id] = max(0, _active_user_streams[user_id] - 1)
+    if _active_user_streams[user_id] == 0:
+        _active_user_streams.pop(user_id, None)
+    _active_global_turns = max(0, _active_global_turns - 1)
 
 
 def _proposal_from(payload: dict) -> ScheduleProposal | None:
@@ -214,7 +240,7 @@ async def chat(request: ChatRequest, user: CurrentUser, http_request: Request) -
         result = await _invoke({"query": request.message, "turn_context": _turn_context(context)}, context)
         return _to_chat_response(result, request.session_id)
     finally:
-        _active_threads.discard(context.session)
+        _release_thread(context)
 
 
 def _sse(event_type: str, data: dict) -> str:
@@ -224,16 +250,10 @@ def _sse(event_type: str, data: dict) -> str:
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Request) -> StreamingResponse:
     """Chat streaming (SSE) cho S2 — phát tiến độ node, từng đoạn câu trả lời và ChatResponse cuối."""
-    if _active_user_streams[user.user_id] >= MAX_CONCURRENT_STREAMS_PER_USER:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Bạn đang mở quá nhiều luồng chat đồng thời. Vui lòng đợi phản hồi hiện tại hoàn tất.",
-        )
     context = _context(http_request, user, request.session_id)
     payload = {"query": request.message, "turn_context": _turn_context(context)}
     config = _config(context)
     _reserve_thread(context)
-    _active_user_streams[user.user_id] += 1
 
     async def _generate():
         stage_labels = {
@@ -289,10 +309,7 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
                 },
             )
         finally:
-            _active_threads.discard(context.session)
-            _active_user_streams[user.user_id] = max(0, _active_user_streams[user.user_id] - 1)
-            if _active_user_streams[user.user_id] == 0:
-                _active_user_streams.pop(user.user_id, None)
+            _release_thread(context)
 
     return StreamingResponse(
         _generate(),
@@ -328,7 +345,7 @@ async def chat_resume(
             response.booking = charging_service.current_booking(user.user_id)
         return response
     finally:
-        _active_threads.discard(context.session)
+        _release_thread(context)
 
 
 ChatSessionId = Annotated[str, Path(min_length=1, max_length=128)]

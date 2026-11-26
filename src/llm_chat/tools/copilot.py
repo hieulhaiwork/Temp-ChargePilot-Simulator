@@ -1,6 +1,7 @@
 """Typed adapters for the application-owned Copilot service."""
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -85,7 +86,12 @@ def tool_schema(name: str, role: Role) -> dict:
 
 
 async def invoke_copilot_tool(
-    name: str, args: dict, context: ChatContext, *, message: str
+    name: str,
+    args: dict,
+    context: ChatContext,
+    *,
+    message: str,
+    prior_user_messages: Sequence[str] = (),
 ) -> WhyReply | JobReply | CopilotNotice:
     service = context.copilot
     if service is None:
@@ -94,11 +100,17 @@ async def invoke_copilot_tool(
     value = model.model_validate(args)
     match value:
         case WhyIntent():
-            return await service.agent_why(context.user, value)
+            return await service.agent_why(
+                context.user, value, message=message, prior_user_messages=prior_user_messages
+            )
         case WhatIfIntent():
-            return await service.agent_what_if(context.user, value, context.session, message=message)
+            return await service.agent_what_if(
+                context.user, value, context.session, message=message, prior_user_messages=prior_user_messages
+            )
         case HowToRequest():
-            return await service.agent_how_to(context.user, value, context.session, message=message)
+            return await service.agent_how_to(
+                context.user, value, context.session, message=message, prior_user_messages=prior_user_messages
+            )
         case JobLookup():
             return service.job(context.user, value.job_id, session=context.session, cancel=value.operation == "cancel")
     raise ValueError("Unknown Copilot tool")

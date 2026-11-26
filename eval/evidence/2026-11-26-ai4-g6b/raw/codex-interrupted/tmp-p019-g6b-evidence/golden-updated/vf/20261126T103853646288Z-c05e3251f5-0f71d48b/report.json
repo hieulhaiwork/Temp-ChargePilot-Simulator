@@ -1,0 +1,563 @@
+{
+  "scenario_id": "vinfast_dc_2port_120kw",
+  "engine": "EV2Gym-based hybrid/DC extension",
+  "version": "1.2.0",
+  "metadata": {
+    "engine": "EV2Gym-based hybrid/DC extension",
+    "version": "1.2.0",
+    "ev2gym_version": "2.0.0",
+    "ev2gym_commit": null,
+    "ev2gym_source_sha256": {
+      "ev": "bd06ccc8b2e57d7551228129151d9fde4fafb093d7f25468a28bb75529e0fc31",
+      "ev_charger": "47476d64d5a81ba81380e51ec7d747704d1a456dadf176d7b08e49811b0b3c34"
+    },
+    "native_ac": "EV.step AC with capacity rounding disabled",
+    "native_dc": false,
+    "dc_model": "vinfast_profiles_v0_1",
+    "python": "3.12.3",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "seed": 42,
+    "randomness": "none",
+    "scenario_sha256": "c05e3251f5956dabb6d45211025b69d70e8af587e6db60c1918603abb11353c5",
+    "timestep_minutes": 1,
+    "config": {
+      "scenario_id": "vinfast_dc_2port_120kw",
+      "description": "Synthetic 9-EV evening fixture. Hypothetical DC cabinet: two 60 kW ports, 120 kW total. Vehicle profiles are research estimates.",
+      "date": "2026-11-18",
+      "start_time": "18:00",
+      "duration_minutes": 360,
+      "step_minutes": 1,
+      "seed": 42,
+      "grid_input_limit_kw": 150.0,
+      "ac_power_budget_kw": 22.0,
+      "dc_power_budget_kw": 120.0,
+      "power_conversion_efficiency": 0.95,
+      "charging_efficiency": 0.98,
+      "ac_unplug_policy": "declared_departure",
+      "dc_unplug_delay_minutes": 5,
+      "algorithms": {
+        "dc_charging_model": "vinfast_profiles_v0_1"
+      },
+      "charger_cabinets": [
+        {
+          "id": "AC-01",
+          "zone": "AC",
+          "ports": 1,
+          "port_limit_kw": 11.0,
+          "cabinet_output_limit_kw": 11.0
+        },
+        {
+          "id": "AC-02",
+          "zone": "AC",
+          "ports": 1,
+          "port_limit_kw": 11.0,
+          "cabinet_output_limit_kw": 11.0
+        },
+        {
+          "id": "DC-01",
+          "zone": "DC",
+          "ports": 2,
+          "port_limit_kw": 60.0,
+          "cabinet_output_limit_kw": 120.0
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "AC-A",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 60,
+          "initial_soc": 0.4,
+          "target_soc": 0.65,
+          "max_ac_kw": 11,
+          "departure": "20:00"
+        },
+        {
+          "id": "AC-B",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 70,
+          "initial_soc": 0.5,
+          "target_soc": 0.7,
+          "max_ac_kw": 11,
+          "departure": "20:15"
+        },
+        {
+          "id": "AC-C",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 70,
+          "initial_soc": 0.3,
+          "target_soc": 0.65,
+          "max_ac_kw": 11,
+          "departure": "23:15"
+        },
+        {
+          "id": "AC-D",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 80,
+          "initial_soc": 0.35,
+          "target_soc": 0.6,
+          "max_ac_kw": 11,
+          "departure": "23:30"
+        },
+        {
+          "id": "DC-A",
+          "zone": "DC",
+          "vehicle_model": "VF8_NEW_2026",
+          "arrival": "18:00",
+          "battery_kwh": 60.13,
+          "initial_soc": 0.2,
+          "target_soc": 0.8,
+          "max_dc_kw": 100,
+          "departure": "20:30"
+        },
+        {
+          "id": "DC-B",
+          "zone": "DC",
+          "vehicle_model": "VF8_NEW_2026",
+          "arrival": "18:00",
+          "battery_kwh": 60.13,
+          "initial_soc": 0.35,
+          "target_soc": 0.8,
+          "max_dc_kw": 100,
+          "departure": "20:30"
+        },
+        {
+          "id": "DC-C",
+          "zone": "DC",
+          "vehicle_model": "VF3",
+          "arrival": "18:00",
+          "battery_kwh": 18.64,
+          "initial_soc": 0.1,
+          "target_soc": 0.7,
+          "max_dc_kw": 24,
+          "departure": "20:00"
+        },
+        {
+          "id": "DC-D",
+          "zone": "DC",
+          "vehicle_model": "VF9_123",
+          "arrival": "18:00",
+          "battery_kwh": 123,
+          "initial_soc": 0.35,
+          "target_soc": 0.8,
+          "max_dc_kw": 60,
+          "departure": "19:15"
+        },
+        {
+          "id": "DC-E",
+          "zone": "DC",
+          "vehicle_model": "UNKNOWN",
+          "arrival": "18:00",
+          "battery_kwh": 75,
+          "initial_soc": 0.42,
+          "target_soc": 0.78,
+          "max_dc_kw": 60,
+          "departure": "22:00"
+        }
+      ]
+    },
+    "command": [
+      "/tmp/p019-g6b-golden-candidate/src/simulator/run.py",
+      "--scenario",
+      "vinfast_dc_2port_120kw",
+      "--output-dir",
+      "/tmp/p019-g6b-evidence/golden-updated/vf"
+    ],
+    "time_convention": "Replay snapshots after boundary events; kW averages over the following interval. Power CSV uses interval start timestamps.",
+    "power_convention": "Actual output is inferred from delivered battery kWh and configured charging efficiency.",
+    "guard_tolerance": 1e-07,
+    "policy": "AC: fifo + equal_share / DC: fcfs + equal_share",
+    "algorithms": {
+      "dispatch": {
+        "AC": {
+          "name": "fifo",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "config_source": "default",
+          "parameters": {}
+        },
+        "DC": {
+          "name": "fcfs",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "config_source": "default",
+          "parameters": {}
+        }
+      },
+      "optimizers": {
+        "AC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "config_source": "default",
+          "parameters": {}
+        },
+        "DC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "config_source": "default",
+          "parameters": {}
+        }
+      },
+      "coordinator": {
+        "name": "fixed_budget",
+        "version": "1",
+        "implementation": "src.optimizer.coordination.fixed_budget.FixedBudgetCoordinator",
+        "config_source": "default",
+        "parameters": {
+          "output_kw": {
+            "AC": 22.0,
+            "DC": 120.0
+          }
+        }
+      },
+      "dc_charging_model": {
+        "name": "vinfast_profiles_v0_1",
+        "version": "0.1.0",
+        "implementation": "src.simulator.core.charging_models.vehicle_profiles.VehicleProfilesDCModel",
+        "config_source": "/tmp/p019-g6b-golden-candidate/src/simulator/scenario/vinfast_dc_2port_120kw.json#algorithms",
+        "parameters": {
+          "integration_seconds": 10.0,
+          "unlabelled_dc_fallback": "synthetic_taper_v1"
+        },
+        "provenance": "Per-vehicle research profiles from the ChargePilot DC model handoff",
+        "observed_vs_estimated": "scenario_based_research_estimate",
+        "validity": {
+          "soc_fraction": [
+            0.0,
+            1.0
+          ],
+          "scope": "offline simulation; no hardware calibration"
+        },
+        "vehicle_profiles": {
+          "DC-A": {
+            "vehicle_model": "VF8_NEW_2026",
+            "model_key": "VF8_NEW_2026",
+            "curve_model_version": "0.1.0",
+            "curve_kind": "piecewise",
+            "curve_source": "Cross-generation shape proxy normalized from the older VF8 Plus table: https://evkx.net/models/vinfast/vf8/vf8_plus/chargingcurve/",
+            "provenance": "VinFast VF8 new-gen specs; proxy SOC shape from EVKX older VF8 Plus, NOT same battery",
+            "confidence": "cross_generation_proxy",
+            "battery_capacity_source": "https://vinfastauto.com/vn_vi/dat-coc-xe-vf8-the-all-new-2026",
+            "battery_kwh": 60.13,
+            "reference_max_dc_kw": 100.0,
+            "scenario_max_dc_kw": 100.0,
+            "oem_cap_verified": true,
+            "vehicle_curve_measured": false
+          },
+          "DC-B": {
+            "vehicle_model": "VF8_NEW_2026",
+            "model_key": "VF8_NEW_2026",
+            "curve_model_version": "0.1.0",
+            "curve_kind": "piecewise",
+            "curve_source": "Cross-generation shape proxy normalized from the older VF8 Plus table: https://evkx.net/models/vinfast/vf8/vf8_plus/chargingcurve/",
+            "provenance": "VinFast VF8 new-gen specs; proxy SOC shape from EVKX older VF8 Plus, NOT same battery",
+            "confidence": "cross_generation_proxy",
+            "battery_capacity_source": "https://vinfastauto.com/vn_vi/dat-coc-xe-vf8-the-all-new-2026",
+            "battery_kwh": 60.13,
+            "reference_max_dc_kw": 100.0,
+            "scenario_max_dc_kw": 100.0,
+            "oem_cap_verified": true,
+            "vehicle_curve_measured": false
+          },
+          "DC-C": {
+            "vehicle_model": "VF3",
+            "model_key": "VF3",
+            "curve_model_version": "0.1.0",
+            "curve_kind": "piecewise",
+            "curve_source": "ChargePilot synthetic SOC knots using the OEM charge-time claim as a reference",
+            "provenance": "VinFast VF3 specs; SOC curve is a scenario hypothesis; 10-70% ~36 min is OEM reference",
+            "confidence": "synthetic_calibration",
+            "battery_capacity_source": "https://vinfastauto.com/vn_vi/dat-coc-xe-dien-vf3",
+            "battery_kwh": 18.64,
+            "reference_max_dc_kw": 24.0,
+            "scenario_max_dc_kw": 24.0,
+            "oem_cap_verified": true,
+            "vehicle_curve_measured": false
+          },
+          "DC-D": {
+            "vehicle_model": "VF9_123",
+            "model_key": "VF9_123",
+            "curve_model_version": "0.1.0",
+            "curve_kind": "generic_polynomial",
+            "curve_source": "Simolin et al. 2025 Eq. 13, heterogeneous fit adapted for simulation: https://doi.org/10.1016/j.treng.2025.100350",
+            "provenance": "VinFast usable capacity 123 kWh; 60-kW vehicle-side reference ceiling ASSUMED for 60-kW port",
+            "confidence": "generic_curve_vehicle_limit_assumed",
+            "battery_capacity_source": "https://stg-cms-v2.vinfastauto.com/vn_vi/car-pdp-v2/vf9",
+            "battery_kwh": 123.0,
+            "reference_max_dc_kw": 60.0,
+            "scenario_max_dc_kw": 60.0,
+            "oem_cap_verified": false,
+            "vehicle_curve_measured": false
+          },
+          "DC-E": {
+            "vehicle_model": "UNKNOWN",
+            "model_key": "UNKNOWN",
+            "curve_model_version": "0.1.0",
+            "curve_kind": "generic_polynomial",
+            "curve_source": "Simolin et al. 2025 Eq. 13, heterogeneous fit adapted for simulation: https://doi.org/10.1016/j.treng.2025.100350",
+            "provenance": "Unidentified EV; generic heterogeneous curve and scenario-assumed power ceiling",
+            "confidence": "low_unknown_ev",
+            "battery_capacity_source": "scenario vehicle.battery_kwh",
+            "battery_kwh": 75.0,
+            "reference_max_dc_kw": 60.0,
+            "scenario_max_dc_kw": 60.0,
+            "oem_cap_verified": false,
+            "vehicle_curve_measured": false
+          }
+        }
+      },
+      "physical_guard": {
+        "name": "physical_v1",
+        "version": "1",
+        "implementation": "src.guard.physical.validator.guard",
+        "config_source": "default",
+        "parameters": {
+          "absolute_tolerance": 1e-07
+        }
+      }
+    },
+    "run_id": "20261126T103853646288Z-c05e3251f5-0f71d48b"
+  },
+  "requests": 9,
+  "completed_on_time": 8,
+  "served_sessions": 9,
+  "satisfied_demand_rate": 0.8889,
+  "mean_wait_minutes_started_only": 44.78,
+  "p95_wait_minutes_started_only": 135,
+  "missed_deadline_sessions": 1,
+  "pending_target_sessions": 0,
+  "unstarted_sessions": 0,
+  "waited_then_left_without_charging": 0,
+  "queue_wait_for_all_arrivals": [
+    {
+      "vehicle_id": "AC-A",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "AC-B",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "AC-C",
+      "minutes": 120,
+      "censored": false
+    },
+    {
+      "vehicle_id": "AC-D",
+      "minutes": 135,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-A",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-B",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-C",
+      "minutes": 33,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-D",
+      "minutes": 42,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-E",
+      "minutes": 73,
+      "censored": false
+    }
+  ],
+  "rejected_allocation_count": 0,
+  "applied_constraint_violation_count": 0,
+  "constraint_violation_count": 0,
+  "total_grid_energy_kwh": 219.099,
+  "total_battery_energy_kwh": 203.982,
+  "remaining_demand_kwh": 26.189,
+  "peak_grid_input_kw": 149.474,
+  "vehicles": [
+    {
+      "id": "AC-A",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1200,
+      "target": 0.65,
+      "soc": 0.65,
+      "charge_started": 1080,
+      "completed_at": 1164,
+      "departed_at": 1200,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 15.000000000000057,
+      "delivered_grid_kwh": 16.111707841031254,
+      "initial_soc": 0.4,
+      "last_connector": "AC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "AC-B",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1215,
+      "target": 0.7,
+      "soc": 0.7000000000000001,
+      "charge_started": 1080,
+      "completed_at": 1158,
+      "departed_at": 1215,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 13.999999999999991,
+      "delivered_grid_kwh": 15.037593984962406,
+      "initial_soc": 0.5,
+      "last_connector": "AC-02/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "AC-C",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1395,
+      "target": 0.65,
+      "soc": 0.65,
+      "charge_started": 1200,
+      "completed_at": 1337,
+      "departed_at": 1395,
+      "waiting_minutes": 120,
+      "delivered_battery_kwh": 24.500000000000007,
+      "delivered_grid_kwh": 26.31578947368438,
+      "initial_soc": 0.3,
+      "last_connector": "AC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "AC-D",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1410,
+      "target": 0.6,
+      "soc": 0.6,
+      "charge_started": 1215,
+      "completed_at": 1327,
+      "departed_at": 1410,
+      "waiting_minutes": 135,
+      "delivered_battery_kwh": 20.000000000000167,
+      "delivered_grid_kwh": 21.482277121375038,
+      "initial_soc": 0.35,
+      "last_connector": "AC-02/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-A",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1230,
+      "target": 0.8,
+      "soc": 0.8,
+      "charge_started": 1080,
+      "completed_at": 1117,
+      "departed_at": 1122,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 36.078000000000046,
+      "delivered_grid_kwh": 38.75187969924819,
+      "initial_soc": 0.2,
+      "last_connector": "DC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-B",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1230,
+      "target": 0.8,
+      "soc": 0.8,
+      "charge_started": 1080,
+      "completed_at": 1108,
+      "departed_at": 1113,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 27.05850000000006,
+      "delivered_grid_kwh": 29.063909774436162,
+      "initial_soc": 0.35,
+      "last_connector": "DC-01/P2",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-C",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1200,
+      "target": 0.7,
+      "soc": 0.6999999999999998,
+      "charge_started": 1113,
+      "completed_at": 1148,
+      "departed_at": 1153,
+      "waiting_minutes": 33,
+      "delivered_battery_kwh": 11.184000000000001,
+      "delivered_grid_kwh": 12.012889366272827,
+      "initial_soc": 0.1,
+      "last_connector": "DC-01/P2",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-D",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1155,
+      "target": 0.8,
+      "soc": 0.5870815216473214,
+      "charge_started": 1122,
+      "completed_at": null,
+      "departed_at": 1155,
+      "waiting_minutes": 42,
+      "delivered_battery_kwh": 29.16102716262052,
+      "delivered_grid_kwh": 31.322263332567704,
+      "initial_soc": 0.35,
+      "last_connector": "DC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-E",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1320,
+      "target": 0.78,
+      "soc": 0.78,
+      "charge_started": 1153,
+      "completed_at": 1186,
+      "departed_at": 1191,
+      "waiting_minutes": 73,
+      "delivered_battery_kwh": 26.999999999999996,
+      "delivered_grid_kwh": 29.001074113856067,
+      "initial_soc": 0.42,
+      "last_connector": "DC-01/P2",
+      "wait_censored": false
+    }
+  ]
+}

@@ -118,9 +118,9 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 | G5-A03 | Hạn chế môi trường test | Sandbox không đánh thức vòng lặp asyncio kịp sau khi thread solver trả kết quả. Trace thấy future đã hoàn tất. Chạy lại ngoài sandbox, với env tối thiểu và SQLite tạm. Baseline backend pass. |
 | G5-A04 | Golden provenance | Golden LF lệch hash file scenario ở 11 phép so sánh. Hai fixture được xuất CRLF trong bản sao tạm, khớp hash lịch sử. Gate 38/38, comparator giữ nguyên. |
 | G5-R01 | Amendment chờ duyệt | Nhóm chọn Chat Agent thống nhất. Đề xuất cập nhật PRD v0.4 và ADR bổ sung cho bounded HOW-TO MUST, AI-1 backlog, G6A fallback và G6B typed tools. [Master Plan](AI-4_MASTER_IMPLEMENTATION_PLAN.md) |
-| G6A-F01 | PENDING G6B | Raw JWT trong cache key. |
-| G6A-F02 | PENDING G6B | Phản hồi 401 trễ khi đổi phiên. |
-| G6A-F03 | PENDING G6B | Parser semantic correctness. |
+| G6A-F01 | **Fixed in G6B** | Đã thay raw JWT trong khóa cache bằng `session.generation` (`session.ts`, `CopilotPanel.tsx`, `ChatAdvisory.tsx`). |
+| G6A-F02 | **Fixed in G6B** | Phản hồi `401` trễ (REST, chat stream, voice transcribe và WS `4401`) chỉ gọi `clearSessionIfCurrent(requestGeneration)`, không đăng xuất nhầm phiên mới (`session-401.test.ts`, `voice-session-isolation.test.tsx`). |
+| G6A-F03 | **Fixed in G6B (bounded fixture scope; held-out thuộc G7)** | Đã ràng buộc tham số đầu vào phía server (`conflicts_with_simulation`, `why_conflicts_with_message`) cho cả WHAT-IF, HOW-TO và WHY; bộ đánh giá NL held-out với LLM thật thuộc G7. |
 
 Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
 
@@ -141,3 +141,17 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và 
 ## Quyết định cuối Gate 5
 
 Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c49a76e4c6446530da`. Candidate SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle SHA-256 `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`. Tech Lead xác nhận 6/6 blob, 6/6 source hash, 26/26 checksum nội dung, oracle M3a/M3b, hai trường hợp có cải thiện và không cải thiện, G5-F01–F04 đã xử lý, 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, 180 standalone và 10/10 cổng exit 0. G5 đóng, chỉ xử lý blocker tích hợp đã xác nhận nếu có.
+
+## Gate 6B targeted remediation (sau review mirror `2c72e2b`)
+
+| Finding | Phân loại | Xử lý và bằng chứng |
+|---|---|---|
+| **G6B-F01** — Ràng buộc tham số đầu vào với yêu cầu người dùng | **Confirmed bug → Fixed** | Tái hiện 2 ca E2E HTTP và 3 ca direct validator trên `85ba2959...`. Bổ sung kiểm chứng đầy đủ phía server (`copilot_intent.py`, `integration.py`, `act_node.py`) cho target SOC, deadline/time window theo múi giờ trạm, connector/booking ID, thời lượng/starts_at outage, `horizon_minutes`, site kW, khoảng thử HOW-TO (`bounds`), ngưỡng SLA %, bảo vệ xe AC và cờ hy sinh/hạ tầng giả định; lịch sử nhiều lượt chỉ đọc `role="user"`, bỏ qua văn bản `assistant`. Spy `capture_atomic_snapshot` chứng minh 0 lần chụp khi lệch/thiếu tham số (`17/17` focused G6B PASS). |
+| **G6B-F02** — Cô lập phiên cho voice input | **Confirmed bug → Fixed** | Tái hiện bằng Vitest lỗi gửi audio của Resident A kèm Bearer token của Resident B khi `FileReader` hoàn tất sau đổi phiên. Gia cố `ChatPanel.tsx` và `useStream.ts`: khóa `voiceEpoch` + `capturedGeneration` tại thời điểm bắt đầu, kiểm tra trước/sau mọi `await`, hủy `AbortController`, dừng `MediaStream` tracks (kể cả `getUserMedia` trễ) và gỡ handler trước khi `stop()` khi logout/unmount; `401` chỉ xóa đúng generation đã gửi (`66/66` Vitest PASS). |
+| **G6B-F03** — Selector Chromium `--ranked` | **Confirmed test blocker → Fixed** | Tái hiện lỗi strict-mode locator trên Chromium `159.0.8154.6`. Định vị tường minh `ol > li > strong` trong `browser_smoke.mjs` đồng thời kiểm tra danh sách ứng viên `details ul > li` vẫn giữ nguyên, không đổi giao diện. Cả `two-roles` và `--ranked` (`94 kW`, `partial`, `applied=false`) đều đạt `exit 0`. |
+| **G6B-F04** — Kiểm soát tải tầng tích hợp | **Confirmed gap → Fixed (phạm vi G6B); G7 giữ phần tải lớn** | Đưa `check_admission()` lên trước `capture_atomic_snapshot`, bật `max_active_per_actor=1` và đồng bộ cooldown 15s giữa Chat và G6A fallback; bổ sung trần lượt đồng thời theo user (`3`) và toàn cục (`8`) trên cả `/chat`, `/chat/stream` và `/chat/sessions/{id}`, tự nhả permit khi timeout/disconnect. Phần tải 1.000 concurrent, p95 dưới tải, rate/cost LLM thật và tỉa `MemorySaver` giữ ở backlog G7. |
+| **G6B-F05** — Đóng gói bằng chứng và provenance cuối | **Confirmed gate blocker → Fixed** | Bảo tồn patch và raw logs lịch sử của Codex, sửa dòng trắng cuối `prompts/booking_reason.md`, cập nhật `.gitignore` cho `eval/evidence/2026-11-26-ai4-g6b/raw/`, kiểm tra không rò rỉ JWT trong log, dựng `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` trên bản xuất sạch từ `64c85f1`. |
+
+[Báo cáo Gate 6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md) · [Verification bundle](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
+
+**G6B — READY_FOR_FINAL_ACCEPTANCE.** Chờ Tech Lead nghiệm thu độc lập.

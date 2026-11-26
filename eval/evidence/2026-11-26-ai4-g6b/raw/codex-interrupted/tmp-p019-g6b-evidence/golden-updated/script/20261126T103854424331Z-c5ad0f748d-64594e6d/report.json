@@ -1,0 +1,479 @@
+{
+  "scenario_id": "evening_9cars_hybrid_v1",
+  "engine": "EV2Gym-based hybrid/DC extension",
+  "version": "1.2.0",
+  "metadata": {
+    "engine": "EV2Gym-based hybrid/DC extension",
+    "version": "1.2.0",
+    "ev2gym_version": "2.0.0",
+    "ev2gym_commit": null,
+    "ev2gym_source_sha256": {
+      "ev": "bd06ccc8b2e57d7551228129151d9fde4fafb093d7f25468a28bb75529e0fc31",
+      "ev_charger": "47476d64d5a81ba81380e51ec7d747704d1a456dadf176d7b08e49811b0b3c34"
+    },
+    "native_ac": "EV.step AC with capacity rounding disabled",
+    "native_dc": false,
+    "dc_model": "synthetic_taper_v1",
+    "python": "3.12.3",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "seed": 42,
+    "randomness": "none",
+    "scenario_sha256": "c5ad0f748df618cc1c1e7b8d2ec1b90d005d368c538acb5d22a785ed20ff57e3",
+    "timestep_minutes": 1,
+    "config": {
+      "scenario_id": "evening_9cars_hybrid_v1",
+      "description": "Synthetic evening rush, nine vehicles arriving at 18:00, 4 AC + 5 DC",
+      "date": "2026-11-18",
+      "start_time": "18:00",
+      "duration_minutes": 360,
+      "step_minutes": 1,
+      "seed": 42,
+      "grid_input_limit_kw": 106.0,
+      "ac_power_budget_kw": 22.0,
+      "dc_power_budget_kw": 78.0,
+      "power_conversion_efficiency": 0.95,
+      "charging_efficiency": 0.98,
+      "ac_unplug_policy": "declared_departure",
+      "dc_unplug_delay_minutes": 5,
+      "charger_cabinets": [
+        {
+          "id": "AC-01",
+          "zone": "AC",
+          "ports": 1,
+          "port_limit_kw": 11.0,
+          "cabinet_output_limit_kw": 11.0
+        },
+        {
+          "id": "AC-02",
+          "zone": "AC",
+          "ports": 1,
+          "port_limit_kw": 11.0,
+          "cabinet_output_limit_kw": 11.0
+        },
+        {
+          "id": "DC-01",
+          "zone": "DC",
+          "ports": 2,
+          "port_limit_kw": 60.0,
+          "cabinet_output_limit_kw": 120.0
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "AC-A",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 60,
+          "initial_soc": 0.4,
+          "target_soc": 0.65,
+          "max_ac_kw": 11,
+          "departure": "20:00"
+        },
+        {
+          "id": "AC-B",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 70,
+          "initial_soc": 0.5,
+          "target_soc": 0.7,
+          "max_ac_kw": 11,
+          "departure": "20:15"
+        },
+        {
+          "id": "AC-C",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 70,
+          "initial_soc": 0.3,
+          "target_soc": 0.65,
+          "max_ac_kw": 11,
+          "departure": "23:15"
+        },
+        {
+          "id": "AC-D",
+          "zone": "AC",
+          "arrival": "18:00",
+          "battery_kwh": 80,
+          "initial_soc": 0.35,
+          "target_soc": 0.6,
+          "max_ac_kw": 11,
+          "departure": "23:30"
+        },
+        {
+          "id": "DC-A",
+          "zone": "DC",
+          "arrival": "18:00",
+          "battery_kwh": 94,
+          "initial_soc": 0.25,
+          "target_soc": 0.75,
+          "max_dc_kw": 85,
+          "departure": "21:30"
+        },
+        {
+          "id": "DC-B",
+          "zone": "DC",
+          "arrival": "18:00",
+          "battery_kwh": 70,
+          "initial_soc": 0.35,
+          "target_soc": 0.7,
+          "max_dc_kw": 70,
+          "departure": "21:30"
+        },
+        {
+          "id": "DC-C",
+          "zone": "DC",
+          "arrival": "18:00",
+          "battery_kwh": 80,
+          "initial_soc": 0.45,
+          "target_soc": 0.75,
+          "max_dc_kw": 70,
+          "departure": "22:00"
+        },
+        {
+          "id": "DC-D",
+          "zone": "DC",
+          "arrival": "18:00",
+          "battery_kwh": 60,
+          "initial_soc": 0.2,
+          "target_soc": 0.65,
+          "max_dc_kw": 70,
+          "departure": "22:00"
+        },
+        {
+          "id": "DC-E",
+          "zone": "DC",
+          "arrival": "18:00",
+          "battery_kwh": 90,
+          "initial_soc": 0.55,
+          "target_soc": 0.85,
+          "max_dc_kw": 80,
+          "departure": "22:30"
+        }
+      ]
+    },
+    "command": [
+      "src/simulator/run.py",
+      "--scenario",
+      "mvp1",
+      "--output-dir",
+      "/tmp/p019-g6b-evidence/golden-updated/script"
+    ],
+    "time_convention": "Replay snapshots after boundary events; kW averages over the following interval. Power CSV uses interval start timestamps.",
+    "power_convention": "Actual output is inferred from delivered battery kWh and configured charging efficiency.",
+    "guard_tolerance": 1e-07,
+    "policy": "AC: fifo + equal_share / DC: fcfs + equal_share",
+    "algorithms": {
+      "dispatch": {
+        "AC": {
+          "name": "fifo",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "config_source": "default",
+          "parameters": {}
+        },
+        "DC": {
+          "name": "fcfs",
+          "version": "1",
+          "implementation": "src.optimizer.dispatch.arrival_order.arrival_order",
+          "config_source": "default",
+          "parameters": {}
+        }
+      },
+      "optimizers": {
+        "AC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "config_source": "default",
+          "parameters": {}
+        },
+        "DC": {
+          "name": "equal_share",
+          "version": "1",
+          "implementation": "src.optimizer.zones.equal_share.zone_equal_share",
+          "config_source": "default",
+          "parameters": {}
+        }
+      },
+      "coordinator": {
+        "name": "fixed_budget",
+        "version": "1",
+        "implementation": "src.optimizer.coordination.fixed_budget.FixedBudgetCoordinator",
+        "config_source": "default",
+        "parameters": {
+          "output_kw": {
+            "AC": 22.0,
+            "DC": 78.0
+          }
+        }
+      },
+      "dc_charging_model": {
+        "name": "synthetic_taper_v1",
+        "version": "1",
+        "implementation": "src.simulator.core.charging_models.synthetic_dc.SyntheticTaperV1",
+        "config_source": "default",
+        "parameters": {
+          "taper_start_soc": 0.6,
+          "slope_per_soc": 2.25,
+          "minimum_fraction": 0.05
+        },
+        "provenance": "ChargePilot synthetic SOC taper",
+        "observed_vs_estimated": "synthetic_assumption",
+        "validity": {
+          "soc_fraction": [
+            0.0,
+            1.0
+          ],
+          "scope": "offline simulation; no hardware calibration"
+        }
+      },
+      "physical_guard": {
+        "name": "physical_v1",
+        "version": "1",
+        "implementation": "src.guard.physical.validator.guard",
+        "config_source": "default",
+        "parameters": {
+          "absolute_tolerance": 1e-07
+        }
+      }
+    },
+    "run_id": "20261126T103854424331Z-c5ad0f748d-64594e6d"
+  },
+  "requests": 9,
+  "completed_on_time": 9,
+  "served_sessions": 9,
+  "satisfied_demand_rate": 1.0,
+  "mean_wait_minutes_started_only": 51.11,
+  "p95_wait_minutes_started_only": 135,
+  "missed_deadline_sessions": 0,
+  "pending_target_sessions": 0,
+  "unstarted_sessions": 0,
+  "waited_then_left_without_charging": 0,
+  "queue_wait_for_all_arrivals": [
+    {
+      "vehicle_id": "AC-A",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "AC-B",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "AC-C",
+      "minutes": 120,
+      "censored": false
+    },
+    {
+      "vehicle_id": "AC-D",
+      "minutes": 135,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-A",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-B",
+      "minutes": 0,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-C",
+      "minutes": 44,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-D",
+      "minutes": 76,
+      "censored": false
+    },
+    {
+      "vehicle_id": "DC-E",
+      "minutes": 85,
+      "censored": false
+    }
+  ],
+  "rejected_allocation_count": 0,
+  "applied_constraint_violation_count": 0,
+  "constraint_violation_count": 0,
+  "total_grid_energy_kwh": 239.527,
+  "total_battery_energy_kwh": 223.0,
+  "remaining_demand_kwh": 0.0,
+  "peak_grid_input_kw": 105.263,
+  "vehicles": [
+    {
+      "id": "AC-A",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1200,
+      "target": 0.65,
+      "soc": 0.65,
+      "charge_started": 1080,
+      "completed_at": 1164,
+      "departed_at": 1200,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 15.000000000000057,
+      "delivered_grid_kwh": 16.111707841031254,
+      "initial_soc": 0.4,
+      "last_connector": "AC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "AC-B",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1215,
+      "target": 0.7,
+      "soc": 0.7000000000000001,
+      "charge_started": 1080,
+      "completed_at": 1158,
+      "departed_at": 1215,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 13.999999999999991,
+      "delivered_grid_kwh": 15.037593984962406,
+      "initial_soc": 0.5,
+      "last_connector": "AC-02/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "AC-C",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1395,
+      "target": 0.65,
+      "soc": 0.65,
+      "charge_started": 1200,
+      "completed_at": 1337,
+      "departed_at": 1395,
+      "waiting_minutes": 120,
+      "delivered_battery_kwh": 24.500000000000007,
+      "delivered_grid_kwh": 26.31578947368438,
+      "initial_soc": 0.3,
+      "last_connector": "AC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "AC-D",
+      "zone": "AC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1410,
+      "target": 0.6,
+      "soc": 0.6,
+      "charge_started": 1215,
+      "completed_at": 1327,
+      "departed_at": 1410,
+      "waiting_minutes": 135,
+      "delivered_battery_kwh": 20.000000000000167,
+      "delivered_grid_kwh": 21.482277121375038,
+      "initial_soc": 0.35,
+      "last_connector": "AC-02/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-A",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1290,
+      "target": 0.75,
+      "soc": 0.75,
+      "charge_started": 1080,
+      "completed_at": 1151,
+      "departed_at": 1156,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 47.000000000000014,
+      "delivered_grid_kwh": 50.483351235230906,
+      "initial_soc": 0.25,
+      "last_connector": "DC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-B",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1290,
+      "target": 0.7,
+      "soc": 0.7,
+      "charge_started": 1080,
+      "completed_at": 1119,
+      "departed_at": 1124,
+      "waiting_minutes": 0,
+      "delivered_battery_kwh": 24.499999999999996,
+      "delivered_grid_kwh": 26.315789473684216,
+      "initial_soc": 0.35,
+      "last_connector": "DC-01/P2",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-C",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1320,
+      "target": 0.75,
+      "soc": 0.75,
+      "charge_started": 1124,
+      "completed_at": 1160,
+      "departed_at": 1165,
+      "waiting_minutes": 44,
+      "delivered_battery_kwh": 24.0,
+      "delivered_grid_kwh": 25.778732545649845,
+      "initial_soc": 0.45,
+      "last_connector": "DC-01/P2",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-D",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1320,
+      "target": 0.65,
+      "soc": 0.65,
+      "charge_started": 1156,
+      "completed_at": 1196,
+      "departed_at": 1201,
+      "waiting_minutes": 76,
+      "delivered_battery_kwh": 26.999999999999996,
+      "delivered_grid_kwh": 29.001074113856077,
+      "initial_soc": 0.2,
+      "last_connector": "DC-01/P1",
+      "wait_censored": false
+    },
+    {
+      "id": "DC-E",
+      "zone": "DC",
+      "state": "DEPARTED",
+      "connector": null,
+      "arrival": 1080,
+      "departure": 1350,
+      "target": 0.85,
+      "soc": 0.85,
+      "charge_started": 1165,
+      "completed_at": 1207,
+      "departed_at": 1212,
+      "waiting_minutes": 85,
+      "delivered_battery_kwh": 26.99999999999996,
+      "delivered_grid_kwh": 29.001074113856028,
+      "initial_soc": 0.55,
+      "last_connector": "DC-01/P2",
+      "wait_censored": false
+    }
+  ]
+}
