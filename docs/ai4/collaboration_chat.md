@@ -79,3 +79,11 @@ Bắt đầu G6B trên local P-019, tích hợp vào Agent hiện có và giữ 
 - **Verification summary**: Backend `11/11` exit `0` (`17` focused G6B, `167` G2–G5+G6A, `97` legacy/HITL, `43` architecture, `855 passed + 8 forecast skips` full BE, `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`); Frontend `7/7` exit `0` (`66/66` Vitest across 18 files, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack builds); Chromium `2/2` exit `0` (`two-roles` and `--ranked` M3b `94 kW`, `search_status=partial`, `applied=false`).
 - **Pending gates for G7**: Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`), PostgreSQL runtime (`PENDING`), held-out NL evaluation, 1,000-user load & `MemorySaver` retention.
 - **Status**: `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` (waiting for Tech Lead independent final acceptance).
+
+## 11. Gate 6B — Round-2 Re-Review & Final F01 Remediation (26/11/2026)
+
+- **Tech Lead re-review (`de82afe7b7fd1293466aa01115ea88a7f08bfbbb`)**: `CONDITIONAL PASS` — F02, F03, F04 and executable-code provenance F05 **PASS**; residual `F01-R1`, `F01-R2`, `F01-R3` opened.
+- **Preserved historical patches**: Codex `85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`, Round-1 Carbon `dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2` (bundle `9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
+- **Final Round-2 G6B candidate patch (`64c85f1` base)**: `fff02f47d8d62cd4b4f3dc258b40985b7703016489989645ae986d7900fdd36f` (`50` files, `0` core diff).
+- **Verification summary**: Standalone `F01-R1..R3` reproducer `3/3 passed` (`0` snapshot captures / `0` jobs on invalid inputs); Backend `11/11` exit `0` (`857 passed + 8 forecast skips` full BE, including subsets `19` focused G6B, `167` G2–G5+G6A, `97` legacy/HITL, `43` architecture; plus `180` standalone, Ruff lint/format, docs with baseline `.env.example` `a96d656`, OpenAPI, offline F1 `55/55`); Frontend `7/7` exit `0` (`66/66` Vitest across 18 files, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack builds); Chromium `2/2` exit `0` (`two-roles` and `--ranked` M3b `94 kW`, `search_status=partial`, `applied=false`).
+- **Status**: `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` (waiting for Tech Lead independent final acceptance).

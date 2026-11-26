@@ -691,3 +691,198 @@ async def test_f04_global_and_per_user_turn_concurrency_fail_fast_and_release_on
     timed_out = await client.post(CHAT, headers=resident, json={"message": "Quá hạn", "session_id": "timeout-s"})
     assert timed_out.status_code == 503
     assert routes._active_global_turns == 0 and not routes._active_user_streams and not routes._active_threads
+
+
+async def test_f01_r1_r2_r3_and_adjacent_anchor_scope_defects_rejected_before_capture(demo_api, monkeypatch):
+    client, rt, own, _, resident, _, operator = demo_api
+
+    async def no_capture(*args, **kwargs):
+        pytest.fail("Unrepresentable connector/time/reference-anchor requests must never capture snapshot")
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
+    shifted_max = _max_at(
+        rt,
+        30,
+        booking_id=own.booking_id,
+        low=65,
+        high=75,
+        allow_lower_target=True,
+        allow_later_deadline=True,
+        allow_subject_original_sla_regression=True,
+    )
+    shifted_max["deadline"] = shifted_max["deadline"].isoformat()
+
+    provider(
+        monkeypatch,
+        # F01-R1: single-connector rating mapped to site_limit
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+        # F01-R2: future scheduled site HOW-TO mapped to immediate snapshot site goal
+        decision(
+            "copilot_how_to",
+            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
+        ),
+        # F01-R3: relative to original deadline mapped to relative-to-now +30m
+        decision(
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "deadline": {"kind": "relative", "offset_minutes": 30},
+                },
+            },
+        ),
+        # Adjacent 1: zone-specific power mapped to site_limit
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+        # Adjacent 2: relative kW delta mapped to absolute site_limit
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 20}}),
+        # Adjacent 3: temporary duration site limit mapped to full-horizon site_limit
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+        # Adjacent 4: zone-specific HOW-TO mapped to station-wide MinTestedSiteLimitForSla
+        decision("copilot_how_to", {"goal": _site(22, 106, min_original_on_time_rate=0.95)}),
+        # Adjacent 5: comparative deadline shift without "so với hạn gốc" ("lùi hạn 30 phút")
+        decision(
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "deadline": {"kind": "relative", "offset_minutes": 30},
+                },
+            },
+        ),
+        # Adjacent 6: relative SOC delta ("giảm mục tiêu đi 15%") mapped to target_soc=15
+        decision(
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "revise_vehicle", "booking_id": own.booking_id, "target_soc": 15}},
+        ),
+        # Adjacent 7: MaxSocByDeadline anchored to original deadline
+        decision("copilot_how_to", {"goal": shifted_max}),
+    )
+
+    r1 = await chat(client, operator, "Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?", session="r1")
+    assert r1["advisory"][0]["kind"] == "notice" and not r1["advisory"][0].get("job")
+    assert r1["advisory"][0]["code"] == "unsupported"
+
+    r2 = await chat(
+        client,
+        operator,
+        "Cần nguồn bao nhiêu từ ngày mai lúc 18h00? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%.",
+        session="r2",
+    )
+    assert r2["advisory"][0]["kind"] == "notice" and not r2["advisory"][0].get("job")
+    assert r2["advisory"][0]["code"] == "unsupported"
+
+    r3 = await chat(client, resident, "Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?", session="r3")
+    assert r3["advisory"][0]["kind"] == "notice" and not r3["advisory"][0].get("job")
+    assert r3["advisory"][0]["code"] == "clarify" and r3["advisory"][0]["field"] == "time"
+
+    adj_cases = (
+        (operator, "Nếu công suất vùng DC còn 50 kW thì sao?", "adj-1"),
+        (operator, "Nếu giảm nguồn đi 20 kW thì sao?", "adj-2"),
+        (operator, "Nếu nguồn lưới còn 50 kW trong 30 phút thì sao?", "adj-3"),
+        (operator, "Cần nguồn vùng DC bao nhiêu? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu 95%.", "adj-4"),
+        (resident, "Nếu lùi hạn lấy xe thêm 30 phút thì sao?", "adj-5"),
+        (resident, "Nếu giảm mục tiêu đi 15% so với mức gốc thì sao?", "adj-6"),
+        (
+            resident,
+            "Tôi cần đi muộn hơn 30 phút so với hạn gốc, thử từ 65% đến 75%. Tôi đồng ý giảm mục tiêu. Tôi đồng ý dời hạn muộn. Tôi đồng ý mất cam kết gốc.",
+            "adj-7",
+        ),
+    )
+    for headers, question, sess in adj_cases:
+        resp = await chat(client, headers, question, session=sess)
+        adv = resp["advisory"][0]
+        assert adv["kind"] == "notice" and not adv.get("job"), (sess, adv)
+
+
+async def test_f01_r1_r2_r3_positive_controls_reach_real_engines(demo_api, monkeypatch):
+    client, rt, own, _, resident, _, operator = demo_api
+    now = rt.simulator.now
+    explicit_1430 = own.request.deadline + timedelta(minutes=30)
+    assert now.isoformat() == "2026-11-23T12:01:00+07:00"
+    assert explicit_1430.isoformat() == "2026-11-23T14:30:00+07:00"
+
+    jobs = client._transport.app.state.copilot._jobs
+    orig_clock = jobs._clock
+    clock_offset = 0.0
+    monkeypatch.setattr(jobs, "_clock", lambda: orig_clock() + clock_offset)
+
+    # Positive Control 1: explicit station-grid 50 kW
+    provider(
+        monkeypatch,
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+    )
+    pc1 = await chat(client, operator, "Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?", session="pc-1")
+    job1 = await wait_chat_job(client, operator, pc1["advisory"][0]["job"], session="pc-1")
+    assert job1["status"] == "succeeded" and job1["result"]["result"]["patch"]["grid_input_kw"] == 50.0
+
+    # Positive Control 2: immediate site recommendation 22-106 kW / SLA 95% / protect AC
+    clock_offset += 16.0
+    provider(
+        monkeypatch,
+        decision(
+            "copilot_how_to",
+            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
+        ),
+    )
+    pc2 = await chat(
+        client,
+        operator,
+        "Cần nguồn bao nhiêu hiện tại? Thử nguồn 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%.",
+        session="pc-2",
+    )
+    job2 = await wait_chat_job(client, operator, pc2["advisory"][0]["job"], session="pc-2")
+    assert job2["status"] == "succeeded"
+    assert job2["result"]["result"]["goal"]["min_grid_input_kw"] == 22
+    assert job2["result"]["result"]["goal"]["max_grid_input_kw"] == 106
+    assert job2["result"]["result"]["goal"]["min_original_on_time_rate"] == 0.95
+    assert job2["result"]["result"]["goal"]["protect_on_time_ac_bookings"] is True
+
+    # Positive Control 3: snapshot-relative +30 min ("sau 30 phút" -> 12:31+07)
+    provider(
+        monkeypatch,
+        decision(
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "deadline": {"kind": "relative", "offset_minutes": 30},
+                },
+            },
+        ),
+    )
+    pc3 = await chat(client, resident, "Nếu đổi hạn lấy xe sau 30 phút thì sao?", session="pc-3")
+    job3 = await wait_chat_job(client, resident, pc3["advisory"][0]["job"], session="pc-3")
+    assert job3["status"] == "succeeded"
+    assert datetime.fromisoformat(job3["result"]["result"]["patch"]["deadline"]) == now + timedelta(minutes=30)
+
+    # Positive Control 4: explicit valid absolute deadline 14:30+07 (= original 14:00+07 + 30 min)
+    clock_offset += 16.0
+    provider(
+        monkeypatch,
+        decision(
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "deadline": {"kind": "absolute", "timestamp": explicit_1430.isoformat()},
+                },
+            },
+        ),
+    )
+    pc4 = await chat(
+        client,
+        resident,
+        f"Nếu dời hạn lấy xe đến {explicit_1430.isoformat()} thì sao?",
+        session="pc-4",
+    )
+    job4 = await wait_chat_job(client, resident, pc4["advisory"][0]["job"], session="pc-4")
+    assert job4["status"] == "succeeded"
+    assert datetime.fromisoformat(job4["result"]["result"]["patch"]["deadline"]) == explicit_1430

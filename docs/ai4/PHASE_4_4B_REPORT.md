@@ -1,12 +1,20 @@
 # AI-4.4B — Tích hợp công cụ vào Chat Agent (Gate 6B)
 
 **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.**
-Báo cáo hoàn thiện sau lượt review độc lập của Tech Lead (`CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED` tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8`). Chưa tự đánh dấu `APPROVED`, chưa chuyển sang G7.
+Báo cáo hoàn thiện sau hai vòng review độc lập của Tech Lead:
+- Vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (`CONDITIONAL PASS` — mở G6B-F01..F05).
+- Vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (`CONDITIONAL PASS` — chấp nhận F02, F03, F04 và provenance mã thực thi F05; mở lại phần dư `F01-R1`, `F01-R2`, `F01-R3`).
+Chưa tự đánh dấu `APPROVED`, chưa merge và chưa chuyển sang G7.
 
 ## 1. Baseline, Provenance và Bảo toàn phần việc của Codex
 
 - **Local baseline**: nhánh `feature/ai-4-how-to` tại `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, cha trực tiếp là `develop` / `origin/develop` `0f877f196db7b89759af08aab825f0fff82f7c3c`. Sáu tệp mã nguồn và kiểm thử G5 khớp 6/6 mã băm SHA-256 đã được Tech Lead nghiệm thu tại `42438430ee49f404e90080c49a76e4c6446530da` (patch `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`).
-- **Lưu trữ nguyên trạng công việc của Codex**: trước khi chỉnh sửa bất kỳ tệp nào, toàn bộ 48 tệp delta của Codex được xuất thành `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) và toàn bộ log thực thi tại `/tmp/p019-g6b-evidence` được bảo tồn nguyên vẹn trong `eval/evidence/2026-11-26-ai4-g6b/raw/codex-interrupted/` (cũng như đính kèm bản trích yếu trong `verification-bundle.zip`).
+- **Lưu trữ nguyên trạng công việc lịch sử**:
+  - Bản vá gián đoạn của Codex: `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng toàn bộ log `/tmp/p019-g6b-evidence`.
+  - Bản vá và bundle vòng 1 của Carbon (review tại mirror `de82afe7...`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
+- **Provenance `.env.example` và `.gitignore` giữa repo chính và mirror review**:
+  - Trên nhánh thực tế `feature/ai-4-how-to` @ `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, tệp `.env.example` đã tồn tại từ baseline (`100644 blob a96d656b68da0a1cf296ba586d92a72ac555cd79`, SHA-256 `7104c9ebe1a2ebbd3fb66c92412caf1707e21d743ee58f168eb8694a71247377` — không tự chế tạo template giả). Tệp này vắng mặt trên kho mirror công khai từ giai đoạn G5 do quy trình đồng bộ sang mirror bỏ qua `.env*`.
+  - Tệp `.gitignore` trên repo chính giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để không đẩy hàng trăm tệp log thô và nhật ký nội bộ vào nhánh sản phẩm; khi đồng bộ sang mirror review cần giữ đúng `.gitignore` này (hoặc loại trừ `raw/` và `collaboration_chat.md`) để khớp 50/50 cặp tệp.
 - **Không chạm Unified Core và các engine đã nghiệm thu**: kiểm tra `git diff HEAD` xác nhận **0 byte thay đổi** trên `src/simulator/**`, `src/optimizer/**`, `src/guard/**`, `src/services/{runtime,control_loop,solver}.py`, `src/services/copilot/{why,evidence,trace_reader,snapshot,outcome_ledger,counterfactual,what_if,recommendation}.py`, `config/**` và `migrations/**`.
 - **Phối hợp nhánh Frontend**: `origin/develop` (`0f877f1`) đã bao gồm các PR #17 (`unified-fullstack`), #22 (`voice-input`), #23 (`voice-security-review`) và #24 (`unified-core`). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, 23/11) là nhánh cũ trước khi port sang `unified-core`; không có thay đổi chưa gộp của đồng đội FE bị ghi đè. Không thay đổi thiết kế giao diện, CSS hay cấu hình gói.
 
@@ -22,31 +30,37 @@ Mọi finding đều được tái hiện trực tiếp trên cây ứng viên c
 | **G6B-F02** (HIGH / Blocker) — Cô lập phiên cho voice input | `diagnostics/f02-voice-race-fail-before.log`: Vitest tái hiện Resident A dừng ghi âm khi `FileReader` đang chờ, logout rồi đăng nhập Resident B; khi `FileReader` hoàn tất, `/api/v1/chat/transcribe` bị gọi với audio của A nhưng gắn `Authorization: Bearer token-resident-B`. | Gia cố `frontend/src/components/resident/ChatPanel.tsx` (không đổi UI) và `useStream.ts`: chụp `capturedSession` + `capturedGeneration` + `voiceEpoch` ngay khi bắt đầu ghi âm; kiểm tra `isVoiceCurrent()` trước và sau mọi `await` (`getUserMedia`, `blobToBase64`, `fetch`); truyền `AbortSignal` để hủy transcribe đang bay khi đổi phiên; dừng ngay `MediaStream` tracks (kể cả khi `getUserMedia` trả về trễ) và gỡ `ondataavailable`/`onstop` trước khi `recorder.stop()` lúc unmount/logout để không phát sinh transcribe mới; lỗi `401` chỉ gọi `clearSessionIfCurrent(capturedGeneration)`. Kiểm chứng qua 5 bài test mới trong `voice-session-isolation.test.tsx` (`66/66` Vitest PASS). |
 | **G6B-F03** (MEDIUM / Verification Blocker) — Selector Chromium `--ranked` | `diagnostics/f03-ranked-fail-before.log` (và `codex-browser-ranked.log` lịch sử): Playwright strict mode báo `exit=1` do `94 kW đầu vào lưới · Khả thi` khớp đồng thời thẻ xếp hạng `<strong>` trong `<ol>` và dòng ứng viên `<li>` trong `<details>`. | Giữ nguyên giao diện `ChatAdvisory.tsx` (bảo toàn cả danh sách xếp hạng lẫn danh sách ứng viên/bằng chứng); cập nhật `eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs` định vị tường minh `ol > li > strong` cho phương án xếp hạng và kiểm tra bổ sung `details ul > li` vẫn hiện diện. Chạy lại cả hai chế độ `two-roles` và `--ranked` đều đạt `exit 0`. |
 | **G6B-F04** (HIGH / Workload Controls) — Kiểm soát tải tầng tích hợp | `diagnostics/f01-f04-fail-before.log`: lượt chat mô phỏng thứ 2 trong vòng 15s vẫn gọi `capture_atomic_snapshot` (`captures=2`) trước khi bị từ chối ở hàng đợi; gọi G6A `/api/v1/copilot/what-if` (`session=None`) lách hoàn toàn cooldown 15s (`202 Accepted`). Ngoài ra `/chat` chưa áp trần theo user và toàn tiến trình. | Trong `jobs.py` & `integration.py`: bổ sung `check_admission()` chạy **trước** `capture_atomic_snapshot`, bật `max_active_per_actor=1` cho instance ứng dụng và áp dụng kiểm tra active job + cooldown 15s xuyên suốt giữa Chat và G6A fallback (vẫn cho phép các lần thử tuần tự hợp lệ ở G6A khi không vướng cooldown chat). Trong `src/api/routes.py`: áp dụng thống nhất trần theo người dùng (`MAX_CONCURRENT_STREAMS_PER_USER=3`) và trần toàn cục (`MAX_GLOBAL_CONCURRENT_TURNS=8`) cho cả `/chat`, `/chat/stream` và `/chat/sessions/{id}`, fail-fast `429` và giải phóng permit an toàn trong `finally` kể cả khi `TimeoutError`/ngắt kết nối (`test_f04_*` PASS). |
-| **G6B-F05** (Gate Blocker) — Bằng chứng cuối, khoảng trắng và gói bàn giao | `prompts/booking_reason.md:12` thừa dòng trống cuối file; thiếu `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` hoàn chỉnh. | Xóa dòng trống cuối `prompts/booking_reason.md` (`git diff --check` sạch tuyệt đối), bổ sung `/eval/evidence/2026-11-26-ai4-g6b/raw/` vào `.gitignore` để không đẩy hàng nghìn file log thô lên PR, kiểm tra loại trừ chuỗi JWT khỏi log, dựng `candidate.patch` từ `64c85f1`, xác minh `apply`/`reverse` trên cây sạch và đóng gói `verification-bundle.zip` kèm đầy đủ mã băm. |
+| **G6B-F05** (Gate Blocker → **PASS mã thực thi**) — Bằng chứng cuối, khoảng trắng và gói bàn giao | `prompts/booking_reason.md:12` thừa dòng trống cuối file; thiếu `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` hoàn chỉnh. | Xóa dòng trống cuối `prompts/booking_reason.md` (`git diff --check` sạch tuyệt đối), bổ sung `/eval/evidence/2026-11-26-ai4-g6b/raw/` vào `.gitignore`, kiểm tra loại trừ chuỗi JWT khỏi log, dựng `candidate.patch` từ `64c85f1`, xác minh `apply`/`reverse` trên cây sạch và đóng gói `verification-bundle.zip` kèm đầy đủ mã băm. |
+| **F01-R1** (HIGH / Vòng 2) — Công suất một đầu nối bị hiểu thành nguồn lưới toàn trạm | `diagnostics/f01-r1-r3-fail-before.log`: câu `"Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?"` kèm quyết định `site_limit=50` chạy tới `succeeded` và ảnh hưởng nhiều xe toàn trạm. | Trong `copilot_intent.py` (`SourceChange` & `MinTestedSiteLimitForSla`): bắt buộc chủ thể nguồn/lưới/đầu vào trạm (`_SITE_POWER_SUBJECT`) cho `site_limit`, đồng thời từ chối mọi mã đầu nối (`_CONNECTOR`), danh từ cổng/trụ/bộ sạc/tủ (`_PORT_OR_ZONE_SCOPE` + `_ACCENTED_PORT_SCOPE`, tách biệt đồng âm không dấu `cổng` vs `công suất`, `tủ` vs `từ`), phạm vi vùng AC/DC riêng lẻ, công suất sạc đầu ra và độ lệch tương đối kW (`_KW_DELTA`). Spy `capture_atomic_snapshot` xác nhận `0` lần chụp; đối chứng dương tính `50 kW` đầu vào lưới trạm chạy `succeeded`. |
+| **F01-R2** (HIGH / Vòng 2) — Mục tiêu nguồn theo lịch tương lai bị bỏ mất mốc thời gian | `diagnostics/f01-r1-r3-fail-before.log`: câu `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%."` bỏ qua `"từ ngày mai lúc 18h00"` và chạy ngay trên snapshot hiện tại. | Bổ sung `_has_site_temporal_condition` cho cả `SourceChange` và `MinTestedSiteLimitForSla` (sau khi tách `_HORIZON`): từ chối mọi mốc ISO, giờ đồng hồ, ngày (`hôm nay`/`ngày mai`), buổi trong ngày, độ dời tương đối hoặc khoảng thời lượng (`trong N phút`) không biểu diễn được trong hợp đồng hiện hành. Spy xác nhận `0` lần chụp; đối chứng dương tính tìm nguồn tức thời `22–106 kW`, SLA `95%`, bảo vệ AC chạy `succeeded`. |
+| **F01-R3** (HIGH / Vòng 2) — Dời hạn tương đối theo hạn gốc bị dịch nhầm thành tương đối theo `now` | `diagnostics/f01-r1-r3-fail-before.log`: tại đồng hồ `12:01+07` và hạn gốc `14:00+07`, câu `"Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?"` kèm `relative +30` tạo hạn `12:31+07` (sớm hơn 119 phút so với `14:30+07`). | Loại bỏ các cụm dịch chuyển so sánh (`muộn hơn`, `sớm hơn`, `trễ thêm`) khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`); bổ sung `_SHIFT_OFFSET`, `_NON_NOW_ANCHOR` và `_SOC_DELTA` trên cả WHAT-IF lẫn HOW-TO để trả `clarify("time")` / `unsupported` trước khi chụp snapshot khi người dùng neo theo hạn gốc/lịch cũ mà chưa nêu giờ tường minh. Đối chứng dương tính kiểm chứng cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`) trên đúng booking gốc. |
 
-## 3. Tách biệt Bằng chứng Lịch sử (Codex) và Bằng chứng Cuối cùng (Carbon)
+## 3. Tách biệt Bằng chứng Lịch sử (Codex & Vòng 1) và Bằng chứng Cuối cùng (Vòng 2)
 
-| Cổng kiểm tra | Kết quả lịch sử của Codex (`85ba2959...` / mirror `2c72e2b`) | Kết quả xác minh cuối cùng của Carbon (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
-|---|---|---|
-| Focused G6B (`test_unified_copilot.py`) | `11 passed` | **`17 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
-| Hồi quy G2–G5 + G6A | `167 passed` | **`167 passed` (`exit 0`)** |
-| Legacy booking Agent & HITL | `97 passed` | **`97 passed` (`exit 0`)** |
-| Architecture (`test_architecture.py`) | `43 passed` | **`43 passed` (`exit 0`)** |
-| Full Backend (`pytest -q -rs tests`) | `849 passed, 8 skipped` | **`855 passed, 8 forecast skips` (`exit 0`, 98.77s, bỏ biến môi trường proxy)** |
-| Simulator độc lập (`src/simulator/tests`) | `180 passed` | **`180 passed` (`exit 0`)** |
-| Unified Core / G2–G5 engine diff | `0 diff` | **`0 byte diff` so với `64c85f1` (kế thừa Golden 38/38, Frozen 100/100, 253 AST)** |
-| Ruff lint & format | `PASS` | **`PASS / PASS` (`exit 0`)** |
-| Docs (`scripts/check_docs.py`) | `PASS` local (mirror thiếu `.env.example`) | **`PASS` (`exit 0`, 50 tệp md, 131 liên kết nội bộ; `.env.example` có sẵn ở local)** |
-| OpenAPI (`export_openapi.py --check`) | `PASS` | **`PASS` (`exit 0`)** |
-| Offline F1 (`run_agent_eval.py --offline`) | `55/55` hợp lệ | **`55/55` câu/ngưỡng hợp lệ (`exit 0`)** |
-| Frontend Vitest | `61 passed` (17 tệp) | **`66 passed` (18 tệp, `exit 0`, gồm 5 ca cô lập voice/WS/HOW-TO UI mới)** |
-| Frontend ESLint / TypeScript / `gen:api` parity | `PASS` | **`PASS / PASS / PASS` (`exit 0`, `schema.d.ts` khớp byte)** |
-| Frontend Production Build (Webpack) | `PASS` (17/17 trang) | **`PASS` (`exit 0`, 17/17 trang trên cây xuất sạch)** |
-| Frontend Production Build (Turbopack) | Lỗi bind cổng ở sandbox cũ | **`PASS` (`exit 0` với `npm run build` trực tiếp trên `P-019/frontend` dùng `node_modules` thật)** |
-| Chromium smoke — hai vai trò (`two-roles`) | `PASS` | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, Resident WHY/WHAT-IF/WHY+HOW-TO + logout/second-resident + Operator WHY+HOW-TO/WHAT-IF, `0` nút Áp dụng)** |
-| Chromium smoke — xếp hạng M3b (`--ranked`) | `FAIL` (`exit=1`, strict-mode locator) | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, `options[0].value=94`, `search_status="partial"`, `applied=false`, khớp cả `<ol>` lẫn `<details>`)** |
-| Real LLM provider smoke | `PENDING_NO_AUTHORIZED_KEY` | **`PENDING_NO_AUTHORIZED_KEY`** (`openai` / `gpt-4o-mini` / `gpt-4o`, chưa cấu hình API key, `127.0.0.1:11434` đóng) |
-| PostgreSQL live runtime | `PENDING` | **`PENDING`** (kiểm thử dùng SQLite tạm qua Alembic migrations `0001 -> 0004`) |
+*(Lưu ý: các bộ `Focused G6B`, `G2–G5 + G6A`, `Legacy F1` và `Architecture` là tập con của `Full Backend`, tuyệt đối không cộng dồn với `857`.)*
+
+| Cổng kiểm tra | Kết quả lịch sử Codex (`2c72e2b`) | Kết quả Vòng 1 Carbon (`de82afe7`) | Kết quả Vòng 2 Cuối cùng (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
+|---|---|---|---|
+| Focused G6B (`test_unified_copilot.py`) | `11 passed` | `17 passed` | **`19 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
+| Reproducer độc lập `F01-R1`..`F01-R3` | `3 failed` | `3 failed` | **`3 passed` (`exit 0`, `0` snapshot capture / `0` job sai ngữ nghĩa)** |
+| Hồi quy G2–G5 + G6A | `167 passed` | `167 passed` | **`167 passed` (`exit 0`)** |
+| Legacy booking Agent & HITL | `97 passed` | `97 passed` | **`97 passed` (`exit 0`)** |
+| Architecture (`test_architecture.py`) | `43 passed` | `43 passed` | **`43 passed` (`exit 0`)** |
+| Full Backend (`pytest -q -rs tests`) | `849 passed, 8 skips` | `855 passed, 8 skips` | **`857 passed, 8 forecast skips` (`exit 0`, 101.87s)** |
+| Simulator độc lập (`src/simulator/tests`) | `180 passed` | `180 passed` | **`180 passed` (`exit 0`)** |
+| Unified Core / G2–G5 engine diff | `0 diff` | `0 diff` | **`0 byte diff` so với `64c85f1` (kế thừa Golden 38/38, Frozen 100/100, 253 AST)** |
+| Ruff lint & format | `PASS` | `PASS / PASS` | **`PASS / PASS` (`exit 0`)** |
+| Docs (`scripts/check_docs.py`) | `PASS` local | `PASS` local | **`PASS` (`exit 0`, 50 tệp md, 131 liên kết; dùng `.env.example` gốc `a96d656...`)** |
+| OpenAPI (`export_openapi.py --check`) | `PASS` | `PASS` | **`PASS` (`exit 0`)** |
+| Offline F1 (`run_agent_eval.py --offline`) | `55/55` hợp lệ | `55/55` hợp lệ | **`55/55` câu/ngưỡng hợp lệ (`exit 0`)** |
+| Frontend Vitest | `61 passed` (17 tệp) | `66 passed` (18 tệp) | **`66 passed` (18 tệp, `exit 0`)** |
+| Frontend ESLint / TypeScript / `gen:api` parity | `PASS` | `PASS / PASS / PASS` | **`PASS / PASS / PASS` (`exit 0`, `schema.d.ts` khớp byte)** |
+| Frontend Production Build (Webpack) | `PASS` | `PASS` | **`PASS` (`exit 0`, 17/17 trang trên cây xuất sạch)** |
+| Frontend Production Build (Turbopack) | Lỗi bind ở sandbox cũ | `PASS` | **`PASS` (`exit 0` với `npm run build` trên `P-019/frontend`)** |
+| Chromium smoke — hai vai trò (`two-roles`) | `PASS` | `PASS` | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, Resident + Operator + logout isolation, `0` nút Áp dụng)** |
+| Chromium smoke — xếp hạng M3b (`--ranked`) | `FAIL` (`exit=1`) | `PASS` (`exit 0`) | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, `options[0].value=94`, `search_status="partial"`, `applied=false`, khớp cả `<ol>` lẫn `<details>`)** |
+| Real LLM provider smoke | `PENDING` | `PENDING` | **`PENDING_NO_AUTHORIZED_KEY`** (`openai` / `gpt-4o-mini` / `gpt-4o`, chưa cấu hình API key) |
+| PostgreSQL live runtime | `PENDING` | `PENDING` | **`PENDING`** (SQLite tạm qua Alembic migrations `0001 -> 0004`) |
 
 ## 4. Giới hạn Phạm vi & Các Mục Dành Riêng cho G7 / Production Readiness
 

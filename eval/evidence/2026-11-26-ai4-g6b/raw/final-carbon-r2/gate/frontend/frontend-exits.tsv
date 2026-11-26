@@ -1,0 +1,10 @@
+check	exit
+frontend-gen-api	0
+frontend-gen-parity	0
+frontend-lint	0
+frontend-typecheck	0
+frontend-tests	0
+frontend-webpack-build	0
+workspace-turbopack-build	0
+browser-two-roles	0
+browser-ranked	0

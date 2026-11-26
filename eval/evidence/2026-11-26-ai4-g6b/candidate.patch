@@ -106,16 +106,19 @@ index 0000000..f4ef322
 +Oracle M3a/M3b tái lập qua `pytest tests/test_services/test_recommendation_hybrid.py tests/test_api/test_unified_copilot.py`. Hai case nhiều công cụ ghi dữ liệu engine thật trong JUnit. Xem cả chế độ provider, runner kiểm tra và giới hạn nghiệm thu trong báo cáo pha. [Báo cáo G6B](PHASE_4_4B_REPORT.md)
 diff --git a/docs/ai4/G6B_RECOVERY_STATE.md b/docs/ai4/G6B_RECOVERY_STATE.md
 new file mode 100644
-index 0000000..db4ba5e
+index 0000000..59f45be
 --- /dev/null
 +++ b/docs/ai4/G6B_RECOVERY_STATE.md
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,30 @@
 +# G6B — Trạng thái phục hồi và khắc phục sau review
 +
 +**READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY · Carbon (tiếp quản từ Codex) · 2026-11-26.**
 +
 +- **Baseline local**: `feature/ai-4-how-to` tại `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, cha trực tiếp là `develop` / `origin/develop` `0f877f196db7b89759af08aab825f0fff82f7c3c`. Toàn bộ 6/6 mã băm SHA-256 mã nguồn/test của G5 khớp tuyệt đối với G5 đã nghiệm thu (`42438430ee49f404e90080c49a76e4c6446530da`, patch `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`).
-+- **Bảo toàn phần việc của Codex**: Tại thời điểm Carbon tiếp nhận sau quyết định `CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED` (mirror `2c72e2b901815ef3a63513d576db9182b785c6f8`), toàn bộ 48 tệp delta trên cây làm việc được chụp nguyên trạng thành `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng bản sao lưu đầy đủ thư mục `/tmp/p019-g6b-evidence` (bao gồm cả `browser-ranked.log` ghi nhận đúng lỗi strict-mode locator khi Codex hết token). Không ghi đè hay xóa log lịch sử của Codex.
++- **Bảo toàn phần việc lịch sử**:
++  - Bản vá gián đoạn của Codex (`2c72e2b`): `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng bản sao lưu đầy đủ `/tmp/p019-g6b-evidence`.
++  - Bản vá và bundle vòng 1 của Carbon (`de82afe7`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
++  - Đối chiếu `.env.example` và `.gitignore`: `.env.example` có sẵn tại `HEAD` (`64c85f1`, blob `a96d656...`, SHA-256 `7104c9eb...`); `.gitignore` giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để tránh đưa log thô/nội bộ lên nhánh sản phẩm.
 +- **Đối chiếu nhánh FE của đồng đội**: `origin/develop` (`0f877f1`, ngày 25/11) đã hợp nhất đầy đủ `feature/unified-fullstack` (#17), `feature/voice-input` (#22), `fix/voice-security-review` (#23) và `feature/unified-core` (#24). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, ngày 23/11) là nhánh lịch sử trước khi port sang `unified-core`; không có thay đổi chưa commit hay nhánh FE mới nào của đồng đội bị ghi đè. Giữ nguyên giao diện, bố cục, quick replies, luồng booking/HITL và cơ chế thế hệ phiên (`generation`) dùng chung.
 +- **Nhả khóa bàn giao**: Carbon đã hoàn thành F01–F05, chạy đạt toàn bộ cổng bắt buộc trên cây xuất sạch, đóng gói `verification-bundle.zip` và nhả khóa chỉnh sửa G6B để chờ Tech Lead nghiệm thu độc lập. G7, commit/push/merge và đồng bộ PRD/ADR-015 chờ quyết định riêng.
 +
@@ -132,14 +135,14 @@ index 0000000..db4ba5e
 +| A · typed tools | **Tested** | Giữ 4 adapter `copilot_why`, `copilot_what_if`, `copilot_how_to`, `copilot_job` theo vai trò; không tạo Agent hay LLM parser lồng nhau. |
 +| B · shared jobs & workload (F04) | **Tested** | Hàng đợi dùng chung (1 chạy, 4 chờ, 64 giữ lại, TTL 300s), kiểm tra `check_admission` **trước** `capture_atomic_snapshot`, đồng bộ hạn ngạch `max_active_per_actor=1` và cooldown 15s giữa Chat và G6A fallback, giới hạn lượt chat đồng thời toàn cục (`8`) và theo người dùng (`3`) trên cả `/chat`, `/chat/stream` và `/chat/sessions/{id}`. |
 +| C · vai trò và phiên | **Tested** | Danh tính/vai trò do server cấp, khóa phiên băm `user_id + role + credential + session_id`, kiểm quyền sở hữu job và cách ly giữa các phiên đăng nhập. |
-+| D · input binding & grounding (F01) | **Tested** | Server đối chiếu đầy đủ target, deadline (relative/local/ISO + múi giờ trạm), connector/booking ID, thời lượng/thời điểm sự cố, horizon, site kW, khoảng thử HOW-TO, ngưỡng SLA %, bảo vệ xe AC và cờ hy sinh/hạ tầng giả định; lịch sử nhiều lượt chỉ đọc tin nhắn `role="user"` trong cùng phiên, bỏ qua hoàn toàn văn bản của assistant. |
++| D · input binding & grounding (F01 + R1..R3) | **Tested** | Server đối chiếu đầy đủ target, deadline (phân biệt rõ `sau N phút` tính từ `now` với độ lệch theo hạn gốc như `muộn hơn 30 phút so với hạn gốc`), connector/booking ID, chủ thể nguồn lưới toàn trạm (từ chối gán công suất cổng/trụ/tủ/vùng sang `site_limit`), mốc thời gian tương lai không biểu diễn được trên site goal, thời lượng outage, horizon, khoảng thử HOW-TO, ngưỡng SLA %, bảo vệ xe AC và cờ hy sinh/hạ tầng giả định; lịch sử nhiều lượt chỉ đọc `role="user"`, bỏ qua văn bản của assistant. |
 +| E · giao diện & cô lập voice (F02) | **Tested** | Giữ nguyên thiết kế UI; gắn `voiceEpoch` và `session.generation` ngay lúc bắt đầu ghi âm, kiểm tra trước/sau mọi `await`, hủy `AbortController` khi đổi phiên, đóng `MediaStream` tracks và gỡ handler recorder khi logout/unmount mà không phát sinh transcribe mới; `66/66` Vitest tests (18 tệp), ESLint, TypeScript, Webpack & Turbopack build đều `exit 0`. |
-+| F · kiểm chứng & đóng gói (F03, F05) | **Tested** | Sửa selector ranked HOW-TO sang `ol > li > strong` (giữ nguyên cả danh sách ứng viên `details ul > li`), sạch `git diff --check`, `11/11` cổng backend (`855 passed, 8 forecast skips`, `180` standalone), cả 2 kịch bản Chromium smoke (`two-roles` và `--ranked`) `exit 0`, hoàn tất `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip`. |
++| F · kiểm chứng & đóng gói (F03, F05) | **Tested** | Sửa selector ranked HOW-TO sang `ol > li > strong` (giữ nguyên cả danh sách ứng viên `details ul > li`), sạch `git diff --check`, `11/11` cổng backend (`857 passed, 8 forecast skips` toàn bộ backend — gồm tập con `19` focused G6B; cùng `180` standalone), cả 2 kịch bản Chromium smoke (`two-roles` và `--ranked`) `exit 0`, hoàn tất `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip`. |
 +
 +[Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Hợp đồng công cụ](G6B_TOOL_CONTRACTS.md) · [Demo](G6B_DEMO.md)
 diff --git a/docs/ai4/G6B_TOOL_CONTRACTS.md b/docs/ai4/G6B_TOOL_CONTRACTS.md
 new file mode 100644
-index 0000000..f5b44cd
+index 0000000..7a893a3
 --- /dev/null
 +++ b/docs/ai4/G6B_TOOL_CONTRACTS.md
 @@ -0,0 +1,31 @@
@@ -169,13 +172,13 @@ index 0000000..f5b44cd
 +
 +## Ràng buộc Tham số Đầu vào và Grounding Đầu ra
 +
-+LLM chọn công cụ, điền tham số và chọn trường cần làm rõ; `clarify` và `unsupported` có thông báo do server dựng. Trước khi admission, tầng kiểm tra phía server (`conflicts_with_simulation` và `why_conflicts_with_message`) đối chiếu mọi giá trị và điều kiện mà người dùng đã nêu rõ với tham số công cụ: mức SOC mục tiêu (tách biệt với SOC hiện tại/ban đầu), hạn sạc và khoảng hạn tìm kiếm (relative/local/ISO giải theo đồng hồ và múi giờ trạm), mã đầu nối/vùng, mã booking, thời lượng và thời điểm sự cố, cửa sổ `horizon_minutes`, công suất lưới (kW), khoảng thử HOW-TO (`bounds`), ngưỡng tỷ lệ SLA gốc, yêu cầu bảo vệ các lịch AC đang đúng hạn, cũng như các cờ hy sinh cam kết (`allow_*`) và `hypothetical_infrastructure`. Khi hội thoại kéo dài nhiều lượt trong cùng phiên đã xác thực, server chỉ tham chiếu các tin nhắn `role="user"` trước đó để bổ sung trường còn thiếu và tuyệt đối không coi văn bản của `assistant` là dữ kiện hay sự đồng ý của người dùng. Ý định ngoài tập đã kiểm thử tiếp tục được đánh giá trên tập held-out ở G7.
++LLM chọn công cụ, điền tham số và chọn trường cần làm rõ; `clarify` và `unsupported` có thông báo do server dựng. Trước khi admission, tầng kiểm tra phía server (`conflicts_with_simulation` và `why_conflicts_with_message`) đối chiếu mọi giá trị và điều kiện mà người dùng đã nêu rõ với tham số công cụ: mức SOC mục tiêu (tách biệt với SOC hiện tại/ban đầu và từ chối độ lệch phần trăm tương đối chưa giải), hạn sạc và khoảng hạn tìm kiếm (phân biệt `sau/trước N phút` tính từ đồng hồ trạm `now` với các cụm dịch chuyển theo hạn gốc/lịch hiện tại như `muộn hơn N phút so với hạn gốc` — trường hợp chưa nêu giờ tường minh sẽ trả `clarify("time")`), mã đầu nối/vùng, mã booking, thời lượng và thời điểm sự cố, cửa sổ `horizon_minutes`, chủ thể công suất đầu vào lưới toàn trạm (từ chối quy chiếu công suất cổng/trụ/tủ/vùng hoặc lịch hẹn tương lai sang `site_limit` / `min_tested_site_limit_for_sla`), khoảng thử HOW-TO (`bounds`), ngưỡng tỷ lệ SLA gốc, yêu cầu bảo vệ các lịch AC đang đúng hạn, cũng như các cờ hy sinh cam kết (`allow_*`) và `hypothetical_infrastructure`. Khi hội thoại kéo dài nhiều lượt trong cùng phiên đã xác thực, server chỉ tham chiếu các tin nhắn `role="user"` trước đó để bổ sung trường còn thiếu và tuyệt đối không coi văn bản của `assistant` là dữ kiện hay sự đồng ý của người dùng. Ý định ngoài tập đã kiểm thử tiếp tục được đánh giá trên tập held-out ở G7.
 +
 +Grounding dùng projection đã qua kiểm quyền. Claim HOW-TO liên kết `RecommendationEvidence.ref#/field`. Ví dụ `#/subject_goal_target/target_reached_at`, `#/subject_release_at` và `#/subject_soc_at_deadline_pct` là ba mốc riêng. Gate kiểm toàn bộ claim gồm subject, value, unit, time, stage, branch, code và refs. Signed WHAT-IF delta giữ `patched_minus_baseline`. Kết quả không có cùng horizon an toàn không tạo delta.
 +
 +Finalize dựng câu từ WHY reasons đã xác minh, kết quả job và notice. So sánh cải thiện dựa trên cùng target hoặc cùng thời điểm quan sát. Chỉ gắn nhãn khả thi cho verdict của engine. Lưới thử G5 và SOC tolerance giữ theo engine. HOW-TO 94 kW trong oracle M3b là mức thấp nhất đã kiểm chứng trong tập thử với tìm kiếm một phần. `applied=false` đi cùng từng kết quả và job.
 diff --git a/docs/ai4/ISSUES.md b/docs/ai4/ISSUES.md
-index edb65ae..927b460 100644
+index edb65ae..1ce2d43 100644
 --- a/docs/ai4/ISSUES.md
 +++ b/docs/ai4/ISSUES.md
 @@ -118,9 +118,9 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
@@ -191,7 +194,7 @@ index edb65ae..927b460 100644
  
  Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
  
-@@ -137,3 +137,21 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và
+@@ -137,3 +137,24 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và
  [Báo cáo và bằng chứng](PHASE_4_3_REPORT.md)
  
  **G5 — READY_FOR_FINAL_ACCEPTANCE.** Bốn finding đã có bằng chứng kiểm chứng cục bộ. Tech Lead quyết định cuối.
@@ -208,7 +211,10 @@ index edb65ae..927b460 100644
 +| **G6B-F02** — Cô lập phiên cho voice input | **Confirmed bug → Fixed** | Tái hiện bằng Vitest lỗi gửi audio của Resident A kèm Bearer token của Resident B khi `FileReader` hoàn tất sau đổi phiên. Gia cố `ChatPanel.tsx` và `useStream.ts`: khóa `voiceEpoch` + `capturedGeneration` tại thời điểm bắt đầu, kiểm tra trước/sau mọi `await`, hủy `AbortController`, dừng `MediaStream` tracks (kể cả `getUserMedia` trễ) và gỡ handler trước khi `stop()` khi logout/unmount; `401` chỉ xóa đúng generation đã gửi (`66/66` Vitest PASS). |
 +| **G6B-F03** — Selector Chromium `--ranked` | **Confirmed test blocker → Fixed** | Tái hiện lỗi strict-mode locator trên Chromium `159.0.8154.6`. Định vị tường minh `ol > li > strong` trong `browser_smoke.mjs` đồng thời kiểm tra danh sách ứng viên `details ul > li` vẫn giữ nguyên, không đổi giao diện. Cả `two-roles` và `--ranked` (`94 kW`, `partial`, `applied=false`) đều đạt `exit 0`. |
 +| **G6B-F04** — Kiểm soát tải tầng tích hợp | **Confirmed gap → Fixed (phạm vi G6B); G7 giữ phần tải lớn** | Đưa `check_admission()` lên trước `capture_atomic_snapshot`, bật `max_active_per_actor=1` và đồng bộ cooldown 15s giữa Chat và G6A fallback; bổ sung trần lượt đồng thời theo user (`3`) và toàn cục (`8`) trên cả `/chat`, `/chat/stream` và `/chat/sessions/{id}`, tự nhả permit khi timeout/disconnect. Phần tải 1.000 concurrent, p95 dưới tải, rate/cost LLM thật và tỉa `MemorySaver` giữ ở backlog G7. |
-+| **G6B-F05** — Đóng gói bằng chứng và provenance cuối | **Confirmed gate blocker → Fixed** | Bảo tồn patch và raw logs lịch sử của Codex, sửa dòng trắng cuối `prompts/booking_reason.md`, cập nhật `.gitignore` cho `eval/evidence/2026-11-26-ai4-g6b/raw/`, kiểm tra không rò rỉ JWT trong log, dựng `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` trên bản xuất sạch từ `64c85f1`. |
++| **G6B-F05** — Đóng gói bằng chứng và provenance cuối | **Confirmed gate blocker → PASS mã thực thi (mirror `de82afe7`)** | Bảo tồn patch và raw logs lịch sử của Codex + vòng 1 (`dab76e32...`), sửa dòng trắng cuối `prompts/booking_reason.md`, cập nhật `.gitignore` cho `eval/evidence/2026-11-26-ai4-g6b/raw/`, ghi rõ provenance `.env.example` (`a96d656...`) trên nhánh chính so với mirror, dựng `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` trên bản xuất sạch từ `64c85f1`. |
++| **F01-R1** — Công suất đầu nối đơn lẻ bị hiểu thành `site_limit` | **Confirmed residual bug (`de82afe7`) → Fixed** | Tái hiện fail-before (`f01-r1-r3-fail-before.log`): `"Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?"` từng chạy `site_limit=50`. Bắt buộc chủ thể nguồn/lưới/đầu vào trạm (`_SITE_POWER_SUBJECT`) và chặn mọi mã đầu nối, danh từ cổng/trụ/bộ sạc/tủ (xử lý chuẩn đồng âm không dấu `cổng` vs `công suất`, `tủ` vs `từ`), phạm vi vùng AC/DC riêng lẻ và độ lệch kW tương đối; bổ sung đối chứng dương tính nguồn lưới trạm `50 kW`. |
++| **F01-R2** — Lịch hẹn tương lai trên site HOW-TO bị lược bỏ âm thầm | **Confirmed residual bug (`de82afe7`) → Fixed** | Tái hiện fail-before: `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00?..."` từng chạy ngay trên snapshot hiện tại. Chặn mọi điều kiện thời điểm/ngày/buổi/thời lượng ngoài cửa sổ `horizon` trong `_has_site_temporal_condition` cho cả `SourceChange` và `MinTestedSiteLimitForSla`; bổ sung đối chứng dương tính tìm nguồn tức thời `22–106 kW` / SLA `95%` / giữ AC. |
++| **F01-R3** — Độ lệch tương đối theo hạn gốc bị dịch thành tương đối theo `now` | **Confirmed residual bug (`de82afe7`) → Fixed** | Tái hiện fail-before: `"muộn hơn 30 phút so với hạn gốc"` từng tạo hạn `12:31+07` thay vì `14:30+07`. Tách `_SHIFT_OFFSET` / `_NON_NOW_ANCHOR` khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`), trả `clarify("time")` / `unsupported` trước `capture_atomic_snapshot`; kiểm chứng đối chứng dương tính cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`). |
 +
 +[Báo cáo Gate 6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md) · [Verification bundle](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +
@@ -227,19 +233,27 @@ index 214c454..90290a2 100644
  
 diff --git a/docs/ai4/PHASE_4_4B_REPORT.md b/docs/ai4/PHASE_4_4B_REPORT.md
 new file mode 100644
-index 0000000..421c476
+index 0000000..31e9b58
 --- /dev/null
 +++ b/docs/ai4/PHASE_4_4B_REPORT.md
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,81 @@
 +# AI-4.4B — Tích hợp công cụ vào Chat Agent (Gate 6B)
 +
 +**G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.**
-+Báo cáo hoàn thiện sau lượt review độc lập của Tech Lead (`CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED` tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8`). Chưa tự đánh dấu `APPROVED`, chưa chuyển sang G7.
++Báo cáo hoàn thiện sau hai vòng review độc lập của Tech Lead:
++- Vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (`CONDITIONAL PASS` — mở G6B-F01..F05).
++- Vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (`CONDITIONAL PASS` — chấp nhận F02, F03, F04 và provenance mã thực thi F05; mở lại phần dư `F01-R1`, `F01-R2`, `F01-R3`).
++Chưa tự đánh dấu `APPROVED`, chưa merge và chưa chuyển sang G7.
 +
 +## 1. Baseline, Provenance và Bảo toàn phần việc của Codex
 +
 +- **Local baseline**: nhánh `feature/ai-4-how-to` tại `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, cha trực tiếp là `develop` / `origin/develop` `0f877f196db7b89759af08aab825f0fff82f7c3c`. Sáu tệp mã nguồn và kiểm thử G5 khớp 6/6 mã băm SHA-256 đã được Tech Lead nghiệm thu tại `42438430ee49f404e90080c49a76e4c6446530da` (patch `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`).
-+- **Lưu trữ nguyên trạng công việc của Codex**: trước khi chỉnh sửa bất kỳ tệp nào, toàn bộ 48 tệp delta của Codex được xuất thành `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) và toàn bộ log thực thi tại `/tmp/p019-g6b-evidence` được bảo tồn nguyên vẹn trong `eval/evidence/2026-11-26-ai4-g6b/raw/codex-interrupted/` (cũng như đính kèm bản trích yếu trong `verification-bundle.zip`).
++- **Lưu trữ nguyên trạng công việc lịch sử**:
++  - Bản vá gián đoạn của Codex: `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng toàn bộ log `/tmp/p019-g6b-evidence`.
++  - Bản vá và bundle vòng 1 của Carbon (review tại mirror `de82afe7...`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
++- **Provenance `.env.example` và `.gitignore` giữa repo chính và mirror review**:
++  - Trên nhánh thực tế `feature/ai-4-how-to` @ `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, tệp `.env.example` đã tồn tại từ baseline (`100644 blob a96d656b68da0a1cf296ba586d92a72ac555cd79`, SHA-256 `7104c9ebe1a2ebbd3fb66c92412caf1707e21d743ee58f168eb8694a71247377` — không tự chế tạo template giả). Tệp này vắng mặt trên kho mirror công khai từ giai đoạn G5 do quy trình đồng bộ sang mirror bỏ qua `.env*`.
++  - Tệp `.gitignore` trên repo chính giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để không đẩy hàng trăm tệp log thô và nhật ký nội bộ vào nhánh sản phẩm; khi đồng bộ sang mirror review cần giữ đúng `.gitignore` này (hoặc loại trừ `raw/` và `collaboration_chat.md`) để khớp 50/50 cặp tệp.
 +- **Không chạm Unified Core và các engine đã nghiệm thu**: kiểm tra `git diff HEAD` xác nhận **0 byte thay đổi** trên `src/simulator/**`, `src/optimizer/**`, `src/guard/**`, `src/services/{runtime,control_loop,solver}.py`, `src/services/copilot/{why,evidence,trace_reader,snapshot,outcome_ledger,counterfactual,what_if,recommendation}.py`, `config/**` và `migrations/**`.
 +- **Phối hợp nhánh Frontend**: `origin/develop` (`0f877f1`) đã bao gồm các PR #17 (`unified-fullstack`), #22 (`voice-input`), #23 (`voice-security-review`) và #24 (`unified-core`). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, 23/11) là nhánh cũ trước khi port sang `unified-core`; không có thay đổi chưa gộp của đồng đội FE bị ghi đè. Không thay đổi thiết kế giao diện, CSS hay cấu hình gói.
 +
@@ -255,31 +269,37 @@ index 0000000..421c476
 +| **G6B-F02** (HIGH / Blocker) — Cô lập phiên cho voice input | `diagnostics/f02-voice-race-fail-before.log`: Vitest tái hiện Resident A dừng ghi âm khi `FileReader` đang chờ, logout rồi đăng nhập Resident B; khi `FileReader` hoàn tất, `/api/v1/chat/transcribe` bị gọi với audio của A nhưng gắn `Authorization: Bearer token-resident-B`. | Gia cố `frontend/src/components/resident/ChatPanel.tsx` (không đổi UI) và `useStream.ts`: chụp `capturedSession` + `capturedGeneration` + `voiceEpoch` ngay khi bắt đầu ghi âm; kiểm tra `isVoiceCurrent()` trước và sau mọi `await` (`getUserMedia`, `blobToBase64`, `fetch`); truyền `AbortSignal` để hủy transcribe đang bay khi đổi phiên; dừng ngay `MediaStream` tracks (kể cả khi `getUserMedia` trả về trễ) và gỡ `ondataavailable`/`onstop` trước khi `recorder.stop()` lúc unmount/logout để không phát sinh transcribe mới; lỗi `401` chỉ gọi `clearSessionIfCurrent(capturedGeneration)`. Kiểm chứng qua 5 bài test mới trong `voice-session-isolation.test.tsx` (`66/66` Vitest PASS). |
 +| **G6B-F03** (MEDIUM / Verification Blocker) — Selector Chromium `--ranked` | `diagnostics/f03-ranked-fail-before.log` (và `codex-browser-ranked.log` lịch sử): Playwright strict mode báo `exit=1` do `94 kW đầu vào lưới · Khả thi` khớp đồng thời thẻ xếp hạng `<strong>` trong `<ol>` và dòng ứng viên `<li>` trong `<details>`. | Giữ nguyên giao diện `ChatAdvisory.tsx` (bảo toàn cả danh sách xếp hạng lẫn danh sách ứng viên/bằng chứng); cập nhật `eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs` định vị tường minh `ol > li > strong` cho phương án xếp hạng và kiểm tra bổ sung `details ul > li` vẫn hiện diện. Chạy lại cả hai chế độ `two-roles` và `--ranked` đều đạt `exit 0`. |
 +| **G6B-F04** (HIGH / Workload Controls) — Kiểm soát tải tầng tích hợp | `diagnostics/f01-f04-fail-before.log`: lượt chat mô phỏng thứ 2 trong vòng 15s vẫn gọi `capture_atomic_snapshot` (`captures=2`) trước khi bị từ chối ở hàng đợi; gọi G6A `/api/v1/copilot/what-if` (`session=None`) lách hoàn toàn cooldown 15s (`202 Accepted`). Ngoài ra `/chat` chưa áp trần theo user và toàn tiến trình. | Trong `jobs.py` & `integration.py`: bổ sung `check_admission()` chạy **trước** `capture_atomic_snapshot`, bật `max_active_per_actor=1` cho instance ứng dụng và áp dụng kiểm tra active job + cooldown 15s xuyên suốt giữa Chat và G6A fallback (vẫn cho phép các lần thử tuần tự hợp lệ ở G6A khi không vướng cooldown chat). Trong `src/api/routes.py`: áp dụng thống nhất trần theo người dùng (`MAX_CONCURRENT_STREAMS_PER_USER=3`) và trần toàn cục (`MAX_GLOBAL_CONCURRENT_TURNS=8`) cho cả `/chat`, `/chat/stream` và `/chat/sessions/{id}`, fail-fast `429` và giải phóng permit an toàn trong `finally` kể cả khi `TimeoutError`/ngắt kết nối (`test_f04_*` PASS). |
-+| **G6B-F05** (Gate Blocker) — Bằng chứng cuối, khoảng trắng và gói bàn giao | `prompts/booking_reason.md:12` thừa dòng trống cuối file; thiếu `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` hoàn chỉnh. | Xóa dòng trống cuối `prompts/booking_reason.md` (`git diff --check` sạch tuyệt đối), bổ sung `/eval/evidence/2026-11-26-ai4-g6b/raw/` vào `.gitignore` để không đẩy hàng nghìn file log thô lên PR, kiểm tra loại trừ chuỗi JWT khỏi log, dựng `candidate.patch` từ `64c85f1`, xác minh `apply`/`reverse` trên cây sạch và đóng gói `verification-bundle.zip` kèm đầy đủ mã băm. |
++| **G6B-F05** (Gate Blocker → **PASS mã thực thi**) — Bằng chứng cuối, khoảng trắng và gói bàn giao | `prompts/booking_reason.md:12` thừa dòng trống cuối file; thiếu `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` hoàn chỉnh. | Xóa dòng trống cuối `prompts/booking_reason.md` (`git diff --check` sạch tuyệt đối), bổ sung `/eval/evidence/2026-11-26-ai4-g6b/raw/` vào `.gitignore`, kiểm tra loại trừ chuỗi JWT khỏi log, dựng `candidate.patch` từ `64c85f1`, xác minh `apply`/`reverse` trên cây sạch và đóng gói `verification-bundle.zip` kèm đầy đủ mã băm. |
++| **F01-R1** (HIGH / Vòng 2) — Công suất một đầu nối bị hiểu thành nguồn lưới toàn trạm | `diagnostics/f01-r1-r3-fail-before.log`: câu `"Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?"` kèm quyết định `site_limit=50` chạy tới `succeeded` và ảnh hưởng nhiều xe toàn trạm. | Trong `copilot_intent.py` (`SourceChange` & `MinTestedSiteLimitForSla`): bắt buộc chủ thể nguồn/lưới/đầu vào trạm (`_SITE_POWER_SUBJECT`) cho `site_limit`, đồng thời từ chối mọi mã đầu nối (`_CONNECTOR`), danh từ cổng/trụ/bộ sạc/tủ (`_PORT_OR_ZONE_SCOPE` + `_ACCENTED_PORT_SCOPE`, tách biệt đồng âm không dấu `cổng` vs `công suất`, `tủ` vs `từ`), phạm vi vùng AC/DC riêng lẻ, công suất sạc đầu ra và độ lệch tương đối kW (`_KW_DELTA`). Spy `capture_atomic_snapshot` xác nhận `0` lần chụp; đối chứng dương tính `50 kW` đầu vào lưới trạm chạy `succeeded`. |
++| **F01-R2** (HIGH / Vòng 2) — Mục tiêu nguồn theo lịch tương lai bị bỏ mất mốc thời gian | `diagnostics/f01-r1-r3-fail-before.log`: câu `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%."` bỏ qua `"từ ngày mai lúc 18h00"` và chạy ngay trên snapshot hiện tại. | Bổ sung `_has_site_temporal_condition` cho cả `SourceChange` và `MinTestedSiteLimitForSla` (sau khi tách `_HORIZON`): từ chối mọi mốc ISO, giờ đồng hồ, ngày (`hôm nay`/`ngày mai`), buổi trong ngày, độ dời tương đối hoặc khoảng thời lượng (`trong N phút`) không biểu diễn được trong hợp đồng hiện hành. Spy xác nhận `0` lần chụp; đối chứng dương tính tìm nguồn tức thời `22–106 kW`, SLA `95%`, bảo vệ AC chạy `succeeded`. |
++| **F01-R3** (HIGH / Vòng 2) — Dời hạn tương đối theo hạn gốc bị dịch nhầm thành tương đối theo `now` | `diagnostics/f01-r1-r3-fail-before.log`: tại đồng hồ `12:01+07` và hạn gốc `14:00+07`, câu `"Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?"` kèm `relative +30` tạo hạn `12:31+07` (sớm hơn 119 phút so với `14:30+07`). | Loại bỏ các cụm dịch chuyển so sánh (`muộn hơn`, `sớm hơn`, `trễ thêm`) khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`); bổ sung `_SHIFT_OFFSET`, `_NON_NOW_ANCHOR` và `_SOC_DELTA` trên cả WHAT-IF lẫn HOW-TO để trả `clarify("time")` / `unsupported` trước khi chụp snapshot khi người dùng neo theo hạn gốc/lịch cũ mà chưa nêu giờ tường minh. Đối chứng dương tính kiểm chứng cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`) trên đúng booking gốc. |
 +
-+## 3. Tách biệt Bằng chứng Lịch sử (Codex) và Bằng chứng Cuối cùng (Carbon)
++## 3. Tách biệt Bằng chứng Lịch sử (Codex & Vòng 1) và Bằng chứng Cuối cùng (Vòng 2)
 +
-+| Cổng kiểm tra | Kết quả lịch sử của Codex (`85ba2959...` / mirror `2c72e2b`) | Kết quả xác minh cuối cùng của Carbon (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
-+|---|---|---|
-+| Focused G6B (`test_unified_copilot.py`) | `11 passed` | **`17 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
-+| Hồi quy G2–G5 + G6A | `167 passed` | **`167 passed` (`exit 0`)** |
-+| Legacy booking Agent & HITL | `97 passed` | **`97 passed` (`exit 0`)** |
-+| Architecture (`test_architecture.py`) | `43 passed` | **`43 passed` (`exit 0`)** |
-+| Full Backend (`pytest -q -rs tests`) | `849 passed, 8 skipped` | **`855 passed, 8 forecast skips` (`exit 0`, 98.77s, bỏ biến môi trường proxy)** |
-+| Simulator độc lập (`src/simulator/tests`) | `180 passed` | **`180 passed` (`exit 0`)** |
-+| Unified Core / G2–G5 engine diff | `0 diff` | **`0 byte diff` so với `64c85f1` (kế thừa Golden 38/38, Frozen 100/100, 253 AST)** |
-+| Ruff lint & format | `PASS` | **`PASS / PASS` (`exit 0`)** |
-+| Docs (`scripts/check_docs.py`) | `PASS` local (mirror thiếu `.env.example`) | **`PASS` (`exit 0`, 50 tệp md, 131 liên kết nội bộ; `.env.example` có sẵn ở local)** |
-+| OpenAPI (`export_openapi.py --check`) | `PASS` | **`PASS` (`exit 0`)** |
-+| Offline F1 (`run_agent_eval.py --offline`) | `55/55` hợp lệ | **`55/55` câu/ngưỡng hợp lệ (`exit 0`)** |
-+| Frontend Vitest | `61 passed` (17 tệp) | **`66 passed` (18 tệp, `exit 0`, gồm 5 ca cô lập voice/WS/HOW-TO UI mới)** |
-+| Frontend ESLint / TypeScript / `gen:api` parity | `PASS` | **`PASS / PASS / PASS` (`exit 0`, `schema.d.ts` khớp byte)** |
-+| Frontend Production Build (Webpack) | `PASS` (17/17 trang) | **`PASS` (`exit 0`, 17/17 trang trên cây xuất sạch)** |
-+| Frontend Production Build (Turbopack) | Lỗi bind cổng ở sandbox cũ | **`PASS` (`exit 0` với `npm run build` trực tiếp trên `P-019/frontend` dùng `node_modules` thật)** |
-+| Chromium smoke — hai vai trò (`two-roles`) | `PASS` | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, Resident WHY/WHAT-IF/WHY+HOW-TO + logout/second-resident + Operator WHY+HOW-TO/WHAT-IF, `0` nút Áp dụng)** |
-+| Chromium smoke — xếp hạng M3b (`--ranked`) | `FAIL` (`exit=1`, strict-mode locator) | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, `options[0].value=94`, `search_status="partial"`, `applied=false`, khớp cả `<ol>` lẫn `<details>`)** |
-+| Real LLM provider smoke | `PENDING_NO_AUTHORIZED_KEY` | **`PENDING_NO_AUTHORIZED_KEY`** (`openai` / `gpt-4o-mini` / `gpt-4o`, chưa cấu hình API key, `127.0.0.1:11434` đóng) |
-+| PostgreSQL live runtime | `PENDING` | **`PENDING`** (kiểm thử dùng SQLite tạm qua Alembic migrations `0001 -> 0004`) |
++*(Lưu ý: các bộ `Focused G6B`, `G2–G5 + G6A`, `Legacy F1` và `Architecture` là tập con của `Full Backend`, tuyệt đối không cộng dồn với `857`.)*
++
++| Cổng kiểm tra | Kết quả lịch sử Codex (`2c72e2b`) | Kết quả Vòng 1 Carbon (`de82afe7`) | Kết quả Vòng 2 Cuối cùng (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
++|---|---|---|---|
++| Focused G6B (`test_unified_copilot.py`) | `11 passed` | `17 passed` | **`19 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
++| Reproducer độc lập `F01-R1`..`F01-R3` | `3 failed` | `3 failed` | **`3 passed` (`exit 0`, `0` snapshot capture / `0` job sai ngữ nghĩa)** |
++| Hồi quy G2–G5 + G6A | `167 passed` | `167 passed` | **`167 passed` (`exit 0`)** |
++| Legacy booking Agent & HITL | `97 passed` | `97 passed` | **`97 passed` (`exit 0`)** |
++| Architecture (`test_architecture.py`) | `43 passed` | `43 passed` | **`43 passed` (`exit 0`)** |
++| Full Backend (`pytest -q -rs tests`) | `849 passed, 8 skips` | `855 passed, 8 skips` | **`857 passed, 8 forecast skips` (`exit 0`, 101.87s)** |
++| Simulator độc lập (`src/simulator/tests`) | `180 passed` | `180 passed` | **`180 passed` (`exit 0`)** |
++| Unified Core / G2–G5 engine diff | `0 diff` | `0 diff` | **`0 byte diff` so với `64c85f1` (kế thừa Golden 38/38, Frozen 100/100, 253 AST)** |
++| Ruff lint & format | `PASS` | `PASS / PASS` | **`PASS / PASS` (`exit 0`)** |
++| Docs (`scripts/check_docs.py`) | `PASS` local | `PASS` local | **`PASS` (`exit 0`, 50 tệp md, 131 liên kết; dùng `.env.example` gốc `a96d656...`)** |
++| OpenAPI (`export_openapi.py --check`) | `PASS` | `PASS` | **`PASS` (`exit 0`)** |
++| Offline F1 (`run_agent_eval.py --offline`) | `55/55` hợp lệ | `55/55` hợp lệ | **`55/55` câu/ngưỡng hợp lệ (`exit 0`)** |
++| Frontend Vitest | `61 passed` (17 tệp) | `66 passed` (18 tệp) | **`66 passed` (18 tệp, `exit 0`)** |
++| Frontend ESLint / TypeScript / `gen:api` parity | `PASS` | `PASS / PASS / PASS` | **`PASS / PASS / PASS` (`exit 0`, `schema.d.ts` khớp byte)** |
++| Frontend Production Build (Webpack) | `PASS` | `PASS` | **`PASS` (`exit 0`, 17/17 trang trên cây xuất sạch)** |
++| Frontend Production Build (Turbopack) | Lỗi bind ở sandbox cũ | `PASS` | **`PASS` (`exit 0` với `npm run build` trên `P-019/frontend`)** |
++| Chromium smoke — hai vai trò (`two-roles`) | `PASS` | `PASS` | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, Resident + Operator + logout isolation, `0` nút Áp dụng)** |
++| Chromium smoke — xếp hạng M3b (`--ranked`) | `FAIL` (`exit=1`) | `PASS` (`exit 0`) | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, `options[0].value=94`, `search_status="partial"`, `applied=false`, khớp cả `<ol>` lẫn `<details>`)** |
++| Real LLM provider smoke | `PENDING` | `PENDING` | **`PENDING_NO_AUTHORIZED_KEY`** (`openai` / `gpt-4o-mini` / `gpt-4o`, chưa cấu hình API key) |
++| PostgreSQL live runtime | `PENDING` | `PENDING` | **`PENDING`** (SQLite tạm qua Alembic migrations `0001 -> 0004`) |
 +
 +## 4. Giới hạn Phạm vi & Các Mục Dành Riêng cho G7 / Production Readiness
 +
@@ -299,7 +319,7 @@ index 0000000..421c476
 +
 +**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 6B)**
 diff --git a/docs/ai4/PROJECT_STATE.md b/docs/ai4/PROJECT_STATE.md
-index 6386a51..5d507dd 100644
+index 6386a51..5869829 100644
 --- a/docs/ai4/PROJECT_STATE.md
 +++ b/docs/ai4/PROJECT_STATE.md
 @@ -16,4 +16,6 @@ Roadmap 26/11 do Project Owner và nhóm chọn là **Merged baseline readiness
@@ -308,10 +328,10 @@ index 6386a51..5d507dd 100644
  - **G5 — READY_FOR_FINAL_ACCEPTANCE (Tested).** Sau CONDITIONAL PASS tại `9ecb1af`, đã xử lý F01–F04. Candidate cuối 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, standalone 180. 10/10 cổng exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip)
 -- **G6B/G7 — Planned.** Chờ G5 review trước. Real LLM và PostgreSQL runtime PENDING.
 +- Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c49a76e4c6446530da`. Candidate SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle SHA-256 `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`. Tech Lead xác nhận 6/6 blob, 6/6 source hash, 26/26 checksum nội dung, oracle M3a/M3b, hai trường hợp có cải thiện và không cải thiện, G5-F01–F04 đã xử lý, 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, 180 standalone và 10/10 cổng exit 0. G5 đóng, chỉ xử lý blocker tích hợp đã xác nhận nếu có.
-+- **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY (Tested, chưa đánh dấu APPROVED).** Tech Lead review candidate gián đoạn tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (tương ứng patch lịch sử `85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6` của Codex) với verdict `CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED` (G6B-F01–F05). Carbon đã tiếp quản, bảo tồn nguyên vẹn delta/log của Codex, tái hiện fail-before cho F01–F04, khắc phục đầy đủ F01–F05 mà không chạm Unified Core hay G2–G5 engines (`0 byte diff`), chạy đạt toàn bộ `11/11` cổng backend (`17` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture, `855 passed + 8 forecast skips` toàn backend, `180` standalone), `7/7` cổng frontend (`66/66` Vitest trên 18 tệp, ESLint, TypeScript, OpenAPI parity, Webpack & Turbopack build `exit 0`), và cả `2/2` kịch bản Chromium smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). Đã đóng gói [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch), [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`) và PostgreSQL runtime (`PENDING`) giữ cho G7. [Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md)
++- **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY (Tested, chưa đánh dấu APPROVED).** Tech Lead đã thực hiện 2 vòng review độc lập: vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (patch Codex `85ba2959...`) và vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (patch vòng 1 Carbon `dab76e32...`, đóng F02–F04 và provenance mã thực thi F05, yêu cầu xử lý dứt điểm `F01-R1`..`F01-R3`). Carbon đã tái hiện fail-before, khắc phục đầy đủ `F01-R1`..`F01-R3` cùng các biến thể liền kề mà không chạm Unified Core hay G2–G5 engines (`0 byte diff`), chạy đạt toàn bộ `11/11` cổng backend (`857 passed + 8 forecast skips` toàn backend — trong đó có các tập con `19` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone), `7/7` cổng frontend (`66/66` Vitest trên 18 tệp, ESLint, TypeScript, OpenAPI parity, Webpack & Turbopack build `exit 0`), và cả `2/2` kịch bản Chromium smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). Đã cập nhật [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch), [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`) và PostgreSQL runtime (`PENDING`) giữ cho G7. [Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md)
 +- **G7 — Planned.** Held-out NL evaluation, load/concurrency 1.000 users, MemorySaver retention/pruning, Real LLM và PostgreSQL runtime PENDING.
 diff --git a/docs/handoff/HANDOFF.md b/docs/handoff/HANDOFF.md
-index d72b71b..1972cc2 100644
+index d72b71b..3878ef8 100644
 --- a/docs/handoff/HANDOFF.md
 +++ b/docs/handoff/HANDOFF.md
 @@ -88,6 +88,8 @@ vẫn ghi nhận trạng thái của lượt 25/11.
@@ -328,7 +348,7 @@ index d72b71b..1972cc2 100644
  ### 1.3 Task Phase 1
  
 -**G5 (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Targeted remediation F01–F04 đã qua 10 cổng. Tech Lead nhận nghiệm thu cuối.
-+**G6B (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Sau quyết định `CONDITIONAL PASS` tại mirror `2c72e2b`, Carbon đã bảo tồn toàn bộ công việc của Codex (`85ba2959...`), tái hiện fail-before và hoàn thành khắc phục F01–F05 qua đầy đủ các cổng backend (`855 passed + 8 skips`), standalone (`180`), frontend (`66 passed`, Webpack & Turbopack) và Chromium (`two-roles` & `--ranked`). Đã nhả khóa chờ Tech Lead nghiệm thu cuối. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) · [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
++**G6B (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Sau vòng 1 (`2c72e2b`) và vòng 2 (`de82afe7`, nơi F02–F04 đã PASS và còn mở `F01-R1`..`F01-R3`), Carbon đã tái hiện fail-before và hoàn tất khắc phục `F01-R1`..`F01-R3` cùng các biến thể liền kề qua đầy đủ các cổng backend (`857 passed + 8 skips`, tập con focused G6B `19 passed`), standalone (`180`), frontend (`66 passed`, Webpack & Turbopack) và Chromium (`two-roles` & `--ranked`). Đã nhả khóa chờ Tech Lead nghiệm thu cuối. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) · [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
 +**G5 (26/11) — APPROVED (`42438430`).** Targeted remediation F01–F04 đã qua 10 cổng và được Tech Lead nghiệm thu chính thức.
  [Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
@@ -338,7 +358,7 @@ index d72b71b..1972cc2 100644
  
  ### 1.4 Kiểm thử và bằng chứng
  
-+**G6B targeted remediation trên `64c85f1`, Carbon, 26/11.** Cổng xuất sạch đạt `11/11` backend (`17` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture, `855` backend + `8` forecast skips, `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`), `7/7` frontend (`66` Vitest / 18 tệp, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack build) và `2/2` Chromium headless smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). `0 byte diff` trên Unified Core và G2–G5 engines. [Bundle G6B](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
++**G6B targeted remediation vòng 2 trên `64c85f1`, Carbon, 26/11.** Cổng xuất sạch đạt `11/11` backend (`857` backend + `8` forecast skips — gồm các tập con `19` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`), `7/7` frontend (`66` Vitest / 18 tệp, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack build) và `2/2` Chromium headless smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). `0 byte diff` trên Unified Core và G2–G5 engines. [Bundle G6B](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +
  **Merged develop `0f877f1`, Codex, 26/11.** Focused 399 pass, backend 808 pass + 8 forecast skips, standalone 180,
  frontend 59, Golden 38/38 và frozen backend 100/100. **Patch G5** qua 24 focused, 180 regression G2/G3/G4/G6A,
@@ -347,7 +367,7 @@ index d72b71b..1972cc2 100644
  
  ### 1.8 Trạng thái Git
  
-+**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận từ Codex có 48 tệp delta G6B (lưu trữ tại `85ba2959...`); sau targeted remediation F01–F05 của Carbon gồm 50 tệp trong `candidate.patch` + gói `verification-bundle.zip` (ngoài ra có tệp chỉ thị review `G6B_TECH_LEAD_REVIEW_AND_CARBON_HANDOFF.md` ở gốc repo được giữ nguyên). Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
++**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận từ Codex có 48 tệp delta G6B (lưu trữ tại `85ba2959...`), vòng 1 Carbon lưu trữ tại `dab76e32...`; sau targeted remediation vòng 2 (`F01-R1`..`F01-R3`) gồm 50 tệp trong `candidate.patch` + gói `verification-bundle.zip` (ngoài ra có tệp chỉ thị review `G6B_TECH_LEAD_REVIEW.md` ở gốc repo được giữ nguyên). Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
 +
  - **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
    Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
@@ -356,7 +376,7 @@ index d72b71b..1972cc2 100644
  
  ### 1.9 Agent và khoá chỉnh sửa
  
-+**G6B targeted remediation (2026-11-26).** Carbon đã hoàn tất xử lý F01–F05 theo verdict `CONDITIONAL PASS` (`G6B_TECH_LEAD_REVIEW_AND_CARBON_HANDOFF.md`, mirror `2c72e2b`), xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
++**G6B targeted remediation vòng 2 (2026-11-26).** Carbon đã hoàn tất xử lý `F01-R1`..`F01-R3` theo verdict `CONDITIONAL PASS` (`G6B_TECH_LEAD_REVIEW.md`, mirror `de82afe7`), xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói lại bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
 +**G6B (2026-11-26).** Codex nhận khoá cập nhật quyết định G5 và implementation G6B gồm chat, services/models, API, frontend tích hợp, tests và tài liệu AI-4. Baseline local `64c85f1`, cây ban đầu sạch, một worktree, các khoá G5 đã nhả. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
@@ -373,10 +393,12 @@ index d72b71b..1972cc2 100644
  
  1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
     (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
-@@ -324,6 +335,10 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
+@@ -324,6 +335,12 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
  
  ### 1.11 Nhật ký checkpoint
  
++**26/11, Carbon (vòng 2).** Tiếp nhận review độc lập `de82afe7` (F02–F04 PASS, mở lại `F01-R1`..`F01-R3`), lưu trữ patch vòng 1 `dab76e32...`, tái hiện fail-before `3/3` và hoàn tất khắc phục `F01-R1`..`F01-R3` + 4 đối chứng dương tính qua `11/11` cổng backend (`857 passed + 8 skips`), `7/7` cổng frontend và `2/2` Chromium smokes. Đóng gói `candidate.patch` + `verification-bundle.zip` mới, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
++
 +**26/11, Carbon.** Tiếp quản G6B từ Codex sau review `CONDITIONAL PASS` (`2c72e2b`), bảo tồn patch `85ba2959...` và raw logs lịch sử, tái hiện fail-before và hoàn tất remediation G6B-F01–F05 qua `11/11` cổng backend, `7/7` cổng frontend và `2/2` Chromium smokes. Đóng gói `candidate.patch` + `verification-bundle.zip`, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
 +
 +**26/11, Codex.** Ghi Tech Lead APPROVED cho G5. Đối chiếu candidate G5 với local HEAD và nhận khoá G6B.
@@ -4229,7 +4251,7 @@ index 82e9dab..d62af98 100644
  def render_why(answer: WhyAnswer, source: ParseSource | None = None) -> WhyReply:
      gate = GroundingGate.for_why(answer)
 diff --git a/src/agents/copilot_intent.py b/src/agents/copilot_intent.py
-index 6c8418b..a9788d3 100644
+index 6c8418b..16befc3 100644
 --- a/src/agents/copilot_intent.py
 +++ b/src/agents/copilot_intent.py
 @@ -1,21 +1,25 @@
@@ -4283,7 +4305,7 @@ index 6c8418b..a9788d3 100644
  )
  _HOW_TO = re.compile(
      r"\b(?:bao nhieu|toi thieu|toi da|lam sao|cach nao|nen lam gi|nen tang|khuyen nghi|how (?:much|to)|"
-@@ -66,18 +77,50 @@ _HOW_TO = re.compile(
+@@ -66,18 +77,101 @@ _HOW_TO = re.compile(
  )
  _WHAT_IF = re.compile(r"\b(?:neu|gia su|thu mo phong|what if|simulate)\b")
  _WHY = re.compile(r"\b(?:tai sao|vi sao|giai thich|ly do|why)\b")
@@ -4313,6 +4335,32 @@ index 6c8418b..a9788d3 100644
 +    r"(\d+(?:[.,]\d+)?)\s*(?:kw)?\s*(?:den|toi|-|–|to)\s*(\d+(?:[.,]\d+)?)\s*kw\b"
 +)
  _GRID_SUBJECT = re.compile(r"\b(?:grid(?: input)?|dau vao|luoi|nguon)\b")
++_SITE_POWER_SUBJECT = re.compile(
++    r"\b(?:grid(?:\s+input)?|dau vao(?:\s+luoi)?|luoi(?:\s+dien)?|nguon(?:\s+dien|\s+cap|\s+tram|\s+bai)?|"
++    r"cong suat\s+(?:tram|bai|nguon|luoi|dau vao)|tong\s+cong suat|site(?:\s+limit|\s+input|\s+power)?)\b"
++)
++_PORT_OR_ZONE_SCOPE = re.compile(
++    r"\b(?:cong\s+(?:sac|so|\d|ac|dc)|(?:cua|tai|o|mot|cac|moi|tung)\s+cong\b|"
++    r"dau noi|tru\s+(?:sac|ac|dc|\d)|bo sac|tu\s+(?:sac|dien|phan\s+phoi|ac|dc)|"
++    r"connector|port|charger|cabinet|"
++    r"vung\s+(?:ac|dc)|nguon\s+(?:ac|dc)|luoi\s+(?:ac|dc)|cong suat\s+(?:ac|dc|sac)|"
++    r"nguon\s+rieng|doc lap|independent\s+supply|charging\s+power)\b"
++)
++_ACCENTED_PORT_SCOPE = re.compile(r"\b(?:cổng|trụ|tủ)\b")
++_KW_DELTA = re.compile(
++    r"\b(?:giam\s+(?:nguon\s+|cong suat\s+|luoi\s+)?(?:di|bot)|tang\s+(?:nguon\s+|cong suat\s+|luoi\s+)?them|"
++    r"bot(?:\s+di)?|cong\s+them|tru\s+di|reduce(?:\s+by)?|increase(?:\s+by)?)\s*\d+(?:[.,]\d+)?\s*kw\b"
++    r"|\b\d+(?:[.,]\d+)?\s*kw\s*(?:so voi|hon|kem)\b"
++)
++_SOC_DELTA = re.compile(
++    r"\b(?:giam\s+(?:muc tieu\s+|pin\s+|soc\s+)?(?:di|bot)|tang\s+(?:muc tieu\s+|pin\s+|soc\s+)?them|"
++    r"bot(?:\s+di)?|cong\s+them|tru\s+di|reduce(?:\s+by)?|increase(?:\s+by)?)\s*\d+(?:[.,]\d+)?\s*%"
++    r"|\b\d+(?:[.,]\d+)?\s*%\s*(?:so voi|hon|kem)\s*(?:muc|pin|soc|cam ket|ban dau|goc|hien tai)\b"
++)
++_UNSUPPORTED_VEHICLE_ASPECT = re.compile(
++    r"\b(?:xe\s+den\s+(?:muon|som)|den\s+(?:tram|bai)\s+(?:muon|som|luc)|doi\s+gio\s+den|gio\s+den\s+moi|"
++    r"change\s+arrival|gia su pin hien tai|neu pin hien tai|doi pin hien tai)\b"
++)
  _OUTPUT = re.compile(r"\b(?:dau ra|output)\b")
  _HYPOTHETICAL = re.compile(r"\b(?:gia dinh (?:nang cap )?ha tang|ha tang gia dinh|hypothetical infrastructure)\b")
  _DURATION = re.compile(r"\b(?:trong|keo dai|for)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
@@ -4321,7 +4369,32 @@ index 6c8418b..a9788d3 100644
 +_HORIZON = re.compile(
 +    r"\b(?:horizon|cua so(?:\s+mo phong)?|mo phong trong|khung mo phong)\s*(?:la\s*|con\s*)?(\d+)\s*(phut|gio|minutes?|hours?)\b"
 +)
-+_RELATIVE = re.compile(r"\b(sau|truoc|in|tre them|muon hon|som hon)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
++_RELATIVE = re.compile(r"\b(sau|truoc|in)\s*(\d+)\s*(phut|gio|minutes?|hours?)(?:\s*nua)?\b")
++_SHIFT_OFFSET = re.compile(
++    r"\b(?:muon hon|som hon|tre them|muon them|som them|lui(?:\s+han|\s+gio|\s+them)*|"
++    r"keo dai\s+han(?:\s+them)*|gia han(?:\s+them)*|rut ngan\s+han(?:\s+them)*|"
++    r"extend(?:ed)?(?:\s+the)?(?:\s+deadline)?(?:\s+by)?|"
++    r"delay(?:ed)?(?:\s+the)?(?:\s+deadline)?(?:\s+by)?)\s*\d+\s*(?:phut|gio|minutes?|hours?)\b"
++    r"|\b\d+\s*(?:phut|gio|minutes?|hours?)\s*(?:later|earlier|"
++    r"(?:sau|truoc|so voi)\s+(?:han|gio\s+lay\s+xe|gio\s+den|lich|cam ket|du kien|original|current|scheduled))\b"
++)
++_NON_NOW_ANCHOR = re.compile(
++    r"\b(?:so voi|tinh tu|ke tu|than)\s+(?:the\s+)?"
++    r"(?:han(?:\s+goc|\s+cu|\s+hien\s+tai|\s+da\s+dat)?|"
++    r"gio\s+(?:lay\s+xe|roi|den|hen)(?:\s+goc|\s+cu|\s+hien\s+tai)?|"
++    r"lich(?:\s+goc|\s+cu|\s+hien\s+tai)?|"
++    r"cam ket(?:\s+goc|\s+hien\s+tai)?|"
++    r"original\s+deadline|current\s+deadline|scheduled\s+(?:deadline|departure|arrival))\b"
++    r"|\b(?:sau|truoc|from|after|before)\s+(?:the\s+)?"
++    r"(?:han\s+(?:goc|cu|hien\s+tai|da\s+dat)|han\s+\d+\s*(?:phut|gio)|"
++    r"gio\s+(?:lay\s+xe|roi|den|hen)(?:\s+goc|\s+cu|\s+hien\s+tai)?|"
++    r"lich\s+(?:goc|cu|hien\s+tai)|"
++    r"original\s+deadline|current\s+deadline|scheduled\s+(?:deadline|departure|arrival)|khi\s+xe)\b"
++)
++_DAY_PART = re.compile(
++    r"\b(?:(?:vao|tu|luc)\s+(?:sang|trua|chieu|toi|dem)\s+nay|dem nay|sang mai|trua mai|chieu mai|toi mai|dem mai|tonight)\b"
++)
++_ACCENTED_DAY_PART = re.compile(r"\b(?:sáng nay|trưa nay|chiều nay|tối nay|đêm nay)\b")
 +_REL_RANGE = re.compile(
 +    r"(?:(?:tu|trong khoang|khoang)\s+)?sau\s*(\d+)\s*(phut|gio|minutes?|hours?)?\s*"
 +    r"(?:den|toi|-|–|to)\s*(?:sau\s*)?(\d+)\s*(phut|gio|minutes?|hours?)\b"
@@ -4337,7 +4410,7 @@ index 6c8418b..a9788d3 100644
  _BOOKING = re.compile(r"\b(?:booking|mã lịch|ma lich)\s*[:#]?\s*([A-Za-z0-9_-]{1,64})(?![\w-])", re.I)
  _CONNECTOR = re.compile(r"\b(?:AC|DC)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+\b", re.I)
  
-@@ -98,32 +141,96 @@ def _number(raw: str) -> float:
+@@ -98,32 +192,100 @@ def _number(raw: str) -> float:
      return float(raw.replace(",", "."))
  
  
@@ -4359,7 +4432,12 @@ index 6c8418b..a9788d3 100644
 +
 +
  def _time(raw: str, text: str) -> tuple[TimeSelection | None, bool]:
-     if re.search(r"\b\d+\s*(?:giay|seconds?)\b|\b(?:sau|truoc|in)\s*\d+[.,]\d+", text):
+-    if re.search(r"\b\d+\s*(?:giay|seconds?)\b|\b(?:sau|truoc|in)\s*\d+[.,]\d+", text):
++    if (
++        re.search(r"\b\d+\s*(?:giay|seconds?)\b|\b(?:sau|truoc|in)\s*\d+[.,]\d+", text)
++        or _SHIFT_OFFSET.search(text)
++        or _NON_NOW_ANCHOR.search(text)
++    ):
          return None, True
      absolute = _ISO.findall(raw)
      relative = _RELATIVE.findall(text)
@@ -4400,7 +4478,7 @@ index 6c8418b..a9788d3 100644
  
  
 +def _time_range(raw: str, text: str) -> tuple[tuple[TimeSelection, TimeSelection] | None, bool]:
-+    if re.search(r"\b\d+\s*(?:giay|seconds?)\b", text):
++    if re.search(r"\b\d+\s*(?:giay|seconds?)\b", text) or _SHIFT_OFFSET.search(text) or _NON_NOW_ANCHOR.search(text):
 +        return None, True
 +    isos = _ISO.findall(raw)
 +    if len(isos) == 2:
@@ -4442,7 +4520,7 @@ index 6c8418b..a9788d3 100644
  def _clarify(field):
      return ClarifyIntent(kind="clarify", field=field)
  
-@@ -211,16 +318,18 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
+@@ -211,16 +373,18 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
          )
      elif socs or deadline:
          proposed = _SOC.findall(text)
@@ -4463,7 +4541,7 @@ index 6c8418b..a9788d3 100644
              deadline=when,
          )
      else:
-@@ -228,6 +337,563 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
+@@ -228,6 +392,621 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
      return WhatIfIntent(kind="what_if", change=change, horizon_minutes=horizon)
  
  
@@ -4655,6 +4733,23 @@ index 6c8418b..a9788d3 100644
 +    return None
 +
 +
++def _has_site_temporal_condition(raw_without_horizon: str, without_horizon: str) -> bool:
++    return bool(
++        _ISO.search(raw_without_horizon)
++        or _CLOCK.search(without_horizon)
++        or _SPOKEN_CLOCK.search(without_horizon)
++        or _DAY.search(without_horizon)
++        or _DAY_PART.search(without_horizon)
++        or _ACCENTED_DAY_PART.search(raw_without_horizon.casefold())
++        or _RELATIVE.search(without_horizon)
++        or _REL_RANGE.search(without_horizon)
++        or _SHIFT_OFFSET.search(without_horizon)
++        or _NON_NOW_ANCHOR.search(without_horizon)
++        or _DURATION.search(without_horizon)
++        or _DEADLINE.search(without_horizon)
++    )
++
++
 +def conflicts_with_simulation(
 +    message: str,
 +    args: WhatIfIntent | RecommendationGoal | HowToRequest,
@@ -4728,18 +4823,34 @@ index 6c8418b..a9788d3 100644
 +
 +    if change is not None:
 +        if isinstance(change, SourceChange):
-+            if _OUTAGE_ACTION.search(text) or _PERCENT.search(text) or _DEADLINE.search(text) or explicit_bookings:
-+                return "unsupported"
-+            if _RELATIVE.search(without_horizon) or _CLOCK.search(without_horizon) or _ISO.search(raw_without_horizon):
++            if (
++                _OUTAGE_ACTION.search(text)
++                or _PERCENT.search(text)
++                or explicit_bookings
++                or _CONNECTOR.search(message)
++                or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
++                or _PORT_OR_ZONE_SCOPE.search(without_horizon)
++                or re.search(r"\b(?:ac|dc)\b", without_horizon)
++                or _KW_DELTA.search(without_horizon)
++                or _has_site_temporal_condition(raw_without_horizon, without_horizon)
++            ):
 +                return "unsupported"
 +            if _OUTPUT.search(without_horizon):
++                return "grid_input"
++            has_subject = bool(_SITE_POWER_SUBJECT.search(without_horizon)) or any(
++                _SITE_POWER_SUBJECT.search(_HORIZON.sub("", p_text)) for p_text in prior_texts
++            )
++            if not has_subject:
 +                return "grid_input"
 +            proposed_kw, kw_conflict = _extract_single_grid_kw(without_horizon)
 +            if kw_conflict:
 +                return "unsupported"
 +            if proposed_kw is None:
 +                for p_text in reversed(prior_texts):
-+                    proposed_kw, kw_conflict = _extract_single_grid_kw(_HORIZON.sub("", p_text))
++                    p_clean = _HORIZON.sub("", p_text)
++                    if _PORT_OR_ZONE_SCOPE.search(p_clean) or _KW_DELTA.search(p_clean):
++                        return "unsupported"
++                    proposed_kw, kw_conflict = _extract_single_grid_kw(p_clean)
 +                    if kw_conflict or proposed_kw is not None:
 +                        break
 +            if kw_conflict:
@@ -4814,7 +4925,14 @@ index 6c8418b..a9788d3 100644
 +            return None
 +
 +        # VehicleChange
-+        if _GRID.search(without_horizon) or _OUTAGE_ACTION.search(text) or _CONNECTOR.search(message):
++        if (
++            _GRID.search(without_horizon)
++            or _OUTAGE_ACTION.search(text)
++            or _CONNECTOR.search(message)
++            or _DURATION.search(without_horizon)
++            or _SOC_DELTA.search(without_horizon)
++            or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
++        ):
 +            return "unsupported"
 +        if explicit_bookings and (
 +            change.booking_id is None or change.booking_id.casefold() != explicit_bookings[0].casefold()
@@ -4864,7 +4982,18 @@ index 6c8418b..a9788d3 100644
 +    # HOW-TO RecommendationGoal validation
 +    assert goal is not None
 +    if isinstance(goal, MinTestedSiteLimitForSla):
-+        if _OUTAGE_ACTION.search(text) or _OUTPUT.search(without_horizon):
++        without_ac_sla = _AC_WAIVE.sub("", _AC_PROTECT.sub("", without_horizon))
++        if (
++            _OUTAGE_ACTION.search(text)
++            or _OUTPUT.search(without_horizon)
++            or explicit_bookings
++            or _CONNECTOR.search(message)
++            or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
++            or _PORT_OR_ZONE_SCOPE.search(without_ac_sla)
++            or re.search(r"\b(?:ac|dc)\b", without_ac_sla)
++            or _KW_DELTA.search(without_horizon)
++            or _has_site_temporal_condition(raw_without_horizon, without_horizon)
++        ):
 +            return "unsupported"
 +        kw_ranges = list(_KW_RANGE.finditer(without_horizon))
 +        if len(kw_ranges) > 1:
@@ -4924,7 +5053,14 @@ index 6c8418b..a9788d3 100644
 +    # Resident HOW-TO goals
 +    if explicit_bookings and goal.booking_id.casefold() != explicit_bookings[0].casefold():
 +        return "unsupported"
-+    if _GRID.search(without_horizon) or _OUTAGE_ACTION.search(text):
++    if (
++        _GRID.search(without_horizon)
++        or _OUTAGE_ACTION.search(text)
++        or _CONNECTOR.search(message)
++        or _DURATION.search(without_horizon)
++        or _SOC_DELTA.search(without_horizon)
++        or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
++    ):
 +        return "unsupported"
 +
 +    if isinstance(goal, MaxSocByDeadline):
@@ -6505,10 +6641,10 @@ index 37ff826..d9c930b 100644
  @pytest.mark.parametrize(
 diff --git a/tests/test_api/test_unified_copilot.py b/tests/test_api/test_unified_copilot.py
 new file mode 100644
-index 0000000..c4a06a6
+index 0000000..76ab847
 --- /dev/null
 +++ b/tests/test_api/test_unified_copilot.py
-@@ -0,0 +1,693 @@
+@@ -0,0 +1,888 @@
 +"""Mock only the language-model boundary and exercise the authorized engines through chat."""
 +
 +import asyncio
@@ -7202,3 +7338,198 @@ index 0000000..c4a06a6
 +    timed_out = await client.post(CHAT, headers=resident, json={"message": "Quá hạn", "session_id": "timeout-s"})
 +    assert timed_out.status_code == 503
 +    assert routes._active_global_turns == 0 and not routes._active_user_streams and not routes._active_threads
++
++
++async def test_f01_r1_r2_r3_and_adjacent_anchor_scope_defects_rejected_before_capture(demo_api, monkeypatch):
++    client, rt, own, _, resident, _, operator = demo_api
++
++    async def no_capture(*args, **kwargs):
++        pytest.fail("Unrepresentable connector/time/reference-anchor requests must never capture snapshot")
++
++    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
++    shifted_max = _max_at(
++        rt,
++        30,
++        booking_id=own.booking_id,
++        low=65,
++        high=75,
++        allow_lower_target=True,
++        allow_later_deadline=True,
++        allow_subject_original_sla_regression=True,
++    )
++    shifted_max["deadline"] = shifted_max["deadline"].isoformat()
++
++    provider(
++        monkeypatch,
++        # F01-R1: single-connector rating mapped to site_limit
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++        # F01-R2: future scheduled site HOW-TO mapped to immediate snapshot site goal
++        decision(
++            "copilot_how_to",
++            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
++        ),
++        # F01-R3: relative to original deadline mapped to relative-to-now +30m
++        decision(
++            "copilot_what_if",
++            {
++                "kind": "what_if",
++                "change": {
++                    "op": "revise_vehicle",
++                    "booking_id": own.booking_id,
++                    "deadline": {"kind": "relative", "offset_minutes": 30},
++                },
++            },
++        ),
++        # Adjacent 1: zone-specific power mapped to site_limit
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++        # Adjacent 2: relative kW delta mapped to absolute site_limit
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 20}}),
++        # Adjacent 3: temporary duration site limit mapped to full-horizon site_limit
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++        # Adjacent 4: zone-specific HOW-TO mapped to station-wide MinTestedSiteLimitForSla
++        decision("copilot_how_to", {"goal": _site(22, 106, min_original_on_time_rate=0.95)}),
++        # Adjacent 5: comparative deadline shift without "so với hạn gốc" ("lùi hạn 30 phút")
++        decision(
++            "copilot_what_if",
++            {
++                "kind": "what_if",
++                "change": {
++                    "op": "revise_vehicle",
++                    "booking_id": own.booking_id,
++                    "deadline": {"kind": "relative", "offset_minutes": 30},
++                },
++            },
++        ),
++        # Adjacent 6: relative SOC delta ("giảm mục tiêu đi 15%") mapped to target_soc=15
++        decision(
++            "copilot_what_if",
++            {"kind": "what_if", "change": {"op": "revise_vehicle", "booking_id": own.booking_id, "target_soc": 15}},
++        ),
++        # Adjacent 7: MaxSocByDeadline anchored to original deadline
++        decision("copilot_how_to", {"goal": shifted_max}),
++    )
++
++    r1 = await chat(client, operator, "Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?", session="r1")
++    assert r1["advisory"][0]["kind"] == "notice" and not r1["advisory"][0].get("job")
++    assert r1["advisory"][0]["code"] == "unsupported"
++
++    r2 = await chat(
++        client,
++        operator,
++        "Cần nguồn bao nhiêu từ ngày mai lúc 18h00? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%.",
++        session="r2",
++    )
++    assert r2["advisory"][0]["kind"] == "notice" and not r2["advisory"][0].get("job")
++    assert r2["advisory"][0]["code"] == "unsupported"
++
++    r3 = await chat(client, resident, "Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?", session="r3")
++    assert r3["advisory"][0]["kind"] == "notice" and not r3["advisory"][0].get("job")
++    assert r3["advisory"][0]["code"] == "clarify" and r3["advisory"][0]["field"] == "time"
++
++    adj_cases = (
++        (operator, "Nếu công suất vùng DC còn 50 kW thì sao?", "adj-1"),
++        (operator, "Nếu giảm nguồn đi 20 kW thì sao?", "adj-2"),
++        (operator, "Nếu nguồn lưới còn 50 kW trong 30 phút thì sao?", "adj-3"),
++        (operator, "Cần nguồn vùng DC bao nhiêu? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu 95%.", "adj-4"),
++        (resident, "Nếu lùi hạn lấy xe thêm 30 phút thì sao?", "adj-5"),
++        (resident, "Nếu giảm mục tiêu đi 15% so với mức gốc thì sao?", "adj-6"),
++        (
++            resident,
++            "Tôi cần đi muộn hơn 30 phút so với hạn gốc, thử từ 65% đến 75%. Tôi đồng ý giảm mục tiêu. Tôi đồng ý dời hạn muộn. Tôi đồng ý mất cam kết gốc.",
++            "adj-7",
++        ),
++    )
++    for headers, question, sess in adj_cases:
++        resp = await chat(client, headers, question, session=sess)
++        adv = resp["advisory"][0]
++        assert adv["kind"] == "notice" and not adv.get("job"), (sess, adv)
++
++
++async def test_f01_r1_r2_r3_positive_controls_reach_real_engines(demo_api, monkeypatch):
++    client, rt, own, _, resident, _, operator = demo_api
++    now = rt.simulator.now
++    explicit_1430 = own.request.deadline + timedelta(minutes=30)
++    assert now.isoformat() == "2026-11-23T12:01:00+07:00"
++    assert explicit_1430.isoformat() == "2026-11-23T14:30:00+07:00"
++
++    jobs = client._transport.app.state.copilot._jobs
++    orig_clock = jobs._clock
++    clock_offset = 0.0
++    monkeypatch.setattr(jobs, "_clock", lambda: orig_clock() + clock_offset)
++
++    # Positive Control 1: explicit station-grid 50 kW
++    provider(
++        monkeypatch,
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++    )
++    pc1 = await chat(client, operator, "Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?", session="pc-1")
++    job1 = await wait_chat_job(client, operator, pc1["advisory"][0]["job"], session="pc-1")
++    assert job1["status"] == "succeeded" and job1["result"]["result"]["patch"]["grid_input_kw"] == 50.0
++
++    # Positive Control 2: immediate site recommendation 22-106 kW / SLA 95% / protect AC
++    clock_offset += 16.0
++    provider(
++        monkeypatch,
++        decision(
++            "copilot_how_to",
++            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
++        ),
++    )
++    pc2 = await chat(
++        client,
++        operator,
++        "Cần nguồn bao nhiêu hiện tại? Thử nguồn 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%.",
++        session="pc-2",
++    )
++    job2 = await wait_chat_job(client, operator, pc2["advisory"][0]["job"], session="pc-2")
++    assert job2["status"] == "succeeded"
++    assert job2["result"]["result"]["goal"]["min_grid_input_kw"] == 22
++    assert job2["result"]["result"]["goal"]["max_grid_input_kw"] == 106
++    assert job2["result"]["result"]["goal"]["min_original_on_time_rate"] == 0.95
++    assert job2["result"]["result"]["goal"]["protect_on_time_ac_bookings"] is True
++
++    # Positive Control 3: snapshot-relative +30 min ("sau 30 phút" -> 12:31+07)
++    provider(
++        monkeypatch,
++        decision(
++            "copilot_what_if",
++            {
++                "kind": "what_if",
++                "change": {
++                    "op": "revise_vehicle",
++                    "booking_id": own.booking_id,
++                    "deadline": {"kind": "relative", "offset_minutes": 30},
++                },
++            },
++        ),
++    )
++    pc3 = await chat(client, resident, "Nếu đổi hạn lấy xe sau 30 phút thì sao?", session="pc-3")
++    job3 = await wait_chat_job(client, resident, pc3["advisory"][0]["job"], session="pc-3")
++    assert job3["status"] == "succeeded"
++    assert datetime.fromisoformat(job3["result"]["result"]["patch"]["deadline"]) == now + timedelta(minutes=30)
++
++    # Positive Control 4: explicit valid absolute deadline 14:30+07 (= original 14:00+07 + 30 min)
++    clock_offset += 16.0
++    provider(
++        monkeypatch,
++        decision(
++            "copilot_what_if",
++            {
++                "kind": "what_if",
++                "change": {
++                    "op": "revise_vehicle",
++                    "booking_id": own.booking_id,
++                    "deadline": {"kind": "absolute", "timestamp": explicit_1430.isoformat()},
++                },
++            },
++        ),
++    )
++    pc4 = await chat(
++        client,
++        resident,
++        f"Nếu dời hạn lấy xe đến {explicit_1430.isoformat()} thì sao?",
++        session="pc-4",
++    )
++    job4 = await wait_chat_job(client, resident, pc4["advisory"][0]["job"], session="pc-4")
++    assert job4["status"] == "succeeded"
++    assert datetime.fromisoformat(job4["result"]["result"]["patch"]["deadline"]) == explicit_1430

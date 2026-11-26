@@ -102,13 +102,64 @@ _KW_RANGE = re.compile(
     r"(\d+(?:[.,]\d+)?)\s*(?:kw)?\s*(?:den|toi|-|–|to)\s*(\d+(?:[.,]\d+)?)\s*kw\b"
 )
 _GRID_SUBJECT = re.compile(r"\b(?:grid(?: input)?|dau vao|luoi|nguon)\b")
+_SITE_POWER_SUBJECT = re.compile(
+    r"\b(?:grid(?:\s+input)?|dau vao(?:\s+luoi)?|luoi(?:\s+dien)?|nguon(?:\s+dien|\s+cap|\s+tram|\s+bai)?|"
+    r"cong suat\s+(?:tram|bai|nguon|luoi|dau vao)|tong\s+cong suat|site(?:\s+limit|\s+input|\s+power)?)\b"
+)
+_PORT_OR_ZONE_SCOPE = re.compile(
+    r"\b(?:cong\s+(?:sac|so|\d|ac|dc)|(?:cua|tai|o|mot|cac|moi|tung)\s+cong\b|"
+    r"dau noi|tru\s+(?:sac|ac|dc|\d)|bo sac|tu\s+(?:sac|dien|phan\s+phoi|ac|dc)|"
+    r"connector|port|charger|cabinet|"
+    r"vung\s+(?:ac|dc)|nguon\s+(?:ac|dc)|luoi\s+(?:ac|dc)|cong suat\s+(?:ac|dc|sac)|"
+    r"nguon\s+rieng|doc lap|independent\s+supply|charging\s+power)\b"
+)
+_ACCENTED_PORT_SCOPE = re.compile(r"\b(?:cổng|trụ|tủ)\b")
+_KW_DELTA = re.compile(
+    r"\b(?:giam\s+(?:nguon\s+|cong suat\s+|luoi\s+)?(?:di|bot)|tang\s+(?:nguon\s+|cong suat\s+|luoi\s+)?them|"
+    r"bot(?:\s+di)?|cong\s+them|tru\s+di|reduce(?:\s+by)?|increase(?:\s+by)?)\s*\d+(?:[.,]\d+)?\s*kw\b"
+    r"|\b\d+(?:[.,]\d+)?\s*kw\s*(?:so voi|hon|kem)\b"
+)
+_SOC_DELTA = re.compile(
+    r"\b(?:giam\s+(?:muc tieu\s+|pin\s+|soc\s+)?(?:di|bot)|tang\s+(?:muc tieu\s+|pin\s+|soc\s+)?them|"
+    r"bot(?:\s+di)?|cong\s+them|tru\s+di|reduce(?:\s+by)?|increase(?:\s+by)?)\s*\d+(?:[.,]\d+)?\s*%"
+    r"|\b\d+(?:[.,]\d+)?\s*%\s*(?:so voi|hon|kem)\s*(?:muc|pin|soc|cam ket|ban dau|goc|hien tai)\b"
+)
+_UNSUPPORTED_VEHICLE_ASPECT = re.compile(
+    r"\b(?:xe\s+den\s+(?:muon|som)|den\s+(?:tram|bai)\s+(?:muon|som|luc)|doi\s+gio\s+den|gio\s+den\s+moi|"
+    r"change\s+arrival|gia su pin hien tai|neu pin hien tai|doi pin hien tai)\b"
+)
 _OUTPUT = re.compile(r"\b(?:dau ra|output)\b")
 _HYPOTHETICAL = re.compile(r"\b(?:gia dinh (?:nang cap )?ha tang|ha tang gia dinh|hypothetical infrastructure)\b")
 _DURATION = re.compile(r"\b(?:trong|keo dai|for)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
 _HORIZON = re.compile(
     r"\b(?:horizon|cua so(?:\s+mo phong)?|mo phong trong|khung mo phong)\s*(?:la\s*|con\s*)?(\d+)\s*(phut|gio|minutes?|hours?)\b"
 )
-_RELATIVE = re.compile(r"\b(sau|truoc|in|tre them|muon hon|som hon)\s*(\d+)\s*(phut|gio|minutes?|hours?)\b")
+_RELATIVE = re.compile(r"\b(sau|truoc|in)\s*(\d+)\s*(phut|gio|minutes?|hours?)(?:\s*nua)?\b")
+_SHIFT_OFFSET = re.compile(
+    r"\b(?:muon hon|som hon|tre them|muon them|som them|lui(?:\s+han|\s+gio|\s+them)*|"
+    r"keo dai\s+han(?:\s+them)*|gia han(?:\s+them)*|rut ngan\s+han(?:\s+them)*|"
+    r"extend(?:ed)?(?:\s+the)?(?:\s+deadline)?(?:\s+by)?|"
+    r"delay(?:ed)?(?:\s+the)?(?:\s+deadline)?(?:\s+by)?)\s*\d+\s*(?:phut|gio|minutes?|hours?)\b"
+    r"|\b\d+\s*(?:phut|gio|minutes?|hours?)\s*(?:later|earlier|"
+    r"(?:sau|truoc|so voi)\s+(?:han|gio\s+lay\s+xe|gio\s+den|lich|cam ket|du kien|original|current|scheduled))\b"
+)
+_NON_NOW_ANCHOR = re.compile(
+    r"\b(?:so voi|tinh tu|ke tu|than)\s+(?:the\s+)?"
+    r"(?:han(?:\s+goc|\s+cu|\s+hien\s+tai|\s+da\s+dat)?|"
+    r"gio\s+(?:lay\s+xe|roi|den|hen)(?:\s+goc|\s+cu|\s+hien\s+tai)?|"
+    r"lich(?:\s+goc|\s+cu|\s+hien\s+tai)?|"
+    r"cam ket(?:\s+goc|\s+hien\s+tai)?|"
+    r"original\s+deadline|current\s+deadline|scheduled\s+(?:deadline|departure|arrival))\b"
+    r"|\b(?:sau|truoc|from|after|before)\s+(?:the\s+)?"
+    r"(?:han\s+(?:goc|cu|hien\s+tai|da\s+dat)|han\s+\d+\s*(?:phut|gio)|"
+    r"gio\s+(?:lay\s+xe|roi|den|hen)(?:\s+goc|\s+cu|\s+hien\s+tai)?|"
+    r"lich\s+(?:goc|cu|hien\s+tai)|"
+    r"original\s+deadline|current\s+deadline|scheduled\s+(?:deadline|departure|arrival)|khi\s+xe)\b"
+)
+_DAY_PART = re.compile(
+    r"\b(?:(?:vao|tu|luc)\s+(?:sang|trua|chieu|toi|dem)\s+nay|dem nay|sang mai|trua mai|chieu mai|toi mai|dem mai|tonight)\b"
+)
+_ACCENTED_DAY_PART = re.compile(r"\b(?:sáng nay|trưa nay|chiều nay|tối nay|đêm nay)\b")
 _REL_RANGE = re.compile(
     r"(?:(?:tu|trong khoang|khoang)\s+)?sau\s*(\d+)\s*(phut|gio|minutes?|hours?)?\s*"
     r"(?:den|toi|-|–|to)\s*(?:sau\s*)?(\d+)\s*(phut|gio|minutes?|hours?)\b"
@@ -159,7 +210,11 @@ def resolve_selection_utc(selection: TimeSelection, now: datetime, timezone: str
 
 
 def _time(raw: str, text: str) -> tuple[TimeSelection | None, bool]:
-    if re.search(r"\b\d+\s*(?:giay|seconds?)\b|\b(?:sau|truoc|in)\s*\d+[.,]\d+", text):
+    if (
+        re.search(r"\b\d+\s*(?:giay|seconds?)\b|\b(?:sau|truoc|in)\s*\d+[.,]\d+", text)
+        or _SHIFT_OFFSET.search(text)
+        or _NON_NOW_ANCHOR.search(text)
+    ):
         return None, True
     absolute = _ISO.findall(raw)
     relative = _RELATIVE.findall(text)
@@ -192,7 +247,7 @@ def _time(raw: str, text: str) -> tuple[TimeSelection | None, bool]:
 
 
 def _time_range(raw: str, text: str) -> tuple[tuple[TimeSelection, TimeSelection] | None, bool]:
-    if re.search(r"\b\d+\s*(?:giay|seconds?)\b", text):
+    if re.search(r"\b\d+\s*(?:giay|seconds?)\b", text) or _SHIFT_OFFSET.search(text) or _NON_NOW_ANCHOR.search(text):
         return None, True
     isos = _ISO.findall(raw)
     if len(isos) == 2:
@@ -525,6 +580,23 @@ def why_conflicts_with_message(
     return None
 
 
+def _has_site_temporal_condition(raw_without_horizon: str, without_horizon: str) -> bool:
+    return bool(
+        _ISO.search(raw_without_horizon)
+        or _CLOCK.search(without_horizon)
+        or _SPOKEN_CLOCK.search(without_horizon)
+        or _DAY.search(without_horizon)
+        or _DAY_PART.search(without_horizon)
+        or _ACCENTED_DAY_PART.search(raw_without_horizon.casefold())
+        or _RELATIVE.search(without_horizon)
+        or _REL_RANGE.search(without_horizon)
+        or _SHIFT_OFFSET.search(without_horizon)
+        or _NON_NOW_ANCHOR.search(without_horizon)
+        or _DURATION.search(without_horizon)
+        or _DEADLINE.search(without_horizon)
+    )
+
+
 def conflicts_with_simulation(
     message: str,
     args: WhatIfIntent | RecommendationGoal | HowToRequest,
@@ -598,18 +670,34 @@ def conflicts_with_simulation(
 
     if change is not None:
         if isinstance(change, SourceChange):
-            if _OUTAGE_ACTION.search(text) or _PERCENT.search(text) or _DEADLINE.search(text) or explicit_bookings:
-                return "unsupported"
-            if _RELATIVE.search(without_horizon) or _CLOCK.search(without_horizon) or _ISO.search(raw_without_horizon):
+            if (
+                _OUTAGE_ACTION.search(text)
+                or _PERCENT.search(text)
+                or explicit_bookings
+                or _CONNECTOR.search(message)
+                or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
+                or _PORT_OR_ZONE_SCOPE.search(without_horizon)
+                or re.search(r"\b(?:ac|dc)\b", without_horizon)
+                or _KW_DELTA.search(without_horizon)
+                or _has_site_temporal_condition(raw_without_horizon, without_horizon)
+            ):
                 return "unsupported"
             if _OUTPUT.search(without_horizon):
+                return "grid_input"
+            has_subject = bool(_SITE_POWER_SUBJECT.search(without_horizon)) or any(
+                _SITE_POWER_SUBJECT.search(_HORIZON.sub("", p_text)) for p_text in prior_texts
+            )
+            if not has_subject:
                 return "grid_input"
             proposed_kw, kw_conflict = _extract_single_grid_kw(without_horizon)
             if kw_conflict:
                 return "unsupported"
             if proposed_kw is None:
                 for p_text in reversed(prior_texts):
-                    proposed_kw, kw_conflict = _extract_single_grid_kw(_HORIZON.sub("", p_text))
+                    p_clean = _HORIZON.sub("", p_text)
+                    if _PORT_OR_ZONE_SCOPE.search(p_clean) or _KW_DELTA.search(p_clean):
+                        return "unsupported"
+                    proposed_kw, kw_conflict = _extract_single_grid_kw(p_clean)
                     if kw_conflict or proposed_kw is not None:
                         break
             if kw_conflict:
@@ -684,7 +772,14 @@ def conflicts_with_simulation(
             return None
 
         # VehicleChange
-        if _GRID.search(without_horizon) or _OUTAGE_ACTION.search(text) or _CONNECTOR.search(message):
+        if (
+            _GRID.search(without_horizon)
+            or _OUTAGE_ACTION.search(text)
+            or _CONNECTOR.search(message)
+            or _DURATION.search(without_horizon)
+            or _SOC_DELTA.search(without_horizon)
+            or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
+        ):
             return "unsupported"
         if explicit_bookings and (
             change.booking_id is None or change.booking_id.casefold() != explicit_bookings[0].casefold()
@@ -734,7 +829,18 @@ def conflicts_with_simulation(
     # HOW-TO RecommendationGoal validation
     assert goal is not None
     if isinstance(goal, MinTestedSiteLimitForSla):
-        if _OUTAGE_ACTION.search(text) or _OUTPUT.search(without_horizon):
+        without_ac_sla = _AC_WAIVE.sub("", _AC_PROTECT.sub("", without_horizon))
+        if (
+            _OUTAGE_ACTION.search(text)
+            or _OUTPUT.search(without_horizon)
+            or explicit_bookings
+            or _CONNECTOR.search(message)
+            or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
+            or _PORT_OR_ZONE_SCOPE.search(without_ac_sla)
+            or re.search(r"\b(?:ac|dc)\b", without_ac_sla)
+            or _KW_DELTA.search(without_horizon)
+            or _has_site_temporal_condition(raw_without_horizon, without_horizon)
+        ):
             return "unsupported"
         kw_ranges = list(_KW_RANGE.finditer(without_horizon))
         if len(kw_ranges) > 1:
@@ -794,7 +900,14 @@ def conflicts_with_simulation(
     # Resident HOW-TO goals
     if explicit_bookings and goal.booking_id.casefold() != explicit_bookings[0].casefold():
         return "unsupported"
-    if _GRID.search(without_horizon) or _OUTAGE_ACTION.search(text):
+    if (
+        _GRID.search(without_horizon)
+        or _OUTAGE_ACTION.search(text)
+        or _CONNECTOR.search(message)
+        or _DURATION.search(without_horizon)
+        or _SOC_DELTA.search(without_horizon)
+        or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
+    ):
         return "unsupported"
 
     if isinstance(goal, MaxSocByDeadline):

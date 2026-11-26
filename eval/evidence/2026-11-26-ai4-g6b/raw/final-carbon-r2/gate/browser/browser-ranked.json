@@ -1,0 +1,2735 @@
+{
+  "browser": "159.0.8154.6",
+  "provider": "scripted fixture",
+  "result": {
+    "turn": {
+      "response": "Chưa có đủ bằng chứng cho câu hỏi này.\n\nĐã nhận tác vụ mô phỏng. Kết quả sẽ hiển thị khi hoàn tất.",
+      "analysis": "copilot_why; copilot_how_to",
+      "session_id": "e3e589c665b94518b11386df7bf51508",
+      "status": "answer",
+      "advisory": [
+        {
+          "kind": "why",
+          "result": {
+            "status": "no_data",
+            "topic": "deadline_risk",
+            "subject_scope": "station",
+            "subject_id": "CP-01",
+            "query_at": "2026-11-23T12:00:00+07:00",
+            "query_window": null,
+            "decision_time": null,
+            "policy_id": null,
+            "policy_version": null,
+            "state_version": null,
+            "traces": [],
+            "facts": [],
+            "reasons": [],
+            "evidence_refs": [],
+            "assumptions": [],
+            "missing_evidence": [
+              "no_matching_decision_trace"
+            ],
+            "truncated": false,
+            "next_cursor": null
+          },
+          "claims": [],
+          "summary": "Chưa có đủ bằng chứng cho câu hỏi này.",
+          "parse_source": null
+        },
+        {
+          "kind": "job",
+          "job": {
+            "job_id": "9ecd7f50a983486a85910042d2b20050",
+            "job_kind": "how_to",
+            "status": "queued",
+            "error": null,
+            "result": null,
+            "applied": false
+          },
+          "parse_source": null
+        }
+      ],
+      "proposal": null,
+      "request": null,
+      "booking": null,
+      "pending": null,
+      "suggestions": [],
+      "draft": null
+    },
+    "job": {
+      "job_id": "9ecd7f50a983486a85910042d2b20050",
+      "job_kind": "how_to",
+      "status": "succeeded",
+      "error": null,
+      "result": {
+        "kind": "how_to",
+        "result": {
+          "applied": false,
+          "goal": {
+            "goal": "min_tested_site_limit_for_sla",
+            "min_grid_input_kw": 22,
+            "max_grid_input_kw": 106,
+            "min_original_on_time_rate": 1,
+            "protect_on_time_ac_bookings": true,
+            "hypothetical_infrastructure": false
+          },
+          "search_status": "partial",
+          "unsupported_reason": null,
+          "baseline_issue": null,
+          "snapshot_id": "snap-45eb11b3cc024c3e",
+          "snapshot_sha256": "feed7ddc7452cc55120989dcfe528295a855b43f90c41c15631cc405daec5723",
+          "known_at": "2026-11-23T12:00:00+07:00",
+          "horizon_end": "2026-11-23T14:00:00+07:00",
+          "event_manifest_sha256": "1157c48fe910027a7d8b60a98eddb9884b0f51b7d64d41e9de7ebe2331b25d57",
+          "experiment_fingerprint": "c034460d0285dad74680f279d87039e2fe172232b3f68cf12764e82d01e32456",
+          "policy_id": "M3b",
+          "policy_version": "1",
+          "candidate_set": {
+            "version": "chargepilot.how_to_candidates/1",
+            "search_variable": "grid_input_kw",
+            "values": [
+              22,
+              34,
+              46,
+              58,
+              70,
+              82,
+              94,
+              106
+            ]
+          },
+          "baseline": {
+            "ref": "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3",
+            "input_sha256": "feed7ddc7452cc55120989dcfe528295a855b43f90c41c15631cc405daec5723",
+            "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+            "final_physics_sha256": "8ee926a7bf12daba4bee9ccf02e194d0eef6f0c1dbd2a7cc7c90af372543eabe",
+            "observed_until": "2026-11-23T14:00:00+07:00",
+            "branch_status": "completed",
+            "hard_violations": 0,
+            "rejected_allocations": 0,
+            "safety_holds": 0,
+            "unresolved_safety_count": 0,
+            "blocked_commands": 0,
+            "pending_approvals": 0,
+            "pending_approval_commands": 0,
+            "elapsed_ms": 136.34,
+            "original_sla": {
+              "cohort_size": 4,
+              "denominator": 4,
+              "met_count": 4,
+              "on_time_rate": 1,
+              "censored_count": 0
+            },
+            "booking_sla": [
+              {
+                "booking_id": "a",
+                "zone": "DC",
+                "original": {
+                  "target_soc": 50,
+                  "deadline": "2026-11-23T12:27:00+07:00",
+                  "target_reached_at": "2026-11-23T12:16:00+07:00",
+                  "already_satisfied_at_snapshot": false,
+                  "met_deadline": true,
+                  "remaining_battery_kwh": 0,
+                  "remaining_output_kwh": 0
+                }
+              },
+              {
+                "booking_id": "ac-a",
+                "zone": "AC",
+                "original": {
+                  "target_soc": 31,
+                  "deadline": "2026-11-23T12:22:00+07:00",
+                  "target_reached_at": "2026-11-23T12:16:00+07:00",
+                  "already_satisfied_at_snapshot": false,
+                  "met_deadline": true,
+                  "remaining_battery_kwh": 0,
+                  "remaining_output_kwh": 0
+                }
+              },
+              {
+                "booking_id": "ac-b",
+                "zone": "AC",
+                "original": {
+                  "target_soc": 41,
+                  "deadline": "2026-11-23T12:22:00+07:00",
+                  "target_reached_at": "2026-11-23T12:16:00+07:00",
+                  "already_satisfied_at_snapshot": false,
+                  "met_deadline": true,
+                  "remaining_battery_kwh": 0,
+                  "remaining_output_kwh": 0
+                }
+              },
+              {
+                "booking_id": "dc-rival",
+                "zone": "DC",
+                "original": {
+                  "target_soc": 54,
+                  "deadline": "2026-11-23T12:27:00+07:00",
+                  "target_reached_at": "2026-11-23T12:16:00+07:00",
+                  "already_satisfied_at_snapshot": false,
+                  "met_deadline": true,
+                  "remaining_battery_kwh": 0,
+                  "remaining_output_kwh": 0
+                }
+              }
+            ],
+            "subject_original": null,
+            "subject_revised": null,
+            "subject_goal_target": null,
+            "subject_soc_at_deadline_pct": null,
+            "subject_soc_observed_at": null,
+            "subject_release_at": null
+          },
+          "candidates": [
+            {
+              "value": 22,
+              "status": "completed",
+              "feasibility": "unknown",
+              "reason": "blocked_command",
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18",
+                "input_sha256": "0f0b9c78a51d79d388d3ff915af0d38f45dfe168840de70430c0bae7c268dd82",
+                "config_sha256": "be944d42b03f23db9bd2bc68f93b4104625b4f01bd4de078f833eb0b53d58d77",
+                "final_physics_sha256": "2613496b09f6f7c2b0bce93fb88eadb0373b7e7a7bb0aa104fd3c029741057b3",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 2,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 93.699,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 1,
+                  "on_time_rate": 0.25,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 12.026,
+                      "remaining_output_kwh": 12.271429
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.020454,
+                      "remaining_output_kwh": 0.020871
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 3.430579,
+                      "remaining_output_kwh": 3.500591
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 34,
+              "status": "completed",
+              "feasibility": "unknown",
+              "reason": "blocked_command",
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2",
+                "input_sha256": "355f661556b56e9e35aef25f55b6f00de747a40a195e8357195f30be2799bab7",
+                "config_sha256": "0dfa20bef8a058428f38317d99a24a3f67e78ae42ee4643e38bde17326a05fbc",
+                "final_physics_sha256": "2eb6bb25195d3bece3668fd18d136e2e46476c8fe852c57013cc153e93a3fe21",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 1,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 92.847,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 1,
+                  "on_time_rate": 0.25,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 10.62001,
+                      "remaining_output_kwh": 10.836745
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.006963,
+                      "remaining_output_kwh": 0.007105
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.00004,
+                      "remaining_output_kwh": 0.000041
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 46,
+              "status": "completed",
+              "feasibility": "unknown",
+              "reason": "blocked_command",
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d",
+                "input_sha256": "15a4895a3fc254af928fa2073a9cdb3eb5157aff4f2e601faa9541ea6683a749",
+                "config_sha256": "7a523027dbc61ee66625d2113595a8bf8e978fe6d0d722137840bc22489616c0",
+                "final_physics_sha256": "b97916bd445bdaa7742e4b3e0b7d622cbce4390e057b61397c1b69c2a7f0d14a",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 1,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 91.437,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 1,
+                  "on_time_rate": 0.25,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 6.075685,
+                      "remaining_output_kwh": 6.199679
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.002977,
+                      "remaining_output_kwh": 0.003038
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.000023,
+                      "remaining_output_kwh": 0.000023
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 58,
+              "status": "completed",
+              "feasibility": "unknown",
+              "reason": "blocked_command",
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f",
+                "input_sha256": "208b8b965734d5b42042c882720a5f0d06062fb27bd98f9602fa066e24f3972a",
+                "config_sha256": "112cbc0e07828a52074ead198a47079aedaa9207015da48df9ca65d157b722ea",
+                "final_physics_sha256": "814c42fa67b1023d1504754a5201cdd29c42b80509f88910f299c83edd32954f",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 1,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 97.599,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 2,
+                  "on_time_rate": 0.5,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 1.167861,
+                      "remaining_output_kwh": 1.191695
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.007502,
+                      "remaining_output_kwh": 0.007655
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 70,
+              "status": "completed",
+              "feasibility": "infeasible",
+              "reason": "original_sla_regression",
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760",
+                "input_sha256": "b2dad36dc1f53a696883eb9f6003c9d4d54ae8e79c5661500eb772b4da570c12",
+                "config_sha256": "a1f006d3946419e60b234873268524c5c2037a9fbf14465ab2cb2d67ecfd86f3",
+                "final_physics_sha256": "1f6c5b6a6062f10b836a3af779305c533a6e702c50c237bb03a2698a05be5716",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 0,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 95.456,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 2,
+                  "on_time_rate": 0.5,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.000012,
+                      "remaining_output_kwh": 0.000012
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.00007,
+                      "remaining_output_kwh": 0.000071
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:23:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 82,
+              "status": "completed",
+              "feasibility": "infeasible",
+              "reason": "original_sla_regression",
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e",
+                "input_sha256": "b2664add943c8e4b2217f30d952bb784e2f673db1d2f7b743055975b2f8abed9",
+                "config_sha256": "cf1b37e9cd4107cbec1d0ffa2a111bc07a30476f7eeb255ece92ba8bf2039ffd",
+                "final_physics_sha256": "96db73be3cd0a1865cb53f074c4ab7c826215371d2aa85a8e3e3125de4176aaf",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 0,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 95.455,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 3,
+                  "on_time_rate": 0.75,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:23:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": null,
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": false,
+                      "remaining_battery_kwh": 0.000086,
+                      "remaining_output_kwh": 0.000088
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:23:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 94,
+              "status": "completed",
+              "feasibility": "feasible",
+              "reason": null,
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076",
+                "input_sha256": "4f2a594de910118e236f1130fb5bf7357eb408916f4cf41d34502c43bc4becc9",
+                "config_sha256": "5e954c3ed97578e4b5af8571c376293319c5668bcef0a40458bcab644a85d013",
+                "final_physics_sha256": "eee38e8795ed2eeeb172bebad935bb254f72cdeb2a63a32dd41f0beeeebc27a0",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 0,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 97.287,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 4,
+                  "on_time_rate": 1,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:22:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 106,
+              "status": "completed",
+              "feasibility": "feasible",
+              "reason": null,
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd",
+                "input_sha256": "7310bc384e811a8de0035e3c837c9744cb34a46d148d3e8f1a886959c213b83d",
+                "config_sha256": "6729c1a552234d20f05143c93cf9adca29dd82054dd4450f76d2c8d45de63dd6",
+                "final_physics_sha256": "8ee926a7bf12daba4bee9ccf02e194d0eef6f0c1dbd2a7cc7c90af372543eabe",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 0,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 85.557,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 4,
+                  "on_time_rate": 1,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            }
+          ],
+          "options": [
+            {
+              "value": 94,
+              "status": "completed",
+              "feasibility": "feasible",
+              "reason": null,
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076",
+                "input_sha256": "4f2a594de910118e236f1130fb5bf7357eb408916f4cf41d34502c43bc4becc9",
+                "config_sha256": "5e954c3ed97578e4b5af8571c376293319c5668bcef0a40458bcab644a85d013",
+                "final_physics_sha256": "eee38e8795ed2eeeb172bebad935bb254f72cdeb2a63a32dd41f0beeeebc27a0",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 0,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 97.287,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 4,
+                  "on_time_rate": 1,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:22:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            },
+            {
+              "value": 106,
+              "status": "completed",
+              "feasibility": "feasible",
+              "reason": null,
+              "hypothetical_infrastructure": false,
+              "evidence": {
+                "ref": "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd",
+                "input_sha256": "7310bc384e811a8de0035e3c837c9744cb34a46d148d3e8f1a886959c213b83d",
+                "config_sha256": "6729c1a552234d20f05143c93cf9adca29dd82054dd4450f76d2c8d45de63dd6",
+                "final_physics_sha256": "8ee926a7bf12daba4bee9ccf02e194d0eef6f0c1dbd2a7cc7c90af372543eabe",
+                "observed_until": "2026-11-23T14:00:00+07:00",
+                "branch_status": "completed",
+                "hard_violations": 0,
+                "rejected_allocations": 0,
+                "safety_holds": 0,
+                "unresolved_safety_count": 0,
+                "blocked_commands": 0,
+                "pending_approvals": 0,
+                "pending_approval_commands": 0,
+                "elapsed_ms": 85.557,
+                "original_sla": {
+                  "cohort_size": 4,
+                  "denominator": 4,
+                  "met_count": 4,
+                  "on_time_rate": 1,
+                  "censored_count": 0
+                },
+                "booking_sla": [
+                  {
+                    "booking_id": "a",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 50,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-a",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 31,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "ac-b",
+                    "zone": "AC",
+                    "original": {
+                      "target_soc": 41,
+                      "deadline": "2026-11-23T12:22:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  },
+                  {
+                    "booking_id": "dc-rival",
+                    "zone": "DC",
+                    "original": {
+                      "target_soc": 54,
+                      "deadline": "2026-11-23T12:27:00+07:00",
+                      "target_reached_at": "2026-11-23T12:16:00+07:00",
+                      "already_satisfied_at_snapshot": false,
+                      "met_deadline": true,
+                      "remaining_battery_kwh": 0,
+                      "remaining_output_kwh": 0
+                    }
+                  }
+                ],
+                "subject_original": null,
+                "subject_revised": null,
+                "subject_goal_target": null,
+                "subject_soc_at_deadline_pct": null,
+                "subject_soc_observed_at": null,
+                "subject_release_at": null
+              }
+            }
+          ],
+          "ranking": [
+            "lowest_tested_grid_input_kw"
+          ],
+          "assumptions": [
+            "Prospective known_at(T) boundary: live bookings are known through committed store membership at capture; synthetic bookings use created_at <= T in simulator time.",
+            "Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute <= as_of_minute) are visible to optimizer and sandbox physics.",
+            "Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).",
+            "Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.",
+            "Live runtime is never stepped, drained, or mutated during snapshot capture or sandbox rollout.",
+            "Recommendations are simulated and advisory. Ranking applies only to the finite tested set.",
+            "Feasibility is assessed against the requested goal and constraints. Use baseline evidence to assess improvement.",
+            "SLA uses original commitments unless explicitly labeled revised.",
+            "The SLA threshold applies to the full known booking cohort. Unknown outcomes prevent verification.",
+            "A site patch caps later regimes. Announced grid and cabinet limits and existing equipment caps still apply.",
+            "Above-installed candidates are conditional on hypothetical infrastructure."
+          ],
+          "baseline_execution_count": 1,
+          "branch_execution_count": 9,
+          "elapsed_ms": 900.281
+        },
+        "claims": [
+          {
+            "claim_id": "baseline:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/branch_status"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/blocked_commands"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/pending_approvals"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/hard_violations"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 1,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/original_sla/on_time_rate"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/original_sla/denominator"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "baseline:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f0d94bdf6355f6742fb21af23fbef36a9a7ff75f5af0b501ed0d0ca56660f4f3#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "baseline",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 2,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 0.25,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:0:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:14f6faeaa8c73fd85a352d097426d35aecda94e3a071b67eca6b7252f6052e18#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 1,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 0.25,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:1:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:f3f82f7c1cb555e3f0fbb253f36f4c59e153d6656463d95e1d568238c7782fb2#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 1,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 0.25,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:2:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:76376fbf9e34608a8726661716e1dd1bfac8f1987f579743191801db1579439d#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 1,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 0.5,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:3:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:524ed8e191b7e1eba37ce9d4c8933e999ba1466a6d09681d061f23e42146011f#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 0.5,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:4:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:13d69214b41f4d08f1586900af65a741040ec85ca6afc0a898c588f97155e760#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 0.75,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": false,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:5:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:9e98298e5dba30e3139a7c108c037ae838b669d6f8ff62e7ed89f0cf2379752e#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 1,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:6:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:ccc537fc68eaa349e54cd9a7bb387e5f4ee160813d1ae1168d9386460b70c076#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/branch_status",
+            "subject": "CP-01",
+            "name": "/branch_status",
+            "value": "completed",
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/branch_status"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/blocked_commands",
+            "subject": "CP-01",
+            "name": "/blocked_commands",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/blocked_commands"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/pending_approvals",
+            "subject": "CP-01",
+            "name": "/pending_approvals",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/pending_approvals"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/hard_violations",
+            "subject": "CP-01",
+            "name": "/hard_violations",
+            "value": 0,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/hard_violations"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/original_sla/on_time_rate",
+            "subject": "CP-01",
+            "name": "/original_sla/on_time_rate",
+            "value": 1,
+            "unit": "fraction",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/original_sla/on_time_rate"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/original_sla/denominator",
+            "subject": "CP-01",
+            "name": "/original_sla/denominator",
+            "value": 4,
+            "unit": "bookings",
+            "stage": "simulated",
+            "observed_at": "2026-11-23T14:00:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/original_sla/denominator"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/booking_sla/0/original/met_deadline",
+            "subject": "a",
+            "name": "/booking_sla/0/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/booking_sla/0/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/booking_sla/1/original/met_deadline",
+            "subject": "ac-a",
+            "name": "/booking_sla/1/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/booking_sla/1/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/booking_sla/2/original/met_deadline",
+            "subject": "ac-b",
+            "name": "/booking_sla/2/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:22:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/booking_sla/2/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          },
+          {
+            "claim_id": "candidate:7:/booking_sla/3/original/met_deadline",
+            "subject": "dc-rival",
+            "name": "/booking_sla/3/original/met_deadline",
+            "value": true,
+            "unit": null,
+            "stage": "simulated",
+            "observed_at": "2026-11-23T12:27:00+07:00",
+            "interval_start": null,
+            "interval_end": null,
+            "evidence_refs": [
+              "how-to:projection:v1:b2a032899afe050f80572daada6e95be943bc2de66287ee287fe0f84f0ad59fd#/booking_sla/3/original/met_deadline"
+            ],
+            "branch": "candidate",
+            "direction": null,
+            "reason_code": null,
+            "reason_category": null
+          }
+        ],
+        "summary": "Kịch bản gốc đã đáp ứng mục tiêu đúng hạn. Có thể giữ nguyên. Phương án đầu tiên có mức công suất thấp nhất trong các mức đã xác minh khả thi. Tìm kiếm còn một phần vì có nhánh chưa thể xác minh."
+      },
+      "applied": false
+    }
+  }
+}
