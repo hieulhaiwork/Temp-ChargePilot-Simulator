@@ -14,6 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { ChatAdvisory } from "@/components/copilot/ChatAdvisory";
 import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { NotImplementedPanel } from "@/components/system/NotImplementedPanel";
 import { Notice, SectionHead } from "@/components/ui/blocks";
@@ -21,7 +22,7 @@ import { Icon } from "@/components/ui/Icon";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError, toApiError, type ApiErrorCode } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
-import { getToken } from "@/lib/auth/session";
+import { clearSessionIfCurrent, getSession, useSession, type Role } from "@/lib/auth/session";
 import { API_URL } from "@/lib/env";
 import { formatKwh, formatTime, formatVnd } from "@/lib/format";
 
@@ -40,6 +41,7 @@ type Line = { id: string; who: "me" | "bot"; text: string; reply?: ChatResponse 
 const MAX_LEN = 5000;
 const MAX_RECORD_SECONDS = 45;
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
+const OPERATOR_SUGGESTIONS = ["Vì sao các xe bị trễ?", "Nếu giới hạn nguồn còn 50 kW thì sao?", "Cần nguồn điện bao nhiêu để đáp ứng các cam kết?"];
 const SUGGESTIONS = ["Cần 80% trước 07:00 sáng mai.", "Vì sao lịch của tôi bắt đầu lúc 23:00?", "Đổi giờ lấy xe sang 06:30."];
 
 function normalizeEvTranscript(raw: string): string {
@@ -65,9 +67,18 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 interface ChatPanelProps {
   initialConfirmingSession?: string;
+  role?: Role;
 }
 
-export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
+export function ChatPanel(props: ChatPanelProps = {}) {
+  const session = useSession();
+  return <ChatConversation key={session?.generation ?? "anonymous"} {...props} />;
+}
+
+function ChatConversation({ initialConfirmingSession, role = "resident" }: ChatPanelProps) {
+  const resident = role === "resident";
+  const streamAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => streamAbort.current?.abort(), []);
   const [lines, setLines] = useState<Line[]>(() =>
     initialConfirmingSession
       ? [
@@ -129,15 +140,19 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
       setStreamError(null);
       setVoiceNotice(null);
       setStreamStatus("Đang gửi yêu cầu…");
-      const token = getToken();
+      const requestSession = getSession();
+      const controller = new AbortController();
+      streamAbort.current = controller;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers.Authorization = `Bearer ${token}`;
+      if (requestSession) headers.Authorization = `Bearer ${requestSession.token}`;
 
       const res = await fetch(`${API_URL}/api/v1/chat/stream`, {
         method: "POST",
         headers,
         body: JSON.stringify({ message, session_id: sessionId }),
+        signal: controller.signal,
       });
+      if (res.status === 401) clearSessionIfCurrent(requestSession?.generation);
       if (!res.ok || !res.body) {
         const body = await res.json().catch(() => null);
         throw toApiError(res.status, body, res.headers.get("X-Request-ID"));
@@ -306,15 +321,16 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
         setIsTranscribing(true);
         try {
           const audioBase64 = await blobToBase64(blob);
-          const token = getToken();
+          const requestSession = getSession();
           const headers: Record<string, string> = { "Content-Type": "application/json" };
-          if (token) headers.Authorization = `Bearer ${token}`;
+          if (requestSession) headers.Authorization = `Bearer ${requestSession.token}`;
           const res = await fetch(`${API_URL}/api/v1/chat/transcribe`, {
             method: "POST",
             headers,
             body: JSON.stringify({ audio_base64: audioBase64, mime_type: preferredMime }),
           });
           const body = await res.json().catch(() => null);
+          if (res.status === 401) clearSessionIfCurrent(requestSession?.generation);
           if (!res.ok) {
             throw toApiError(res.status, body, res.headers.get("X-Request-ID"));
           }
@@ -371,19 +387,19 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
   }
 
   const lastBot = [...lines].reverse().find((l) => l.who === "bot");
-  const waitingConfirm = lastBot?.reply?.status === "needs_confirmation" && !resume.isSuccess;
+  const waitingConfirm = resident && lastBot?.reply?.status === "needs_confirmation" && !resume.isSuccess;
   const effectiveError = streamError ?? send.error ?? resume.error;
   const llmDown = effectiveError instanceof ApiError && effectiveError.code === "llm_unavailable";
   const error = effectiveError;
   const tooLong = text.length > MAX_LEN;
   const quickReplies =
     lines.length === 0
-      ? SUGGESTIONS
+      ? (resident ? SUGGESTIONS : OPERATOR_SUGGESTIONS)
       : !waitingConfirm && !isStreaming && !send.isPending
         ? (lastBot?.reply?.suggestions ?? [])
         : [];
 
-  const draft = (lastBot?.reply?.draft ?? null) as DraftSlots | null;
+  const draft = (resident && !lastBot?.reply?.advisory?.length ? lastBot?.reply?.draft ?? null : null) as DraftSlots | null;
   const hasMissingDraftSlots =
     !waitingConfirm &&
     !isStreaming &&
@@ -403,12 +419,13 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
       <SectionHead
         title={<span id="chat-h">Trợ lý sạc</span>}
         icon="chat"
-        sub="Nói hoặc nhập nhu cầu bằng tiếng Việt. Lịch chỉ được giữ chỗ khi bạn xác nhận."
+        sub={resident ? "Nói hoặc nhập nhu cầu bằng tiếng Việt. Lịch chỉ được giữ chỗ khi bạn xác nhận." : "Giải thích tình trạng trạm, mô phỏng hạ tầng và kiểm chứng phương án."}
         extra={
           lines.length ? (
             <button
               type="button"
               className="textbtn"
+              disabled={isStreaming || send.isPending || resume.isPending}
               onClick={() => {
                 setLines([]);
                 setSessionId(undefined);
@@ -424,11 +441,15 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
         }
       />
       <div aria-live="polite" className="stack" style={{ gap: 10, maxHeight: 360, overflowY: "auto" }}>
-        {lines.length === 0 ? <p className="subcopy">Ví dụ: “Cần 80% trước 07:00 sáng mai.” hoặc bấm nút micro để nói.</p> : null}
+        {lines.length === 0 && resident ? <p className="subcopy">Nhập yêu cầu hoặc bấm nút micro để nói.</p> : null}
         {lines.map((l) =>
           l.who === "bot" && !l.text && !l.reply ? null : (
             <div key={l.id} className={`chat-line ${l.who}`}>
               <p style={{ whiteSpace: "pre-line", margin: 0 }}>{l.text}</p>
+              {l.reply?.advisory?.length ? <ChatAdvisory advisory={l.reply.advisory} sessionId={l.reply.session_id} /> : null}
+              {resident && l.reply?.advisory?.some((item) => item.kind === "job" && item.job.job_kind === "how_to") ? (
+                <Link href="/resident/plan" className="textbtn">Mở lịch sạc để yêu cầu chỉnh sửa</Link>
+              ) : null}
               {l.reply?.request ? (
                 <p className="hint" style={{ marginTop: 4 }}>
                   Mục tiêu {l.reply.request.soc_target}% · lấy xe {formatTime(l.reply.request.deadline)}
@@ -508,7 +529,7 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
           ) : (
             <ErrorPanel error={error} />
           )}
-          {llmDown || (error instanceof ApiError && error.status === 409) ? (
+          {resident && (llmDown || (error instanceof ApiError && error.status === 409)) ? (
             <p style={{ marginTop: 8 }}>
               <Link href="/resident/book" className="textbtn">
                 Đặt lịch bằng biểu mẫu
@@ -531,7 +552,7 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
         <label htmlFor="chat-input" className="sr-only">
           Tin nhắn cho Trợ lý sạc
         </label>
-        <button
+        {resident ? <button
           type="button"
           className={`btn ${isRecording ? "btn-primary" : "btn-secondary"}`}
           onClick={toggleVoiceRecording}
@@ -541,7 +562,7 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
         >
           <Icon name={isRecording ? "stop" : "mic"} />
           {isRecording ? `${recordSeconds}s` : null}
-        </button>
+        </button> : null}
         <input
           ref={inputRef}
           id="chat-input"
@@ -552,7 +573,7 @@ export function ChatPanel({ initialConfirmingSession }: ChatPanelProps = {}) {
               ? "Đang nghe giọng nói tiếng Việt…"
               : isTranscribing
                 ? "Đang nhận dạng giọng nói…"
-                : "Nhập hoặc nói nhu cầu sạc…"
+                : resident ? "Nhập hoặc nói nhu cầu sạc…" : "Nhập câu hỏi về trạm…"
           }
           aria-invalid={tooLong || undefined}
           aria-describedby="chat-hint"

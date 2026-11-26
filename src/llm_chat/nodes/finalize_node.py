@@ -17,6 +17,9 @@ from src.llm_chat.mock_llm import mock_generate
 from src.llm_chat.prompts import SHARED_RULES, render
 from src.llm_chat.schemas import FinalAnswer
 from src.llm_chat.state import HISTORY_LIMIT, AgentState
+from src.models.control import Role
+from src.models.copilot_integration import CopilotNotice
+from src.services.copilot.integration import CopilotIntegration
 from src.services.llm import get_structured_llm
 
 logger = logging.getLogger("ai20k.finalize")
@@ -100,6 +103,55 @@ def _sanitize_suggestions(suggestions: list[str], state: AgentState) -> list[str
     return cleaned
 
 
+def _finalize_advisory(state: AgentState, partial: bool) -> dict | None:
+    decision = state.get("last_decision") or {}
+    action = decision.get("action")
+    results = list(state.get("copilot_results", []))
+    if not (
+        results or action in ("clarify", "unsupported") or state.get("turn_context", {}).get("role") == Role.OPERATOR
+    ):
+        return None
+    if action == "clarify":
+        results.append(CopilotIntegration.clarification(decision["clarify_field"]).model_dump(mode="json"))
+    if action == "unsupported":
+        results.append(
+            CopilotNotice(
+                code="unsupported",
+                message="Các điều kiện kết hợp này chưa được hỗ trợ. Hãy chọn một thay đổi để mô phỏng.",
+            ).model_dump(mode="json")
+        )
+    lines = []
+    if results:
+        for result in results:
+            match result["kind"]:
+                case "why":
+                    lines.append(result["summary"])
+                    lines.extend(reason["summary"] for reason in result["result"]["reasons"])
+                case "job":
+                    job = result["job"]
+                    if job["result"]:
+                        lines.append(job["result"]["summary"])
+                    elif job["status"] in ("queued", "running"):
+                        lines.append("Đã nhận tác vụ mô phỏng. Kết quả sẽ hiển thị khi hoàn tất.")
+                    else:
+                        lines.append("Tác vụ đã dừng hoặc kết quả đã hết hạn.")
+                case "notice":
+                    lines.append(result["message"])
+    else:
+        lines.append("Bạn muốn tìm lý do, mô phỏng thay đổi hạ tầng hay thử mức công suất cho các cam kết?")
+    if partial:
+        lines.append("Lượt này đã hết số vòng phân tích.")
+    answer = "\n\n".join(dict.fromkeys(lines))
+    guardrails.check_output_text(answer)
+    return {
+        "response": answer,
+        "history": _with_reply(state, answer),
+        "copilot_results": results,
+        "suggestions": [],
+        "stage": "partial" if partial else "finalize",
+    }
+
+
 def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
     fn = generate_fn or llm_generate
 
@@ -112,6 +164,10 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
                 used_tools=[],
             )
             return {"response": refusal.answer, "stage": "refusal", "history": _with_reply(state, refusal.answer)}
+
+        advisory = _finalize_advisory(state, partial)
+        if advisory is not None:
+            return advisory
 
         raw = await fn(state, partial=partial)
         final = guardrails.validate_output(raw, FinalAnswer, source="finalize")

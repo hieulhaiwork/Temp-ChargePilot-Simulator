@@ -1,11 +1,11 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { retryDelayMs, shouldRetry } from "@/lib/api/errors";
 
-let browserQueryClient: QueryClient | undefined;
+import { useSession } from "@/lib/auth/session";
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -23,13 +23,12 @@ function makeQueryClient(): QueryClient {
   });
 }
 
-function getQueryClient(): QueryClient {
-  // Mỗi lần render phía server một client riêng; trình duyệt dùng lại một client để giữ cache.
-  if (typeof window === "undefined") return makeQueryClient();
-  browserQueryClient ??= makeQueryClient();
-  return browserQueryClient;
-}
-
 export function Providers({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={getQueryClient()}>{children}</QueryClientProvider>;
+  const generation = useSession()?.generation;
+  const client = useMemo(() => {
+    // A login generation owns its cache, including in-flight requests.
+    void generation;
+    return makeQueryClient();
+  }, [generation]);
+  return <QueryClientProvider key={generation ?? "anonymous"} client={client}>{children}</QueryClientProvider>;
 }

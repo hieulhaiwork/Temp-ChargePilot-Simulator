@@ -7,8 +7,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-from src.agents.copilot_grounding import GroundingError, render_what_if, render_why
-from src.agents.copilot_intent import CopilotIntentParser
+from src.agents.copilot_grounding import GroundingError, render_how_to, render_what_if, render_why
+from src.agents.copilot_intent import CopilotIntentParser, conflicts_with_simulation
 from src.models.api import ErrorCode, UserProfile
 from src.models.control import Role
 from src.models.copilot import ActorContext, WhyQuery, WhyStatus
@@ -25,6 +25,7 @@ from src.models.copilot_integration import (
     CopilotQueryReply,
     CopilotQueryRequest,
     HowToIntent,
+    HowToRequest,
     JobReply,
     ParseSource,
     RelativeTime,
@@ -37,9 +38,10 @@ from src.models.copilot_integration import (
     WhyIntent,
     WhyReply,
 )
-from src.models.what_if import Outage, ReviseVehicle, SiteLimit, WhatIfJobView, WhatIfPatch
+from src.models.recommendation import MinTestedSiteLimitForSla, RecommendationGoal, RecommendationResult
+from src.models.what_if import Outage, ReviseVehicle, SiteLimit, WhatIfPatch
 from src.services import runtime
-from src.services.copilot.jobs import WhatIfCapacityError, WhatIfJobs
+from src.services.copilot.jobs import SimulationJobView, WhatIfCapacityError, WhatIfJobs
 from src.services.copilot.snapshot import CapturedSnapshot, SnapshotNotReadyError, capture_atomic_snapshot
 from src.services.copilot.what_if import WhatIfForbiddenError
 from src.services.copilot.why import explain_why
@@ -54,6 +56,8 @@ _CLARIFICATIONS: dict[ClarifyField, str] = {
     "duration": "Sự cố giả định kéo dài bao nhiêu phút?",
     "target": "Mức pin mục tiêu mới là bao nhiêu phần trăm?",
     "grid_input": "Hãy cung cấp công suất đầu vào từ lưới (kW).",
+    "bounds": "Bạn muốn thử trong khoảng giá trị nào?",
+    "sacrifices": "Bạn có đồng ý giảm mục tiêu, dời hạn hoặc chấp nhận mất cam kết gốc không? Hãy ghi rõ thay đổi nào được phép.",
     "infrastructure": "Mức này cần xác nhận giả định nâng cấp hạ tầng.",
 }
 
@@ -88,7 +92,7 @@ def _forbidden() -> DomainError:
     return DomainError(ErrorCode.FORBIDDEN, "Bạn không có quyền xem hoặc mô phỏng đối tượng này.")
 
 
-def _clarify(field: ClarifyField, source: ParseSource) -> CopilotNotice:
+def _clarify(field: ClarifyField, source: ParseSource | None) -> CopilotNotice:
     return CopilotNotice(code="clarify", field=field, message=_CLARIFICATIONS[field], parse_source=source)
 
 
@@ -192,7 +196,9 @@ class CopilotIntegration:
         rt: StationRuntime,
         actor: ActorContext,
         horizon: int,
-        patch_at_snapshot: Callable[[CapturedSnapshot], WhatIfPatch],
+        workload_at_snapshot: Callable[[CapturedSnapshot], WhatIfPatch | RecommendationGoal],
+        *,
+        session: str | None = None,
     ) -> JobReply:
         if self._capture.locked():
             raise DomainError(
@@ -200,8 +206,22 @@ class CopilotIntegration:
             )
         try:
             async with self._capture:
-                snapshot = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
-                view = self._jobs.submit(actor, snapshot, patch_at_snapshot(snapshot))
+                async with asyncio.timeout(5):
+                    snapshot = await capture_atomic_snapshot(rt, horizon_minutes=horizon)
+                workload = workload_at_snapshot(snapshot)
+                if isinstance(workload, (ReviseVehicle, SiteLimit, Outage)):
+                    view = self._jobs.submit(actor, snapshot, workload, session=session)
+                else:
+                    if session is None:
+                        raise ValueError("HOW-TO requires a chat session")
+                    if not isinstance(workload, MinTestedSiteLimitForSla) and not any(
+                        row.booking_id == workload.booking_id and row.resident_id == actor.actor_id
+                        for row in snapshot.known_bookings
+                    ):
+                        raise _forbidden()
+                    view = self._jobs.submit_recommendation(actor, snapshot, workload, session=session)
+        except TimeoutError as exc:
+            raise DomainError(ErrorCode.COPILOT_NOT_READY, "Quá thời gian chụp trạng thái trạm.") from exc
         except SnapshotNotReadyError as exc:
             raise DomainError(ErrorCode.COPILOT_NOT_READY, "Trạm chưa sẵn sàng để mô phỏng an toàn.") from exc
         except WhatIfForbiddenError as exc:
@@ -235,19 +255,89 @@ class CopilotIntegration:
             raise _forbidden()
         return await self._submit(rt, actor, request.horizon_minutes, lambda _: patch)
 
-    def _job_reply(self, view: WhatIfJobView, actor: ActorContext, *, source: ParseSource | None = None) -> JobReply:
-        job = CopilotJob(job_id=view.job_id, job_kind="what_if", status=view.status, error=view.error)
+    @staticmethod
+    def clarification(field: ClarifyField) -> CopilotNotice:
+        return _clarify(field, None)
+
+    async def agent_why(self, user: UserProfile, intent: WhyIntent) -> WhyReply | CopilotNotice:
+        rt = self._get_runtime()
+        if user.role == Role.RESIDENT and intent.subject == "station":
+            raise _forbidden()
+        if intent.subject == "station" and intent.booking_id is not None:
+            return _clarify("booking", None)
+        if user.role == Role.RESIDENT and intent.subject != "station":
+            actor = ActorContext.from_user(user, rt.config.station_id)
+            try:
+                booking_id = await self._booking(rt, actor, intent.booking_id)
+                intent = intent.model_copy(update={"subject": "booking", "booking_id": booking_id})
+            except _ClarificationError as exc:
+                return _clarify(exc.field, None)
+        try:
+            return await self._why_intent(user, rt, intent, None, None)
+        except _ClarificationError as exc:
+            return _clarify(exc.field, None)
+
+    @staticmethod
+    def _constraint_notice(message: str, workload: WhatIfIntent | RecommendationGoal) -> CopilotNotice | None:
+        issue = conflicts_with_simulation(message, workload)
+        if issue == "unsupported":
+            return CopilotNotice(
+                code="unsupported", message="Yêu cầu có điều kiện kết hợp chưa được biểu diễn trong mô phỏng."
+            )
+        if issue in ("sacrifices", "infrastructure"):
+            return _clarify(issue, None)
+        return None
+
+    async def agent_what_if(
+        self, user: UserProfile, intent: WhatIfIntent, session: str, *, message: str
+    ) -> JobReply | CopilotNotice:
+        is_vehicle = isinstance(intent.change, VehicleChange)
+        if is_vehicle != (user.role == Role.RESIDENT):
+            raise _forbidden()
+        notice = self._constraint_notice(message, intent)
+        if notice:
+            return notice
+        try:
+            return await self._what_if_intent(user, self._get_runtime(), intent, None, None, session=session)
+        except _ClarificationError as exc:
+            return _clarify(exc.field, None)
+
+    async def agent_how_to(
+        self, user: UserProfile, request: HowToRequest, session: str, *, message: str
+    ) -> JobReply | CopilotNotice:
+        rt = self._get_runtime()
+        actor = ActorContext.from_user(user, rt.config.station_id)
+        is_site = isinstance(request.goal, MinTestedSiteLimitForSla)
+        if is_site != (actor.role == Role.OPERATOR):
+            raise _forbidden()
+        notice = self._constraint_notice(message, request.goal)
+        if notice:
+            return notice
+        if not is_site:
+            await self._booking(rt, actor, request.goal.booking_id)
+        return await self._submit(rt, actor, request.horizon_minutes, lambda _: request.goal, session=session)
+
+    def _job_reply(
+        self, view: SimulationJobView, actor: ActorContext, *, source: ParseSource | None = None
+    ) -> JobReply:
+        job = CopilotJob(job_id=view.job_id, job_kind=view.job_kind, status=view.status, error=view.error)
         if view.result is not None:
             try:
-                job = job.model_copy(update={"result": render_what_if(view.result, actor.station_id)})
+                reply = (
+                    render_how_to(view.result, actor.station_id)
+                    if isinstance(view.result, RecommendationResult)
+                    else render_what_if(view.result, actor.station_id)
+                )
+                job = job.model_copy(update={"result": reply})
             except GroundingError:
                 job = job.model_copy(update={"status": "failed", "error": "grounding_failed"})
         return JobReply(job=job, parse_source=source)
 
-    def job(self, user: UserProfile, job_id: str, *, cancel: bool = False) -> JobReply:
+    def job(self, user: UserProfile, job_id: str, *, cancel: bool = False, session: str | None = None) -> JobReply:
         rt = self._get_runtime()
         actor = ActorContext.from_user(user, rt.config.station_id)
-        view = self._jobs.cancel(actor, job_id) if cancel else self._jobs.get(actor, job_id)
+        operation = self._jobs.cancel if cancel else self._jobs.get
+        view = operation(actor, job_id, session=session)
         if view is None:
             raise DomainError(ErrorCode.NOT_FOUND, "Không tìm thấy tác vụ mô phỏng.")
         return self._job_reply(view, actor)
@@ -257,12 +347,13 @@ class CopilotIntegration:
         user: UserProfile,
         rt: StationRuntime,
         intent: WhyIntent,
-        request: CopilotQueryRequest,
-        source: ParseSource,
+        request: CopilotQueryRequest | None,
+        source: ParseSource | None,
     ) -> WhyReply:
         subject = intent.subject
-        booking = intent.booking_id or request.selected_booking_id
-        if intent.booking_id and request.selected_booking_id and intent.booking_id != request.selected_booking_id:
+        selected = request.selected_booking_id if request else None
+        booking = intent.booking_id or selected
+        if intent.booking_id and selected and intent.booking_id != selected:
             raise _ClarificationError("booking")
         if subject == "station":
             booking = None
@@ -286,20 +377,23 @@ class CopilotIntegration:
         user: UserProfile,
         rt: StationRuntime,
         intent: WhatIfIntent,
-        request: CopilotQueryRequest,
-        source: ParseSource,
+        request: CopilotQueryRequest | None,
+        source: ParseSource | None,
+        *,
+        session: str | None = None,
     ) -> JobReply:
         actor = ActorContext.from_user(user, rt.config.station_id)
         change = intent.change
         booking_id = connector_id = None
         if isinstance(change, VehicleChange):
-            if change.booking_id and request.selected_booking_id and change.booking_id != request.selected_booking_id:
+            selected = request.selected_booking_id if request else None
+            if change.booking_id and selected and change.booking_id != selected:
                 raise _ClarificationError("booking")
-            booking_id = await self._booking(rt, actor, change.booking_id or request.selected_booking_id)
+            booking_id = await self._booking(rt, actor, change.booking_id or selected)
         elif actor.role != Role.OPERATOR:
             raise _forbidden()
         elif isinstance(change, ConnectorOutage):
-            connector_id = self._connector(rt, change, request.selected_connector_id)
+            connector_id = self._connector(rt, change, request.selected_connector_id if request else None)
 
         def patch(snapshot: CapturedSnapshot) -> WhatIfPatch:
             now, tz = snapshot.envelope.as_of, rt.config.timezone
@@ -325,7 +419,7 @@ class CopilotIntegration:
                 starts_at=_resolve_time(change.starts_at, now, tz),
             )
 
-        job = await self._submit(rt, actor, intent.horizon_minutes or DEFAULT_HORIZON_MINUTES, patch)
+        job = await self._submit(rt, actor, intent.horizon_minutes or DEFAULT_HORIZON_MINUTES, patch, session=session)
         return job.model_copy(update={"parse_source": source})
 
     async def query(self, user: UserProfile, request: CopilotQueryRequest) -> CopilotQueryReply:

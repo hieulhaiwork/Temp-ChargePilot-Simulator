@@ -11,7 +11,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { clearSession, getToken, type Role } from "@/lib/auth/session";
+import { clearSessionIfCurrent, getSession, useSession, type Role } from "@/lib/auth/session";
 import { API_PREFIX, WS_URL } from "@/lib/env";
 
 import { ReconnectingSocket, type SocketStatus } from "./client";
@@ -33,23 +33,27 @@ export function usePollFallback(): number | undefined {
 
 export function useStream(role: Role): StreamState {
   const queryClient = useQueryClient();
+  const generation = useSession()?.generation;
   const [state, setState] = useState<StreamState>({ status: "idle" });
 
   useEffect(() => {
     const refresh = () => queryClient.invalidateQueries({ queryKey: [role] });
     const socket = new ReconnectingSocket({
       url: `${WS_URL}${API_PREFIX}/ws/${role}`,
-      getToken,
+      getToken: () => {
+        const session = getSession();
+        return session?.generation === generation ? session?.token ?? null : null;
+      },
       onMessage: refresh,
       onReconnect: refresh, // server không phát lại bản tin đã lỡ → làm mới qua REST
       onStatus: (status, detail) => {
         setState({ status, detail });
-        if (status === "unauthorized") clearSession();
+        if (status === "unauthorized") clearSessionIfCurrent(generation);
       },
     });
     socket.start();
     return () => socket.stop();
-  }, [queryClient, role]);
+  }, [generation, queryClient, role]);
 
   return state;
 }

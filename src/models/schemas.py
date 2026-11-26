@@ -9,12 +9,15 @@ File này giữ DTO của API chat (`ChatRequest` / `ChatResponse`, nằm trong 
 (`AgentDecision`, `FinalAnswer`, `AgentAnswer`) ở `src/llm_chat/schemas.py`.
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 from src.models.charging import Booking, ChargeRequest, ScheduleProposal
+from src.models.copilot_integration import CopilotNotice, JobReply, WhyReply
+
+ChatAdvisory = Annotated[WhyReply | JobReply | CopilotNotice, Field(discriminator="kind")]
 
 
 class ChatRequest(BaseModel):
@@ -35,6 +38,7 @@ class ChatResponse(BaseModel):
     status: Literal["answer", "needs_confirmation", "refused"] = Field(
         default="answer", description="needs_confirmation = graph đang dừng ở interrupt, chờ PATCH /chat/sessions/{id}"
     )
+    advisory: list[ChatAdvisory] = Field(default_factory=list)
     proposal: ScheduleProposal | None = Field(default=None, description="Phương án hiện ở S3 — số liệu do CODE tính")
     request: ChargeRequest | None = Field(default=None, description="Yêu cầu đã chỉnh sẵn khi chờ xác nhận (G3)")
     booking: Booking | None = Field(default=None, description="Booking vừa được xác nhận (G4)")

@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from src.models.copilot_integration import ClarifyField
+
 
 class AgentDecision(BaseModel):
     """Output của node `reason` — LLM PHẢI trả đúng schema này.
@@ -16,7 +18,8 @@ class AgentDecision(BaseModel):
     """
 
     thought: str = Field(..., min_length=1, description="Suy luận ngắn của agent ở vòng này")
-    action: Literal["tool", "final"]
+    action: Literal["tool", "final", "clarify", "unsupported"]
+    clarify_field: ClarifyField | None = None
     tool_name: str | None = Field(default=None, description="Bắt buộc nếu action='tool'")
     tool_args: dict = Field(default_factory=dict, description="Tham số cho tool")
     enough_data: bool = Field(
@@ -34,6 +37,8 @@ class AgentDecision(BaseModel):
 
     @model_validator(mode="after")
     def _check_consistency(self) -> "AgentDecision":
+        if self.action == "clarify" and self.clarify_field is None:
+            raise ValueError("Clarification requires a field")
         if self.action == "tool" and not self.tool_name:
             raise ValueError("action='tool' đòi hỏi tool_name không rỗng")
         if self.action == "final":

@@ -6,10 +6,11 @@ import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 
 const calls = vi.hoisted(() => ({
   get: vi.fn(), post: vi.fn(), cancel: vi.fn(),
-  session: { userId: "resident-1", role: "resident", token: "tok-1" } as {
+  session: { userId: "resident-1", role: "resident", token: "tok-1", generation: 1 } as {
     userId: string;
     role: string;
     token?: string;
+    generation: number;
   } | null,
 }));
 
@@ -30,7 +31,7 @@ const job = (status: string, result?: unknown) => ({
 });
 
 function show(role: "resident" | "operator") {
-  calls.session = { userId: calls.session?.userId ?? "resident-1", role, token: calls.session?.token ?? "tok-1" };
+  calls.session = { userId: calls.session?.userId ?? "resident-1", role, token: calls.session?.token ?? "tok-1", generation: calls.session?.generation ?? 1 };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return {
     client,
@@ -46,7 +47,7 @@ function ask(text: string) {
 }
 
 beforeEach(() => {
-  calls.session = { userId: "resident-1", role: "resident", token: "tok-1" };
+  calls.session = { userId: "resident-1", role: "resident", token: "tok-1", generation: 1 };
   calls.get.mockReset().mockImplementation(async (path) => path.endsWith("context") ? context : job("running"));
   calls.post.mockReset();
   calls.cancel.mockReset();
@@ -62,7 +63,7 @@ it("clears prior reply and keeps context cache isolated across resident sessions
   expect(await screen.findByRole("option", { name: "B1" })).toBeTruthy();
   ask("Một câu hỏi");
   expect(await screen.findByText("Phản hồi phiên trước")).toBeTruthy();
-  calls.session = { userId: "resident-2", role: "resident", token: "tok-2" };
+  calls.session = { userId: "resident-2", role: "resident", token: "tok-2", generation: 2 };
   screenRoot.rerender(<CopilotPanel role="resident" />);
   expect(screen.queryByRole("option", { name: "B1" })).toBeNull();
   expect(screen.queryByText("Phản hồi phiên trước")).toBeNull();
@@ -99,7 +100,7 @@ it("drops delayed in-flight query and cancel responses across logout and re-logi
   screenRoot.rerender(<CopilotPanel role="resident" />);
   expect(screenRoot.client.getQueriesData({ queryKey: ["copilot"] })).toHaveLength(0);
 
-  calls.session = { userId: "resident-2", role: "resident", token: "tok-2" };
+  calls.session = { userId: "resident-2", role: "resident", token: "tok-2", generation: 2 };
   screenRoot.rerender(<CopilotPanel role="resident" />);
   expect(await screen.findByRole("option", { name: "B2-FRESH" })).toBeTruthy();
 
@@ -114,7 +115,7 @@ it("drops delayed in-flight query and cancel responses across logout and re-logi
   fireEvent.click(screen.getByRole("button", { name: "Hủy mô phỏng" }));
   await waitFor(() => expect(calls.cancel).toHaveBeenCalledTimes(1));
 
-  calls.session = { userId: "resident-1", role: "resident", token: "tok-1-new" };
+  calls.session = { userId: "resident-1", role: "resident", token: "tok-1-new", generation: 3 };
   screenRoot.rerender(<CopilotPanel role="resident" />);
   resolveSlowCancel(job("cancelled"));
   await Promise.resolve();
@@ -183,4 +184,24 @@ it("rules clarify connector selection, cancel a job and show HOW-TO unavailable"
   expect(await screen.findByText("Đã hủy")).toBeTruthy();
   ask("Cần tăng công suất nguồn lên bao nhiêu?");
   expect(await screen.findByText("HOW-TO hiện chưa khả dụng.")).toBeTruthy();
+});
+
+it("never puts the credential in query cache keys and rekeys same-account login", async () => {
+  calls.session = { userId: "resident-1", role: "resident", token: "test-private-jwt-credential", generation: 41 };
+  const root = show("resident");
+  await screen.findByRole("option", { name: "B1" });
+  const cache = root.client.getQueryCache();
+  const hashes = () => cache.findAll({ queryKey: ["copilot"] }).map((query) => query.queryHash);
+  const contextHash = () => cache.find({ queryKey: ["copilot", "context"], exact: false })?.queryHash;
+  expect(hashes().length).toBeGreaterThan(0);
+  expect(hashes().join()).not.toContain("test-private-jwt-credential");
+  const initial = contextHash();
+  expect(initial).toBeDefined();
+  calls.session = { ...calls.session!, generation: 42 };
+  root.rerender(<CopilotPanel role="resident" />);
+  await waitFor(() => {
+    expect(contextHash()).toBeDefined();
+    expect(contextHash()).not.toBe(initial);
+  });
+  expect(hashes().join()).not.toContain("test-private-jwt-credential");
 });

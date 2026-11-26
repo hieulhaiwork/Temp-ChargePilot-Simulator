@@ -1,6 +1,6 @@
 # AI-4.3 — HOW-TO Engine · Gate 5
 
-**G5 — READY_FOR_FINAL_ACCEPTANCE.** Bốn finding đã qua kiểm chứng cục bộ. Tech Lead quyết định nghiệm thu cuối.
+Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c49a76e4c6446530da`. Candidate SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle SHA-256 `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`. Tech Lead xác nhận 6/6 blob, 6/6 source hash, 26/26 checksum nội dung, oracle M3a/M3b, hai trường hợp có cải thiện và không cải thiện, G5-F01–F04 đã xử lý, 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, 180 standalone và 10/10 cổng exit 0. G5 đóng, chỉ xử lý blocker tích hợp đã xác nhận nếu có.
 
 ## Targeted remediation · G5-F01–F04
 

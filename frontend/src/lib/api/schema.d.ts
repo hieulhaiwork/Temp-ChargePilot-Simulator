@@ -83,6 +83,24 @@ export interface paths {
         patch: operations["chat_resume_api_v1_chat_sessions__session_id__patch"];
         trace?: never;
     };
+    "/api/v1/chat/sessions/{session_id}/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chat Job */
+        get: operations["chat_job_api_v1_chat_sessions__session_id__jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        /** Chat Job */
+        delete: operations["chat_job_api_v1_chat_sessions__session_id__jobs__job_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat/stream": {
         parameters: {
             query?: never;
@@ -1230,6 +1248,17 @@ export interface components {
             /** Soc Target */
             soc_target?: number | null;
         };
+        /** BookingSla */
+        BookingSla: {
+            /** Booking Id */
+            booking_id: string;
+            original: components["schemas"]["CommitmentOutcome"];
+            /**
+             * Zone
+             * @enum {string}
+             */
+            zone: "AC" | "DC";
+        };
         /**
          * BookingStatus
          * @enum {string}
@@ -1251,6 +1280,27 @@ export interface components {
              */
             output_limit_kw: number;
             zone: components["schemas"]["ChargerZone"];
+        };
+        /**
+         * CandidateReason
+         * @enum {string}
+         */
+        CandidateReason: "target_not_met_by_deadline" | "site_sla_not_met" | "original_sla_regression" | "sacrifice_not_allowed" | "unknown_sla" | "empty_cohort" | "incomplete_observation" | "unsafe" | "safety_hold" | "pending_approval" | "blocked_command" | "rejected_allocation" | "invalid_candidate_for_snapshot" | "baseline_unavailable" | "timeout" | "cancelled" | "execution_failed";
+        /** CandidateSet */
+        CandidateSet: {
+            /**
+             * Search Variable
+             * @enum {string}
+             */
+            search_variable: "target_soc_pct" | "deadline" | "grid_input_kw";
+            /** Values */
+            values: (number | string)[];
+            /**
+             * Version
+             * @default chargepilot.how_to_candidates/1
+             * @constant
+             */
+            version: "chargepilot.how_to_candidates/1";
         };
         /**
          * ChargeMode
@@ -1322,6 +1372,8 @@ export interface components {
         };
         /** ChatResponse */
         ChatResponse: {
+            /** Advisory */
+            advisory?: (components["schemas"]["WhyReply"] | components["schemas"]["JobReply"] | components["schemas"]["CopilotNotice"])[];
             /**
              * Analysis
              * @description Phân tích nội bộ (tool trace tóm tắt)
@@ -1607,11 +1659,11 @@ export interface components {
             job_id: string;
             /**
              * Job Kind
-             * @constant
+             * @enum {string}
              */
-            job_kind: "what_if";
+            job_kind: "what_if" | "how_to";
             /** Result */
-            result?: (components["schemas"]["WhyReply"] | components["schemas"]["WhatIfReply"]) | null;
+            result?: (components["schemas"]["WhyReply"] | components["schemas"]["WhatIfReply"] | components["schemas"]["HowToReply"]) | null;
             status: components["schemas"]["WhatIfJobStatus"];
         };
         /** CopilotNotice */
@@ -1622,7 +1674,7 @@ export interface components {
              */
             code: "clarify" | "unsupported" | "feature_not_available" | "structured_fallback";
             /** Field */
-            field?: ("intent" | "booking" | "connector" | "time" | "duration" | "target" | "grid_input" | "infrastructure") | null;
+            field?: ("intent" | "booking" | "connector" | "time" | "duration" | "target" | "grid_input" | "infrastructure" | "bounds" | "sacrifices") | null;
             /** Intent */
             intent?: "how_to" | null;
             /**
@@ -1722,6 +1774,34 @@ export interface components {
          * @enum {string}
          */
         DerivationOp: "sum" | "count" | "average" | "time_integration" | "efficiency_conversion" | "soc_conversion" | "hardware_bound";
+        /** EarliestCompletionForTarget */
+        EarliestCompletionForTarget: {
+            /** Allow Later Deadline */
+            allow_later_deadline: boolean;
+            /** Allow Lower Target */
+            allow_lower_target: boolean;
+            /** Allow Subject Original Sla Regression */
+            allow_subject_original_sla_regression: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /**
+             * Earliest Deadline
+             * Format: date-time
+             */
+            earliest_deadline: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            goal: "earliest_completion_for_target";
+            /**
+             * Latest Deadline
+             * Format: date-time
+             */
+            latest_deadline: string;
+            /** Target Soc */
+            target_soc: number;
+        };
         /**
          * EnergyEstimate
          * @description Kết quả FR3 — do CODE tính (src/services/energy.py), LLM không tự tính.
@@ -1828,6 +1908,11 @@ export interface components {
          */
         FactStage: "observed" | "planned" | "approved" | "dispatched" | "effective_setpoint" | "measured" | "config";
         /**
+         * Feasibility
+         * @enum {string}
+         */
+        Feasibility: "feasible" | "infeasible" | "unknown";
+        /**
          * FieldProvenance
          * @description Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).
          */
@@ -1846,7 +1931,7 @@ export interface components {
         /** GroundedClaim */
         GroundedClaim: {
             /** Branch */
-            branch?: ("baseline" | "patched" | "delta") | null;
+            branch?: ("baseline" | "patched" | "delta" | "candidate") | null;
             /** Claim Id */
             claim_id: string;
             /** Direction */
@@ -1936,6 +2021,19 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HowToReply */
+        HowToReply: {
+            /** Claims */
+            claims: components["schemas"]["GroundedClaim"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "how_to";
+            result: components["schemas"]["RecommendationResult"];
+            /** Summary */
+            summary: string;
         };
         /**
          * Incident
@@ -2080,6 +2178,49 @@ export interface components {
         ManualAssignRequest: {
             /** Connector Id */
             connector_id: string;
+        };
+        /** MaxSocByDeadline */
+        MaxSocByDeadline: {
+            /** Allow Later Deadline */
+            allow_later_deadline: boolean;
+            /** Allow Lower Target */
+            allow_lower_target: boolean;
+            /** Allow Subject Original Sla Regression */
+            allow_subject_original_sla_regression: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /**
+             * Deadline
+             * Format: date-time
+             */
+            deadline: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            goal: "max_soc_by_deadline";
+            /** Max Target Soc */
+            max_target_soc: number;
+            /** Min Target Soc */
+            min_target_soc: number;
+        };
+        /** MinTestedSiteLimitForSla */
+        MinTestedSiteLimitForSla: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            goal: "min_tested_site_limit_for_sla";
+            /** Hypothetical Infrastructure */
+            hypothetical_infrastructure: boolean;
+            /** Max Grid Input Kw */
+            max_grid_input_kw: number;
+            /** Min Grid Input Kw */
+            min_grid_input_kw: number;
+            /** Min Original On Time Rate */
+            min_original_on_time_rate: number;
+            /** Protect On Time Ac Bookings */
+            protect_on_time_ac_bookings: boolean;
         };
         /** Notification */
         Notification: {
@@ -2313,6 +2454,132 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "degraded";
+        };
+        /** RecommendationCandidate */
+        RecommendationCandidate: {
+            evidence?: components["schemas"]["RecommendationEvidence"] | null;
+            feasibility: components["schemas"]["Feasibility"];
+            /**
+             * Hypothetical Infrastructure
+             * @default false
+             */
+            hypothetical_infrastructure: boolean;
+            reason?: components["schemas"]["CandidateReason"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "completed" | "skipped" | "failed";
+            /** Value */
+            value: number | string;
+        };
+        /** RecommendationEvidence */
+        RecommendationEvidence: {
+            /** Blocked Commands */
+            blocked_commands: number;
+            /**
+             * Booking Sla
+             * @default []
+             */
+            booking_sla: components["schemas"]["BookingSla"][];
+            /**
+             * Branch Status
+             * @enum {string}
+             */
+            branch_status: "completed" | "unsafe" | "unresolved_safety";
+            /** Config Sha256 */
+            config_sha256: string;
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /** Final Physics Sha256 */
+            final_physics_sha256: string;
+            /** Hard Violations */
+            hard_violations: number;
+            /** Input Sha256 */
+            input_sha256: string;
+            /**
+             * Observed Until
+             * Format: date-time
+             */
+            observed_until: string;
+            original_sla?: components["schemas"]["SlaMetrics"] | null;
+            /** Pending Approval Commands */
+            pending_approval_commands: number;
+            /** Pending Approvals */
+            pending_approvals: number;
+            /**
+             * Ref
+             * @description Identity of the authorized evidence projection. Append a JSON Pointer for a field.
+             */
+            ref: string;
+            /** Rejected Allocations */
+            rejected_allocations: number;
+            /** Safety Holds */
+            safety_holds: number;
+            subject_goal_target?: components["schemas"]["TargetAttainment"] | null;
+            subject_original?: components["schemas"]["CommitmentOutcome"] | null;
+            /** Subject Release At */
+            subject_release_at?: string | null;
+            subject_revised?: components["schemas"]["CommitmentOutcome"] | null;
+            /** Subject Soc At Deadline Pct */
+            subject_soc_at_deadline_pct?: number | null;
+            /** Subject Soc Observed At */
+            subject_soc_observed_at?: string | null;
+            /** Unresolved Safety Count */
+            unresolved_safety_count: number;
+        };
+        /** RecommendationResult */
+        RecommendationResult: {
+            /**
+             * Applied
+             * @default false
+             * @constant
+             */
+            applied: false;
+            /** Assumptions */
+            assumptions: string[];
+            baseline: components["schemas"]["RecommendationEvidence"] | null;
+            /** Baseline Execution Count */
+            baseline_execution_count: number;
+            baseline_issue?: components["schemas"]["CandidateReason"] | null;
+            /** Branch Execution Count */
+            branch_execution_count: number;
+            candidate_set: components["schemas"]["CandidateSet"];
+            /** Candidates */
+            candidates: components["schemas"]["RecommendationCandidate"][];
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /** Event Manifest Sha256 */
+            event_manifest_sha256: string;
+            /** Experiment Fingerprint */
+            experiment_fingerprint: string;
+            /** Goal */
+            goal: components["schemas"]["MaxSocByDeadline"] | components["schemas"]["EarliestCompletionForTarget"] | components["schemas"]["MinTestedSiteLimitForSla"];
+            /**
+             * Horizon End
+             * Format: date-time
+             */
+            horizon_end: string;
+            /**
+             * Known At
+             * Format: date-time
+             */
+            known_at: string;
+            /** Options */
+            options: components["schemas"]["RecommendationCandidate"][];
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Ranking */
+            ranking: string[];
+            search_status: components["schemas"]["SearchStatus"];
+            /** Snapshot Id */
+            snapshot_id: string;
+            /** Snapshot Sha256 */
+            snapshot_sha256: string;
+            /** Unsupported Reason */
+            unsupported_reason?: "independent_supply" | null;
         };
         /**
          * ResidentProfile
@@ -2600,6 +2867,11 @@ export interface components {
             new_power_limit_kw?: number | null;
             type: components["schemas"]["IncidentType"];
         };
+        /**
+         * SearchStatus
+         * @enum {string}
+         */
+        SearchStatus: "found" | "no_feasible_in_tested_set" | "partial" | "unsupported";
         /** SessionPlan */
         SessionPlan: {
             /** Booking Id */
@@ -3043,6 +3315,15 @@ export interface components {
          * @enum {string}
          */
         SupplyMode: "shared" | "independent";
+        /** TargetAttainment */
+        TargetAttainment: {
+            /** Already Satisfied At Snapshot */
+            already_satisfied_at_snapshot: boolean;
+            /** Target Reached At */
+            target_reached_at: string | null;
+            /** Target Soc */
+            target_soc: number;
+        };
         /**
          * Tariff
          * @description Biểu giá mô phỏng (config/tariff.yaml).
@@ -3976,6 +4257,178 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    chat_job_api_v1_chat_sessions__session_id__jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReply"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    chat_job_api_v1_chat_sessions__session_id__jobs__job_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReply"];
                 };
             };
             /** @description Unauthorized */

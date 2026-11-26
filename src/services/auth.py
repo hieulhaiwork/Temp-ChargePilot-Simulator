@@ -89,6 +89,7 @@ def _issue_token(user: UserRecord) -> str:
         "role": user.role.value,
         "name": user.display_name,
         "iat": now,
+        "jti": uuid4().hex,
         "exp": now + timedelta(minutes=get_settings().jwt_ttl_minutes),
     }
     return jwt.encode(claims, _secret(), algorithm=_ALGORITHM)

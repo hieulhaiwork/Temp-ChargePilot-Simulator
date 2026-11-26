@@ -4,7 +4,7 @@
  */
 import createClient, { type Middleware } from "openapi-fetch";
 
-import { clearSession, getToken } from "@/lib/auth/session";
+import { clearSessionIfCurrent, getSession } from "@/lib/auth/session";
 import { API_URL } from "@/lib/env";
 
 import { networkError, toApiError } from "./errors";
@@ -13,11 +13,18 @@ import type { paths } from "./schema";
 export const api = createClient<paths>({ baseUrl: API_URL });
 
 /** Gắn token đăng nhập vào mọi request. Token không bao giờ nằm trên URL. */
+const requestGenerations = new WeakMap<Request, number>();
 const authMiddleware: Middleware = {
   onRequest({ request }) {
-    const token = getToken();
-    if (token) request.headers.set("Authorization", `Bearer ${token}`);
+    const session = getSession();
+    if (session) {
+      request.headers.set("Authorization", `Bearer ${session.token}`);
+      requestGenerations.set(request, session.generation);
+    }
     return request;
+  },
+  onResponse({ request, response }) {
+    if (response.status === 401) clearSessionIfCurrent(requestGenerations.get(request));
   },
 };
 api.use(authMiddleware);
@@ -27,7 +34,7 @@ type FetchResult<T> = { data?: T; error?: unknown; response: Response };
 /**
  * Chuyển kết quả `{ data, error, response }` của openapi-fetch thành: trả `data` hoặc NÉM ApiError.
  * - fetch() ném lỗi (mất mạng, backend đang ngủ) → ApiError status 0, có thể thử lại.
- * - 401 → xoá phiên; AuthGate sẽ đưa người dùng về /login.
+ * - Middleware xử lý 401 trong phạm vi phiên đã gửi request.
  */
 export async function unwrap<T>(call: Promise<FetchResult<T>>): Promise<T> {
   let result: FetchResult<T>;
@@ -38,7 +45,6 @@ export async function unwrap<T>(call: Promise<FetchResult<T>>): Promise<T> {
   }
   if (result.response.ok) return result.data as T;
   const error = toApiError(result.response.status, result.error, result.response.headers.get("X-Request-ID"));
-  if (error.status === 401) clearSession();
   throw error;
 }
 

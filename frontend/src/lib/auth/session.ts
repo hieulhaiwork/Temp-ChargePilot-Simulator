@@ -25,7 +25,9 @@ export type Session = {
 
 const STORAGE_KEY = "chargepilot.session";
 
-let cached: Session | null | undefined;
+type ActiveSession = Session & { generation: number };
+let generation = 0;
+let cached: ActiveSession | null | undefined;
 const listeners = new Set<() => void>();
 
 function readFromStorage(): Session | null {
@@ -37,8 +39,11 @@ function readFromStorage(): Session | null {
   }
 }
 
-function snapshot(): Session | null {
-  if (cached === undefined) cached = readFromStorage();
+function snapshot(): ActiveSession | null {
+  if (cached === undefined) {
+    const stored = readFromStorage();
+    cached = stored ? { ...stored, generation: ++generation } : null;
+  }
   return cached;
 }
 
@@ -52,7 +57,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 /** Đọc phiên ngoài React (API client, WebSocket). Phía server luôn trả null. */
-export function getSession(): Session | null {
+export function getSession(): ActiveSession | null {
   return typeof window === "undefined" ? null : snapshot();
 }
 
@@ -61,7 +66,7 @@ export function getToken(): string | null {
 }
 
 export function setSession(session: Session): void {
-  cached = session;
+  cached = { ...session, generation: ++generation };
   try {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   } catch {
@@ -81,7 +86,11 @@ export function clearSession(): void {
   emit();
 }
 
-export function useSession(): Session | null | undefined {
+export function clearSessionIfCurrent(generation: number | undefined): void {
+  if (generation !== undefined && getSession()?.generation === generation) clearSession();
+}
+
+export function useSession(): ActiveSession | null | undefined {
   return useSyncExternalStore(subscribe, snapshot, () => undefined);
 }
 

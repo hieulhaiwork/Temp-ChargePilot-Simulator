@@ -1,9 +1,19 @@
 """Verify and render claims over already authorized deterministic results."""
 
 from collections.abc import Iterable
+from datetime import datetime
+from typing import Literal
 
 from src.models.copilot import WhyAnswer, WhyStatus
-from src.models.copilot_integration import GroundedClaim, ParseSource, WhatIfReply, WhyReply
+from src.models.copilot_integration import GroundedClaim, HowToReply, ParseSource, WhatIfReply, WhyReply
+from src.models.recommendation import (
+    EarliestCompletionForTarget,
+    Feasibility,
+    MaxSocByDeadline,
+    MinTestedSiteLimitForSla,
+    RecommendationEvidence,
+    RecommendationResult,
+)
 from src.models.what_if import StationMetrics, WhatIfResult
 
 METRICS = {
@@ -174,6 +184,155 @@ class GroundingGate:
                 )
             )
         return cls(claims)
+
+    @classmethod
+    def for_how_to(cls, result: RecommendationResult, station_id: str) -> "GroundingGate":
+        goal = result.goal
+        subject = station_id if isinstance(goal, MinTestedSiteLimitForSla) else goal.booking_id
+        claims = []
+
+        def add_projection(
+            key: str,
+            side: Literal["baseline", "candidate"],
+            evidence: RecommendationEvidence,
+        ) -> None:
+            def add(
+                pointer: str,
+                value: bool | float | int | str | datetime | None,
+                unit: str | None = None,
+                observed_at: datetime | None = None,
+                *,
+                claim_subject: str = subject,
+            ) -> None:
+                claims.append(
+                    GroundedClaim(
+                        claim_id=f"{key}:{pointer}",
+                        subject=claim_subject,
+                        name=pointer,
+                        value=value.isoformat() if isinstance(value, datetime) else value,
+                        unit=unit,
+                        stage="simulated",
+                        branch=side,
+                        observed_at=observed_at or evidence.observed_until,
+                        evidence_refs=(f"{evidence.ref}#{pointer}",),
+                    )
+                )
+
+            for field in ("branch_status", "blocked_commands", "pending_approvals", "hard_violations"):
+                add(f"/{field}", getattr(evidence, field))
+            if evidence.original_sla is not None:
+                add("/original_sla/on_time_rate", evidence.original_sla.on_time_rate, "fraction")
+                add("/original_sla/denominator", evidence.original_sla.denominator, "bookings")
+                for index, row in enumerate(evidence.booking_sla):
+                    add(
+                        f"/booking_sla/{index}/original/met_deadline",
+                        row.original.met_deadline,
+                        observed_at=min(row.original.deadline, evidence.observed_until),
+                        claim_subject=row.booking_id,
+                    )
+            for key_name in ("subject_original", "subject_revised"):
+                outcome = getattr(evidence, key_name)
+                if outcome is None:
+                    continue
+                add(f"/{key_name}/target_soc", outcome.target_soc, "%")
+                add(f"/{key_name}/deadline", outcome.deadline)
+                add(
+                    f"/{key_name}/met_deadline",
+                    outcome.met_deadline,
+                    observed_at=min(outcome.deadline, evidence.observed_until),
+                )
+                add(f"/{key_name}/target_reached_at", outcome.target_reached_at, observed_at=outcome.target_reached_at)
+            if evidence.subject_goal_target is not None:
+                target = evidence.subject_goal_target
+                add("/subject_goal_target/target_soc", target.target_soc, "%")
+                add(
+                    "/subject_goal_target/target_reached_at",
+                    target.target_reached_at,
+                    observed_at=target.target_reached_at,
+                )
+            if evidence.subject_soc_observed_at is not None:
+                add(
+                    "/subject_soc_at_deadline_pct",
+                    evidence.subject_soc_at_deadline_pct,
+                    "%",
+                    evidence.subject_soc_observed_at,
+                )
+                add(
+                    "/subject_soc_observed_at",
+                    evidence.subject_soc_observed_at,
+                    observed_at=evidence.subject_soc_observed_at,
+                )
+            if not isinstance(goal, MinTestedSiteLimitForSla):
+                add("/subject_release_at", evidence.subject_release_at, observed_at=evidence.subject_release_at)
+
+        if result.baseline:
+            add_projection("baseline", "baseline", result.baseline)
+        for index, branch in enumerate(result.candidates):
+            if branch.evidence:
+                add_projection(f"candidate:{index}", "candidate", branch.evidence)
+        for option in result.options:
+            if (
+                option not in result.candidates
+                or option.feasibility != Feasibility.FEASIBLE
+                or option.evidence is None
+                or option.evidence.branch_status != "completed"
+                or option.evidence.hard_violations
+                or option.evidence.blocked_commands
+                or option.evidence.pending_approvals
+                or option.evidence.pending_approval_commands
+                or option.evidence.rejected_allocations
+                or option.evidence.unresolved_safety_count
+                or option.evidence.safety_holds
+            ):
+                raise GroundingError("Ranked option lacks a safe feasible branch")
+        return cls(claims)
+
+
+def render_how_to(result: RecommendationResult, station_id: str) -> HowToReply:
+    gate = GroundingGate.for_how_to(result, station_id)
+    goal, baseline = result.goal, result.baseline
+    option = result.options[0] if result.options else None
+    evidence = option.evidence if option else None
+    if result.unsupported_reason:
+        summary = "Nguồn cấp độc lập nằm ngoài phạm vi của mục tiêu công suất này."
+    elif evidence is None or baseline is None or result.baseline_issue is not None:
+        summary = "Chưa xác minh được phương án khả thi trong tập đã thử."
+    elif isinstance(goal, MinTestedSiteLimitForSla):
+        rate = baseline.original_sla.on_time_rate if baseline.original_sla else None
+        summary = "Phương án đầu tiên có mức công suất thấp nhất trong các mức đã xác minh khả thi."
+        if rate is not None and rate >= goal.min_original_on_time_rate:
+            summary = "Kịch bản gốc đã đáp ứng mục tiêu đúng hạn. Có thể giữ nguyên. " + summary
+    elif isinstance(goal, EarliestCompletionForTarget):
+        original = baseline.subject_goal_target
+        proposed = evidence.subject_goal_target
+        a = original.target_reached_at if original else None
+        b = proposed.target_reached_at if proposed else None
+        if a is not None and b is not None and original.target_soc == proposed.target_soc == goal.target_soc:
+            summary = (
+                "Phương án đạt cùng mục tiêu pin sớm hơn kịch bản gốc."
+                if b < a
+                else "Kịch bản gốc đạt cùng mục tiêu pin ít nhất sớm bằng phương án thử. Có thể giữ nguyên."
+            )
+        else:
+            summary = "Phương án khả thi với các điều kiện đã chọn. Xem thời điểm đạt mức pin và thời điểm nhả cổng."
+    elif isinstance(goal, MaxSocByDeadline):
+        a, b = baseline.subject_soc_at_deadline_pct, evidence.subject_soc_at_deadline_pct
+        if (
+            a is not None
+            and b is not None
+            and baseline.subject_soc_observed_at == evidence.subject_soc_observed_at == goal.deadline
+        ):
+            if b > a:
+                summary = "Phương án đạt mức pin cao hơn tại cùng hạn."
+            elif isinstance(option.value, (int, float)) and a >= option.value:
+                summary = "Kịch bản gốc đã đạt mức pin kiểm chứng tại hạn này. Có thể giữ nguyên."
+            else:
+                summary = "Chưa xác minh được cải thiện mức pin tại hạn đã chọn."
+        else:
+            summary = "Phương án khả thi. Thiếu quan sát trên cùng mốc để xác nhận mức cải thiện."
+    if result.search_status == "partial":
+        summary += " Tìm kiếm còn một phần vì có nhánh chưa thể xác minh."
+    return HowToReply(result=result, claims=gate.claims, summary=summary)
 
 
 def render_why(answer: WhyAnswer, source: ParseSource | None = None) -> WhyReply:

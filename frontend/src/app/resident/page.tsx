@@ -103,7 +103,10 @@ export default function ResidentHomePage() {
             </DataBlock>
           </Panel>
           <ChatPanel />
-          <CopilotPanel role="resident" />
+          <details>
+            <summary>Biểu mẫu phân tích</summary>
+            <CopilotPanel role="resident" structuredOnly />
+          </details>
         </div>
         <aside className="stack">
           <Panel label="Hàng chờ">

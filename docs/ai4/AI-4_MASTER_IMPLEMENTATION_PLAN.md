@@ -189,6 +189,8 @@ Discriminated union, `extra=forbid`, strict units/validations, actor auth server
 
 Sau review G5 và authorization G6B, expose WHY, WHAT-IF và HOW-TO thành typed tools trong Chat Agent `llm_chat`. Tool adapters gọi approved deterministic services. Graph hiện có tiếp tục sở hữu vòng hội thoại và HITL. Dùng chung job lifecycle, queue bounds, cancellation, TTL, owner checks và single-worker solver cho WHAT-IF/HOW-TO. KHÔNG tạo orchestration LLM lồng nhau hoặc bản sao optimizer, simulator, job manager. Architecture gate hiện hành cấm `llm_chat` import trực tiếp `src/agents`, simulator, Guard, optimizer hoặc DB.
 
+G5 được Tech Lead nghiệm thu tại mirror `42438430`. Project Owner đã giao G6B trên local chứa candidate cuối G5 và merged develop. Hợp đồng tích hợp và bằng chứng triển khai được ghi theo checkpoint. [Recovery G6B](G6B_RECOVERY_STATE.md) · [Hợp đồng công cụ](G6B_TOOL_CONTRACTS.md)
+
 ### A. Ý định, phân quyền và dữ liệu trả về
 
 - Role, station và actor đến từ context phía server. Tool schemas chỉ nhận truy vấn, patch, goal và tham chiếu theo quyền. Server giải alias booking, phút đồng hồ trạm và các đơn vị. Nếu thiếu hoặc mơ hồ, hỏi lại theo schema. Nếu vượt whitelist, trả unsupported.

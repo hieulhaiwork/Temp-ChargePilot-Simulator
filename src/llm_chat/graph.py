@@ -36,10 +36,19 @@ from src.llm_chat.nodes.human_review_node import BLOCKED_BY_HUMAN, human_review_
 from src.llm_chat.nodes.reason_node import ReasonFn, llm_reason, make_reason_node
 from src.llm_chat.state import HISTORY_LIMIT, AgentState
 from src.llm_chat.tools.charging import CONFIRM_TOOL_NAME
+from src.llm_chat.tools.copilot import ChatContext
 
 logger = logging.getLogger("ai20k.graph")
 
-__all__ = ["BLOCKED_BY_HUMAN", "CONFIRM_TOOL_NAME", "TOOL_ERROR_PREFIX", "Command", "build_graph", "agent"]
+__all__ = [
+    "BLOCKED_BY_HUMAN",
+    "CONFIRM_TOOL_NAME",
+    "TOOL_ERROR_PREFIX",
+    "Command",
+    "ChatContext",
+    "build_graph",
+    "agent",
+]
 
 
 async def guardrail_check_node(state: AgentState) -> dict:
@@ -74,6 +83,9 @@ def make_entry_node(max_iterations: int):
             "iteration_count": 0,
             "refusal_reason": "",
             "tool_trace": [],
+            "copilot_results": [],
+            "copilot_attempts": 0,
+            "simulation_attempts": 0,
             "last_decision": {},
             "pending_action": None,
             "human_decisions": [],
@@ -131,7 +143,7 @@ def build_graph(
     settings = get_settings()
     max_iter = max_iterations if max_iterations is not None else settings.agent_max_iterations
 
-    graph = StateGraph(AgentState)
+    graph = StateGraph(AgentState, context_schema=ChatContext)
 
     graph.add_node("entry", make_entry_node(max_iter))
     graph.add_node("guardrail_check", guardrail_check_node)

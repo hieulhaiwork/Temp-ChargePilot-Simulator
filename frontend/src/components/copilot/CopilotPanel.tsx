@@ -12,7 +12,7 @@ import { useSession } from "@/lib/auth/session";
 type Schema = components["schemas"];
 type Reply = Schema["WhyReply"] | Schema["JobReply"] | Schema["CopilotNotice"];
 type FormMode = "why" | "revise_vehicle" | "site_limit" | "outage";
-const statusText: Record<Schema["WhatIfJobStatus"], string> = {
+export const statusText: Record<Schema["WhatIfJobStatus"], string> = {
   queued: "Đang chờ chạy", running: "Đang mô phỏng", succeeded: "Đã có kết quả",
   failed: "Tác vụ thất bại", cancelled: "Đã hủy", expired: "Tác vụ đã hết hạn",
 };
@@ -44,7 +44,7 @@ const whyTopics = {
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 6 });
 const percent = new Intl.NumberFormat("vi-VN", { style: "percent", maximumFractionDigits: 2 });
 
-function stamp(value: string | null | undefined, timezone: string) {
+export function stamp(value: string | null | undefined, timezone: string) {
   if (!value) return "Chưa quan sát";
   return new Intl.DateTimeFormat("vi-VN", {
     timeZone: timezone, dateStyle: "short", timeStyle: "medium", hourCycle: "h23",
@@ -58,7 +58,7 @@ function claimValue(value: Schema["GroundedClaim"]["value"] | undefined, unit?: 
   return value;
 }
 
-function WhyResult({ reply, timezone }: { reply: Schema["WhyReply"]; timezone: string }) {
+export function WhyResult({ reply, timezone }: { reply: Schema["WhyReply"]; timezone: string }) {
   const reasons = reply.claims.filter((claim) => claim.reason_code);
   const facts = reply.claims.filter((claim) => !claim.reason_code);
   return (
@@ -96,7 +96,7 @@ function WhyResult({ reply, timezone }: { reply: Schema["WhyReply"]; timezone: s
   );
 }
 
-function Commitment({ value, timezone }: { value: Schema["CommitmentOutcome"]; timezone: string }) {
+export function Commitment({ value, timezone }: { value: Schema["CommitmentOutcome"]; timezone: string }) {
   const sla = value.met_deadline === true ? "Đúng hạn" : value.met_deadline === false ? "Trễ hạn" : "Chưa xác định SLA";
   return (
     <div>
@@ -107,7 +107,7 @@ function Commitment({ value, timezone }: { value: Schema["CommitmentOutcome"]; t
   );
 }
 
-function WhatIfResult({ reply, timezone }: { reply: Schema["WhatIfReply"]; timezone: string }) {
+export function WhatIfResult({ reply, timezone }: { reply: Schema["WhatIfReply"]; timezone: string }) {
   const { result, claims } = reply;
   const byId = new Map(claims.map((claim) => [claim.claim_id, claim]));
   return (
@@ -183,14 +183,13 @@ function WhatIfResult({ reply, timezone }: { reply: Schema["WhatIfReply"]; timez
   );
 }
 
-function active(job?: Schema["CopilotJob"]) {
+export function active(job?: Schema["CopilotJob"]) {
   return job?.status === "queued" || job?.status === "running";
 }
 
-export function CopilotPanel({ role }: { role: Schema["CopilotContext"]["role"] }) {
+export function CopilotPanel({ role, structuredOnly = false }: { role: Schema["CopilotContext"]["role"]; structuredOnly?: boolean }) {
   const session = useSession();
   const cache = useQueryClient();
-  const sessionToken = session?.token ?? "";
   useEffect(() => {
     if (!session) {
       void cache.cancelQueries({ queryKey: ["copilot"] });
@@ -198,18 +197,20 @@ export function CopilotPanel({ role }: { role: Schema["CopilotContext"]["role"] 
     }
   }, [cache, session]);
   if (!session || session.role !== role) return null;
-  const actorKey = `${role}:${session.userId}:${sessionToken}`;
-  return <CopilotForActor key={actorKey} role={role} userId={session.userId} actorKey={actorKey} />;
+  const actorKey = `${role}:${session.userId}:${session.generation}`;
+  return <CopilotForActor key={actorKey} role={role} userId={session.userId} actorKey={actorKey} structuredOnly={structuredOnly} />;
 }
 
 function CopilotForActor({
   role,
   userId,
   actorKey,
+  structuredOnly,
 }: {
   role: Schema["CopilotContext"]["role"];
   userId: string;
   actorKey: string;
+  structuredOnly: boolean;
 }) {
   const id = useId();
   const cache = useQueryClient();
@@ -220,7 +221,7 @@ function CopilotForActor({
   const [booking, setBooking] = useState("");
   const [connector, setConnector] = useState("");
   const [mode, setMode] = useState<FormMode>("why");
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(structuredOnly);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -304,7 +305,7 @@ function CopilotForActor({
   return (
     <Panel label="Copilot trạm sạc">
       <div className="stack">
-        <SectionHead title="Copilot trạm sạc" sub="Hỏi lý do hoặc mô phỏng một thay đổi." />
+        <SectionHead title={structuredOnly ? "Biểu mẫu phân tích" : "Copilot trạm sạc"} sub="Xem lý do hoặc mô phỏng một thay đổi." />
         <div className="fieldgrid">
           <label className="field">
             <span className="label">Lịch sạc</span>
@@ -324,7 +325,7 @@ function CopilotForActor({
           ) : null}
         </div>
         {context.isError ? <ErrorPanel error={context.error} onRetry={() => void context.refetch()} /> : null}
-        <form onSubmit={submitMessage} className="stack">
+        {!structuredOnly ? <form onSubmit={submitMessage} className="stack">
           <div className="field">
             <label htmlFor={id}>Câu hỏi</label>
             <textarea id={id} required maxLength={1000} value={message} onChange={(event) => setMessage(event.target.value)}
@@ -334,7 +335,7 @@ function CopilotForActor({
             <button className="btn btn-primary" disabled={busy || !message.trim()} type="submit">Gửi câu hỏi</button>
             <button className="btn btn-secondary" type="button" aria-expanded={formOpen} onClick={() => setFormOpen(!formOpen)}>Dùng biểu mẫu</button>
           </div>
-        </form>
+        </form> : null}
         {formOpen && choices ? (
           <form onSubmit={submitForm} className="stack" aria-label="Biểu mẫu Copilot">
             <label className="field"><span className="label">Thao tác</span>

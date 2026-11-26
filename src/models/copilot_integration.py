@@ -6,6 +6,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 from src.models.control import Role
 from src.models.copilot import MAX_COUNTERFACTUAL_HORIZON_MINUTES, EvidenceCategory, FactStage, WhyAnswer, WhyTopic
+from src.models.recommendation import RecommendationGoal, RecommendationResult
 from src.models.what_if import PatchDatetime, WhatIfJobStatus, WhatIfPatch, WhatIfResult
 
 Id = Annotated[str, Field(strict=True, min_length=1, max_length=64)]
@@ -84,7 +85,18 @@ class HowToIntent(CopilotModel):
     goal: Literal["max_soc_by_deadline", "earliest_completion_for_target", "min_tested_site_limit_for_sla", "other"]
 
 
-ClarifyField = Literal["intent", "booking", "connector", "time", "duration", "target", "grid_input", "infrastructure"]
+ClarifyField = Literal[
+    "intent",
+    "booking",
+    "connector",
+    "time",
+    "duration",
+    "target",
+    "grid_input",
+    "infrastructure",
+    "bounds",
+    "sacrifices",
+]
 
 
 class ClarifyIntent(CopilotModel):
@@ -166,7 +178,7 @@ class GroundedClaim(CopilotModel):
     interval_start: AwareDatetime | None = None
     interval_end: AwareDatetime | None = None
     evidence_refs: tuple[str, ...]
-    branch: Literal["baseline", "patched", "delta"] | None = None
+    branch: Literal["baseline", "patched", "delta", "candidate"] | None = None
     direction: Literal["patched_minus_baseline", "baseline_minus_patched"] | None = None
     reason_code: str | None = None
     reason_category: EvidenceCategory | None = None
@@ -190,12 +202,24 @@ class WhatIfReply(CopilotModel):
     summary: str
 
 
-CopilotResult = Annotated[WhyReply | WhatIfReply, Field(discriminator="kind")]
+class HowToRequest(CopilotModel):
+    goal: RecommendationGoal
+    horizon_minutes: Horizon = DEFAULT_HORIZON_MINUTES
+
+
+class HowToReply(CopilotModel):
+    kind: Literal["how_to"] = "how_to"
+    result: RecommendationResult
+    claims: tuple[GroundedClaim, ...]
+    summary: str
+
+
+CopilotResult = Annotated[WhyReply | WhatIfReply | HowToReply, Field(discriminator="kind")]
 
 
 class CopilotJob(CopilotModel):
     job_id: str
-    job_kind: Literal["what_if"]
+    job_kind: Literal["what_if", "how_to"]
     status: WhatIfJobStatus
     error: Literal["timeout", "execution_failed", "grounding_failed"] | None = None
     result: CopilotResult | None = None

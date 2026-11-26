@@ -61,6 +61,11 @@ class AgentState(TypedDict, total=False):
     pending_action: dict | None  # {"tool": ..., "args": ...}
     human_decisions: list[dict]  # [{"tool":..., "decision": "approve"|"reject"}]
 
+    # Authorized advisory payloads and execution budget for this turn.
+    copilot_results: list[dict]
+    copilot_attempts: int
+    simulation_attempts: int
+
     # Output
     response: str
     suggestions: list[str]

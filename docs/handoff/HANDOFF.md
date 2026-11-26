@@ -88,6 +88,8 @@ vẫn ghi nhận trạng thái của lượt 25/11.
 
 ### 1.2 Kế hoạch và phạm vi đã được duyệt
 
+Project Owner giao G6B ngày 26/11/2026, tích hợp typed WHY/WHAT-IF/HOW-TO vào Agent hiện có cho hai vai trò, giữ booking và HITL cùng hai đường fallback G6A. Phạm vi và checkpoint A–F ở [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
+
 Nguồn: tin nhắn của Human Supervisor trong phiên Claude Code ngày 2026-11-24 (duyệt Giai đoạn 1 có điều kiện; sau đó
 duyệt cơ chế chuyển giao). Tóm tắt yêu cầu đã duyệt:
 1. Một Feature Registry duy nhất; hệ mã ưu tiên PRD v0.4 nhưng **không mặc định PRD đúng hơn code**; có bảng ánh xạ
@@ -119,6 +121,8 @@ tạo tài liệu song song thay vì sửa tài liệu cũ.
 Đề xuất đồng bộ PRD/ADR-015 chờ nhóm duyệt. Dừng trước G6B. [Master Plan](../ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md)
 
 ### 1.3 Task Phase 1
+
+**G6B — IN_PROGRESS.** Codex ghi G5 APPROVED và đối chiếu baseline trước checkpoint A.
 
 **G5 (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Targeted remediation F01–F04 đã qua 10 cổng. Tech Lead nhận nghiệm thu cuối.
 [Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
@@ -246,6 +250,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.8 Trạng thái Git
 
+**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận sạch. Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
+
 - **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
   Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
   provenance ở [báo cáo](../ai4/PHASE_4_3_REPORT.md). Targeted remediation giữ HEAD và cập nhật 2 file recommendation,
@@ -279,6 +285,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.9 Agent và khoá chỉnh sửa
 
+**G6B (2026-11-26).** Codex nhận khoá cập nhật quyết định G5 và implementation G6B gồm chat, services/models, API, frontend tích hợp, tests và tài liệu AI-4. Baseline local `64c85f1`, cây ban đầu sạch, một worktree, các khoá G5 đã nhả. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
+
 **G5 targeted remediation.** Codex đã nhận khoá F01–F04 theo review `9ecb1af`, đối chiếu đủ năm hash của patch cũ và chạy lại 10 cổng trên candidate mới. Chênh lệch checkpoint là RECOVERABLE. Đã nhả khoá sau HANDOFF_READY.
 
 **AI-4 G5 (2026-11-26).** Codex nhận khoá implementation, tests, roadmap và evidence G5 trên `feature/ai-4-how-to` tại merged develop `0f877f1`. Đã nhả khoá sau HANDOFF_READY. Review độc lập chuyển Tech Lead. [Checkpoint G5](../ai4/PROJECT_STATE.md)
@@ -310,8 +318,7 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.10 Việc Agent tiếp theo cần làm
 
-**G5.** Tech Lead đối chiếu patch, oracle và gói evidence để nghiệm thu cuối. Nhóm duyệt đề xuất đồng bộ PRD/ADR-015.
-G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 5)**.
+**G5 APPROVED. G6B được giao.** Codex tiến hành checkpoint A–F theo [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md). G7 chờ chỉ thị riêng.
 
 1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
    (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
@@ -323,6 +330,8 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
    (chỉ kế hoạch, implementation chưa duyệt).
 
 ### 1.11 Nhật ký checkpoint
+
+**26/11, Codex.** Ghi Tech Lead APPROVED cho G5. Đối chiếu candidate G5 với local HEAD và nhận khoá G6B.
 
 **26/11, Codex.** Targeted remediation G5–F01–F04 đã qua 10 cổng. Hai file recommendation thay đổi, 24 tests trước
 remediation khớp byte và thêm 6 tests. Đã đóng gói bằng chứng, ghi READY_FOR_FINAL_ACCEPTANCE và nhả khoá.

@@ -112,9 +112,9 @@ async def test_chat_requires_resident_token(client):
     assert (await client.post("/api/v1/chat", json={"message": "Chào"})).status_code == 401
 
 
-async def test_chat_rejects_operator(client, as_role):
+async def test_chat_confirmation_still_rejects_operator(client, as_role):
     as_role(Role.OPERATOR)
-    assert (await client.post("/api/v1/chat", json={"message": "Chào"})).status_code == 403
+    assert (await client.patch("/api/v1/chat/sessions/test", json={"resume": "approve"})).status_code == 403
 
 
 @pytest.mark.parametrize(

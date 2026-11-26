@@ -4,9 +4,9 @@ Graph compile với checkpointer nên mọi lần invoke cần `configurable.thr
 session_id và gửi lại kèm resume khi cư dân bấm "Xác nhận" / "Đổi phương án" ở màn S3.
 
 ChargePilot (ADR-006):
-  - Cả hai endpoint yêu cầu vai trò `resident`.
-  - `resident_id` lấy từ token và đặt vào config["configurable"] — tool đọc ở đó, LLM không điền được.
-  - thread_id = "{user_id}:{session_id}": người này không resume được phiên của người khác.
+  - Chat và job phân tích dùng danh tính đã xác thực của cư dân hoặc vận hành.
+  - Resume booking và transcribe chỉ dành cho cư dân.
+  - Runtime context giữ user và service. Checkpointer chỉ thấy định danh thread đã băm.
 Lỗi (ADR-008): NotImplementedError / DomainError đi thẳng ra handler chung; lỗi nhà cung cấp LLM
 thành 503 `llm_unavailable` để frontend chuyển sang form (NFR khả dụng). Không trả `str(exc)` cho client.
 """
@@ -16,20 +16,23 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
+from hashlib import sha256
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Request, Response, status
 from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 from openai import OpenAIError
 from pydantic import BaseModel, ValidationError
 
-from src.api.deps import ResidentUser
+from src.api.deps import CurrentUser, ResidentUser
 from src.config import get_settings
-from src.llm_chat.graph import BLOCKED_BY_HUMAN, CONFIRM_TOOL_NAME, TOOL_ERROR_PREFIX, agent
+from src.llm_chat.graph import BLOCKED_BY_HUMAN, CONFIRM_TOOL_NAME, TOOL_ERROR_PREFIX, ChatContext, agent
 from src.models.api import ErrorCode, UserProfile
 from src.models.charging import ChargeRequest, ScheduleProposal
+from src.models.control import Role
+from src.models.copilot_integration import JobReply
 from src.models.schemas import ChatRequest, ChatResponse, TranscribeRequest, TranscribeResponse
 from src.services import catalog, charging_service, speech
 from src.services.errors import DomainError
@@ -43,21 +46,38 @@ router = APIRouter()
 CHAT_STREAM_TIMEOUT_SECONDS = 60.0
 MAX_CONCURRENT_STREAMS_PER_USER = 3
 _active_user_streams: dict[str, int] = defaultdict(int)
+_active_threads: set[str] = set()
 
 
-def _config(user: UserProfile, session_id: str) -> dict:
-    return {"configurable": {"thread_id": f"{user.user_id}:{session_id}", "resident_id": user.user_id}}
+def _context(request: Request, user: UserProfile, session_id: str) -> ChatContext:
+    credential = request.headers.get("Authorization", "").partition(" ")[2].strip()
+    scope = sha256(json.dumps([user.user_id, user.role, credential, session_id]).encode()).hexdigest()
+    return ChatContext(user=user, session=scope, copilot=getattr(request.app.state, "copilot", None))
 
 
-def _turn_context(user: UserProfile) -> dict:
-    """Bối cảnh do SERVER cung cấp cho lượt chat — gửi giờ địa phương của trạm (T2.5)."""
+def _config(context: ChatContext) -> dict:
+    configurable = {"thread_id": context.session}
+    if context.user.role == Role.RESIDENT:
+        configurable["resident_id"] = context.user.user_id
+    return {"configurable": configurable}
+
+
+def _turn_context(context: ChatContext) -> dict:
+    user = context.user
     tz_name = catalog.load_station_config().timezone
     return {
         "now": datetime.now(ZoneInfo(tz_name)).isoformat(),
+        "station_now": get_runtime().simulator.now.isoformat() if context.copilot else None,
         "timezone": tz_name,
         "vehicle_model": user.vehicle_model,
-        "display_name": user.display_name,
+        "role": user.role.value,
     }
+
+
+def _reserve_thread(context: ChatContext) -> None:
+    if context.session in _active_threads:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phiên chat đang xử lý một yêu cầu.")
+    _active_threads.add(context.session)
 
 
 def _proposal_from(payload: dict) -> ScheduleProposal | None:
@@ -146,7 +166,8 @@ def _to_chat_response(result: dict, session_id: str) -> ChatResponse:
         analysis=analysis,
         session_id=session_id,
         status="refused" if result.get("refusal_reason") else "answer",
-        proposal=turn_proposal,
+        advisory=result.get("copilot_results", []),
+        proposal=turn_proposal if not result.get("copilot_results") else None,
         suggestions=list(result.get("suggestions") or []),
         draft=_public_draft(result.get("draft_request")),
     )
@@ -171,10 +192,11 @@ def _confirmed_booking_succeeded(result: dict) -> bool:
     )
 
 
-async def _invoke(payload: dict | Command, config: dict) -> dict:
+async def _invoke(payload: dict | Command, context: ChatContext) -> dict:
     try:
-        return await agent.ainvoke(payload, config=config)
-    except OpenAIError as exc:
+        async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
+            return await agent.ainvoke(payload, config=_config(context), context=context)
+    except (OpenAIError, TimeoutError) as exc:
         logger.error(
             "FAILED chat — nhà cung cấp LLM lỗi: %s (%s)", type(exc).__name__, getattr(exc, "status_code", "-")
         )
@@ -184,11 +206,15 @@ async def _invoke(payload: dict | Command, config: dict) -> dict:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: ResidentUser) -> ChatResponse:
+async def chat(request: ChatRequest, user: CurrentUser, http_request: Request) -> ChatResponse:
     """Chat với Agent (S2). `status = needs_confirmation` nghĩa là đang chờ cư dân xác nhận ở S3."""
-    payload = {"query": request.message, "turn_context": _turn_context(user)}
-    result = await _invoke(payload, _config(user, request.session_id))
-    return _to_chat_response(result, request.session_id)
+    context = _context(http_request, user, request.session_id)
+    _reserve_thread(context)
+    try:
+        result = await _invoke({"query": request.message, "turn_context": _turn_context(context)}, context)
+        return _to_chat_response(result, request.session_id)
+    finally:
+        _active_threads.discard(context.session)
 
 
 def _sse(event_type: str, data: dict) -> str:
@@ -196,16 +222,18 @@ def _sse(event_type: str, data: dict) -> str:
 
 
 @router.post("/chat/stream")
-async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResponse:
+async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Request) -> StreamingResponse:
     """Chat streaming (SSE) cho S2 — phát tiến độ node, từng đoạn câu trả lời và ChatResponse cuối."""
     if _active_user_streams[user.user_id] >= MAX_CONCURRENT_STREAMS_PER_USER:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Bạn đang mở quá nhiều luồng chat đồng thời. Vui lòng đợi phản hồi hiện tại hoàn tất.",
         )
+    context = _context(http_request, user, request.session_id)
+    payload = {"query": request.message, "turn_context": _turn_context(context)}
+    config = _config(context)
+    _reserve_thread(context)
     _active_user_streams[user.user_id] += 1
-    payload = {"query": request.message, "turn_context": _turn_context(user)}
-    config = _config(user, request.session_id)
 
     async def _generate():
         stage_labels = {
@@ -218,7 +246,9 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
         final_state: dict = {}
         try:
             async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
-                async for mode, chunk in agent.astream(payload, config=config, stream_mode=["updates", "values"]):
+                async for mode, chunk in agent.astream(
+                    payload, config=config, context=context, stream_mode=["updates", "values"]
+                ):
                     if mode == "updates" and isinstance(chunk, dict):
                         for node_name, node_out in chunk.items():
                             if isinstance(node_out, dict):
@@ -259,6 +289,7 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
                 },
             )
         finally:
+            _active_threads.discard(context.session)
             _active_user_streams[user.user_id] = max(0, _active_user_streams[user.user_id] - 1)
             if _active_user_streams[user.user_id] == 0:
                 _active_user_streams.pop(user.user_id, None)
@@ -279,20 +310,41 @@ async def chat_resume(
     session_id: Annotated[str, Path(min_length=1, max_length=128)],
     request: ChatSessionResumeRequest,
     user: ResidentUser,
+    http_request: Request,
 ) -> ChatResponse:
     """S3 — "Xác nhận" (approve) hoặc "Đổi phương án" (reject) cho hành động đang chờ.
 
     G1: thread không còn interrupt (backend restart, bấm lặp) → 409, KHÔNG chạy graph với đầu vào rỗng.
     """
-    config = _config(user, session_id)
-    snapshot = await agent.aget_state(config)
-    if not _pending_interrupts(snapshot):
-        raise DomainError(ErrorCode.NO_PENDING_CONFIRMATION, "Phiên chat không còn yêu cầu nào đang chờ xác nhận")
-    result = await _invoke(Command(resume=request.resume), config)
-    response = _to_chat_response(result, session_id)
-    if response.status == "answer" and _confirmed_booking_succeeded(result):
-        response.booking = charging_service.current_booking(user.user_id)
-    return response
+    context = _context(http_request, user, session_id)
+    _reserve_thread(context)
+    try:
+        snapshot = await agent.aget_state(_config(context))
+        if not _pending_interrupts(snapshot):
+            raise DomainError(ErrorCode.NO_PENDING_CONFIRMATION, "Phiên chat không còn yêu cầu nào đang chờ xác nhận")
+        result = await _invoke(Command(resume=request.resume), context)
+        response = _to_chat_response(result, session_id)
+        if response.status == "answer" and _confirmed_booking_succeeded(result):
+            response.booking = charging_service.current_booking(user.user_id)
+        return response
+    finally:
+        _active_threads.discard(context.session)
+
+
+ChatSessionId = Annotated[str, Path(min_length=1, max_length=128)]
+ChatJobId = Annotated[str, Path(pattern=r"^[a-f0-9]{32}$")]
+
+
+@router.get("/chat/sessions/{session_id}/jobs/{job_id}", response_model=JobReply)
+@router.delete("/chat/sessions/{session_id}/jobs/{job_id}", response_model=JobReply)
+async def chat_job(
+    session_id: ChatSessionId, job_id: ChatJobId, user: CurrentUser, request: Request, response: Response
+) -> JobReply:
+    response.headers["Cache-Control"] = "no-store"
+    context = _context(request, user, session_id)
+    if context.copilot is None:
+        raise DomainError(ErrorCode.COPILOT_NOT_READY, "Trợ lý phân tích chưa sẵn sàng.")
+    return context.copilot.job(user, job_id, session=context.session, cancel=request.method == "DELETE")
 
 
 @router.post("/chat/transcribe", response_model=TranscribeResponse)

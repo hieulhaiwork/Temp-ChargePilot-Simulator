@@ -27,6 +27,7 @@ from src.models.copilot_integration import (
     WhatIfIntent,
     WhyIntent,
 )
+from src.models.recommendation import MinTestedSiteLimitForSla, RecommendationGoal
 from src.services import llm
 
 logger = logging.getLogger(__name__)
@@ -226,6 +227,82 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
     else:
         return None
     return WhatIfIntent(kind="what_if", change=change, horizon_minutes=horizon)
+
+
+# These checks veto conflicts and unsafe inferred consent. They do not classify
+# natural-language intents or require matching the standalone fallback grammar.
+_UNSUPPORTED_CONDITION = re.compile(
+    r"\b(?:voi dieu kien|mien la|only if|provided that|on condition that|"
+    r"dong thoi|cung luc|at the same time|simultaneously)\b"
+)
+_DEADLINE = re.compile(r"\b(?:han moi|doi han|doi gio|lay xe|roi tram|deadline|depart|leave by)\b")
+_OUTAGE_ACTION = re.compile(r"\b(?:outage|ngat cong|cong .* (?:hong|loi)|disable .*connector)\b")
+_NEGATION = re.compile(r"\b(?:khong|chua|dung|not|never|refuse|without)\b")
+_AFFIRM = r"(?:dong y|chap nhan|cho phep|confirm|consent to|allow)"
+_CONSENT = {
+    "allow_lower_target": r"(?:giam (?:muc tieu|pin|soc)|lower (?:the )?(?:target|soc))",
+    "allow_later_deadline": r"(?:doi han muon|doi gio muon|tre han|a later deadline|extend (?:the )?deadline)",
+    "allow_subject_original_sla_regression": r"(?:mat cam ket goc|bo cam ket goc|mat sla goc|miss (?:the )?original sla)",
+}
+_HYPOTHETICAL_CONSENT = re.compile(r"\b(?:gia dinh nang cap ha tang|gia dinh ha tang|hypothetical infrastructure)\b")
+
+
+def conflicts_with_simulation(message: str, args: WhatIfIntent | RecommendationGoal) -> str | None:
+    text = _normalized(message)
+    if _UNSUPPORTED_CONDITION.search(text) or _CONTROL.search(text):
+        return "unsupported"
+
+    change = args.change if isinstance(args, WhatIfIntent) else None
+    if change is not None:
+        # Time expressions cannot vanish from a supported vehicle patch or become a
+        # scheduled source change. Relative horizons are a separate input.
+        without_horizon = _HORIZON.sub("", text)
+        if isinstance(change, SourceChange):
+            if _OUTAGE_ACTION.search(text) or _PERCENT.search(text) or _DEADLINE.search(text):
+                return "unsupported"
+            if _RELATIVE.search(without_horizon) or _CLOCK.search(without_horizon) or _ISO.search(message):
+                return "unsupported"
+            explicit = {_number(value) for value in _GRID.findall(text)}
+            if explicit and explicit != {change.grid_input_kw}:
+                return "unsupported"
+        elif isinstance(change, ConnectorOutage):
+            if _GRID.search(text) or _PERCENT.search(text) or _DEADLINE.search(text):
+                return "unsupported"
+            durations = {_minutes(*value) for value in _DURATION.findall(without_horizon)}
+            if durations and durations != {change.duration_minutes}:
+                return "unsupported"
+        elif isinstance(change, VehicleChange):
+            targets = {_number(value) for value in _SOC.findall(text)}
+            if (
+                _GRID.search(text)
+                or _OUTAGE_ACTION.search(text)
+                or (targets and targets != {change.target_soc})
+                or (
+                    _DEADLINE.search(text)
+                    and (_RELATIVE.search(without_horizon) or _CLOCK.search(without_horizon) or _ISO.search(message))
+                    and change.deadline is None
+                )
+            ):
+                return "unsupported"
+
+    if (
+        isinstance(change, SourceChange)
+        and change.hypothetical_infrastructure
+        or (isinstance(args, MinTestedSiteLimitForSla) and args.hypothetical_infrastructure)
+    ):
+        if not any(
+            _HYPOTHETICAL_CONSENT.search(clause) and not _NEGATION.search(clause)
+            for clause in re.split(r"[.!?;]", text)
+        ):
+            return "infrastructure"
+    if change is None and not isinstance(args, MinTestedSiteLimitForSla):
+        for key, permission in _CONSENT.items():
+            if getattr(args, key) and not any(
+                re.search(rf"\b{_AFFIRM}\s+{permission}\b", clause) and not _NEGATION.search(clause)
+                for clause in re.split(r"[.!?;]", text)
+            ):
+                return "sacrifices"
+    return None
 
 
 def _explicit_time(claimed: TimeSelection | None, raw: str, text: str) -> bool:

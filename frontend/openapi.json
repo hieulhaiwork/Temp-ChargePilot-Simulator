@@ -605,6 +605,33 @@
         "title": "BookingChangeRequest",
         "type": "object"
       },
+      "BookingSla": {
+        "additionalProperties": false,
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "original": {
+            "$ref": "#/components/schemas/CommitmentOutcome"
+          },
+          "zone": {
+            "enum": [
+              "AC",
+              "DC"
+            ],
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_id",
+          "zone",
+          "original"
+        ],
+        "title": "BookingSla",
+        "type": "object"
+      },
       "BookingStatus": {
         "enum": [
           "confirmed",
@@ -641,6 +668,71 @@
           "output_limit_kw"
         ],
         "title": "CabinetSpec",
+        "type": "object"
+      },
+      "CandidateReason": {
+        "enum": [
+          "target_not_met_by_deadline",
+          "site_sla_not_met",
+          "original_sla_regression",
+          "sacrifice_not_allowed",
+          "unknown_sla",
+          "empty_cohort",
+          "incomplete_observation",
+          "unsafe",
+          "safety_hold",
+          "pending_approval",
+          "blocked_command",
+          "rejected_allocation",
+          "invalid_candidate_for_snapshot",
+          "baseline_unavailable",
+          "timeout",
+          "cancelled",
+          "execution_failed"
+        ],
+        "title": "CandidateReason",
+        "type": "string"
+      },
+      "CandidateSet": {
+        "additionalProperties": false,
+        "properties": {
+          "search_variable": {
+            "enum": [
+              "target_soc_pct",
+              "deadline",
+              "grid_input_kw"
+            ],
+            "title": "Search Variable",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 8,
+            "title": "Values",
+            "type": "array"
+          },
+          "version": {
+            "const": "chargepilot.how_to_candidates/1",
+            "default": "chargepilot.how_to_candidates/1",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "search_variable",
+          "values"
+        ],
+        "title": "CandidateSet",
         "type": "object"
       },
       "ChargeMode": {
@@ -752,6 +844,31 @@
       },
       "ChatResponse": {
         "properties": {
+          "advisory": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "job": "#/components/schemas/JobReply",
+                  "notice": "#/components/schemas/CopilotNotice",
+                  "why": "#/components/schemas/WhyReply"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/WhyReply"
+                },
+                {
+                  "$ref": "#/components/schemas/JobReply"
+                },
+                {
+                  "$ref": "#/components/schemas/CopilotNotice"
+                }
+              ]
+            },
+            "title": "Advisory",
+            "type": "array"
+          },
           "analysis": {
             "default": "",
             "description": "Phân tích nội bộ (tool trace tóm tắt)",
@@ -1330,7 +1447,10 @@
             "type": "string"
           },
           "job_kind": {
-            "const": "what_if",
+            "enum": [
+              "what_if",
+              "how_to"
+            ],
             "title": "Job Kind",
             "type": "string"
           },
@@ -1339,6 +1459,7 @@
               {
                 "discriminator": {
                   "mapping": {
+                    "how_to": "#/components/schemas/HowToReply",
                     "what_if": "#/components/schemas/WhatIfReply",
                     "why": "#/components/schemas/WhyReply"
                   },
@@ -1350,6 +1471,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/WhatIfReply"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HowToReply"
                   }
                 ]
               },
@@ -1395,7 +1519,9 @@
                   "duration",
                   "target",
                   "grid_input",
-                  "infrastructure"
+                  "infrastructure",
+                  "bounds",
+                  "sacrifices"
                 ],
                 "type": "string"
               },
@@ -1699,6 +1825,62 @@
         "title": "DerivationOp",
         "type": "string"
       },
+      "EarliestCompletionForTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_later_deadline": {
+            "title": "Allow Later Deadline",
+            "type": "boolean"
+          },
+          "allow_lower_target": {
+            "title": "Allow Lower Target",
+            "type": "boolean"
+          },
+          "allow_subject_original_sla_regression": {
+            "title": "Allow Subject Original Sla Regression",
+            "type": "boolean"
+          },
+          "booking_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "earliest_deadline": {
+            "format": "date-time",
+            "title": "Earliest Deadline",
+            "type": "string"
+          },
+          "goal": {
+            "const": "earliest_completion_for_target",
+            "title": "Goal",
+            "type": "string"
+          },
+          "latest_deadline": {
+            "format": "date-time",
+            "title": "Latest Deadline",
+            "type": "string"
+          },
+          "target_soc": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Target Soc",
+            "type": "number"
+          }
+        },
+        "required": [
+          "booking_id",
+          "allow_lower_target",
+          "allow_later_deadline",
+          "allow_subject_original_sla_regression",
+          "goal",
+          "target_soc",
+          "earliest_deadline",
+          "latest_deadline"
+        ],
+        "title": "EarliestCompletionForTarget",
+        "type": "object"
+      },
       "EnergyEstimate": {
         "description": "Kết quả FR3 — do CODE tính (src/services/energy.py), LLM không tự tính.",
         "properties": {
@@ -1965,6 +2147,15 @@
         "title": "FactStage",
         "type": "string"
       },
+      "Feasibility": {
+        "enum": [
+          "feasible",
+          "infeasible",
+          "unknown"
+        ],
+        "title": "Feasibility",
+        "type": "string"
+      },
       "FieldProvenance": {
         "description": "Nguồn và mức kiểm chứng của MỘT trường thông số xe (ADR-012).",
         "properties": {
@@ -2003,7 +2194,8 @@
                 "enum": [
                   "baseline",
                   "patched",
-                  "delta"
+                  "delta",
+                  "candidate"
                 ],
                 "type": "string"
               },
@@ -2253,6 +2445,38 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HowToReply": {
+        "additionalProperties": false,
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/GroundedClaim"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "kind": {
+            "const": "how_to",
+            "default": "how_to",
+            "title": "Kind",
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/RecommendationResult"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "claims",
+          "summary"
+        ],
+        "title": "HowToReply",
         "type": "object"
       },
       "Incident": {
@@ -2532,6 +2756,107 @@
           "connector_id"
         ],
         "title": "ManualAssignRequest",
+        "type": "object"
+      },
+      "MaxSocByDeadline": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_later_deadline": {
+            "title": "Allow Later Deadline",
+            "type": "boolean"
+          },
+          "allow_lower_target": {
+            "title": "Allow Lower Target",
+            "type": "boolean"
+          },
+          "allow_subject_original_sla_regression": {
+            "title": "Allow Subject Original Sla Regression",
+            "type": "boolean"
+          },
+          "booking_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "goal": {
+            "const": "max_soc_by_deadline",
+            "title": "Goal",
+            "type": "string"
+          },
+          "max_target_soc": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max Target Soc",
+            "type": "number"
+          },
+          "min_target_soc": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Min Target Soc",
+            "type": "number"
+          }
+        },
+        "required": [
+          "booking_id",
+          "allow_lower_target",
+          "allow_later_deadline",
+          "allow_subject_original_sla_regression",
+          "goal",
+          "deadline",
+          "min_target_soc",
+          "max_target_soc"
+        ],
+        "title": "MaxSocByDeadline",
+        "type": "object"
+      },
+      "MinTestedSiteLimitForSla": {
+        "additionalProperties": false,
+        "properties": {
+          "goal": {
+            "const": "min_tested_site_limit_for_sla",
+            "title": "Goal",
+            "type": "string"
+          },
+          "hypothetical_infrastructure": {
+            "title": "Hypothetical Infrastructure",
+            "type": "boolean"
+          },
+          "max_grid_input_kw": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Grid Input Kw",
+            "type": "number"
+          },
+          "min_grid_input_kw": {
+            "exclusiveMinimum": 0.0,
+            "title": "Min Grid Input Kw",
+            "type": "number"
+          },
+          "min_original_on_time_rate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Original On Time Rate",
+            "type": "number"
+          },
+          "protect_on_time_ac_bookings": {
+            "title": "Protect On Time Ac Bookings",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "goal",
+          "min_grid_input_kw",
+          "max_grid_input_kw",
+          "min_original_on_time_rate",
+          "protect_on_time_ac_bookings",
+          "hypothetical_infrastructure"
+        ],
+        "title": "MinTestedSiteLimitForSla",
         "type": "object"
       },
       "Notification": {
@@ -3016,6 +3341,407 @@
           "checks"
         ],
         "title": "ReadinessReport",
+        "type": "object"
+      },
+      "RecommendationCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendationEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feasibility": {
+            "$ref": "#/components/schemas/Feasibility"
+          },
+          "hypothetical_infrastructure": {
+            "default": false,
+            "title": "Hypothetical Infrastructure",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "skipped",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "status",
+          "feasibility"
+        ],
+        "title": "RecommendationCandidate",
+        "type": "object"
+      },
+      "RecommendationEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_commands": {
+            "title": "Blocked Commands",
+            "type": "integer"
+          },
+          "booking_sla": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/BookingSla"
+            },
+            "title": "Booking Sla",
+            "type": "array"
+          },
+          "branch_status": {
+            "enum": [
+              "completed",
+              "unsafe",
+              "unresolved_safety"
+            ],
+            "title": "Branch Status",
+            "type": "string"
+          },
+          "config_sha256": {
+            "title": "Config Sha256",
+            "type": "string"
+          },
+          "elapsed_ms": {
+            "title": "Elapsed Ms",
+            "type": "number"
+          },
+          "final_physics_sha256": {
+            "title": "Final Physics Sha256",
+            "type": "string"
+          },
+          "hard_violations": {
+            "title": "Hard Violations",
+            "type": "integer"
+          },
+          "input_sha256": {
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "observed_until": {
+            "format": "date-time",
+            "title": "Observed Until",
+            "type": "string"
+          },
+          "original_sla": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SlaMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_approval_commands": {
+            "title": "Pending Approval Commands",
+            "type": "integer"
+          },
+          "pending_approvals": {
+            "title": "Pending Approvals",
+            "type": "integer"
+          },
+          "ref": {
+            "description": "Identity of the authorized evidence projection. Append a JSON Pointer for a field.",
+            "title": "Ref",
+            "type": "string"
+          },
+          "rejected_allocations": {
+            "title": "Rejected Allocations",
+            "type": "integer"
+          },
+          "safety_holds": {
+            "title": "Safety Holds",
+            "type": "integer"
+          },
+          "subject_goal_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetAttainment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject_original": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommitmentOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject_release_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Release At"
+          },
+          "subject_revised": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommitmentOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject_soc_at_deadline_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Soc At Deadline Pct"
+          },
+          "subject_soc_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Soc Observed At"
+          },
+          "unresolved_safety_count": {
+            "title": "Unresolved Safety Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ref",
+          "input_sha256",
+          "config_sha256",
+          "final_physics_sha256",
+          "observed_until",
+          "branch_status",
+          "hard_violations",
+          "rejected_allocations",
+          "safety_holds",
+          "unresolved_safety_count",
+          "blocked_commands",
+          "pending_approvals",
+          "pending_approval_commands",
+          "elapsed_ms"
+        ],
+        "title": "RecommendationEvidence",
+        "type": "object"
+      },
+      "RecommendationResult": {
+        "additionalProperties": false,
+        "properties": {
+          "applied": {
+            "const": false,
+            "default": false,
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendationEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_execution_count": {
+            "title": "Baseline Execution Count",
+            "type": "integer"
+          },
+          "baseline_issue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "branch_execution_count": {
+            "title": "Branch Execution Count",
+            "type": "integer"
+          },
+          "candidate_set": {
+            "$ref": "#/components/schemas/CandidateSet"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendationCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "elapsed_ms": {
+            "title": "Elapsed Ms",
+            "type": "number"
+          },
+          "event_manifest_sha256": {
+            "title": "Event Manifest Sha256",
+            "type": "string"
+          },
+          "experiment_fingerprint": {
+            "title": "Experiment Fingerprint",
+            "type": "string"
+          },
+          "goal": {
+            "discriminator": {
+              "mapping": {
+                "earliest_completion_for_target": "#/components/schemas/EarliestCompletionForTarget",
+                "max_soc_by_deadline": "#/components/schemas/MaxSocByDeadline",
+                "min_tested_site_limit_for_sla": "#/components/schemas/MinTestedSiteLimitForSla"
+              },
+              "propertyName": "goal"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MaxSocByDeadline"
+              },
+              {
+                "$ref": "#/components/schemas/EarliestCompletionForTarget"
+              },
+              {
+                "$ref": "#/components/schemas/MinTestedSiteLimitForSla"
+              }
+            ],
+            "title": "Goal"
+          },
+          "horizon_end": {
+            "format": "date-time",
+            "title": "Horizon End",
+            "type": "string"
+          },
+          "known_at": {
+            "format": "date-time",
+            "title": "Known At",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendationCandidate"
+            },
+            "maxItems": 3,
+            "title": "Options",
+            "type": "array"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "ranking": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ranking",
+            "type": "array"
+          },
+          "search_status": {
+            "$ref": "#/components/schemas/SearchStatus"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "snapshot_sha256": {
+            "title": "Snapshot Sha256",
+            "type": "string"
+          },
+          "unsupported_reason": {
+            "anyOf": [
+              {
+                "const": "independent_supply",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unsupported Reason"
+          }
+        },
+        "required": [
+          "goal",
+          "search_status",
+          "snapshot_id",
+          "snapshot_sha256",
+          "known_at",
+          "horizon_end",
+          "event_manifest_sha256",
+          "experiment_fingerprint",
+          "policy_id",
+          "policy_version",
+          "candidate_set",
+          "baseline",
+          "candidates",
+          "options",
+          "ranking",
+          "assumptions",
+          "baseline_execution_count",
+          "branch_execution_count",
+          "elapsed_ms"
+        ],
+        "title": "RecommendationResult",
         "type": "object"
       },
       "ResidentProfile": {
@@ -3658,6 +4384,16 @@
         ],
         "title": "ScheduledIncident",
         "type": "object"
+      },
+      "SearchStatus": {
+        "enum": [
+          "found",
+          "no_feasible_in_tested_set",
+          "partial",
+          "unsupported"
+        ],
+        "title": "SearchStatus",
+        "type": "string"
       },
       "SessionPlan": {
         "properties": {
@@ -4665,6 +5401,40 @@
         ],
         "title": "SupplyMode",
         "type": "string"
+      },
+      "TargetAttainment": {
+        "additionalProperties": false,
+        "properties": {
+          "already_satisfied_at_snapshot": {
+            "title": "Already Satisfied At Snapshot",
+            "type": "boolean"
+          },
+          "target_reached_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Reached At"
+          },
+          "target_soc": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Target Soc",
+            "type": "number"
+          }
+        },
+        "required": [
+          "target_soc",
+          "target_reached_at",
+          "already_satisfied_at_snapshot"
+        ],
+        "title": "TargetAttainment",
+        "type": "object"
       },
       "Tariff": {
         "description": "Biểu giá mô phỏng (config/tariff.yaml).",
@@ -6772,6 +7542,236 @@
           }
         ],
         "summary": "Chat Resume"
+      }
+    },
+    "/api/v1/chat/sessions/{session_id}/jobs/{job_id}": {
+      "delete": {
+        "operationId": "chat_job_api_v1_chat_sessions__session_id__jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Chat Job"
+      },
+      "get": {
+        "operationId": "chat_job_api_v1_chat_sessions__session_id__jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Chat Job"
       }
     },
     "/api/v1/chat/stream": {

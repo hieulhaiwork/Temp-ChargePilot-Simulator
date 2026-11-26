@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { CopilotPanel } from "@/components/copilot/CopilotPanel";
+import { ChatPanel } from "@/components/resident/ChatPanel";
 import { ConnectorGrid } from "@/components/station/ConnectorGrid";
 import { LoadChart } from "@/components/station/LoadChart";
 import { PowerTiers } from "@/components/station/PowerTiers";
@@ -139,7 +140,11 @@ export default function OperatorDashboardPage() {
           Màn hình đứng yên để bạn đọc. Bấm Tiếp tục để xem bản mới nhất.
         </Notice>
       ) : null}
-      <CopilotPanel role="operator" />
+      <ChatPanel role="operator" />
+      <details>
+            <summary>Biểu mẫu phân tích</summary>
+            <CopilotPanel role="operator" structuredOnly />
+          </details>
       <DataBlock endpoint="GET /api/v1/operator/station" query={queries.operatorStation()} refetchInterval={interval} loadingLines={4}>
         {(o) => {
           const limit = o.state.available_power_kw;
