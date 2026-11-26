@@ -218,17 +218,32 @@ def _confirmed_booking_succeeded(result: dict) -> bool:
     )
 
 
+async def _abort_turn_state(config: dict) -> None:
+    try:
+        snap = await agent.aget_state(config)
+        if snap and _pending_interrupts(snap):
+            return
+        await agent.aupdate_state(config, {"pending_copilot_clarification": None, "turn_in_progress": False})
+    except Exception:
+        logger.debug("chat — skip abort state cleanup", exc_info=True)
+
+
 async def _invoke(payload: dict | Command, context: ChatContext) -> dict:
+    config = _config(context)
     try:
         async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
-            return await agent.ainvoke(payload, config=_config(context), context=context)
+            return await agent.ainvoke(payload, config=config, context=context)
     except (OpenAIError, TimeoutError) as exc:
+        await _abort_turn_state(config)
         logger.error(
             "FAILED chat — nhà cung cấp LLM lỗi: %s (%s)", type(exc).__name__, getattr(exc, "status_code", "-")
         )
         raise DomainError(
             ErrorCode.LLM_UNAVAILABLE, "Trợ lý tạm thời không dùng được. Bạn có thể đặt lịch bằng form."
         ) from exc
+    except BaseException:
+        await _abort_turn_state(config)
+        raise
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -264,6 +279,7 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
             "human_review": "Đang chuẩn bị xác nhận đặt lịch…",
         }
         final_state: dict = {}
+        stream_completed = False
         try:
             async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
                 async for mode, chunk in agent.astream(
@@ -294,6 +310,7 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
                         yield _sse("delta", {"text": piece})
                         await asyncio.sleep(0)
 
+                stream_completed = True
                 yield _sse("done", {"data": chat_resp.model_dump(mode="json")})
         except (TimeoutError, OpenAIError) as exc:
             logger.error(
@@ -309,6 +326,8 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
                 },
             )
         finally:
+            if not stream_completed and "__interrupt__" not in final_state:
+                await _abort_turn_state(config)
             _release_thread(context)
 
     return StreamingResponse(

@@ -92,6 +92,7 @@ async def invoke_copilot_tool(
     *,
     message: str,
     prior_user_messages: Sequence[str] = (),
+    pending_clarify_field: str | None = None,
 ) -> WhyReply | JobReply | CopilotNotice:
     service = context.copilot
     if service is None:
@@ -101,15 +102,29 @@ async def invoke_copilot_tool(
     match value:
         case WhyIntent():
             return await service.agent_why(
-                context.user, value, message=message, prior_user_messages=prior_user_messages
+                context.user,
+                value,
+                message=message,
+                prior_user_messages=prior_user_messages,
+                pending_clarify_field=pending_clarify_field,
             )
         case WhatIfIntent():
             return await service.agent_what_if(
-                context.user, value, context.session, message=message, prior_user_messages=prior_user_messages
+                context.user,
+                value,
+                context.session,
+                message=message,
+                prior_user_messages=prior_user_messages,
+                pending_clarify_field=pending_clarify_field,
             )
         case HowToRequest():
             return await service.agent_how_to(
-                context.user, value, context.session, message=message, prior_user_messages=prior_user_messages
+                context.user,
+                value,
+                context.session,
+                message=message,
+                prior_user_messages=prior_user_messages,
+                pending_clarify_field=pending_clarify_field,
             )
         case JobLookup():
             return service.job(context.user, value.job_id, session=context.session, cancel=value.operation == "cancel")

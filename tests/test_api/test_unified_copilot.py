@@ -886,3 +886,447 @@ async def test_f01_r1_r2_r3_positive_controls_reach_real_engines(demo_api, monke
     job4 = await wait_chat_job(client, resident, pc4["advisory"][0]["job"], session="pc-4")
     assert job4["status"] == "succeeded"
     assert datetime.fromisoformat(job4["result"]["result"]["patch"]["deadline"]) == explicit_1430
+
+
+async def test_f01_v3_pending_clarification_cannot_erase_scope_time_or_switch_operation(demo_api, monkeypatch):
+    client, _rt, own, _dc, resident, _other, operator = demo_api
+
+    async def no_capture(*args, **kwargs):
+        pytest.fail("Multi-turn unsupported scope/time/operation switch must never capture snapshot")
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
+
+    cases = (
+        # F01-R1-MT exact: connector-scoped Turn 1 + numeric kW Turn 2
+        (
+            operator,
+            "mt-r1",
+            "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?",
+            "grid_input",
+            "50 kW.",
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}},
+            "unsupported",
+            None,
+        ),
+        # F01-R2-MT exact: future scheduled Turn 1 + bounds Turn 2
+        (
+            operator,
+            "mt-r2",
+            "Cần nguồn bao nhiêu từ ngày mai lúc 18h00 để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
+            "bounds",
+            "Thử 22 đến 106 kW.",
+            "copilot_how_to",
+            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
+            "unsupported",
+            None,
+        ),
+        # Cross-operation switch: outage Turn 1 + numeric kW Turn 2 mapped to site_limit
+        (
+            operator,
+            "mt-op-switch",
+            "Nếu một cổng bị hỏng thì sao?",
+            "duration",
+            "50 kW.",
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}},
+            "unsupported",
+            None,
+        ),
+        # Resident F01-R3 multi-turn: original-deadline shift Turn 1 + target Turn 2
+        (
+            resident,
+            "mt-r3",
+            "Nếu đổi mục tiêu và dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?",
+            "target",
+            "75%.",
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "target_soc": 75,
+                    "deadline": {"kind": "relative", "offset_minutes": 30},
+                },
+            },
+            "clarify",
+            "time",
+        ),
+        # Ambiguous full-sentence continuation without explicit abandonment/reset
+        (
+            operator,
+            "mt-ambig-cont",
+            "Cần nguồn bao nhiêu từ ngày mai lúc 18h00 để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
+            "bounds",
+            "Cần nguồn bao nhiêu để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn, thử 22 đến 106 kW.",
+            "copilot_how_to",
+            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
+            "unsupported",
+            None,
+        ),
+    )
+
+    for headers, sess, first, field, second, tool, args, expected_code, expected_field in cases:
+        provider(
+            monkeypatch,
+            {"thought": "missing slot", "action": "clarify", "clarify_field": field},
+            decision(tool, args),
+        )
+        r1 = await chat(client, headers, first, session=sess)
+        assert r1["advisory"][0]["kind"] == "notice" and r1["advisory"][0]["code"] == "clarify"
+        r2 = await chat(client, headers, second, session=sess)
+        adv = r2["advisory"][0]
+        assert adv["kind"] == "notice" and not adv.get("job"), (sess, adv)
+        assert adv["code"] == expected_code, (sess, adv)
+        if expected_field is not None:
+            assert adv["field"] == expected_field, (sess, adv)
+
+
+async def test_f01_v3_supported_multiturn_post_unsupported_and_explicit_reset(demo_api, monkeypatch):
+    client, rt, own, _dc, resident, _other, operator = demo_api
+    jobs = client._transport.app.state.copilot._jobs
+    orig_clock = jobs._clock
+    clock_offset = 0.0
+    monkeypatch.setattr(jobs, "_clock", lambda: orig_clock() + clock_offset)
+
+    # 1 & 2. Exact Tech Lead supported multi-turn operator cases
+    for sess, first, field, second, tool, args in (
+        (
+            "mt-pos-1",
+            "Nếu nguồn lưới của trạm bị giảm thì sao?",
+            "grid_input",
+            "50 kW.",
+            "copilot_what_if",
+            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}},
+        ),
+        (
+            "mt-pos-2",
+            "Cần nguồn bao nhiêu hiện tại để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
+            "bounds",
+            "Thử 22 đến 106 kW.",
+            "copilot_how_to",
+            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
+        ),
+    ):
+        clock_offset += 16.0
+        provider(
+            monkeypatch,
+            {"thought": "missing slot", "action": "clarify", "clarify_field": field},
+            decision(tool, args),
+        )
+        r1 = await chat(client, operator, first, session=sess)
+        assert r1["advisory"][0]["code"] == "clarify"
+        r2 = await chat(client, operator, second, session=sess)
+        assert r2["advisory"][0]["kind"] == "job"
+        job = await wait_chat_job(client, operator, r2["advisory"][0]["job"], session=sess)
+        assert job["status"] == "succeeded" and job["result"]["result"]["applied"] is False
+
+    # 3. Complete valid request immediately following a prior unsupported turn (no reset prefix needed)
+    clock_offset += 16.0
+    provider(
+        monkeypatch,
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+    )
+    bad = await chat(client, operator, "Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?", session="post-unsup")
+    assert bad["advisory"][0]["code"] == "unsupported"
+    recovered = await chat(
+        client,
+        operator,
+        "Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?",
+        session="post-unsup",
+    )
+    job_rec = await wait_chat_job(client, operator, recovered["advisory"][0]["job"], session="post-unsup")
+    assert job_rec["status"] == "succeeded" and job_rec["result"]["result"]["patch"]["grid_input_kw"] == 50.0
+
+    # 4. Explicit abandonment/reset from an open constrained clarification
+    clock_offset += 16.0
+    provider(
+        monkeypatch,
+        {"thought": "missing grid_input", "action": "clarify", "clarify_field": "grid_input"},
+        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+    )
+    open_bad = await chat(
+        client,
+        operator,
+        "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?",
+        session="explicit-reset",
+    )
+    assert open_bad["advisory"][0]["code"] == "clarify"
+    reset_ok = await chat(
+        client,
+        operator,
+        "Bỏ câu trước. Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?",
+        session="explicit-reset",
+    )
+    job_rst = await wait_chat_job(client, operator, reset_ok["advisory"][0]["job"], session="explicit-reset")
+    assert job_rst["status"] == "succeeded" and job_rst["result"]["result"]["patch"]["grid_input_kw"] == 50.0
+
+    # 5. Resident explicit station-local clock resolves pending "time" clarification while preserving target_soc=75
+    provider(
+        monkeypatch,
+        {"thought": "ambiguous anchor", "action": "clarify", "clarify_field": "time"},
+        decision(
+            "copilot_what_if",
+            {
+                "kind": "what_if",
+                "change": {
+                    "op": "revise_vehicle",
+                    "booking_id": own.booking_id,
+                    "target_soc": 75,
+                    "deadline": {"kind": "station_local", "day": "today", "clock": "14:30"},
+                },
+            },
+        ),
+    )
+    t_ask = await chat(
+        client,
+        resident,
+        "Nếu đổi mục tiêu thành 75% và dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?",
+        session="res-time-resolve",
+    )
+    assert t_ask["advisory"][0]["code"] == "clarify" and t_ask["advisory"][0]["field"] == "time"
+    t_ans = await chat(client, resident, "Lúc 14:30 hôm nay.", session="res-time-resolve")
+    job_res = await wait_chat_job(client, resident, t_ans["advisory"][0]["job"], session="res-time-resolve")
+    assert job_res["status"] == "succeeded"
+    assert job_res["result"]["result"]["patch"]["target_soc"] == 75
+    assert datetime.fromisoformat(job_res["result"]["result"]["patch"]["deadline"]) == (
+        own.request.deadline + timedelta(minutes=30)
+    )
+
+
+async def test_f01_v3_mixed_why_and_clarification_preserves_pending_task_constraints(demo_api, monkeypatch):
+    from src.services.copilot import snapshot as snapshot_mod
+
+    client, _rt, _own, _dc, _resident, _other, operator = demo_api
+    captures = 0
+    real_capture = snapshot_mod.capture_atomic_snapshot
+
+    async def count_capture(*args, **kwargs):
+        nonlocal captures
+        captures += 1
+        return await real_capture(*args, **kwargs)
+
+    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", count_capture)
+    site_args = {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120}
+
+    # Subcase A: supported mixed WHY + clarify on Turn 1 -> bounds on Turn 2 succeeds
+    provider(
+        monkeypatch,
+        decision("copilot_why", OPERATOR_WHY, done=False),
+        {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
+        decision("copilot_how_to", site_args),
+    )
+    m1 = await chat(
+        client,
+        operator,
+        "Vì sao các xe bị trễ và cần nguồn bao nhiêu hiện tại để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
+        session="mixed-ok",
+    )
+    assert [item["kind"] for item in m1["advisory"]] == ["why", "notice"]
+    assert m1["advisory"][1]["code"] == "clarify" and m1["advisory"][1]["field"] == "bounds"
+    assert captures == 0
+    m2 = await chat(client, operator, "Thử 22 đến 106 kW.", session="mixed-ok")
+    job_ok = await wait_chat_job(client, operator, m2["advisory"][0]["job"], session="mixed-ok")
+    assert job_ok["status"] == "succeeded" and captures == 1
+
+    # Subcase B: unsupported future start in mixed WHY + clarify on Turn 1 -> WHY delivered, Turn 2 HOW-TO blocked
+    provider(
+        monkeypatch,
+        decision("copilot_why", OPERATOR_WHY, done=False),
+        {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
+        decision("copilot_how_to", site_args),
+    )
+    b1 = await chat(
+        client,
+        operator,
+        "Vì sao các xe bị trễ và cần nguồn bao nhiêu từ ngày mai lúc 18h00 để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
+        session="mixed-bad",
+    )
+    assert [item["kind"] for item in b1["advisory"]] == ["why", "notice"]
+    assert b1["advisory"][1]["code"] == "clarify"
+    b2 = await chat(client, operator, "Thử 22 đến 106 kW.", session="mixed-bad")
+    assert b2["advisory"][0]["kind"] == "notice" and b2["advisory"][0]["code"] == "unsupported"
+    assert captures == 1
+
+
+async def test_f01_v3_clarification_lifecycle_cleanup_on_timeout_sse_abort_hitl_and_cap(demo_api, monkeypatch):
+    from starlette.requests import Request as StarletteRequest
+
+    from src.services import auth as auth_service
+
+    client, rt, _own, _dc, resident, _other, operator = demo_api
+    jobs = client._transport.app.state.copilot._jobs
+    orig_clock = jobs._clock
+    clock_offset = 0.0
+    monkeypatch.setattr(jobs, "_clock", lambda: orig_clock() + clock_offset)
+
+    def _req_and_user(headers: dict) -> tuple[StarletteRequest, object]:
+        token = headers["Authorization"].partition(" ")[2]
+        user = auth_service.decode_token(token)
+        req = StarletteRequest(
+            {
+                "type": "http",
+                "headers": [(b"authorization", headers["Authorization"].encode())],
+                "app": client._transport.app,
+            }
+        )
+        return req, user
+
+    def _state_config(headers: dict, session_id: str) -> dict:
+        req, user = _req_and_user(headers)
+        return routes._config(routes._context(req, user, session_id))
+
+    # 1. Timeout on Turn 2 scrubs pending clarification state so Turn 3 starts clean
+    shared_graph = build_graph()
+    planned = iter(
+        [
+            {"thought": "missing grid", "action": "clarify", "clarify_field": "grid_input"},
+            "HANG",
+            decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
+        ]
+    )
+
+    class PlannedModel:
+        async def ainvoke(self, _prompt):
+            nxt = next(planned)
+            if nxt == "HANG":
+                await asyncio.Future()
+            return AgentDecision.model_validate(nxt)
+
+    monkeypatch.setattr(routes, "agent", shared_graph)
+    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: PlannedModel())
+    t1 = await chat(client, operator, "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?", session="lc-timeout")
+    assert t1["advisory"][0]["code"] == "clarify"
+    cfg_timeout = _state_config(operator, "lc-timeout")
+    assert (await shared_graph.aget_state(cfg_timeout)).values.get("pending_copilot_clarification") is not None
+
+    orig_timeout = routes.CHAT_STREAM_TIMEOUT_SECONDS
+    monkeypatch.setattr(routes, "CHAT_STREAM_TIMEOUT_SECONDS", 0.04)
+    timed_out = await client.post(
+        CHAT,
+        headers=operator,
+        json={"message": "50 kW.", "session_id": "lc-timeout"},
+    )
+    assert timed_out.status_code == 503
+    monkeypatch.setattr(routes, "CHAT_STREAM_TIMEOUT_SECONDS", orig_timeout)
+    snap_after_timeout = await shared_graph.aget_state(cfg_timeout)
+    assert snap_after_timeout.values.get("pending_copilot_clarification") is None
+    assert snap_after_timeout.values.get("turn_in_progress") is False
+
+    clock_offset += 16.0
+    t3 = await chat(
+        client,
+        operator,
+        "Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?",
+        session="lc-timeout",
+    )
+    job_t3 = await wait_chat_job(client, operator, t3["advisory"][0]["job"], session="lc-timeout")
+    assert job_t3["status"] == "succeeded"
+
+    # 2. SSE mid-stream interruption / client disconnect scrubs pending clarification state
+    entered_reason = asyncio.Event()
+    sse_steps = iter(
+        [
+            {"thought": "missing grid", "action": "clarify", "clarify_field": "grid_input"},
+            "WAIT_DISCONNECT",
+        ]
+    )
+
+    class SseModel:
+        async def ainvoke(self, _prompt):
+            nxt = next(sse_steps)
+            if nxt == "WAIT_DISCONNECT":
+                entered_reason.set()
+                await asyncio.Future()
+            return AgentDecision.model_validate(nxt)
+
+    sse_graph = build_graph()
+    monkeypatch.setattr(routes, "agent", sse_graph)
+    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: SseModel())
+    s1 = await chat(client, operator, "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?", session="lc-sse")
+    assert s1["advisory"][0]["code"] == "clarify"
+    cfg_sse = _state_config(operator, "lc-sse")
+    assert (await sse_graph.aget_state(cfg_sse)).values.get("pending_copilot_clarification") is not None
+
+    op_req, op_user = _req_and_user(operator)
+    stream_resp = await routes.chat_stream(
+        routes.ChatRequest(message="50 kW.", session_id="lc-sse"),
+        op_user,
+        op_req,
+    )
+    first_chunk = await anext(stream_resp.body_iterator)
+    assert '"type": "status"' in first_chunk
+    await stream_resp.body_iterator.aclose()
+    assert routes._active_global_turns == 0 and not routes._active_threads
+    snap_after_sse = await sse_graph.aget_state(cfg_sse)
+    assert snap_after_sse.values.get("pending_copilot_clarification") is None
+    assert snap_after_sse.values.get("turn_in_progress") is False
+
+    # 3. Resident HITL confirm_booking clears pending Copilot clarification while preserving HITL interrupt/resume
+    arrival = rt.clock() + timedelta(minutes=15)
+    deadline = rt.clock() + timedelta(hours=3)
+    booking_req = {
+        "vehicle_model": "VF8_Eco",
+        "soc_now": 30,
+        "soc_target": 80,
+        "zone": "AC",
+        "mode": "normal",
+        "arrival_time": arrival.isoformat(),
+        "deadline": deadline.isoformat(),
+    }
+    from src.llm_chat.schemas import FinalAnswer
+
+    async def fixed_generate(_state, partial=False):
+        return FinalAnswer(answer="Đã huỷ xác nhận đặt lịch theo yêu cầu.", confidence=0.9, used_tools=[])
+
+    hitl_graph = build_graph(generate_fn=fixed_generate)
+    hitl_steps = iter(
+        [
+            {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
+            decision("confirm_booking", {"request": booking_req}, done=False),
+            {"thought": "rejected", "action": "final", "final_answer": "Đã huỷ xác nhận đặt lịch theo yêu cầu."},
+        ]
+    )
+
+    class HitlModel:
+        async def ainvoke(self, _prompt):
+            return AgentDecision.model_validate(next(hitl_steps))
+
+    monkeypatch.setattr(routes, "agent", hitl_graph)
+    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: HitlModel())
+    h1 = await chat(client, resident, "Kiểm chứng giờ đạt 90% sớm nhất.", session="lc-hitl")
+    assert h1["advisory"][0]["code"] == "clarify"
+    cfg_hitl = _state_config(resident, "lc-hitl")
+    assert (await hitl_graph.aget_state(cfg_hitl)).values.get("pending_copilot_clarification") is not None
+
+    h2 = await chat(client, resident, "Đặt lịch sạc VF8 từ 30% lên 80%.", session="lc-hitl")
+    assert h2["status"] == "needs_confirmation"
+    snap_hitl = await hitl_graph.aget_state(cfg_hitl)
+    assert snap_hitl.values.get("pending_copilot_clarification") is None
+    assert routes._pending_interrupts(snap_hitl)
+    resumed = await client.patch(
+        f"{CHAT}/sessions/lc-hitl",
+        headers=resident,
+        json={"resume": "reject"},
+    )
+    assert resumed.status_code == 200 and resumed.json()["status"] == "answer"
+
+    # 4. Consecutive clarifications bounded at MAX_PENDING_CLARIFICATION_TURNS (3)
+    cap_graph = build_graph()
+    monkeypatch.setattr(routes, "agent", cap_graph)
+    cap_steps = iter([{"thought": "still missing", "action": "clarify", "clarify_field": "bounds"} for _ in range(4)])
+
+    class CapModel:
+        async def ainvoke(self, _prompt):
+            return AgentDecision.model_validate(next(cap_steps))
+
+    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: CapModel())
+    for idx in range(3):
+        c_turn = await chat(client, operator, f"Cần nguồn bao nhiêu lượt {idx + 1}?", session="lc-cap")
+        assert c_turn["advisory"][0]["code"] == "clarify"
+    c_overflow = await chat(client, operator, "Cần nguồn bao nhiêu lượt 4?", session="lc-cap")
+    assert c_overflow["advisory"][0]["code"] == "unsupported"
+    cfg_cap = _state_config(operator, "lc-cap")
+    assert (await cap_graph.aget_state(cfg_cap)).values.get("pending_copilot_clarification") is None

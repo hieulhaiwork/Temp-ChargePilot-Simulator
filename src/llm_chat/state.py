@@ -24,6 +24,15 @@ Stage = Literal[
 
 
 HISTORY_LIMIT = 20  # số tin nhắn giữ lại trong state.history (≈ 10 lượt hỏi–đáp)
+MAX_PENDING_CLARIFICATION_TURNS = 3
+PENDING_CLARIFICATION_TTL_SECONDS = 300.0
+MAX_CLARIFICATION_TURN_CHARS = 1000
+
+
+class PendingCopilotClarification(TypedDict, total=False):
+    turns: list[str]
+    field: str
+    opened_at: float
 
 
 class AgentState(TypedDict, total=False):
@@ -65,6 +74,8 @@ class AgentState(TypedDict, total=False):
     copilot_results: list[dict]
     copilot_attempts: int
     simulation_attempts: int
+    pending_copilot_clarification: PendingCopilotClarification | None
+    turn_in_progress: bool
 
     # Output
     response: str

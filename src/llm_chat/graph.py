@@ -22,6 +22,7 @@ API key — mock LLM, không mock graph.
 from __future__ import annotations
 
 import logging
+from time import monotonic
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
@@ -34,9 +35,16 @@ from src.llm_chat.nodes.assess_node import assess_node
 from src.llm_chat.nodes.finalize_node import GenerateFn, _make_finalize, llm_generate
 from src.llm_chat.nodes.human_review_node import BLOCKED_BY_HUMAN, human_review_node
 from src.llm_chat.nodes.reason_node import ReasonFn, llm_reason, make_reason_node
-from src.llm_chat.state import HISTORY_LIMIT, AgentState
+from src.llm_chat.state import (
+    HISTORY_LIMIT,
+    MAX_PENDING_CLARIFICATION_TURNS,
+    PENDING_CLARIFICATION_TTL_SECONDS,
+    AgentState,
+    PendingCopilotClarification,
+)
 from src.llm_chat.tools.charging import CONFIRM_TOOL_NAME
 from src.llm_chat.tools.copilot import ChatContext
+from src.services.copilot.integration import CopilotIntegration
 
 logger = logging.getLogger("ai20k.graph")
 
@@ -61,6 +69,29 @@ async def guardrail_check_node(state: AgentState) -> dict:
     return {"stage": "guardrail"}
 
 
+def _sanitize_pending_clarification(
+    state: AgentState,
+    query: str,
+) -> PendingCopilotClarification | None:
+    pending = state.get("pending_copilot_clarification")
+    if not isinstance(pending, dict):
+        return None
+    if state.get("turn_in_progress") or state.get("pending_action") is not None:
+        return None
+    if CopilotIntegration.has_explicit_reset(query):
+        return None
+    turns = pending.get("turns")
+    if not isinstance(turns, list) or not turns or len(turns) > MAX_PENDING_CLARIFICATION_TURNS:
+        return None
+    try:
+        opened_at = float(pending.get("opened_at") or 0.0)
+    except (TypeError, ValueError):
+        return None
+    if opened_at <= 0.0 or monotonic() - opened_at > PENDING_CLARIFICATION_TTL_SECONDS:
+        return None
+    return pending
+
+
 def make_entry_node(max_iterations: int):
     """Seed state loop-limit MỘT lần ở entry — router sau chỉ đọc state.
 
@@ -72,8 +103,9 @@ def make_entry_node(max_iterations: int):
     async def entry_node(state: AgentState) -> dict:
         # Bộ nhớ theo PHIÊN (history, draft_request, proposal) được giữ qua các lượt — chỉ field
         # per-turn bên dưới mới bị reset. Thiếu điều này thì "thiếu trường nào hỏi lại" (FR2) không làm được.
+        query = state.get("query", "")
         now_ts = (state.get("turn_context") or {}).get("now")
-        user_msg: dict = {"role": "user", "content": state.get("query", "")}
+        user_msg: dict = {"role": "user", "content": query}
         if now_ts:
             user_msg["ts"] = now_ts
         history = [*state.get("history", []), user_msg]
@@ -86,6 +118,8 @@ def make_entry_node(max_iterations: int):
             "copilot_results": [],
             "copilot_attempts": 0,
             "simulation_attempts": 0,
+            "pending_copilot_clarification": _sanitize_pending_clarification(state, query),
+            "turn_in_progress": True,
             "last_decision": {},
             "pending_action": None,
             "human_decisions": [],

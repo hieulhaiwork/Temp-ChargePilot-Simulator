@@ -106,10 +106,10 @@ index 0000000..f4ef322
 +Oracle M3a/M3b tái lập qua `pytest tests/test_services/test_recommendation_hybrid.py tests/test_api/test_unified_copilot.py`. Hai case nhiều công cụ ghi dữ liệu engine thật trong JUnit. Xem cả chế độ provider, runner kiểm tra và giới hạn nghiệm thu trong báo cáo pha. [Báo cáo G6B](PHASE_4_4B_REPORT.md)
 diff --git a/docs/ai4/G6B_RECOVERY_STATE.md b/docs/ai4/G6B_RECOVERY_STATE.md
 new file mode 100644
-index 0000000..59f45be
+index 0000000..2b8fdb4
 --- /dev/null
 +++ b/docs/ai4/G6B_RECOVERY_STATE.md
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +# G6B — Trạng thái phục hồi và khắc phục sau review
 +
 +**READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY · Carbon (tiếp quản từ Codex) · 2026-11-26.**
@@ -118,9 +118,10 @@ index 0000000..59f45be
 +- **Bảo toàn phần việc lịch sử**:
 +  - Bản vá gián đoạn của Codex (`2c72e2b`): `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng bản sao lưu đầy đủ `/tmp/p019-g6b-evidence`.
 +  - Bản vá và bundle vòng 1 của Carbon (`de82afe7`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
++  - Bản vá và bundle vòng 2 của Carbon (`c519845`): `round2-candidate.patch` (`fff02f47d8d62cd4b4f3dc258b40985b7703016489989645ae986d7900fdd36f`) và `round2-verification-bundle.zip` (`eb752042d140ffddac1726155cd98297d99cb465431981622a0b0eed1b5a858a`).
 +  - Đối chiếu `.env.example` và `.gitignore`: `.env.example` có sẵn tại `HEAD` (`64c85f1`, blob `a96d656...`, SHA-256 `7104c9eb...`); `.gitignore` giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để tránh đưa log thô/nội bộ lên nhánh sản phẩm.
-+- **Đối chiếu nhánh FE của đồng đội**: `origin/develop` (`0f877f1`, ngày 25/11) đã hợp nhất đầy đủ `feature/unified-fullstack` (#17), `feature/voice-input` (#22), `fix/voice-security-review` (#23) và `feature/unified-core` (#24). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, ngày 23/11) là nhánh lịch sử trước khi port sang `unified-core`; không có thay đổi chưa commit hay nhánh FE mới nào của đồng đội bị ghi đè. Giữ nguyên giao diện, bố cục, quick replies, luồng booking/HITL và cơ chế thế hệ phiên (`generation`) dùng chung.
-+- **Nhả khóa bàn giao**: Carbon đã hoàn thành F01–F05, chạy đạt toàn bộ cổng bắt buộc trên cây xuất sạch, đóng gói `verification-bundle.zip` và nhả khóa chỉnh sửa G6B để chờ Tech Lead nghiệm thu độc lập. G7, commit/push/merge và đồng bộ PRD/ADR-015 chờ quyết định riêng.
++- **Đối chiếu nhánh FE của đồng đội**: `origin/develop` (`0f877f1`, ngày 25/11) đã hợp nhất đầy đủ `feature/unified-fullstack` (#17), `feature/voice-input` (#22), `fix/voice-security-review` (#23) và `feature/unified-core` (#24). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, ngày 23/11) là nhánh lịch sử trước khi port sang `unified-core`; không có thay đổi chưa commit hay nhánh FE mới nào của đồng đội bị ghi đè. Giữ nguyên giao diện, bố cục, quick replies, luồng booking/HITL và cơ chế thế hệ phiên (`generation`) dùng chung (`0 byte diff` trên `frontend/**` và `prompts/**` ở V3).
++- **Nhả khóa bàn giao**: Carbon đã hoàn thành toàn bộ F01–F05 (kể cả `F01-R1`..`F01-R3` và ràng buộc ngữ cảnh đa lượt V3 `F01-R1-MT`/`F01-R2-MT`), chạy đạt toàn bộ cổng bắt buộc trên cây xuất sạch, đóng gói `verification-bundle.zip` và nhả khóa chỉnh sửa G6B để chờ Tech Lead nghiệm thu độc lập. G7, commit/push/merge và đồng bộ PRD/ADR-015 chờ quyết định riêng.
 +
 +## Audit baseline và phạm vi kế thừa
 +
@@ -135,14 +136,14 @@ index 0000000..59f45be
 +| A · typed tools | **Tested** | Giữ 4 adapter `copilot_why`, `copilot_what_if`, `copilot_how_to`, `copilot_job` theo vai trò; không tạo Agent hay LLM parser lồng nhau. |
 +| B · shared jobs & workload (F04) | **Tested** | Hàng đợi dùng chung (1 chạy, 4 chờ, 64 giữ lại, TTL 300s), kiểm tra `check_admission` **trước** `capture_atomic_snapshot`, đồng bộ hạn ngạch `max_active_per_actor=1` và cooldown 15s giữa Chat và G6A fallback, giới hạn lượt chat đồng thời toàn cục (`8`) và theo người dùng (`3`) trên cả `/chat`, `/chat/stream` và `/chat/sessions/{id}`. |
 +| C · vai trò và phiên | **Tested** | Danh tính/vai trò do server cấp, khóa phiên băm `user_id + role + credential + session_id`, kiểm quyền sở hữu job và cách ly giữa các phiên đăng nhập. |
-+| D · input binding & grounding (F01 + R1..R3) | **Tested** | Server đối chiếu đầy đủ target, deadline (phân biệt rõ `sau N phút` tính từ `now` với độ lệch theo hạn gốc như `muộn hơn 30 phút so với hạn gốc`), connector/booking ID, chủ thể nguồn lưới toàn trạm (từ chối gán công suất cổng/trụ/tủ/vùng sang `site_limit`), mốc thời gian tương lai không biểu diễn được trên site goal, thời lượng outage, horizon, khoảng thử HOW-TO, ngưỡng SLA %, bảo vệ xe AC và cờ hy sinh/hạ tầng giả định; lịch sử nhiều lượt chỉ đọc `role="user"`, bỏ qua văn bản của assistant. |
++| D · input binding & grounding (F01 + R1..R3 + V3 MT) | **Tested** | Server đối chiếu đối xứng toàn bộ ràng buộc của yêu cầu đang mở qua trạng thái làm rõ gắn theo tác vụ (`pending_copilot_clarification`, tối đa 3 lượt, TTL 300s, tự dọn dẹp khi hoàn tất/timeout/SSE disconnect/HITL và hỗ trợ `WHY + clarify` hỗn hợp): kiểm tra target, deadline (tách `sau N phút` tính từ `now` với độ lệch theo hạn gốc, chỉ giải tỏa `clarify("time")` khi có mốc hợp lệ tường minh), connector/booking ID, chủ thể nguồn lưới toàn trạm, mốc thời gian tương lai không biểu diễn được, không cho câu trả lời slot làm đổi sang thao tác mô phỏng khác, và chỉ re-anchor khi lượt trước đã đóng hoặc có yêu cầu hủy/đặt lại tường minh. |
 +| E · giao diện & cô lập voice (F02) | **Tested** | Giữ nguyên thiết kế UI; gắn `voiceEpoch` và `session.generation` ngay lúc bắt đầu ghi âm, kiểm tra trước/sau mọi `await`, hủy `AbortController` khi đổi phiên, đóng `MediaStream` tracks và gỡ handler recorder khi logout/unmount mà không phát sinh transcribe mới; `66/66` Vitest tests (18 tệp), ESLint, TypeScript, Webpack & Turbopack build đều `exit 0`. |
-+| F · kiểm chứng & đóng gói (F03, F05) | **Tested** | Sửa selector ranked HOW-TO sang `ol > li > strong` (giữ nguyên cả danh sách ứng viên `details ul > li`), sạch `git diff --check`, `11/11` cổng backend (`857 passed, 8 forecast skips` toàn bộ backend — gồm tập con `19` focused G6B; cùng `180` standalone), cả 2 kịch bản Chromium smoke (`two-roles` và `--ranked`) `exit 0`, hoàn tất `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip`. |
++| F · kiểm chứng & đóng gói (F03, F05) | **Tested** | Sửa selector ranked HOW-TO sang `ol > li > strong` (giữ nguyên cả danh sách ứng viên `details ul > li`), sạch `git diff --check`, `11/11` cổng backend (`861 passed, 8 forecast skips` toàn bộ backend — gồm tập con `23` focused G6B; cùng `180` standalone), cả 2 kịch bản Chromium smoke (`two-roles` và `--ranked`) `exit 0`, hoàn tất `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip`. |
 +
 +[Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Hợp đồng công cụ](G6B_TOOL_CONTRACTS.md) · [Demo](G6B_DEMO.md)
 diff --git a/docs/ai4/G6B_TOOL_CONTRACTS.md b/docs/ai4/G6B_TOOL_CONTRACTS.md
 new file mode 100644
-index 0000000..7a893a3
+index 0000000..881dc40
 --- /dev/null
 +++ b/docs/ai4/G6B_TOOL_CONTRACTS.md
 @@ -0,0 +1,31 @@
@@ -172,13 +173,13 @@ index 0000000..7a893a3
 +
 +## Ràng buộc Tham số Đầu vào và Grounding Đầu ra
 +
-+LLM chọn công cụ, điền tham số và chọn trường cần làm rõ; `clarify` và `unsupported` có thông báo do server dựng. Trước khi admission, tầng kiểm tra phía server (`conflicts_with_simulation` và `why_conflicts_with_message`) đối chiếu mọi giá trị và điều kiện mà người dùng đã nêu rõ với tham số công cụ: mức SOC mục tiêu (tách biệt với SOC hiện tại/ban đầu và từ chối độ lệch phần trăm tương đối chưa giải), hạn sạc và khoảng hạn tìm kiếm (phân biệt `sau/trước N phút` tính từ đồng hồ trạm `now` với các cụm dịch chuyển theo hạn gốc/lịch hiện tại như `muộn hơn N phút so với hạn gốc` — trường hợp chưa nêu giờ tường minh sẽ trả `clarify("time")`), mã đầu nối/vùng, mã booking, thời lượng và thời điểm sự cố, cửa sổ `horizon_minutes`, chủ thể công suất đầu vào lưới toàn trạm (từ chối quy chiếu công suất cổng/trụ/tủ/vùng hoặc lịch hẹn tương lai sang `site_limit` / `min_tested_site_limit_for_sla`), khoảng thử HOW-TO (`bounds`), ngưỡng tỷ lệ SLA gốc, yêu cầu bảo vệ các lịch AC đang đúng hạn, cũng như các cờ hy sinh cam kết (`allow_*`) và `hypothetical_infrastructure`. Khi hội thoại kéo dài nhiều lượt trong cùng phiên đã xác thực, server chỉ tham chiếu các tin nhắn `role="user"` trước đó để bổ sung trường còn thiếu và tuyệt đối không coi văn bản của `assistant` là dữ kiện hay sự đồng ý của người dùng. Ý định ngoài tập đã kiểm thử tiếp tục được đánh giá trên tập held-out ở G7.
++LLM chọn công cụ, điền tham số và chọn trường cần làm rõ; `clarify` và `unsupported` có thông báo do server dựng. Trước khi admission, tầng kiểm tra phía server (`conflicts_with_simulation` và `why_conflicts_with_message`) đối chiếu đối xứng mọi giá trị và điều kiện mà người dùng đã nêu trong yêu cầu đang hoạt động với tham số công cụ: mức SOC mục tiêu (tách biệt với SOC hiện tại/ban đầu và từ chối độ lệch phần trăm tương đối chưa giải), hạn sạc và khoảng hạn tìm kiếm (phân biệt `sau/trước N phút` tính từ đồng hồ trạm `now` với các cụm dịch chuyển theo hạn gốc/lịch hiện tại như `muộn hơn N phút so với hạn gốc` — chỉ giải tỏa khi người dùng trả lời `clarify("time")` bằng mốc giờ/phút hợp lệ tường minh), mã đầu nối/vùng, mã booking, thời lượng và thời điểm sự cố, cửa sổ `horizon_minutes`, chủ thể công suất đầu vào lưới toàn trạm (từ chối quy chiếu công suất cổng/trụ/tủ/vùng hoặc lịch hẹn tương lai sang `site_limit` / `min_tested_site_limit_for_sla`), khoảng thử HOW-TO (`bounds`), ngưỡng tỷ lệ SLA gốc, yêu cầu bảo vệ các lịch AC đang đúng hạn, cũng như các cờ hy sinh cam kết (`allow_*`) và `hypothetical_infrastructure`. Trạng thái làm rõ đa lượt (`pending_copilot_clarification`) gắn chặt với tác vụ đang mở (tối đa 3 lượt liên tiếp, TTL 300 giây, hỗ trợ cả lượt hỗn hợp `WHY + clarify`, tự động xóa khi hoàn tất job/unsupported/refusal, khi timeout/lỗi LLM, khi đứt kết nối SSE hoặc khi chuyển sang HITL đặt lịch), không lấy tùy ý toàn bộ lịch sử phiên, không cho câu trả lời slot chuyển sang thao tác mô phỏng khác, chỉ re-anchor khi lượt trước đã đóng hoặc có chỉ thị hủy/đặt lại câu trước tường minh, và tuyệt đối không coi văn bản của `assistant` là dữ kiện hay sự đồng ý của người dùng. Ý định ngoài tập đã kiểm thử tiếp tục được đánh giá trên tập held-out ở G7.
 +
 +Grounding dùng projection đã qua kiểm quyền. Claim HOW-TO liên kết `RecommendationEvidence.ref#/field`. Ví dụ `#/subject_goal_target/target_reached_at`, `#/subject_release_at` và `#/subject_soc_at_deadline_pct` là ba mốc riêng. Gate kiểm toàn bộ claim gồm subject, value, unit, time, stage, branch, code và refs. Signed WHAT-IF delta giữ `patched_minus_baseline`. Kết quả không có cùng horizon an toàn không tạo delta.
 +
 +Finalize dựng câu từ WHY reasons đã xác minh, kết quả job và notice. So sánh cải thiện dựa trên cùng target hoặc cùng thời điểm quan sát. Chỉ gắn nhãn khả thi cho verdict của engine. Lưới thử G5 và SOC tolerance giữ theo engine. HOW-TO 94 kW trong oracle M3b là mức thấp nhất đã kiểm chứng trong tập thử với tìm kiếm một phần. `applied=false` đi cùng từng kết quả và job.
 diff --git a/docs/ai4/ISSUES.md b/docs/ai4/ISSUES.md
-index edb65ae..1ce2d43 100644
+index edb65ae..6377b8b 100644
 --- a/docs/ai4/ISSUES.md
 +++ b/docs/ai4/ISSUES.md
 @@ -118,9 +118,9 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
@@ -194,7 +195,7 @@ index edb65ae..1ce2d43 100644
  
  Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
  
-@@ -137,3 +137,24 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và
+@@ -137,3 +137,25 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và
  [Báo cáo và bằng chứng](PHASE_4_3_REPORT.md)
  
  **G5 — READY_FOR_FINAL_ACCEPTANCE.** Bốn finding đã có bằng chứng kiểm chứng cục bộ. Tech Lead quyết định cuối.
@@ -214,7 +215,8 @@ index edb65ae..1ce2d43 100644
 +| **G6B-F05** — Đóng gói bằng chứng và provenance cuối | **Confirmed gate blocker → PASS mã thực thi (mirror `de82afe7`)** | Bảo tồn patch và raw logs lịch sử của Codex + vòng 1 (`dab76e32...`), sửa dòng trắng cuối `prompts/booking_reason.md`, cập nhật `.gitignore` cho `eval/evidence/2026-11-26-ai4-g6b/raw/`, ghi rõ provenance `.env.example` (`a96d656...`) trên nhánh chính so với mirror, dựng `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip` trên bản xuất sạch từ `64c85f1`. |
 +| **F01-R1** — Công suất đầu nối đơn lẻ bị hiểu thành `site_limit` | **Confirmed residual bug (`de82afe7`) → Fixed** | Tái hiện fail-before (`f01-r1-r3-fail-before.log`): `"Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?"` từng chạy `site_limit=50`. Bắt buộc chủ thể nguồn/lưới/đầu vào trạm (`_SITE_POWER_SUBJECT`) và chặn mọi mã đầu nối, danh từ cổng/trụ/bộ sạc/tủ (xử lý chuẩn đồng âm không dấu `cổng` vs `công suất`, `tủ` vs `từ`), phạm vi vùng AC/DC riêng lẻ và độ lệch kW tương đối; bổ sung đối chứng dương tính nguồn lưới trạm `50 kW`. |
 +| **F01-R2** — Lịch hẹn tương lai trên site HOW-TO bị lược bỏ âm thầm | **Confirmed residual bug (`de82afe7`) → Fixed** | Tái hiện fail-before: `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00?..."` từng chạy ngay trên snapshot hiện tại. Chặn mọi điều kiện thời điểm/ngày/buổi/thời lượng ngoài cửa sổ `horizon` trong `_has_site_temporal_condition` cho cả `SourceChange` và `MinTestedSiteLimitForSla`; bổ sung đối chứng dương tính tìm nguồn tức thời `22–106 kW` / SLA `95%` / giữ AC. |
-+| **F01-R3** — Độ lệch tương đối theo hạn gốc bị dịch thành tương đối theo `now` | **Confirmed residual bug (`de82afe7`) → Fixed** | Tái hiện fail-before: `"muộn hơn 30 phút so với hạn gốc"` từng tạo hạn `12:31+07` thay vì `14:30+07`. Tách `_SHIFT_OFFSET` / `_NON_NOW_ANCHOR` khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`), trả `clarify("time")` / `unsupported` trước `capture_atomic_snapshot`; kiểm chứng đối chứng dương tính cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`). |
++| **F01-R3** — Độ lệch tương đối theo hạn gốc bị dịch thành tương đối theo `now` | **Confirmed residual bug (`de82afe7`) → Fixed (`c519845`)** | Tái hiện fail-before: `"muộn hơn 30 phút so với hạn gốc"` từng tạo hạn `12:31+07` thay vì `14:30+07`. Tách `_SHIFT_OFFSET` / `_NON_NOW_ANCHOR` khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`), trả `clarify("time")` / `unsupported` trước `capture_atomic_snapshot`; kiểm chứng đối chứng dương tính cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`). |
++| **F01-R1-MT & F01-R2-MT** — Mất ràng buộc phạm vi/thời gian khi phân bổ tham số qua lượt làm rõ | **Confirmed residual bug (`c519845`) → Fixed in V3** | Tái hiện fail-before (`f01-mt-fail-before.log`): Lượt 1 `clarify("grid_input" / "bounds")` giữ phạm vi cổng `DC-01-1` hoặc lịch hẹn `ngày mai 18h00`, Lượt 2 bổ sung `50 kW` / `22–106 kW` từng lọt qua `conflicts_with_simulation` do chỉ kiểm điều kiện cấm trên câu hiện tại và đọc toàn bộ `state["history"]`. Đã triển khai theo quyết định `APPROVED WITH CONDITIONS` của Tech Lead: trạng thái `pending_copilot_clarification` có giới hạn (tối đa 3 lượt, TTL 300s, cờ `turn_in_progress`, dọn dẹp khi hoàn tất/timeout/SSE disconnect/HITL, bảo toàn `WHY + clarify` hỗn hợp) kết hợp kiểm tra đối xứng mọi ràng buộc trên tất cả lượt của yêu cầu đang mở và chỉ re-anchor khi lượt trước đã đóng hoặc người dùng hủy câu trước tường minh (`4/4` reproducer + `23/23` focused G6B PASS, `0` lần chụp snapshot trên mọi ca âm tính). |
 +
 +[Báo cáo Gate 6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md) · [Verification bundle](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +
@@ -233,27 +235,29 @@ index 214c454..90290a2 100644
  
 diff --git a/docs/ai4/PHASE_4_4B_REPORT.md b/docs/ai4/PHASE_4_4B_REPORT.md
 new file mode 100644
-index 0000000..31e9b58
+index 0000000..716e735
 --- /dev/null
 +++ b/docs/ai4/PHASE_4_4B_REPORT.md
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,84 @@
 +# AI-4.4B — Tích hợp công cụ vào Chat Agent (Gate 6B)
 +
 +**G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.**
-+Báo cáo hoàn thiện sau hai vòng review độc lập của Tech Lead:
++Báo cáo hoàn thiện sau ba vòng review độc lập của Tech Lead:
 +- Vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (`CONDITIONAL PASS` — mở G6B-F01..F05).
-+- Vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (`CONDITIONAL PASS` — chấp nhận F02, F03, F04 và provenance mã thực thi F05; mở lại phần dư `F01-R1`, `F01-R2`, `F01-R3`).
++- Vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (`CONDITIONAL PASS` — chấp nhận F02, F03, F04 và provenance mã thực thi F05; mở lại `F01-R1`..`F01-R3`).
++- Vòng 3 (V2 review tại mirror `c5198452ed72b409274bfebeaa91434017f251e8`, quyết định thiết kế V3 `APPROVED WITH CONDITIONS` — đóng `F01-R1`..`F01-R3` đơn lượt, xử lý dứt điểm ràng buộc ngữ cảnh đa lượt `F01-R1-MT` / `F01-R2-MT` và vòng đời trạng thái làm rõ).
 +Chưa tự đánh dấu `APPROVED`, chưa merge và chưa chuyển sang G7.
 +
 +## 1. Baseline, Provenance và Bảo toàn phần việc của Codex
 +
 +- **Local baseline**: nhánh `feature/ai-4-how-to` tại `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, cha trực tiếp là `develop` / `origin/develop` `0f877f196db7b89759af08aab825f0fff82f7c3c`. Sáu tệp mã nguồn và kiểm thử G5 khớp 6/6 mã băm SHA-256 đã được Tech Lead nghiệm thu tại `42438430ee49f404e90080c49a76e4c6446530da` (patch `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`).
 +- **Lưu trữ nguyên trạng công việc lịch sử**:
-+  - Bản vá gián đoạn của Codex: `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng toàn bộ log `/tmp/p019-g6b-evidence`.
-+  - Bản vá và bundle vòng 1 của Carbon (review tại mirror `de82afe7...`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
++  - Bản vá gián đoạn của Codex (`2c72e2b`): `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng toàn bộ log `/tmp/p019-g6b-evidence`.
++  - Bản vá và bundle vòng 1 của Carbon (`de82afe7`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
++  - Bản vá và bundle vòng 2 của Carbon (`c519845`): `round2-candidate.patch` (`fff02f47d8d62cd4b4f3dc258b40985b7703016489989645ae986d7900fdd36f`) và `round2-verification-bundle.zip` (`eb752042d140ffddac1726155cd98297d99cb465431981622a0b0eed1b5a858a`).
 +- **Provenance `.env.example` và `.gitignore` giữa repo chính và mirror review**:
 +  - Trên nhánh thực tế `feature/ai-4-how-to` @ `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, tệp `.env.example` đã tồn tại từ baseline (`100644 blob a96d656b68da0a1cf296ba586d92a72ac555cd79`, SHA-256 `7104c9ebe1a2ebbd3fb66c92412caf1707e21d743ee58f168eb8694a71247377` — không tự chế tạo template giả). Tệp này vắng mặt trên kho mirror công khai từ giai đoạn G5 do quy trình đồng bộ sang mirror bỏ qua `.env*`.
-+  - Tệp `.gitignore` trên repo chính giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để không đẩy hàng trăm tệp log thô và nhật ký nội bộ vào nhánh sản phẩm; khi đồng bộ sang mirror review cần giữ đúng `.gitignore` này (hoặc loại trừ `raw/` và `collaboration_chat.md`) để khớp 50/50 cặp tệp.
++  - Tệp `.gitignore` trên repo chính giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để không đẩy hàng trăm tệp log thô và nhật ký nội bộ vào nhánh sản phẩm; khi đồng bộ sang mirror review cần giữ đúng `.gitignore` này (hoặc loại trừ `raw/` và `collaboration_chat.md`) để khớp 51/51 cặp tệp.
 +- **Không chạm Unified Core và các engine đã nghiệm thu**: kiểm tra `git diff HEAD` xác nhận **0 byte thay đổi** trên `src/simulator/**`, `src/optimizer/**`, `src/guard/**`, `src/services/{runtime,control_loop,solver}.py`, `src/services/copilot/{why,evidence,trace_reader,snapshot,outcome_ledger,counterfactual,what_if,recommendation}.py`, `config/**` và `migrations/**`.
 +- **Phối hợp nhánh Frontend**: `origin/develop` (`0f877f1`) đã bao gồm các PR #17 (`unified-fullstack`), #22 (`voice-input`), #23 (`voice-security-review`) và #24 (`unified-core`). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, 23/11) là nhánh cũ trước khi port sang `unified-core`; không có thay đổi chưa gộp của đồng đội FE bị ghi đè. Không thay đổi thiết kế giao diện, CSS hay cấu hình gói.
 +
@@ -273,33 +277,34 @@ index 0000000..31e9b58
 +| **F01-R1** (HIGH / Vòng 2) — Công suất một đầu nối bị hiểu thành nguồn lưới toàn trạm | `diagnostics/f01-r1-r3-fail-before.log`: câu `"Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?"` kèm quyết định `site_limit=50` chạy tới `succeeded` và ảnh hưởng nhiều xe toàn trạm. | Trong `copilot_intent.py` (`SourceChange` & `MinTestedSiteLimitForSla`): bắt buộc chủ thể nguồn/lưới/đầu vào trạm (`_SITE_POWER_SUBJECT`) cho `site_limit`, đồng thời từ chối mọi mã đầu nối (`_CONNECTOR`), danh từ cổng/trụ/bộ sạc/tủ (`_PORT_OR_ZONE_SCOPE` + `_ACCENTED_PORT_SCOPE`, tách biệt đồng âm không dấu `cổng` vs `công suất`, `tủ` vs `từ`), phạm vi vùng AC/DC riêng lẻ, công suất sạc đầu ra và độ lệch tương đối kW (`_KW_DELTA`). Spy `capture_atomic_snapshot` xác nhận `0` lần chụp; đối chứng dương tính `50 kW` đầu vào lưới trạm chạy `succeeded`. |
 +| **F01-R2** (HIGH / Vòng 2) — Mục tiêu nguồn theo lịch tương lai bị bỏ mất mốc thời gian | `diagnostics/f01-r1-r3-fail-before.log`: câu `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00? Thử 22 đến 106 kW, giữ các xe AC đúng hạn, mục tiêu đúng hạn 95%."` bỏ qua `"từ ngày mai lúc 18h00"` và chạy ngay trên snapshot hiện tại. | Bổ sung `_has_site_temporal_condition` cho cả `SourceChange` và `MinTestedSiteLimitForSla` (sau khi tách `_HORIZON`): từ chối mọi mốc ISO, giờ đồng hồ, ngày (`hôm nay`/`ngày mai`), buổi trong ngày, độ dời tương đối hoặc khoảng thời lượng (`trong N phút`) không biểu diễn được trong hợp đồng hiện hành. Spy xác nhận `0` lần chụp; đối chứng dương tính tìm nguồn tức thời `22–106 kW`, SLA `95%`, bảo vệ AC chạy `succeeded`. |
 +| **F01-R3** (HIGH / Vòng 2) — Dời hạn tương đối theo hạn gốc bị dịch nhầm thành tương đối theo `now` | `diagnostics/f01-r1-r3-fail-before.log`: tại đồng hồ `12:01+07` và hạn gốc `14:00+07`, câu `"Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?"` kèm `relative +30` tạo hạn `12:31+07` (sớm hơn 119 phút so với `14:30+07`). | Loại bỏ các cụm dịch chuyển so sánh (`muộn hơn`, `sớm hơn`, `trễ thêm`) khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`); bổ sung `_SHIFT_OFFSET`, `_NON_NOW_ANCHOR` và `_SOC_DELTA` trên cả WHAT-IF lẫn HOW-TO để trả `clarify("time")` / `unsupported` trước khi chụp snapshot khi người dùng neo theo hạn gốc/lịch cũ mà chưa nêu giờ tường minh. Đối chứng dương tính kiểm chứng cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`) trên đúng booking gốc. |
++| **F01-R1-MT & F01-R2-MT** (HIGH / Vòng 3 V3) — Mất ràng buộc phạm vi/thời gian khi tách tham số qua nhiều lượt làm rõ | `diagnostics/f01-mt-fail-before.log` (trên `fff02f47...`): Lượt 1 trả `clarify("grid_input")` cho `"Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?"` hoặc `clarify("bounds")` cho `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00..."`; sang Lượt 2 (`"50 kW."` / `"Thử 22 đến 106 kW."`), validator chỉ kiểm tra điều kiện cấm trên câu Lượt 2 trong khi mượn chủ thể/SLA từ Lượt 1, dẫn tới cả 2 tác vụ chạy `succeeded`. | Thiết kế V3 được Tech Lead duyệt (`APPROVED WITH CONDITIONS`): (1) Lưu trạng thái làm rõ gắn theo tác vụ có giới hạn (`pending_copilot_clarification`: tối đa 3 lượt, TTL 300s, cờ `turn_in_progress`) trong `state.py`, `graph.py`, `act_node.py`, `human_review_node.py`, `finalize_node.py` và `routes.py`, tự động dọn dẹp khi hoàn tất job/unsupported/refusal, khi timeout/lỗi LLM, khi đứt kết nối SSE giữa chừng (`aclose`) và khi chuyển sang luồng HITL đặt lịch, đồng thời hỗ trợ lượt hỗn hợp `WHY + clarify`; (2) Trong `copilot_intent.py`, kiểm tra đối xứng mọi ràng buộc (phạm vi cổng/vùng, điều kiện thời gian, thao tác mô phỏng, booking/connector ID, horizon, khoảng thử, SLA %, bảo vệ AC, đồng ý hy sinh/hạ tầng) xuyên suốt toàn bộ các lượt của yêu cầu đang mở, chỉ re-anchor khi lượt trước đã đóng hoặc người dùng hủy/đặt lại tường minh (`strip_explicit_reset`), không thêm lượt gọi LLM. Kiểm chứng `4/4` trên reproducer độc lập và `23/23` kiểm thử G6B (`0` lần chụp snapshot trên mọi ca vi phạm). |
 +
-+## 3. Tách biệt Bằng chứng Lịch sử (Codex & Vòng 1) và Bằng chứng Cuối cùng (Vòng 2)
++## 3. Tách biệt Bằng chứng Lịch sử (Codex, Vòng 1, Vòng 2) và Bằng chứng Cuối cùng (Vòng 3 — V3)
 +
-+*(Lưu ý: các bộ `Focused G6B`, `G2–G5 + G6A`, `Legacy F1` và `Architecture` là tập con của `Full Backend`, tuyệt đối không cộng dồn với `857`.)*
++*(Lưu ý: các bộ `Focused G6B`, `G2–G5 + G6A`, `Legacy F1` và `Architecture` là tập con của `Full Backend`, tuyệt đối không cộng dồn với `861`.)*
 +
-+| Cổng kiểm tra | Kết quả lịch sử Codex (`2c72e2b`) | Kết quả Vòng 1 Carbon (`de82afe7`) | Kết quả Vòng 2 Cuối cùng (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
-+|---|---|---|---|
-+| Focused G6B (`test_unified_copilot.py`) | `11 passed` | `17 passed` | **`19 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
-+| Reproducer độc lập `F01-R1`..`F01-R3` | `3 failed` | `3 failed` | **`3 passed` (`exit 0`, `0` snapshot capture / `0` job sai ngữ nghĩa)** |
-+| Hồi quy G2–G5 + G6A | `167 passed` | `167 passed` | **`167 passed` (`exit 0`)** |
-+| Legacy booking Agent & HITL | `97 passed` | `97 passed` | **`97 passed` (`exit 0`)** |
-+| Architecture (`test_architecture.py`) | `43 passed` | `43 passed` | **`43 passed` (`exit 0`)** |
-+| Full Backend (`pytest -q -rs tests`) | `849 passed, 8 skips` | `855 passed, 8 skips` | **`857 passed, 8 forecast skips` (`exit 0`, 101.87s)** |
-+| Simulator độc lập (`src/simulator/tests`) | `180 passed` | `180 passed` | **`180 passed` (`exit 0`)** |
-+| Unified Core / G2–G5 engine diff | `0 diff` | `0 diff` | **`0 byte diff` so với `64c85f1` (kế thừa Golden 38/38, Frozen 100/100, 253 AST)** |
-+| Ruff lint & format | `PASS` | `PASS / PASS` | **`PASS / PASS` (`exit 0`)** |
-+| Docs (`scripts/check_docs.py`) | `PASS` local | `PASS` local | **`PASS` (`exit 0`, 50 tệp md, 131 liên kết; dùng `.env.example` gốc `a96d656...`)** |
-+| OpenAPI (`export_openapi.py --check`) | `PASS` | `PASS` | **`PASS` (`exit 0`)** |
-+| Offline F1 (`run_agent_eval.py --offline`) | `55/55` hợp lệ | `55/55` hợp lệ | **`55/55` câu/ngưỡng hợp lệ (`exit 0`)** |
-+| Frontend Vitest | `61 passed` (17 tệp) | `66 passed` (18 tệp) | **`66 passed` (18 tệp, `exit 0`)** |
-+| Frontend ESLint / TypeScript / `gen:api` parity | `PASS` | `PASS / PASS / PASS` | **`PASS / PASS / PASS` (`exit 0`, `schema.d.ts` khớp byte)** |
-+| Frontend Production Build (Webpack) | `PASS` | `PASS` | **`PASS` (`exit 0`, 17/17 trang trên cây xuất sạch)** |
-+| Frontend Production Build (Turbopack) | Lỗi bind ở sandbox cũ | `PASS` | **`PASS` (`exit 0` với `npm run build` trên `P-019/frontend`)** |
-+| Chromium smoke — hai vai trò (`two-roles`) | `PASS` | `PASS` | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, Resident + Operator + logout isolation, `0` nút Áp dụng)** |
-+| Chromium smoke — xếp hạng M3b (`--ranked`) | `FAIL` (`exit=1`) | `PASS` (`exit 0`) | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, `options[0].value=94`, `search_status="partial"`, `applied=false`, khớp cả `<ol>` lẫn `<details>`)** |
-+| Real LLM provider smoke | `PENDING` | `PENDING` | **`PENDING_NO_AUTHORIZED_KEY`** (`openai` / `gpt-4o-mini` / `gpt-4o`, chưa cấu hình API key) |
-+| PostgreSQL live runtime | `PENDING` | `PENDING` | **`PENDING`** (SQLite tạm qua Alembic migrations `0001 -> 0004`) |
++| Cổng kiểm tra | Lịch sử Codex (`2c72e2b`) | Vòng 1 (`de82afe7`) | Vòng 2 (`c519845`) | Kết quả Vòng 3 — V3 Cuối cùng (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
++|---|---|---|---|---|
++| Focused G6B (`test_unified_copilot.py`) | `11 passed` | `17 passed` | `19 passed` | **`23 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
++| Reproducer `F01-R1`..`F01-R3` & `F01-R1-MT`/`R2-MT` | `3 failed` / — | `3 failed` / — | `3 passed` / `2 failed, 2 passed` | **`3/3 passed` & `4/4 passed` (`exit 0`, `0` snapshot capture / `0` job sai ngữ nghĩa)** |
++| Hồi quy G2–G5 + G6A | `167 passed` | `167 passed` | `167 passed` | **`167 passed` (`exit 0`)** |
++| Legacy booking Agent & HITL | `97 passed` | `97 passed` | `97 passed` | **`97 passed` (`exit 0`)** |
++| Architecture (`test_architecture.py`) | `43 passed` | `43 passed` | `43 passed` | **`43 passed` (`exit 0`)** |
++| Full Backend (`pytest -q -rs tests`) | `849 passed, 8 skips` | `855 passed, 8 skips` | `857 passed, 8 skips` | **`861 passed, 8 forecast skips` (`exit 0`, 111.11s)** |
++| Simulator độc lập (`src/simulator/tests`) | `180 passed` | `180 passed` | `180 passed` | **`180 passed` (`exit 0`)** |
++| Unified Core / G2–G5 engine / FE diff vs V2 | `0 diff` | `0 diff` | `0 diff` | **`0 byte diff` trên Core & G2–G5 so với `64c85f1`; `0 byte diff` trên `frontend/**` và `prompts/**` so với V2** |
++| Ruff lint & format | `PASS` | `PASS / PASS` | `PASS / PASS` | **`PASS / PASS` (`exit 0`)** |
++| Docs (`scripts/check_docs.py`) | `PASS` local | `PASS` local | `PASS` | **`PASS` (`exit 0`, 50 tệp md, 131 liên kết; dùng `.env.example` gốc `a96d656...`)** |
++| OpenAPI (`export_openapi.py --check`) | `PASS` | `PASS` | `PASS` | **`PASS` (`exit 0`)** |
++| Offline F1 (`run_agent_eval.py --offline`) | `55/55` hợp lệ | `55/55` hợp lệ | `55/55` hợp lệ | **`55/55` câu/ngưỡng hợp lệ (`exit 0`)** |
++| Frontend Vitest | `61 passed` (17 tệp) | `66 passed` (18 tệp) | `66 passed` (18 tệp) | **`66 passed` (18 tệp, `exit 0`)** |
++| Frontend ESLint / TypeScript / `gen:api` parity | `PASS` | `PASS / PASS / PASS` | `PASS / PASS / PASS` | **`PASS / PASS / PASS` (`exit 0`, `schema.d.ts` khớp byte)** |
++| Frontend Production Build (Webpack) | `PASS` | `PASS` | `PASS` | **`PASS` (`exit 0`, 17/17 trang trên cây xuất sạch)** |
++| Frontend Production Build (Turbopack) | Lỗi bind ở sandbox cũ | `PASS` | `PASS` | **`PASS` (`exit 0` với `npm run build` trên `P-019/frontend`)** |
++| Chromium smoke — hai vai trò (`two-roles`) | `PASS` | `PASS` | `PASS` | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, Resident + Operator + logout isolation, `0` nút Áp dụng)** |
++| Chromium smoke — xếp hạng M3b (`--ranked`) | `FAIL` (`exit=1`) | `PASS` (`exit 0`) | `PASS` (`exit 0`) | **`PASS` (`exit 0`, Chromium `159.0.8154.6`, `options[0].value=94`, `search_status="partial"`, `applied=false`, khớp cả `<ol>` lẫn `<details>`)** |
++| Real LLM provider smoke | `PENDING` | `PENDING` | `PENDING_NO_AUTHORIZED_KEY` | **`PENDING_NO_AUTHORIZED_KEY`** (`openai` / `gpt-4o-mini` / `gpt-4o`, chưa cấu hình API key) |
++| PostgreSQL live runtime | `PENDING` | `PENDING` | `PENDING` | **`PENDING`** (SQLite tạm qua Alembic migrations `0001 -> 0004`) |
 +
 +## 4. Giới hạn Phạm vi & Các Mục Dành Riêng cho G7 / Production Readiness
 +
@@ -319,7 +324,7 @@ index 0000000..31e9b58
 +
 +**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 6B)**
 diff --git a/docs/ai4/PROJECT_STATE.md b/docs/ai4/PROJECT_STATE.md
-index 6386a51..5869829 100644
+index 6386a51..f17247a 100644
 --- a/docs/ai4/PROJECT_STATE.md
 +++ b/docs/ai4/PROJECT_STATE.md
 @@ -16,4 +16,6 @@ Roadmap 26/11 do Project Owner và nhóm chọn là **Merged baseline readiness
@@ -328,10 +333,10 @@ index 6386a51..5869829 100644
  - **G5 — READY_FOR_FINAL_ACCEPTANCE (Tested).** Sau CONDITIONAL PASS tại `9ecb1af`, đã xử lý F01–F04. Candidate cuối 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, standalone 180. 10/10 cổng exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip)
 -- **G6B/G7 — Planned.** Chờ G5 review trước. Real LLM và PostgreSQL runtime PENDING.
 +- Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c49a76e4c6446530da`. Candidate SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle SHA-256 `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`. Tech Lead xác nhận 6/6 blob, 6/6 source hash, 26/26 checksum nội dung, oracle M3a/M3b, hai trường hợp có cải thiện và không cải thiện, G5-F01–F04 đã xử lý, 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, 180 standalone và 10/10 cổng exit 0. G5 đóng, chỉ xử lý blocker tích hợp đã xác nhận nếu có.
-+- **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY (Tested, chưa đánh dấu APPROVED).** Tech Lead đã thực hiện 2 vòng review độc lập: vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (patch Codex `85ba2959...`) và vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (patch vòng 1 Carbon `dab76e32...`, đóng F02–F04 và provenance mã thực thi F05, yêu cầu xử lý dứt điểm `F01-R1`..`F01-R3`). Carbon đã tái hiện fail-before, khắc phục đầy đủ `F01-R1`..`F01-R3` cùng các biến thể liền kề mà không chạm Unified Core hay G2–G5 engines (`0 byte diff`), chạy đạt toàn bộ `11/11` cổng backend (`857 passed + 8 forecast skips` toàn backend — trong đó có các tập con `19` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone), `7/7` cổng frontend (`66/66` Vitest trên 18 tệp, ESLint, TypeScript, OpenAPI parity, Webpack & Turbopack build `exit 0`), và cả `2/2` kịch bản Chromium smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). Đã cập nhật [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch), [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`) và PostgreSQL runtime (`PENDING`) giữ cho G7. [Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md)
++- **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY (Tested, chưa đánh dấu APPROVED).** Tech Lead đã thực hiện 3 vòng review độc lập: vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (patch Codex `85ba2959...`), vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (patch V1 `dab76e32...`, đóng F02–F04 và provenance mã thực thi F05) và vòng 3 tại mirror `c5198452ed72b409274bfebeaa91434017f251e8` (patch V2 `fff02f47...`, đóng `F01-R1`..`F01-R3` đơn lượt và duyệt thiết kế V3 `APPROVED WITH CONDITIONS` cho `F01-R1-MT`/`F01-R2-MT`). Carbon đã hoàn tất bản V3 (ràng buộc ngữ cảnh đa lượt gắn theo tác vụ có vòng đời an toàn + kiểm chứng đối xứng khi nhận công cụ, không chạm Unified Core, G2–G5 engines, `frontend/**` hay `prompts/**`), chạy đạt toàn bộ `11/11` cổng backend (`861 passed + 8 forecast skips` toàn backend — trong đó có các tập con `23` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone), `7/7` cổng frontend (`66/66` Vitest trên 18 tệp, ESLint, TypeScript, OpenAPI parity, Webpack & Turbopack build `exit 0`), và cả `2/2` kịch bản Chromium smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). Đã cập nhật [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch), [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`) và PostgreSQL runtime (`PENDING`) giữ cho G7. [Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md)
 +- **G7 — Planned.** Held-out NL evaluation, load/concurrency 1.000 users, MemorySaver retention/pruning, Real LLM và PostgreSQL runtime PENDING.
 diff --git a/docs/handoff/HANDOFF.md b/docs/handoff/HANDOFF.md
-index d72b71b..3878ef8 100644
+index d72b71b..d2fe5fe 100644
 --- a/docs/handoff/HANDOFF.md
 +++ b/docs/handoff/HANDOFF.md
 @@ -88,6 +88,8 @@ vẫn ghi nhận trạng thái của lượt 25/11.
@@ -348,7 +353,7 @@ index d72b71b..3878ef8 100644
  ### 1.3 Task Phase 1
  
 -**G5 (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Targeted remediation F01–F04 đã qua 10 cổng. Tech Lead nhận nghiệm thu cuối.
-+**G6B (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Sau vòng 1 (`2c72e2b`) và vòng 2 (`de82afe7`, nơi F02–F04 đã PASS và còn mở `F01-R1`..`F01-R3`), Carbon đã tái hiện fail-before và hoàn tất khắc phục `F01-R1`..`F01-R3` cùng các biến thể liền kề qua đầy đủ các cổng backend (`857 passed + 8 skips`, tập con focused G6B `19 passed`), standalone (`180`), frontend (`66 passed`, Webpack & Turbopack) và Chromium (`two-roles` & `--ranked`). Đã nhả khóa chờ Tech Lead nghiệm thu cuối. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) · [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
++**G6B (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Sau vòng 1 (`2c72e2b`), vòng 2 (`de82afe7`, đóng F02–F04) và vòng 3 (`c519845`, đóng `F01-R1`..`F01-R3` đơn lượt và duyệt thiết kế V3 cho `F01-R1-MT`/`F01-R2-MT`), Carbon đã tái hiện fail-before và hoàn tất bản V3 (ràng buộc ngữ cảnh đa lượt gắn theo tác vụ + vòng đời an toàn) qua đầy đủ các cổng backend (`861 passed + 8 skips`, tập con focused G6B `23 passed`), standalone (`180`), frontend (`66 passed`, Webpack & Turbopack) và Chromium (`two-roles` & `--ranked`). Đã nhả khóa chờ Tech Lead nghiệm thu cuối. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) · [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
 +**G5 (26/11) — APPROVED (`42438430`).** Targeted remediation F01–F04 đã qua 10 cổng và được Tech Lead nghiệm thu chính thức.
  [Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
@@ -358,7 +363,7 @@ index d72b71b..3878ef8 100644
  
  ### 1.4 Kiểm thử và bằng chứng
  
-+**G6B targeted remediation vòng 2 trên `64c85f1`, Carbon, 26/11.** Cổng xuất sạch đạt `11/11` backend (`857` backend + `8` forecast skips — gồm các tập con `19` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`), `7/7` frontend (`66` Vitest / 18 tệp, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack build) và `2/2` Chromium headless smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). `0 byte diff` trên Unified Core và G2–G5 engines. [Bundle G6B](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
++**G6B targeted remediation vòng 3 (V3) trên `64c85f1`, Carbon, 26/11.** Cổng xuất sạch đạt `11/11` backend (`861` backend + `8` forecast skips — gồm các tập con `23` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`), `7/7` frontend (`66` Vitest / 18 tệp, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack build) và `2/2` Chromium headless smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). `0 byte diff` trên Unified Core và G2–G5 engines; `0 byte diff` trên `frontend/**` và `prompts/**` so với V2. [Bundle G6B](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +
  **Merged develop `0f877f1`, Codex, 26/11.** Focused 399 pass, backend 808 pass + 8 forecast skips, standalone 180,
  frontend 59, Golden 38/38 và frozen backend 100/100. **Patch G5** qua 24 focused, 180 regression G2/G3/G4/G6A,
@@ -367,15 +372,17 @@ index d72b71b..3878ef8 100644
  
  ### 1.8 Trạng thái Git
  
-+**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận từ Codex có 48 tệp delta G6B (lưu trữ tại `85ba2959...`), vòng 1 Carbon lưu trữ tại `dab76e32...`; sau targeted remediation vòng 2 (`F01-R1`..`F01-R3`) gồm 50 tệp trong `candidate.patch` + gói `verification-bundle.zip` (ngoài ra có tệp chỉ thị review `G6B_TECH_LEAD_REVIEW.md` ở gốc repo được giữ nguyên). Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
++**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận từ Codex có 48 tệp delta G6B (lưu trữ tại `85ba2959...`), vòng 1 Carbon lưu trữ tại `dab76e32...`, vòng 2 Carbon lưu trữ tại `fff02f47...`; sau targeted remediation vòng 3 (V3 — `F01-R1-MT`/`F01-R2-MT` & vòng đời làm rõ) gồm 51 tệp trong `candidate.patch` + gói `verification-bundle.zip` (ngoài ra có tệp chỉ thị review `G6B_TECH_LEAD_REVIEW.md` ở gốc repo được giữ nguyên). Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
 +
  - **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
    Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
    provenance ở [báo cáo](../ai4/PHASE_4_3_REPORT.md). Targeted remediation giữ HEAD và cập nhật 2 file recommendation,
-@@ -279,6 +287,10 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
+@@ -279,6 +287,12 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
  
  ### 1.9 Agent và khoá chỉnh sửa
  
++**G6B targeted remediation vòng 3 — V3 (2026-11-26).** Carbon đã hoàn tất xử lý `F01-R1-MT` / `F01-R2-MT` và vòng đời trạng thái làm rõ theo quyết định `APPROVED WITH CONDITIONS` của Tech Lead trên mirror `c519845`, xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói lại bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
++
 +**G6B targeted remediation vòng 2 (2026-11-26).** Carbon đã hoàn tất xử lý `F01-R1`..`F01-R3` theo verdict `CONDITIONAL PASS` (`G6B_TECH_LEAD_REVIEW.md`, mirror `de82afe7`), xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói lại bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
 +**G6B (2026-11-26).** Codex nhận khoá cập nhật quyết định G5 và implementation G6B gồm chat, services/models, API, frontend tích hợp, tests và tài liệu AI-4. Baseline local `64c85f1`, cây ban đầu sạch, một worktree, các khoá G5 đã nhả. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
@@ -383,7 +390,7 @@ index d72b71b..3878ef8 100644
  **G5 targeted remediation.** Codex đã nhận khoá F01–F04 theo review `9ecb1af`, đối chiếu đủ năm hash của patch cũ và chạy lại 10 cổng trên candidate mới. Chênh lệch checkpoint là RECOVERABLE. Đã nhả khoá sau HANDOFF_READY.
  
  **AI-4 G5 (2026-11-26).** Codex nhận khoá implementation, tests, roadmap và evidence G5 trên `feature/ai-4-how-to` tại merged develop `0f877f1`. Đã nhả khoá sau HANDOFF_READY. Review độc lập chuyển Tech Lead. [Checkpoint G5](../ai4/PROJECT_STATE.md)
-@@ -310,8 +322,7 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
+@@ -310,8 +324,7 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
  
  ### 1.10 Việc Agent tiếp theo cần làm
  
@@ -393,10 +400,12 @@ index d72b71b..3878ef8 100644
  
  1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
     (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
-@@ -324,6 +335,12 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
+@@ -324,6 +337,14 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
  
  ### 1.11 Nhật ký checkpoint
  
++**26/11, Carbon (vòng 3 — V3).** Tiếp nhận review độc lập `c519845` (`F01-R1`..`F01-R3` đơn lượt PASS, duyệt thiết kế V3 `APPROVED WITH CONDITIONS` cho `F01-R1-MT`/`F01-R2-MT`), lưu trữ patch vòng 2 `fff02f47...`, tái hiện fail-before `2 failed, 2 passed` và hoàn tất bản V3 qua `11/11` cổng backend (`861 passed + 8 skips`, tập con G6B `23 passed`), `7/7` cổng frontend và `2/2` Chromium smokes (`0` diff trên Core, `frontend/**` và `prompts/**`). Đóng gói `candidate.patch` + `verification-bundle.zip` mới, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
++
 +**26/11, Carbon (vòng 2).** Tiếp nhận review độc lập `de82afe7` (F02–F04 PASS, mở lại `F01-R1`..`F01-R3`), lưu trữ patch vòng 1 `dab76e32...`, tái hiện fail-before `3/3` và hoàn tất khắc phục `F01-R1`..`F01-R3` + 4 đối chứng dương tính qua `11/11` cổng backend (`857 passed + 8 skips`), `7/7` cổng frontend và `2/2` Chromium smokes. Đóng gói `candidate.patch` + `verification-bundle.zip` mới, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
 +
 +**26/11, Carbon.** Tiếp quản G6B từ Codex sau review `CONDITIONAL PASS` (`2c72e2b`), bảo tồn patch `85ba2959...` và raw logs lịch sử, tái hiện fail-before và hoàn tất remediation G6B-F01–F05 qua `11/11` cổng backend, `7/7` cổng frontend và `2/2` Chromium smokes. Đóng gói `candidate.patch` + `verification-bundle.zip`, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
@@ -4251,7 +4260,7 @@ index 82e9dab..d62af98 100644
  def render_why(answer: WhyAnswer, source: ParseSource | None = None) -> WhyReply:
      gate = GroundingGate.for_why(answer)
 diff --git a/src/agents/copilot_intent.py b/src/agents/copilot_intent.py
-index 6c8418b..16befc3 100644
+index 6c8418b..a7e8ea3 100644
 --- a/src/agents/copilot_intent.py
 +++ b/src/agents/copilot_intent.py
 @@ -1,21 +1,25 @@
@@ -4305,7 +4314,7 @@ index 6c8418b..16befc3 100644
  )
  _HOW_TO = re.compile(
      r"\b(?:bao nhieu|toi thieu|toi da|lam sao|cach nao|nen lam gi|nen tang|khuyen nghi|how (?:much|to)|"
-@@ -66,18 +77,101 @@ _HOW_TO = re.compile(
+@@ -66,20 +77,120 @@ _HOW_TO = re.compile(
  )
  _WHAT_IF = re.compile(r"\b(?:neu|gia su|thu mo phong|what if|simulate)\b")
  _WHY = re.compile(r"\b(?:tai sao|vi sao|giai thich|ly do|why)\b")
@@ -4409,8 +4418,81 @@ index 6c8418b..16befc3 100644
 +_DAY_MAP = {"hom nay": "today", "ngay mai": "tomorrow", "hom qua": "yesterday"}
  _BOOKING = re.compile(r"\b(?:booking|mã lịch|ma lich)\s*[:#]?\s*([A-Za-z0-9_-]{1,64})(?![\w-])", re.I)
  _CONNECTOR = re.compile(r"\b(?:AC|DC)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+\b", re.I)
++_EXPLICIT_RESET = re.compile(
++    r"^\s*(?:thoi\s+|vui\s+long\s+|hay\s+)*"
++    r"(?:bo(?:\s+qua)?\s+(?:cau(?:\s+hoi)?|yeu\s+cau)\s+truoc(?:\s+di|\s+nua)?|"
++    r"huy\s+(?:cau(?:\s+hoi)?|yeu\s+cau)\s+truoc(?:\s+di)?|"
++    r"khong\s+hoi\s+(?:cau(?:\s+hoi)?|yeu\s+cau)\s+truoc\s+nua|"
++    r"cau\s+hoi\s+moi|yeu\s+cau\s+moi|"
++    r"(?:thay|doi|chuyen\s+sang)\s+(?:cau\s+hoi|yeu\s+cau)\s+(?:khac|moi)|"
++    r"dat\s+lai\s+(?:cau\s+hoi|yeu\s+cau)|"
++    r"forget\s+(?:the\s+)?(?:previous|last)\s+(?:question|request)|"
++    r"cancel\s+(?:the\s+)?(?:previous|last)\s+(?:question|request)|"
++    r"ignore\s+(?:the\s+)?(?:previous|last)\s+(?:question|request)|"
++    r"new\s+(?:question|request)|start\s+over)\b[\s,:.;!-]*"
++)
++_HOW_TO_QUESTION = re.compile(
++    r"\b(?:bao nhieu|lam sao|cach nao|nen lam gi|nen tang|khuyen nghi|how (?:much|to)|recommend)\b"
++)
++_NOW_ANCHOR = re.compile(r"\b(?:hien tai|bay gio|luc nay|now|from now)\b")
  
-@@ -98,32 +192,100 @@ def _number(raw: str) -> float:
+ 
+ def _normalized(text: str) -> str:
+@@ -90,6 +201,53 @@ def _normalized(text: str) -> str:
+     )
+ 
+ 
++def _normalized_with_spans(raw: str) -> tuple[str, list[tuple[int, int]]]:
++    norm_chars: list[str] = []
++    spans: list[tuple[int, int]] = []
++    for idx, ch in enumerate(raw):
++        piece = "".join(
++            c for c in unicodedata.normalize("NFD", ch.casefold().replace("đ", "d")) if unicodedata.category(c) != "Mn"
++        )
++        for c in piece:
++            norm_chars.append(c)
++            spans.append((idx, idx + 1))
++    return "".join(norm_chars), spans
++
++
++def _strip_norm_pattern(raw: str, pattern: re.Pattern[str]) -> str:
++    norm, spans = _normalized_with_spans(raw)
++    matches = list(pattern.finditer(norm))
++    if not matches:
++        return raw
++    pieces: list[str] = []
++    cursor = 0
++    for match in matches:
++        if match.start() == match.end():
++            continue
++        raw_start = spans[match.start()][0]
++        raw_end = spans[match.end() - 1][1]
++        if raw_start > cursor:
++            pieces.append(raw[cursor:raw_start])
++        cursor = max(cursor, raw_end)
++    pieces.append(raw[cursor:])
++    return "".join(pieces)
++
++
++def strip_explicit_reset(raw: str) -> tuple[str, bool]:
++    norm, spans = _normalized_with_spans(raw)
++    if _INJECTION.search(norm):
++        return raw, False
++    match = _EXPLICIT_RESET.match(norm)
++    if not match or match.end() == 0:
++        return raw, False
++    cut = spans[match.end() - 1][1]
++    return raw[cut:].lstrip(" ,:.;!-"), True
++
++
++def has_explicit_reset(raw: str) -> bool:
++    return strip_explicit_reset(raw)[1]
++
++
+ def _minutes(number: str, unit: str) -> int:
+     return int(number) * (60 if unit == "gio" or unit.startswith("hour") else 1)
+ 
+@@ -98,32 +256,100 @@ def _number(raw: str) -> float:
      return float(raw.replace(",", "."))
  
  
@@ -4520,7 +4602,7 @@ index 6c8418b..16befc3 100644
  def _clarify(field):
      return ClarifyIntent(kind="clarify", field=field)
  
-@@ -211,16 +373,18 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
+@@ -211,16 +437,18 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
          )
      elif socs or deadline:
          proposed = _SOC.findall(text)
@@ -4541,7 +4623,7 @@ index 6c8418b..16befc3 100644
              deadline=when,
          )
      else:
-@@ -228,6 +392,621 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
+@@ -228,6 +456,740 @@ def _offline(raw: str, text: str) -> CopilotIntent | None:
      return WhatIfIntent(kind="what_if", change=change, horizon_minutes=horizon)
  
  
@@ -4691,6 +4773,43 @@ index 6c8418b..16befc3 100644
 +    return next(iter(values)), False
 +
 +
++def _resolve_active_time_across_turns(
++    turn_times: Sequence[tuple[str, str, TimeSelection | None, bool]],
++    *,
++    now: datetime | None,
++    timezone: str,
++    pending_clarify_field: str | None,
++) -> tuple[TimeSelection | None, str | None]:
++    resolved_sel: TimeSelection | None = None
++    unresolved_amb = False
++    had_bad_anchor = False
++    total = len(turn_times)
++    for idx, (_raw_i, txt_i, sel_i, amb_i) in enumerate(turn_times):
++        bad_anchor_i = bool(_SHIFT_OFFSET.search(txt_i) or _NON_NOW_ANCHOR.search(txt_i))
++        if amb_i:
++            if resolved_sel is not None:
++                return None, "unsupported"
++            unresolved_amb = True
++            had_bad_anchor = had_bad_anchor or bad_anchor_i
++        elif sel_i is not None:
++            if unresolved_amb:
++                if idx == total - 1 and pending_clarify_field != "time":
++                    return None, "unsupported"
++                if had_bad_anchor and isinstance(sel_i, RelativeTime) and not _NOW_ANCHOR.search(txt_i):
++                    return None, "time"
++                resolved_sel = sel_i
++                unresolved_amb = False
++                had_bad_anchor = False
++            elif resolved_sel is not None:
++                if not _selections_match(resolved_sel, sel_i, now, timezone):
++                    return None, "unsupported"
++            else:
++                resolved_sel = sel_i
++    if unresolved_amb:
++        return None, "time"
++    return resolved_sel, None
++
++
 +def why_conflicts_with_message(
 +    message: str,
 +    intent: WhyIntent,
@@ -4698,38 +4817,49 @@ index 6c8418b..16befc3 100644
 +    now: datetime | None = None,
 +    timezone: str = "Asia/Ho_Chi_Minh",
 +    prior_user_messages: Sequence[str] = (),
++    pending_clarify_field: str | None = None,
 +) -> str | None:
-+    if not message.strip():
++    if not message.strip() and not prior_user_messages:
 +        return None
-+    text = _normalized(message)
-+    if _INJECTION.search(text) or _CONTROL.search(text):
++    if _INJECTION.search(_normalized(message)):
 +        return "unsupported"
-+    explicit_bookings = {m.casefold() for m in _BOOKING.findall(message)}
++    clean_message, reset_now = strip_explicit_reset(message)
++    effective_priors = () if reset_now else tuple(m for m in prior_user_messages if m and m.strip())
++    active_raws = (*effective_priors, clean_message) if clean_message.strip() else effective_priors
++    if not active_raws:
++        return None
++
++    explicit_bookings: set[str] = set()
++    why_time_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
++    for raw_i in active_raws:
++        txt_i = _normalized(raw_i)
++        if _INJECTION.search(txt_i) or _CONTROL.search(txt_i):
++            return "unsupported"
++        explicit_bookings.update(m.casefold() for m in _BOOKING.findall(raw_i))
++        if intent.at is not None or not (_HOW_TO.search(txt_i) or _DEADLINE.search(txt_i)):
++            sel_i, amb_i = _time(raw_i, txt_i)
++            why_time_turns.append((raw_i, txt_i, sel_i, amb_i))
++
 +    if len(explicit_bookings) > 1:
 +        return "unsupported"
 +    if explicit_bookings:
 +        expected = next(iter(explicit_bookings))
 +        if intent.booking_id is None or intent.booking_id.casefold() != expected:
 +            return "unsupported"
++
++    resolved_at, time_err = _resolve_active_time_across_turns(
++        why_time_turns,
++        now=now,
++        timezone=timezone,
++        pending_clarify_field=pending_clarify_field,
++    )
++    if time_err is not None:
++        return time_err
 +    if intent.at is not None:
-+        specified, ambiguous = _time(message, text)
-+        if ambiguous:
-+            return "time"
-+        if specified is None:
-+            for prev in reversed(prior_user_messages):
-+                specified, ambiguous = _time(prev, _normalized(prev))
-+                if ambiguous:
-+                    return "time"
-+                if specified is not None:
-+                    break
-+        if specified is None or not _selections_match(intent.at, specified, now, timezone):
++        if resolved_at is None or not _selections_match(intent.at, resolved_at, now, timezone):
 +            return "unsupported"
-+    elif not (_HOW_TO.search(text) or _DEADLINE.search(text)):
-+        specified, ambiguous = _time(message, text)
-+        if ambiguous:
-+            return "time"
-+        if specified is not None:
-+            return "unsupported"
++    elif resolved_at is not None:
++        return "unsupported"
 +    return None
 +
 +
@@ -4757,25 +4887,39 @@ index 6c8418b..16befc3 100644
 +    now: datetime | None = None,
 +    timezone: str = "Asia/Ho_Chi_Minh",
 +    prior_user_messages: Sequence[str] = (),
++    pending_clarify_field: str | None = None,
 +) -> str | None:
-+    text = _normalized(message)
-+    prior_texts = tuple(_normalized(m) for m in prior_user_messages if m and m.strip())
-+    if _INJECTION.search(text) or _UNSUPPORTED_CONDITION.search(text) or _CONTROL.search(text):
++    if _INJECTION.search(_normalized(message)):
 +        return "unsupported"
++    clean_message, reset_now = strip_explicit_reset(message)
++    effective_priors = () if reset_now else tuple(m for m in prior_user_messages if m and m.strip())
++    active_raws = (*effective_priors, clean_message)
 +
-+    # Extract horizon from current message (or prior user turn if current message omits it).
-+    horizon_in_msg, horizon_conflict = _explicit_horizon(text)
-+    if horizon_conflict:
++    turns: list[tuple[str, str, str, str]] = []
++    explicit_horizons: set[int] = set()
++    booking_map: dict[str, str] = {}
++    for raw_i in active_raws:
++        txt_i = _normalized(raw_i)
++        if _INJECTION.search(txt_i) or _UNSUPPORTED_CONDITION.search(txt_i) or _CONTROL.search(txt_i):
++            return "unsupported"
++        h_val, h_conflict = _explicit_horizon(txt_i)
++        if h_conflict:
++            return "unsupported"
++        if h_val is not None:
++            explicit_horizons.add(h_val)
++        for bk_id in _BOOKING.findall(raw_i):
++            booking_map.setdefault(bk_id.casefold(), bk_id)
++        raw_wh_i = _strip_norm_pattern(raw_i, _HORIZON)
++        wh_i = _HORIZON.sub("", txt_i)
++        turns.append((raw_i, txt_i, raw_wh_i, wh_i))
++
++    if len(explicit_horizons) > 1 or len(booking_map) > 1:
 +        return "unsupported"
-+    expected_horizon = horizon_in_msg
-+    if expected_horizon is None:
-+        for p_text in reversed(prior_texts):
-+            h_prev, h_prev_conflict = _explicit_horizon(p_text)
-+            if h_prev_conflict:
-+                break
-+            if h_prev is not None:
-+                expected_horizon = h_prev
-+                break
++    expected_horizon = next(iter(explicit_horizons)) if explicit_horizons else None
++    explicit_booking = next(iter(booking_map.values())) if booking_map else None
++
++    text = turns[-1][1]
++    prior_texts = tuple(t_i for _, t_i, _, _ in turns[:-1])
 +
 +    goal: RecommendationGoal | None = None
 +    change: VehicleChange | SourceChange | ConnectorOutage | None = None
@@ -4797,13 +4941,13 @@ index 6c8418b..16befc3 100644
 +    else:
 +        goal = args
 +
-+    hypo_granted, hypo_explicit_now = _hypothetical_granted(text, prior_texts)
++    hypo_granted, _hypo_explicit_now = _hypothetical_granted(text, prior_texts)
 +    wants_hypo = (isinstance(change, SourceChange) and change.hypothetical_infrastructure) or (
 +        isinstance(goal, MinTestedSiteLimitForSla) and goal.hypothetical_infrastructure
 +    )
 +    if wants_hypo and not hypo_granted:
 +        return "infrastructure"
-+    if hypo_explicit_now and (
++    if hypo_granted and (
 +        (isinstance(change, SourceChange) and not change.hypothetical_infrastructure)
 +        or (isinstance(goal, MinTestedSiteLimitForSla) and not goal.hypothetical_infrastructure)
 +    ):
@@ -4814,166 +4958,180 @@ index 6c8418b..16befc3 100644
 +            if getattr(goal, key) and not _consent_granted(text, prior_texts, permission):
 +                return "sacrifices"
 +
-+    explicit_bookings = _BOOKING.findall(message)
-+    if len({b.casefold() for b in explicit_bookings}) > 1:
-+        return "unsupported"
-+
-+    without_horizon = _HORIZON.sub("", text)
-+    raw_without_horizon = _HORIZON.sub("", message)
-+
 +    if change is not None:
 +        if isinstance(change, SourceChange):
-+            if (
-+                _OUTAGE_ACTION.search(text)
-+                or _PERCENT.search(text)
-+                or explicit_bookings
-+                or _CONNECTOR.search(message)
-+                or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
-+                or _PORT_OR_ZONE_SCOPE.search(without_horizon)
-+                or re.search(r"\b(?:ac|dc)\b", without_horizon)
-+                or _KW_DELTA.search(without_horizon)
-+                or _has_site_temporal_condition(raw_without_horizon, without_horizon)
-+            ):
++            if explicit_booking is not None:
 +                return "unsupported"
-+            if _OUTPUT.search(without_horizon):
-+                return "grid_input"
-+            has_subject = bool(_SITE_POWER_SUBJECT.search(without_horizon)) or any(
-+                _SITE_POWER_SUBJECT.search(_HORIZON.sub("", p_text)) for p_text in prior_texts
-+            )
++            has_subject = False
++            distinct_kws: set[float] = set()
++            saw_output = False
++            for raw_i, txt_i, raw_wh_i, wh_i in turns:
++                if (
++                    _HOW_TO_QUESTION.search(txt_i)
++                    or _OUTAGE_ACTION.search(txt_i)
++                    or re.search(r"\b(?:hong|ngat|fault|outage)\b", wh_i)
++                    or _PERCENT.search(txt_i)
++                    or _CONNECTOR.search(raw_i)
++                    or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
++                    or _PORT_OR_ZONE_SCOPE.search(wh_i)
++                    or re.search(r"\b(?:ac|dc)\b", wh_i)
++                    or _KW_DELTA.search(wh_i)
++                    or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
++                    or _has_site_temporal_condition(raw_wh_i, wh_i)
++                ):
++                    return "unsupported"
++                if _OUTPUT.search(wh_i):
++                    saw_output = True
++                elif _SITE_POWER_SUBJECT.search(wh_i):
++                    has_subject = True
++                kw_i, kw_conflict_i = _extract_single_grid_kw(wh_i)
++                if kw_conflict_i:
++                    return "unsupported"
++                if kw_i is not None:
++                    distinct_kws.add(kw_i)
++            if saw_output:
++                return "grid_input" if len(turns) == 1 else "unsupported"
 +            if not has_subject:
 +                return "grid_input"
-+            proposed_kw, kw_conflict = _extract_single_grid_kw(without_horizon)
-+            if kw_conflict:
-+                return "unsupported"
-+            if proposed_kw is None:
-+                for p_text in reversed(prior_texts):
-+                    p_clean = _HORIZON.sub("", p_text)
-+                    if _PORT_OR_ZONE_SCOPE.search(p_clean) or _KW_DELTA.search(p_clean):
-+                        return "unsupported"
-+                    proposed_kw, kw_conflict = _extract_single_grid_kw(p_clean)
-+                    if kw_conflict or proposed_kw is not None:
-+                        break
-+            if kw_conflict:
-+                return "unsupported"
-+            if proposed_kw is None:
++            if not distinct_kws:
 +                return "grid_input"
-+            if proposed_kw != change.grid_input_kw:
++            if len(distinct_kws) > 1 or next(iter(distinct_kws)) != change.grid_input_kw:
 +                return "unsupported"
 +            return None
 +
 +        if isinstance(change, ConnectorOutage):
-+            if _GRID.search(without_horizon) or _PERCENT.search(text) or _DEADLINE.search(text) or explicit_bookings:
++            if explicit_booking is not None:
 +                return "unsupported"
-+            durations = [_minutes(*value) for value in _DURATION.findall(without_horizon)]
-+            if len(set(durations)) > 1:
++            distinct_durations: set[int] = set()
++            connector_map: dict[str, str] = {}
++            distinct_zones: set[str] = set()
++            outage_start_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
++            for raw_i, txt_i, raw_wh_i, wh_i in turns:
++                has_port_cue = bool(
++                    _CONNECTOR.search(raw_i)
++                    or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
++                    or _PORT_OR_ZONE_SCOPE.search(wh_i)
++                )
++                if (
++                    _HOW_TO_QUESTION.search(txt_i)
++                    or _GRID.search(wh_i)
++                    or (_SITE_POWER_SUBJECT.search(wh_i) and not has_port_cue)
++                    or _PERCENT.search(txt_i)
++                    or _DEADLINE.search(txt_i)
++                    or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
++                ):
++                    return "unsupported"
++                for dur_num, dur_unit in _DURATION.findall(wh_i):
++                    distinct_durations.add(_minutes(dur_num, dur_unit))
++                for cid in _CONNECTOR.findall(raw_i):
++                    connector_map.setdefault(cid.casefold(), cid)
++                wh_no_cid = _CONNECTOR.sub("", wh_i)
++                distinct_zones.update(z.upper() for z in re.findall(r"\b(ac|dc)\b", wh_no_cid))
++
++                raw_no_dur = _strip_norm_pattern(raw_wh_i, _DURATION)
++                wh_no_dur = _DURATION.sub("", wh_i)
++                start_sel_i, start_amb_i = _time(raw_no_dur, wh_no_dur)
++                outage_start_turns.append((raw_no_dur, wh_no_dur, start_sel_i, start_amb_i))
++
++            if len(distinct_durations) > 1:
 +                return "unsupported"
-+            expected_dur = durations[0] if durations else None
-+            if expected_dur is None:
-+                for p_text in reversed(prior_texts):
-+                    p_durs = [_minutes(*v) for v in _DURATION.findall(_HORIZON.sub("", p_text))]
-+                    if len(set(p_durs)) == 1:
-+                        expected_dur = p_durs[0]
-+                        break
-+            if expected_dur is None:
++            if not distinct_durations:
 +                return "duration"
-+            if expected_dur != change.duration_minutes:
++            if next(iter(distinct_durations)) != change.duration_minutes:
 +                return "unsupported"
 +
-+            ids = _CONNECTOR.findall(message)
-+            if len({cid.casefold() for cid in ids}) > 1:
++            if len(connector_map) > 1 or len(distinct_zones) > 1:
 +                return "unsupported"
-+            if ids:
-+                expected_id = ids[0]
++            if connector_map:
++                expected_id = next(iter(connector_map.values()))
++                prefix_zone = expected_id.split("-", 1)[0].upper()
++                if distinct_zones and distinct_zones != {prefix_zone}:
++                    return "unsupported"
 +                if change.connector_id is None or change.connector_id.casefold() != expected_id.casefold():
 +                    return "unsupported"
-+                prefix_zone = expected_id.split("-", 1)[0].upper()
 +                if change.connector_zone is not None and change.connector_zone != prefix_zone:
 +                    return "unsupported"
 +            else:
-+                prior_id = None
-+                for prev in reversed(prior_user_messages):
-+                    p_ids = _CONNECTOR.findall(prev)
-+                    if len({cid.casefold() for cid in p_ids}) == 1:
-+                        prior_id = p_ids[0]
-+                        break
-+                if prior_id is not None:
-+                    if change.connector_id is None or change.connector_id.casefold() != prior_id.casefold():
-+                        return "unsupported"
-+                elif change.connector_id is not None:
++                if change.connector_id is not None:
 +                    return "connector"
-+                zones = {z.upper() for z in re.findall(r"\b(ac|dc)\b", without_horizon)}
-+                if len(zones) > 1:
++                if len(distinct_zones) == 1 and change.connector_zone != next(iter(distinct_zones)):
 +                    return "unsupported"
-+                if len(zones) == 1 and change.connector_zone != next(iter(zones)):
-+                    return "unsupported"
++                if not distinct_zones and change.connector_zone is not None:
++                    return "connector"
 +
-+            without_dur = _DURATION.sub("", without_horizon)
-+            raw_without_dur = re.sub(
-+                r"\b(?:trong|kéo dài|keo dai|for)\s*\d+\s*(?:phút|phut|giờ|gio|minutes?|hours?)\b",
-+                "",
-+                raw_without_horizon,
-+                flags=re.I,
++            resolved_start, start_err = _resolve_active_time_across_turns(
++                outage_start_turns,
++                now=now,
++                timezone=timezone,
++                pending_clarify_field=pending_clarify_field,
 +            )
-+            start_sel, start_ambiguous = _time(raw_without_dur, without_dur)
-+            if start_ambiguous:
-+                return "time"
-+            if start_sel is not None:
-+                if change.starts_at is None or not _selections_match(change.starts_at, start_sel, now, timezone):
++            if start_err is not None:
++                return start_err
++            if resolved_start is not None:
++                if change.starts_at is None or not _selections_match(change.starts_at, resolved_start, now, timezone):
 +                    return "unsupported"
 +            elif change.starts_at is not None:
 +                return "unsupported"
 +            return None
 +
 +        # VehicleChange
-+        if (
-+            _GRID.search(without_horizon)
-+            or _OUTAGE_ACTION.search(text)
-+            or _CONNECTOR.search(message)
-+            or _DURATION.search(without_horizon)
-+            or _SOC_DELTA.search(without_horizon)
-+            or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
++        if explicit_booking is not None and (
++            change.booking_id is None or change.booking_id.casefold() != explicit_booking.casefold()
 +        ):
 +            return "unsupported"
-+        if explicit_bookings and (
-+            change.booking_id is None or change.booking_id.casefold() != explicit_bookings[0].casefold()
-+        ):
-+            return "unsupported"
-+
-+        proposed_soc, soc_conflict = _extract_single_target_soc(without_horizon)
-+        if soc_conflict:
-+            return "unsupported"
-+        if proposed_soc is None and not _PERCENT.search(without_horizon):
-+            for p_text in reversed(prior_texts):
-+                proposed_soc, soc_conflict = _extract_single_target_soc(_HORIZON.sub("", p_text))
-+                if soc_conflict or proposed_soc is not None:
-+                    break
-+        if soc_conflict:
-+            return "unsupported"
-+        if proposed_soc is not None:
-+            if change.target_soc != proposed_soc:
++        distinct_socs: set[float] = set()
++        saw_initial_only_pct = False
++        saw_deadline_cue = False
++        vehicle_dl_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
++        for raw_i, txt_i, raw_wh_i, wh_i in turns:
++            if (
++                _GRID.search(wh_i)
++                or _SITE_POWER_SUBJECT.search(wh_i)
++                or _OUTAGE_ACTION.search(txt_i)
++                or _CONNECTOR.search(raw_i)
++                or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
++                or _PORT_OR_ZONE_SCOPE.search(wh_i)
++                or _DURATION.search(wh_i)
++                or _SOC_DELTA.search(wh_i)
++                or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
++            ):
 +                return "unsupported"
-+        elif _PERCENT.search(without_horizon):
-+            # Only initial SOC context appeared (e.g. "pin hiện tại 30%"), so target_soc must not copy it.
++            soc_i, soc_conflict_i = _extract_single_target_soc(wh_i)
++            if soc_conflict_i:
++                return "unsupported"
++            if soc_i is not None:
++                distinct_socs.add(soc_i)
++            elif _PERCENT.search(wh_i):
++                saw_initial_only_pct = True
++            if _DEADLINE.search(wh_i):
++                saw_deadline_cue = True
++            dl_sel_i, dl_amb_i = _time(raw_wh_i, wh_i)
++            vehicle_dl_turns.append((raw_wh_i, wh_i, dl_sel_i, dl_amb_i))
++
++        if len(distinct_socs) > 1:
++            return "unsupported"
++        if len(distinct_socs) == 1:
++            if change.target_soc != next(iter(distinct_socs)):
++                return "unsupported"
++        elif saw_initial_only_pct:
 +            if change.target_soc is not None:
 +                return "unsupported"
 +        elif change.target_soc is not None:
 +            return "target"
 +
-+        specified_dl, dl_ambiguous = _time(raw_without_horizon, without_horizon)
-+        if dl_ambiguous:
-+            return "time"
-+        if specified_dl is None and not _DEADLINE.search(without_horizon):
-+            for prev_raw, prev_txt in zip(reversed(prior_user_messages), reversed(prior_texts), strict=False):
-+                specified_dl, dl_ambiguous = _time(_HORIZON.sub("", prev_raw), _HORIZON.sub("", prev_txt))
-+                if dl_ambiguous or specified_dl is not None:
-+                    break
-+            if dl_ambiguous:
-+                return "time"
-+        if specified_dl is not None:
-+            if change.deadline is None or not _selections_match(change.deadline, specified_dl, now, timezone):
++        resolved_dl, dl_err = _resolve_active_time_across_turns(
++            vehicle_dl_turns,
++            now=now,
++            timezone=timezone,
++            pending_clarify_field=pending_clarify_field,
++        )
++        if dl_err is not None:
++            return dl_err
++        if resolved_dl is not None:
++            if change.deadline is None or not _selections_match(change.deadline, resolved_dl, now, timezone):
 +                return "unsupported"
 +        else:
-+            if _DEADLINE.search(without_horizon):
++            if saw_deadline_cue:
 +                return "time"
 +            if change.deadline is not None:
 +                return "unsupported"
@@ -4982,121 +5140,137 @@ index 6c8418b..16befc3 100644
 +    # HOW-TO RecommendationGoal validation
 +    assert goal is not None
 +    if isinstance(goal, MinTestedSiteLimitForSla):
-+        without_ac_sla = _AC_WAIVE.sub("", _AC_PROTECT.sub("", without_horizon))
-+        if (
-+            _OUTAGE_ACTION.search(text)
-+            or _OUTPUT.search(without_horizon)
-+            or explicit_bookings
-+            or _CONNECTOR.search(message)
-+            or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
-+            or _PORT_OR_ZONE_SCOPE.search(without_ac_sla)
-+            or re.search(r"\b(?:ac|dc)\b", without_ac_sla)
-+            or _KW_DELTA.search(without_horizon)
-+            or _has_site_temporal_condition(raw_without_horizon, without_horizon)
-+        ):
++        if explicit_booking is not None:
 +            return "unsupported"
-+        kw_ranges = list(_KW_RANGE.finditer(without_horizon))
-+        if len(kw_ranges) > 1:
-+            return "unsupported"
-+        low_kw = high_kw = None
-+        if len(kw_ranges) == 1:
-+            low_kw, high_kw = _number(kw_ranges[0].group(1)), _number(kw_ranges[0].group(2))
-+            rest_kw = _KW_RANGE.sub("", without_horizon)
-+            if _GRID.search(rest_kw):
++        collected_kw_ranges: list[tuple[float, float]] = []
++        latest_has_unranged_kw = False
++        distinct_sla_pcts: set[float] = set()
++        ac_state: str = "default"
++
++        for idx, (raw_i, txt_i, raw_wh_i, wh_i) in enumerate(turns):
++            without_ac_sla = _AC_WAIVE.sub("", _AC_PROTECT.sub("", wh_i))
++            if (
++                _OUTAGE_ACTION.search(txt_i)
++                or re.search(r"\b(?:hong|ngat|fault|outage)\b", wh_i)
++                or _OUTPUT.search(wh_i)
++                or _CONNECTOR.search(raw_i)
++                or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
++                or _PORT_OR_ZONE_SCOPE.search(without_ac_sla)
++                or re.search(r"\b(?:ac|dc)\b", without_ac_sla)
++                or _KW_DELTA.search(wh_i)
++                or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
++                or _has_site_temporal_condition(raw_wh_i, wh_i)
++            ):
 +                return "unsupported"
-+        elif _GRID.search(without_horizon):
++
++            kw_ranges_i = list(_KW_RANGE.finditer(wh_i))
++            if len(kw_ranges_i) > 1:
++                return "unsupported"
++            if len(kw_ranges_i) == 1:
++                rest_kw = _KW_RANGE.sub("", wh_i)
++                if _GRID.search(rest_kw):
++                    return "unsupported"
++                collected_kw_ranges.append((_number(kw_ranges_i[0].group(1)), _number(kw_ranges_i[0].group(2))))
++            elif _GRID.search(wh_i):
++                if collected_kw_ranges:
++                    return "unsupported"
++                if idx == len(turns) - 1:
++                    latest_has_unranged_kw = True
++
++            for pct_str in _PERCENT.findall(wh_i):
++                distinct_sla_pcts.add(_number(pct_str))
++
++            clauses_i = [c.strip() for c in re.split(r"[.!?;]", wh_i) if c.strip()]
++            protect_i = _has_affirmative_clause(clauses_i, _AC_PROTECT)
++            waive_i = any(_AC_WAIVE.search(c) for c in clauses_i)
++            if protect_i and waive_i:
++                return "unsupported"
++            for clause in clauses_i:
++                if _AC_WAIVE.search(clause):
++                    ac_state = "waive"
++                elif _AC_PROTECT.search(clause) and not _NEGATION.search(clause):
++                    ac_state = "protect"
++
++        if latest_has_unranged_kw or not collected_kw_ranges:
 +            return "bounds"
-+        else:
-+            for p_text in reversed(prior_texts):
-+                p_ranges = list(_KW_RANGE.finditer(_HORIZON.sub("", p_text)))
-+                if len(p_ranges) == 1:
-+                    low_kw, high_kw = _number(p_ranges[0].group(1)), _number(p_ranges[0].group(2))
-+                    break
-+        if low_kw is None or high_kw is None:
-+            return "bounds"
++        if len(set(collected_kw_ranges)) > 1:
++            return "unsupported"
++        low_kw, high_kw = collected_kw_ranges[-1]
 +        if goal.min_grid_input_kw != low_kw or goal.max_grid_input_kw != high_kw:
 +            return "unsupported"
 +
-+        pcts = [_number(v) for v in _PERCENT.findall(without_horizon)]
-+        if not pcts:
-+            for p_text in reversed(prior_texts):
-+                pcts = [_number(v) for v in _PERCENT.findall(_HORIZON.sub("", p_text))]
-+                if pcts:
-+                    break
-+        if len(pcts) > 1:
++        if len(distinct_sla_pcts) > 1:
 +            return "unsupported"
-+        expected_rate = pcts[0] / 100.0 if len(pcts) == 1 else 1.0
++        expected_rate = (next(iter(distinct_sla_pcts)) / 100.0) if len(distinct_sla_pcts) == 1 else 1.0
 +        if abs(goal.min_original_on_time_rate - expected_rate) > 1e-9:
 +            return "unsupported"
 +
-+        current_clauses = [c.strip() for c in re.split(r"[.!?;]", without_horizon) if c.strip()]
-+        protect_now = _has_affirmative_clause(current_clauses, _AC_PROTECT)
-+        waive_now = any(_AC_WAIVE.search(c) for c in current_clauses)
-+        if protect_now and waive_now:
++        if ac_state == "protect" and not goal.protect_on_time_ac_bookings:
 +            return "unsupported"
-+        if protect_now and not goal.protect_on_time_ac_bookings:
++        if ac_state == "waive" and goal.protect_on_time_ac_bookings:
 +            return "unsupported"
-+        if waive_now and goal.protect_on_time_ac_bookings:
++        if ac_state == "default" and not goal.protect_on_time_ac_bookings:
 +            return "unsupported"
-+        if not protect_now and not waive_now:
-+            all_clauses = _all_user_clauses(without_horizon, prior_texts)
-+            waived_in_session = False
-+            for clause in all_clauses:
-+                if _AC_WAIVE.search(clause):
-+                    waived_in_session = True
-+                elif _AC_PROTECT.search(clause) and not _NEGATION.search(clause):
-+                    waived_in_session = False
-+            if not goal.protect_on_time_ac_bookings and not waived_in_session:
-+                return "unsupported"
 +        return None
 +
 +    # Resident HOW-TO goals
-+    if explicit_bookings and goal.booking_id.casefold() != explicit_bookings[0].casefold():
++    if explicit_booking is not None and goal.booking_id.casefold() != explicit_booking.casefold():
 +        return "unsupported"
-+    if (
-+        _GRID.search(without_horizon)
-+        or _OUTAGE_ACTION.search(text)
-+        or _CONNECTOR.search(message)
-+        or _DURATION.search(without_horizon)
-+        or _SOC_DELTA.search(without_horizon)
-+        or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
-+    ):
-+        return "unsupported"
++    for raw_i, txt_i, raw_wh_i, wh_i in turns:
++        if (
++            _GRID.search(wh_i)
++            or _SITE_POWER_SUBJECT.search(wh_i)
++            or _OUTAGE_ACTION.search(txt_i)
++            or _CONNECTOR.search(raw_i)
++            or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
++            or _PORT_OR_ZONE_SCOPE.search(wh_i)
++            or _DURATION.search(wh_i)
++            or _SOC_DELTA.search(wh_i)
++            or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
++        ):
++            return "unsupported"
 +
 +    if isinstance(goal, MaxSocByDeadline):
-+        soc_ranges = list(_SOC_RANGE.finditer(without_horizon))
-+        if len(soc_ranges) > 1:
-+            return "unsupported"
-+        low_soc = high_soc = None
-+        without_range = without_horizon
-+        if len(soc_ranges) == 1:
-+            low_soc, high_soc = _number(soc_ranges[0].group(1)), _number(soc_ranges[0].group(2))
-+            without_range = _SOC_RANGE.sub("", without_horizon)
-+            if _PERCENT.search(_INITIAL_PCT.sub("", without_range)):
++        collected_soc_ranges: list[tuple[float, float]] = []
++        latest_has_unranged_soc = False
++        max_soc_dl_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
++        for idx, (_raw_i, _txt_i, raw_wh_i, wh_i) in enumerate(turns):
++            soc_ranges_i = list(_SOC_RANGE.finditer(wh_i))
++            if len(soc_ranges_i) > 1:
 +                return "unsupported"
-+        elif _PERCENT.search(_INITIAL_PCT.sub("", without_horizon)):
++            without_range_i = wh_i
++            raw_without_range_i = raw_wh_i
++            if len(soc_ranges_i) == 1:
++                without_range_i = _SOC_RANGE.sub("", wh_i)
++                raw_without_range_i = _strip_norm_pattern(raw_wh_i, _SOC_RANGE)
++                if _PERCENT.search(_INITIAL_PCT.sub("", without_range_i)):
++                    return "unsupported"
++                collected_soc_ranges.append((_number(soc_ranges_i[0].group(1)), _number(soc_ranges_i[0].group(2))))
++            elif _PERCENT.search(_INITIAL_PCT.sub("", wh_i)):
++                if collected_soc_ranges:
++                    return "unsupported"
++                if idx == len(turns) - 1:
++                    latest_has_unranged_soc = True
++
++            dl_sel_i, dl_amb_i = _time(raw_without_range_i, without_range_i)
++            max_soc_dl_turns.append((raw_without_range_i, without_range_i, dl_sel_i, dl_amb_i))
++
++        if latest_has_unranged_soc or not collected_soc_ranges:
 +            return "bounds"
-+        else:
-+            for p_text in reversed(prior_texts):
-+                p_ranges = list(_SOC_RANGE.finditer(_HORIZON.sub("", p_text)))
-+                if len(p_ranges) == 1:
-+                    low_soc, high_soc = _number(p_ranges[0].group(1)), _number(p_ranges[0].group(2))
-+                    break
-+        if low_soc is None or high_soc is None:
-+            return "bounds"
++        if len(set(collected_soc_ranges)) > 1:
++            return "unsupported"
++        low_soc, high_soc = collected_soc_ranges[-1]
 +        if goal.min_target_soc != low_soc or goal.max_target_soc != high_soc:
 +            return "unsupported"
 +
-+        dl_sel, dl_ambiguous = _time(raw_without_horizon, without_range)
-+        if dl_ambiguous:
-+            return "time"
-+        if dl_sel is None:
-+            for prev_raw, prev_txt in zip(reversed(prior_user_messages), reversed(prior_texts), strict=False):
-+                dl_sel, dl_ambiguous = _time(_HORIZON.sub("", prev_raw), _SOC_RANGE.sub("", _HORIZON.sub("", prev_txt)))
-+                if dl_ambiguous or dl_sel is not None:
-+                    break
-+            if dl_ambiguous:
-+                return "time"
++        dl_sel, dl_err = _resolve_active_time_across_turns(
++            max_soc_dl_turns,
++            now=now,
++            timezone=timezone,
++            pending_clarify_field=pending_clarify_field,
++        )
++        if dl_err is not None:
++            return dl_err
 +        if dl_sel is None:
 +            return "time"
 +        if not _datetime_matches_selection(goal.deadline, dl_sel, now, timezone):
@@ -5105,47 +5279,74 @@ index 6c8418b..16befc3 100644
 +
 +    # EarliestCompletionForTarget
 +    assert isinstance(goal, EarliestCompletionForTarget)
-+    target_soc, soc_conflict = _extract_single_target_soc(without_horizon)
-+    if soc_conflict:
++    distinct_targets: set[float] = set()
++    resolved_pair: tuple[TimeSelection, TimeSelection] | None = None
++    unresolved_time_amb = False
++    had_bad_anchor = False
++    latest_unranged_single = False
++
++    for idx, (_raw_i, _txt_i, raw_wh_i, wh_i) in enumerate(turns):
++        t_soc_i, t_soc_conflict_i = _extract_single_target_soc(wh_i)
++        if t_soc_conflict_i:
++            return "unsupported"
++        if t_soc_i is not None:
++            distinct_targets.add(t_soc_i)
++
++        bad_anchor_i = bool(_SHIFT_OFFSET.search(wh_i) or _NON_NOW_ANCHOR.search(wh_i))
++        pair_i, pair_amb_i = _time_range(raw_wh_i, wh_i)
++        single_i: TimeSelection | None = None
++        single_amb_i = False
++        if pair_i is None and not pair_amb_i:
++            single_i, single_amb_i = _time(raw_wh_i, wh_i)
++            if single_i is not None and goal.earliest_deadline == goal.latest_deadline:
++                pair_i = (single_i, single_i)
++                single_i = None
++
++        if pair_amb_i or single_amb_i:
++            if resolved_pair is not None:
++                return "unsupported"
++            unresolved_time_amb = True
++            had_bad_anchor = had_bad_anchor or bad_anchor_i
++        elif pair_i is not None:
++            if unresolved_time_amb:
++                if idx == len(turns) - 1 and pending_clarify_field not in ("time", "bounds"):
++                    return "unsupported"
++                if (
++                    had_bad_anchor
++                    and (isinstance(pair_i[0], RelativeTime) or isinstance(pair_i[1], RelativeTime))
++                    and not _NOW_ANCHOR.search(wh_i)
++                ):
++                    return "time"
++                resolved_pair = pair_i
++                unresolved_time_amb = False
++                had_bad_anchor = False
++            elif resolved_pair is not None:
++                if not (
++                    _selections_match(resolved_pair[0], pair_i[0], now, timezone)
++                    and _selections_match(resolved_pair[1], pair_i[1], now, timezone)
++                ):
++                    return "unsupported"
++            else:
++                resolved_pair = pair_i
++        elif single_i is not None:
++            if resolved_pair is not None:
++                return "unsupported"
++            if idx == len(turns) - 1:
++                latest_unranged_single = True
++
++    if len(distinct_targets) > 1:
 +        return "unsupported"
-+    if target_soc is None:
-+        for p_text in reversed(prior_texts):
-+            target_soc, soc_conflict = _extract_single_target_soc(_HORIZON.sub("", p_text))
-+            if soc_conflict or target_soc is not None:
-+                break
-+    if soc_conflict:
-+        return "unsupported"
-+    if target_soc is None:
++    if not distinct_targets:
 +        return "target"
-+    if goal.target_soc != target_soc:
++    if goal.target_soc != next(iter(distinct_targets)):
 +        return "unsupported"
 +
-+    dl_pair, range_ambiguous = _time_range(raw_without_horizon, without_horizon)
-+    if range_ambiguous:
++    if unresolved_time_amb:
 +        return "time"
-+    if dl_pair is None and goal.earliest_deadline == goal.latest_deadline:
-+        single_sel, single_amb = _time(raw_without_horizon, without_horizon)
-+        if single_amb:
-+            return "time"
-+        if single_sel is not None:
-+            dl_pair = (single_sel, single_sel)
-+    if dl_pair is None:
-+        # If current message mentioned an un-ranged single time for a non-degenerate range, ask for bounds.
-+        single_now, single_amb = _time(raw_without_horizon, without_horizon)
-+        if single_amb:
-+            return "time"
-+        if single_now is not None:
-+            return "bounds"
-+        for prev_raw, prev_txt in zip(reversed(prior_user_messages), reversed(prior_texts), strict=False):
-+            dl_pair, range_ambiguous = _time_range(_HORIZON.sub("", prev_raw), _HORIZON.sub("", prev_txt))
-+            if range_ambiguous or dl_pair is not None:
-+                break
-+        if range_ambiguous:
-+            return "time"
-+    if dl_pair is None:
++    if latest_unranged_single or resolved_pair is None:
 +        return "bounds"
 +
-+    low_sel, high_sel = dl_pair
++    low_sel, high_sel = resolved_pair
 +    if now is not None or not isinstance(low_sel, RelativeTime):
 +        if not (
 +            _datetime_matches_selection(goal.earliest_deadline, low_sel, now, timezone)
@@ -5164,7 +5365,7 @@ index 6c8418b..16befc3 100644
      specified, ambiguous = _time(raw, text)
      if ambiguous:
 diff --git a/src/api/routes.py b/src/api/routes.py
-index 1946ac9..a71199d 100644
+index 1946ac9..226bef8 100644
 --- a/src/api/routes.py
 +++ b/src/api/routes.py
 @@ -4,9 +4,9 @@ Graph compile với checkpointer nên mọi lần invoke cần `configurable.thr
@@ -5290,22 +5491,39 @@ index 1946ac9..a71199d 100644
          suggestions=list(result.get("suggestions") or []),
          draft=_public_draft(result.get("draft_request")),
      )
-@@ -171,10 +218,11 @@ def _confirmed_booking_succeeded(result: dict) -> bool:
+@@ -171,24 +218,44 @@ def _confirmed_booking_succeeded(result: dict) -> bool:
      )
  
  
 -async def _invoke(payload: dict | Command, config: dict) -> dict:
++async def _abort_turn_state(config: dict) -> None:
++    try:
++        snap = await agent.aget_state(config)
++        if snap and _pending_interrupts(snap):
++            return
++        await agent.aupdate_state(config, {"pending_copilot_clarification": None, "turn_in_progress": False})
++    except Exception:
++        logger.debug("chat — skip abort state cleanup", exc_info=True)
++
++
 +async def _invoke(payload: dict | Command, context: ChatContext) -> dict:
++    config = _config(context)
      try:
 -        return await agent.ainvoke(payload, config=config)
 -    except OpenAIError as exc:
 +        async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
-+            return await agent.ainvoke(payload, config=_config(context), context=context)
++            return await agent.ainvoke(payload, config=config, context=context)
 +    except (OpenAIError, TimeoutError) as exc:
++        await _abort_turn_state(config)
          logger.error(
              "FAILED chat — nhà cung cấp LLM lỗi: %s (%s)", type(exc).__name__, getattr(exc, "status_code", "-")
          )
-@@ -184,11 +232,15 @@ async def _invoke(payload: dict | Command, config: dict) -> dict:
+         raise DomainError(
+             ErrorCode.LLM_UNAVAILABLE, "Trợ lý tạm thời không dùng được. Bạn có thể đặt lịch bằng form."
+         ) from exc
++    except BaseException:
++        await _abort_turn_state(config)
++        raise
  
  
  @router.post("/chat", response_model=ChatResponse)
@@ -5325,7 +5543,7 @@ index 1946ac9..a71199d 100644
  
  
  def _sse(event_type: str, data: dict) -> str:
-@@ -196,16 +248,12 @@ def _sse(event_type: str, data: dict) -> str:
+@@ -196,16 +263,12 @@ def _sse(event_type: str, data: dict) -> str:
  
  
  @router.post("/chat/stream")
@@ -5347,8 +5565,11 @@ index 1946ac9..a71199d 100644
  
      async def _generate():
          stage_labels = {
-@@ -218,7 +266,9 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+@@ -216,9 +279,12 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+             "human_review": "Đang chuẩn bị xác nhận đặt lịch…",
+         }
          final_state: dict = {}
++        stream_completed = False
          try:
              async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
 -                async for mode, chunk in agent.astream(payload, config=config, stream_mode=["updates", "values"]):
@@ -5358,18 +5579,28 @@ index 1946ac9..a71199d 100644
                      if mode == "updates" and isinstance(chunk, dict):
                          for node_name, node_out in chunk.items():
                              if isinstance(node_out, dict):
-@@ -259,9 +309,7 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+@@ -244,6 +310,7 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+                         yield _sse("delta", {"text": piece})
+                         await asyncio.sleep(0)
+ 
++                stream_completed = True
+                 yield _sse("done", {"data": chat_resp.model_dump(mode="json")})
+         except (TimeoutError, OpenAIError) as exc:
+             logger.error(
+@@ -259,9 +326,9 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
                  },
              )
          finally:
 -            _active_user_streams[user.user_id] = max(0, _active_user_streams[user.user_id] - 1)
 -            if _active_user_streams[user.user_id] == 0:
 -                _active_user_streams.pop(user.user_id, None)
++            if not stream_completed and "__interrupt__" not in final_state:
++                await _abort_turn_state(config)
 +            _release_thread(context)
  
      return StreamingResponse(
          _generate(),
-@@ -279,20 +327,41 @@ async def chat_resume(
+@@ -279,20 +346,41 @@ async def chat_resume(
      session_id: Annotated[str, Path(min_length=1, max_length=128)],
      request: ChatSessionResumeRequest,
      user: ResidentUser,
@@ -5421,14 +5652,32 @@ index 1946ac9..a71199d 100644
  
  @router.post("/chat/transcribe", response_model=TranscribeResponse)
 diff --git a/src/llm_chat/graph.py b/src/llm_chat/graph.py
-index d8e62be..9e9c040 100644
+index d8e62be..6bf5ecd 100644
 --- a/src/llm_chat/graph.py
 +++ b/src/llm_chat/graph.py
-@@ -36,10 +36,19 @@ from src.llm_chat.nodes.human_review_node import BLOCKED_BY_HUMAN, human_review_
+@@ -22,6 +22,7 @@ API key — mock LLM, không mock graph.
+ from __future__ import annotations
+ 
+ import logging
++from time import monotonic
+ 
+ from langgraph.checkpoint.memory import MemorySaver
+ from langgraph.graph import END, StateGraph
+@@ -34,12 +35,28 @@ from src.llm_chat.nodes.assess_node import assess_node
+ from src.llm_chat.nodes.finalize_node import GenerateFn, _make_finalize, llm_generate
+ from src.llm_chat.nodes.human_review_node import BLOCKED_BY_HUMAN, human_review_node
  from src.llm_chat.nodes.reason_node import ReasonFn, llm_reason, make_reason_node
- from src.llm_chat.state import HISTORY_LIMIT, AgentState
+-from src.llm_chat.state import HISTORY_LIMIT, AgentState
++from src.llm_chat.state import (
++    HISTORY_LIMIT,
++    MAX_PENDING_CLARIFICATION_TURNS,
++    PENDING_CLARIFICATION_TTL_SECONDS,
++    AgentState,
++    PendingCopilotClarification,
++)
  from src.llm_chat.tools.charging import CONFIRM_TOOL_NAME
 +from src.llm_chat.tools.copilot import ChatContext
++from src.services.copilot.integration import CopilotIntegration
  
  logger = logging.getLogger("ai20k.graph")
  
@@ -5445,17 +5694,60 @@ index d8e62be..9e9c040 100644
  
  
  async def guardrail_check_node(state: AgentState) -> dict:
-@@ -74,6 +83,9 @@ def make_entry_node(max_iterations: int):
+@@ -52,6 +69,29 @@ async def guardrail_check_node(state: AgentState) -> dict:
+     return {"stage": "guardrail"}
+ 
+ 
++def _sanitize_pending_clarification(
++    state: AgentState,
++    query: str,
++) -> PendingCopilotClarification | None:
++    pending = state.get("pending_copilot_clarification")
++    if not isinstance(pending, dict):
++        return None
++    if state.get("turn_in_progress") or state.get("pending_action") is not None:
++        return None
++    if CopilotIntegration.has_explicit_reset(query):
++        return None
++    turns = pending.get("turns")
++    if not isinstance(turns, list) or not turns or len(turns) > MAX_PENDING_CLARIFICATION_TURNS:
++        return None
++    try:
++        opened_at = float(pending.get("opened_at") or 0.0)
++    except (TypeError, ValueError):
++        return None
++    if opened_at <= 0.0 or monotonic() - opened_at > PENDING_CLARIFICATION_TTL_SECONDS:
++        return None
++    return pending
++
++
+ def make_entry_node(max_iterations: int):
+     """Seed state loop-limit MỘT lần ở entry — router sau chỉ đọc state.
+ 
+@@ -63,8 +103,9 @@ def make_entry_node(max_iterations: int):
+     async def entry_node(state: AgentState) -> dict:
+         # Bộ nhớ theo PHIÊN (history, draft_request, proposal) được giữ qua các lượt — chỉ field
+         # per-turn bên dưới mới bị reset. Thiếu điều này thì "thiếu trường nào hỏi lại" (FR2) không làm được.
++        query = state.get("query", "")
+         now_ts = (state.get("turn_context") or {}).get("now")
+-        user_msg: dict = {"role": "user", "content": state.get("query", "")}
++        user_msg: dict = {"role": "user", "content": query}
+         if now_ts:
+             user_msg["ts"] = now_ts
+         history = [*state.get("history", []), user_msg]
+@@ -74,6 +115,11 @@ def make_entry_node(max_iterations: int):
              "iteration_count": 0,
              "refusal_reason": "",
              "tool_trace": [],
 +            "copilot_results": [],
 +            "copilot_attempts": 0,
 +            "simulation_attempts": 0,
++            "pending_copilot_clarification": _sanitize_pending_clarification(state, query),
++            "turn_in_progress": True,
              "last_decision": {},
              "pending_action": None,
              "human_decisions": [],
-@@ -131,7 +143,7 @@ def build_graph(
+@@ -131,7 +177,7 @@ def build_graph(
      settings = get_settings()
      max_iter = max_iterations if max_iterations is not None else settings.agent_max_iterations
  
@@ -5465,7 +5757,7 @@ index d8e62be..9e9c040 100644
      graph.add_node("entry", make_entry_node(max_iter))
      graph.add_node("guardrail_check", guardrail_check_node)
 diff --git a/src/llm_chat/nodes/act_node.py b/src/llm_chat/nodes/act_node.py
-index b0857f7..5f2e032 100644
+index b0857f7..c917f9f 100644
 --- a/src/llm_chat/nodes/act_node.py
 +++ b/src/llm_chat/nodes/act_node.py
 @@ -17,12 +17,24 @@ import json
@@ -5494,7 +5786,7 @@ index b0857f7..5f2e032 100644
  
  logger = logging.getLogger("ai20k.act")
  
-@@ -38,12 +50,91 @@ def _parse_proposal(output: str) -> dict | None:
+@@ -38,16 +50,98 @@ def _parse_proposal(output: str) -> dict | None:
          return None
  
  
@@ -5520,11 +5812,9 @@ index b0857f7..5f2e032 100644
 +    elif context is None:
 +        result = CopilotNotice(code="structured_fallback", message="Cần phiên đăng nhập để chạy phân tích.")
 +    else:
-+        prior_users = tuple(
-+            entry["content"]
-+            for entry in (state.get("history") or ())[:-1]
-+            if entry.get("role") == "user" and isinstance(entry.get("content"), str)
-+        )
++        pending = state.get("pending_copilot_clarification") or {}
++        prior_users = tuple(turn for turn in (pending.get("turns") or ()) if isinstance(turn, str) and turn.strip())
++        pending_field = pending.get("field") if isinstance(pending.get("field"), str) else None
 +        try:
 +            result = await invoke_copilot_tool(
 +                name,
@@ -5532,6 +5822,7 @@ index b0857f7..5f2e032 100644
 +                context,
 +                message=state.get("query", ""),
 +                prior_user_messages=prior_users,
++                pending_clarify_field=pending_field,
 +            )
 +        except ValidationError:
 +            result = CopilotNotice(code="clarify", message="Thông số phân tích còn thiếu hoặc không hợp lệ.")
@@ -5587,21 +5878,59 @@ index b0857f7..5f2e032 100644
      if tool_name in RISKY_TOOL_NAMES:
          # KHÔNG chạy — đẩy sang human_review chờ interrupt()/phê duyệt.
          logger.warning("act — tool rủi ro %s hoãn sang human_review", tool_name)
+-        return {"pending_action": {"tool": tool_name, "args": tool_args}, "stage": "human_review"}
++        return {
++            "pending_action": {"tool": tool_name, "args": tool_args},
++            "pending_copilot_clarification": None,
++            "stage": "human_review",
++        }
+ 
+     if tool_name not in TOOL_REGISTRY:
+         # reason_node đã chặn, đây là defense-in-depth (belts and braces).
+@@ -63,7 +157,12 @@ async def act_node(state: AgentState, config: RunnableConfig) -> dict:
+     trace.append({"tool": tool_name, "args": tool_args, "output": str(output)})
+     logger.info("act — %s(%s) -> %s", tool_name, tool_args, str(output)[:80])
+ 
+-    update: dict = {"tool_trace": trace, "pending_action": None, "stage": "act"}
++    update: dict = {
++        "tool_trace": trace,
++        "pending_action": None,
++        "pending_copilot_clarification": None,
++        "stage": "act",
++    }
+     if tool_name == PROPOSAL_TOOL_NAME and not str(output).startswith(TOOL_ERROR_PREFIX):
+         update["proposal"] = _parse_proposal(str(output))
+     return update
 diff --git a/src/llm_chat/nodes/finalize_node.py b/src/llm_chat/nodes/finalize_node.py
-index 302de40..9ce6df7 100644
+index 302de40..d586bee 100644
 --- a/src/llm_chat/nodes/finalize_node.py
 +++ b/src/llm_chat/nodes/finalize_node.py
-@@ -17,6 +17,9 @@ from src.llm_chat.mock_llm import mock_generate
+@@ -10,13 +10,23 @@ from __future__ import annotations
+ 
+ import logging
+ from collections.abc import Awaitable, Callable
++from time import monotonic
+ 
+ from src.config import get_settings
+ from src.llm_chat.guardrails import GuardrailViolation, guardrails
+ from src.llm_chat.mock_llm import mock_generate
  from src.llm_chat.prompts import SHARED_RULES, render
  from src.llm_chat.schemas import FinalAnswer
- from src.llm_chat.state import HISTORY_LIMIT, AgentState
+-from src.llm_chat.state import HISTORY_LIMIT, AgentState
++from src.llm_chat.state import (
++    HISTORY_LIMIT,
++    MAX_CLARIFICATION_TURN_CHARS,
++    MAX_PENDING_CLARIFICATION_TURNS,
++    AgentState,
++    PendingCopilotClarification,
++)
 +from src.models.control import Role
 +from src.models.copilot_integration import CopilotNotice
 +from src.services.copilot.integration import CopilotIntegration
  from src.services.llm import get_structured_llm
  
  logger = logging.getLogger("ai20k.finalize")
-@@ -100,6 +103,55 @@ def _sanitize_suggestions(suggestions: list[str], state: AgentState) -> list[str
+@@ -100,6 +110,86 @@ def _sanitize_suggestions(suggestions: list[str], state: AgentState) -> list[str
      return cleaned
  
  
@@ -5622,6 +5951,35 @@ index 302de40..9ce6df7 100644
 +                message="Các điều kiện kết hợp này chưa được hỗ trợ. Hãy chọn một thay đổi để mô phỏng.",
 +            ).model_dump(mode="json")
 +        )
++
++    next_pending: PendingCopilotClarification | None = None
++    clarify_items = [item for item in results if item["kind"] == "notice" and item["code"] == "clarify"]
++    terminal_items = [
++        item for item in results if item["kind"] == "job" or (item["kind"] == "notice" and item["code"] != "clarify")
++    ]
++    if not partial and clarify_items and not terminal_items:
++        prior_pending = state.get("pending_copilot_clarification") or {}
++        existing_turns = [t for t in (prior_pending.get("turns") or ()) if isinstance(t, str) and t.strip()]
++        raw_query, _ = CopilotIntegration.strip_explicit_reset(state.get("query", ""))
++        cleaned_query = raw_query.strip()[:MAX_CLARIFICATION_TURN_CHARS]
++        next_turns = [*existing_turns, cleaned_query] if cleaned_query else existing_turns
++        if len(next_turns) > MAX_PENDING_CLARIFICATION_TURNS:
++            overflow_notice = CopilotNotice(
++                code="unsupported",
++                message="Đã vượt số lượt làm rõ liên tiếp. Vui lòng gửi lại một yêu cầu đầy đủ.",
++            ).model_dump(mode="json")
++            results = [
++                overflow_notice if (item["kind"] == "notice" and item["code"] == "clarify") else item
++                for item in results
++            ]
++        elif next_turns:
++            opened_at = float(prior_pending.get("opened_at") or monotonic())
++            next_pending = {
++                "turns": next_turns,
++                "field": str(clarify_items[-1].get("field") or "intent"),
++                "opened_at": opened_at,
++            }
++
 +    lines = []
 +    if results:
 +        for result in results:
@@ -5649,6 +6007,8 @@ index 302de40..9ce6df7 100644
 +        "response": answer,
 +        "history": _with_reply(state, answer),
 +        "copilot_results": results,
++        "pending_copilot_clarification": next_pending,
++        "turn_in_progress": False,
 +        "suggestions": [],
 +        "stage": "partial" if partial else "finalize",
 +    }
@@ -5657,17 +6017,47 @@ index 302de40..9ce6df7 100644
  def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
      fn = generate_fn or llm_generate
  
-@@ -113,6 +165,10 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
+@@ -111,7 +201,17 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
+                 confidence=1.0,
+                 used_tools=[],
              )
-             return {"response": refusal.answer, "stage": "refusal", "history": _with_reply(state, refusal.answer)}
- 
+-            return {"response": refusal.answer, "stage": "refusal", "history": _with_reply(state, refusal.answer)}
++            return {
++                "response": refusal.answer,
++                "stage": "refusal",
++                "pending_copilot_clarification": None,
++                "turn_in_progress": False,
++                "history": _with_reply(state, refusal.answer),
++            }
++
 +        advisory = _finalize_advisory(state, partial)
 +        if advisory is not None:
 +            return advisory
-+
+ 
          raw = await fn(state, partial=partial)
          final = guardrails.validate_output(raw, FinalAnswer, source="finalize")
-         guardrails.check_output_text(final.answer)  # leak system prompt/key -> raise
+@@ -154,6 +254,8 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
+         return {
+             "response": answer,
+             "suggestions": _sanitize_suggestions(list(final.suggestions), state),
++            "pending_copilot_clarification": None,
++            "turn_in_progress": False,
+             "stage": "partial" if partial else "finalize",
+             "history": _with_reply(state, answer),
+         }
+diff --git a/src/llm_chat/nodes/human_review_node.py b/src/llm_chat/nodes/human_review_node.py
+index 0c14759..6d32489 100644
+--- a/src/llm_chat/nodes/human_review_node.py
++++ b/src/llm_chat/nodes/human_review_node.py
+@@ -50,7 +50,7 @@ async def human_review_node(state: AgentState, config: RunnableConfig) -> dict:
+ 
+     decisions = list(state.get("human_decisions", []))
+     trace = list(state.get("tool_trace", []))
+-    update: dict = {"pending_action": None, "stage": "assess"}
++    update: dict = {"pending_action": None, "pending_copilot_clarification": None, "stage": "assess"}
+ 
+     if answer == "approve":
+         try:
 diff --git a/src/llm_chat/nodes/reason_node.py b/src/llm_chat/nodes/reason_node.py
 index ada7a37..17b7524 100644
 --- a/src/llm_chat/nodes/reason_node.py
@@ -5796,10 +6186,26 @@ index fc5b289..2b49f88 100644
              raise ValueError("action='tool' đòi hỏi tool_name không rỗng")
          if self.action == "final":
 diff --git a/src/llm_chat/state.py b/src/llm_chat/state.py
-index 64e98cb..4d47536 100644
+index 64e98cb..25db17e 100644
 --- a/src/llm_chat/state.py
 +++ b/src/llm_chat/state.py
-@@ -61,6 +61,11 @@ class AgentState(TypedDict, total=False):
+@@ -24,6 +24,15 @@ Stage = Literal[
+ 
+ 
+ HISTORY_LIMIT = 20  # số tin nhắn giữ lại trong state.history (≈ 10 lượt hỏi–đáp)
++MAX_PENDING_CLARIFICATION_TURNS = 3
++PENDING_CLARIFICATION_TTL_SECONDS = 300.0
++MAX_CLARIFICATION_TURN_CHARS = 1000
++
++
++class PendingCopilotClarification(TypedDict, total=False):
++    turns: list[str]
++    field: str
++    opened_at: float
+ 
+ 
+ class AgentState(TypedDict, total=False):
+@@ -61,6 +70,13 @@ class AgentState(TypedDict, total=False):
      pending_action: dict | None  # {"tool": ..., "args": ...}
      human_decisions: list[dict]  # [{"tool":..., "decision": "approve"|"reject"}]
  
@@ -5807,16 +6213,18 @@ index 64e98cb..4d47536 100644
 +    copilot_results: list[dict]
 +    copilot_attempts: int
 +    simulation_attempts: int
++    pending_copilot_clarification: PendingCopilotClarification | None
++    turn_in_progress: bool
 +
      # Output
      response: str
      suggestions: list[str]
 diff --git a/src/llm_chat/tools/copilot.py b/src/llm_chat/tools/copilot.py
 new file mode 100644
-index 0000000..4e9d912
+index 0000000..aafe811
 --- /dev/null
 +++ b/src/llm_chat/tools/copilot.py
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,131 @@
 +"""Typed adapters for the application-owned Copilot service."""
 +
 +import json
@@ -5911,6 +6319,7 @@ index 0000000..4e9d912
 +    *,
 +    message: str,
 +    prior_user_messages: Sequence[str] = (),
++    pending_clarify_field: str | None = None,
 +) -> WhyReply | JobReply | CopilotNotice:
 +    service = context.copilot
 +    if service is None:
@@ -5920,15 +6329,29 @@ index 0000000..4e9d912
 +    match value:
 +        case WhyIntent():
 +            return await service.agent_why(
-+                context.user, value, message=message, prior_user_messages=prior_user_messages
++                context.user,
++                value,
++                message=message,
++                prior_user_messages=prior_user_messages,
++                pending_clarify_field=pending_clarify_field,
 +            )
 +        case WhatIfIntent():
 +            return await service.agent_what_if(
-+                context.user, value, context.session, message=message, prior_user_messages=prior_user_messages
++                context.user,
++                value,
++                context.session,
++                message=message,
++                prior_user_messages=prior_user_messages,
++                pending_clarify_field=pending_clarify_field,
 +            )
 +        case HowToRequest():
 +            return await service.agent_how_to(
-+                context.user, value, context.session, message=message, prior_user_messages=prior_user_messages
++                context.user,
++                value,
++                context.session,
++                message=message,
++                prior_user_messages=prior_user_messages,
++                pending_clarify_field=pending_clarify_field,
 +            )
 +        case JobLookup():
 +            return service.job(context.user, value.job_id, session=context.session, cancel=value.operation == "cancel")
@@ -6043,10 +6466,10 @@ index 78f1cad..77422f1 100644
      }
      return jwt.encode(claims, _secret(), algorithm=_ALGORITHM)
 diff --git a/src/services/copilot/integration.py b/src/services/copilot/integration.py
-index 5bf8470..7c6bebc 100644
+index 5bf8470..c26b695 100644
 --- a/src/services/copilot/integration.py
 +++ b/src/services/copilot/integration.py
-@@ -1,14 +1,18 @@
+@@ -1,14 +1,20 @@
  """Server-owned decision routing and lifecycle adapter for G6A."""
  
  import asyncio
@@ -6063,12 +6486,14 @@ index 5bf8470..7c6bebc 100644
 +from src.agents.copilot_intent import (
 +    CopilotIntentParser,
 +    conflicts_with_simulation,
++    has_explicit_reset,
++    strip_explicit_reset,
 +    why_conflicts_with_message,
 +)
  from src.models.api import ErrorCode, UserProfile
  from src.models.control import Role
  from src.models.copilot import ActorContext, WhyQuery, WhyStatus
-@@ -25,6 +29,7 @@ from src.models.copilot_integration import (
+@@ -25,6 +31,7 @@ from src.models.copilot_integration import (
      CopilotQueryReply,
      CopilotQueryRequest,
      HowToIntent,
@@ -6076,7 +6501,7 @@ index 5bf8470..7c6bebc 100644
      JobReply,
      ParseSource,
      RelativeTime,
-@@ -37,9 +42,10 @@ from src.models.copilot_integration import (
+@@ -37,9 +44,10 @@ from src.models.copilot_integration import (
      WhyIntent,
      WhyReply,
  )
@@ -6089,7 +6514,7 @@ index 5bf8470..7c6bebc 100644
  from src.services.copilot.snapshot import CapturedSnapshot, SnapshotNotReadyError, capture_atomic_snapshot
  from src.services.copilot.what_if import WhatIfForbiddenError
  from src.services.copilot.why import explain_why
-@@ -54,6 +60,8 @@ _CLARIFICATIONS: dict[ClarifyField, str] = {
+@@ -54,6 +62,8 @@ _CLARIFICATIONS: dict[ClarifyField, str] = {
      "duration": "Sự cố giả định kéo dài bao nhiêu phút?",
      "target": "Mức pin mục tiêu mới là bao nhiêu phần trăm?",
      "grid_input": "Hãy cung cấp công suất đầu vào từ lưới (kW).",
@@ -6098,7 +6523,7 @@ index 5bf8470..7c6bebc 100644
      "infrastructure": "Mức này cần xác nhận giả định nâng cấp hạ tầng.",
  }
  
-@@ -88,7 +96,7 @@ def _forbidden() -> DomainError:
+@@ -88,7 +98,7 @@ def _forbidden() -> DomainError:
      return DomainError(ErrorCode.FORBIDDEN, "Bạn không có quyền xem hoặc mô phỏng đối tượng này.")
  
  
@@ -6107,7 +6532,7 @@ index 5bf8470..7c6bebc 100644
      return CopilotNotice(code="clarify", field=field, message=_CLARIFICATIONS[field], parse_source=source)
  
  
-@@ -105,7 +113,7 @@ class CopilotIntegration:
+@@ -105,7 +115,7 @@ class CopilotIntegration:
          self._get_runtime = get_runtime
          self._parser = parser or CopilotIntentParser()
          self._capture = asyncio.Lock()
@@ -6116,7 +6541,7 @@ index 5bf8470..7c6bebc 100644
  
      def _live_busy(self) -> bool:
          rt = self._get_runtime()
-@@ -192,7 +200,9 @@ class CopilotIntegration:
+@@ -192,7 +202,9 @@ class CopilotIntegration:
          rt: StationRuntime,
          actor: ActorContext,
          horizon: int,
@@ -6127,7 +6552,7 @@ index 5bf8470..7c6bebc 100644
      ) -> JobReply:
          if self._capture.locked():
              raise DomainError(
-@@ -200,8 +210,23 @@ class CopilotIntegration:
+@@ -200,8 +212,23 @@ class CopilotIntegration:
              )
          try:
              async with self._capture:
@@ -6153,7 +6578,7 @@ index 5bf8470..7c6bebc 100644
          except SnapshotNotReadyError as exc:
              raise DomainError(ErrorCode.COPILOT_NOT_READY, "Trạm chưa sẵn sàng để mô phỏng an toàn.") from exc
          except WhatIfForbiddenError as exc:
-@@ -235,19 +260,164 @@ class CopilotIntegration:
+@@ -235,19 +262,184 @@ class CopilotIntegration:
              raise _forbidden()
          return await self._submit(rt, actor, request.horizon_minutes, lambda _: patch)
  
@@ -6163,6 +6588,14 @@ index 5bf8470..7c6bebc 100644
 +    def clarification(field: ClarifyField) -> CopilotNotice:
 +        return _clarify(field, None)
 +
++    @staticmethod
++    def has_explicit_reset(raw: str) -> bool:
++        return has_explicit_reset(raw)
++
++    @staticmethod
++    def strip_explicit_reset(raw: str) -> tuple[str, bool]:
++        return strip_explicit_reset(raw)
++
 +    async def agent_why(
 +        self,
 +        user: UserProfile,
@@ -6170,18 +6603,22 @@ index 5bf8470..7c6bebc 100644
 +        *,
 +        message: str = "",
 +        prior_user_messages: Sequence[str] = (),
++        pending_clarify_field: str | None = None,
 +    ) -> WhyReply | CopilotNotice:
 +        rt = self._get_runtime()
 +        if user.role == Role.RESIDENT and intent.subject == "station":
 +            raise _forbidden()
 +        if intent.subject == "station" and intent.booking_id is not None:
 +            return _clarify("booking", None)
++        clean_msg, reset_now = strip_explicit_reset(message)
++        effective_priors = () if reset_now else prior_user_messages
 +        why_issue = why_conflicts_with_message(
 +            message,
 +            intent,
 +            now=rt.simulator.now,
 +            timezone=rt.config.timezone,
-+            prior_user_messages=prior_user_messages,
++            prior_user_messages=effective_priors,
++            pending_clarify_field=pending_clarify_field,
 +        )
 +        if why_issue == "unsupported":
 +            return CopilotNotice(
@@ -6191,13 +6628,13 @@ index 5bf8470..7c6bebc 100644
 +        if why_issue in _CLARIFICATIONS:
 +            return _clarify(why_issue, None)  # type: ignore[arg-type]
 +        if intent.booking_id is not None and user.role == Role.OPERATOR:
-+            corpus = "\n".join((*prior_user_messages, message)).casefold()
++            corpus = "\n".join((*effective_priors, clean_msg)).casefold()
 +            if corpus.strip() and intent.booking_id.casefold() not in corpus:
 +                return _clarify("booking", None)
 +        if user.role == Role.RESIDENT and intent.subject != "station":
 +            actor = ActorContext.from_user(user, rt.config.station_id)
 +            if intent.booking_id is not None:
-+                corpus = "\n".join((*prior_user_messages, message)).casefold()
++                corpus = "\n".join((*effective_priors, clean_msg)).casefold()
 +                bookings = await asyncio.to_thread(rt.store.active_bookings)
 +                owned = [b.booking_id for b in bookings if b.resident_id == actor.actor_id]
 +                if len(owned) > 1 and corpus.strip() and intent.booking_id.casefold() not in corpus:
@@ -6220,6 +6657,7 @@ index 5bf8470..7c6bebc 100644
 +        now: datetime | None = None,
 +        timezone: str = "Asia/Ho_Chi_Minh",
 +        prior_user_messages: Sequence[str] = (),
++        pending_clarify_field: str | None = None,
 +    ) -> CopilotNotice | None:
 +        issue = conflicts_with_simulation(
 +            message,
@@ -6227,6 +6665,7 @@ index 5bf8470..7c6bebc 100644
 +            now=now,
 +            timezone=timezone,
 +            prior_user_messages=prior_user_messages,
++            pending_clarify_field=pending_clarify_field,
 +        )
 +        if issue == "unsupported":
 +            return CopilotNotice(
@@ -6245,6 +6684,7 @@ index 5bf8470..7c6bebc 100644
 +        *,
 +        message: str,
 +        prior_user_messages: Sequence[str] = (),
++        pending_clarify_field: str | None = None,
 +    ) -> JobReply | CopilotNotice:
 +        is_vehicle = isinstance(intent.change, VehicleChange)
 +        if is_vehicle != (user.role == Role.RESIDENT):
@@ -6256,6 +6696,7 @@ index 5bf8470..7c6bebc 100644
 +            now=rt.simulator.now,
 +            timezone=rt.config.timezone,
 +            prior_user_messages=prior_user_messages,
++            pending_clarify_field=pending_clarify_field,
 +        )
 +        if notice:
 +            return notice
@@ -6272,6 +6713,7 @@ index 5bf8470..7c6bebc 100644
 +        *,
 +        message: str,
 +        prior_user_messages: Sequence[str] = (),
++        pending_clarify_field: str | None = None,
 +    ) -> JobReply | CopilotNotice:
 +        rt = self._get_runtime()
 +        actor = ActorContext.from_user(user, rt.config.station_id)
@@ -6284,11 +6726,14 @@ index 5bf8470..7c6bebc 100644
 +            now=rt.simulator.now,
 +            timezone=rt.config.timezone,
 +            prior_user_messages=prior_user_messages,
++            pending_clarify_field=pending_clarify_field,
 +        )
 +        if notice:
 +            return notice
 +        if not is_site:
-+            corpus = "\n".join((*prior_user_messages, message)).casefold()
++            clean_msg, reset_now = strip_explicit_reset(message)
++            effective_priors = () if reset_now else prior_user_messages
++            corpus = "\n".join((*effective_priors, clean_msg)).casefold()
 +            bookings = await asyncio.to_thread(rt.store.active_bookings)
 +            owned = [b.booking_id for b in bookings if b.resident_id == actor.actor_id]
 +            if len(owned) > 1 and corpus.strip() and request.goal.booking_id.casefold() not in corpus:
@@ -6323,7 +6768,7 @@ index 5bf8470..7c6bebc 100644
          if view is None:
              raise DomainError(ErrorCode.NOT_FOUND, "Không tìm thấy tác vụ mô phỏng.")
          return self._job_reply(view, actor)
-@@ -257,12 +427,13 @@ class CopilotIntegration:
+@@ -257,12 +449,13 @@ class CopilotIntegration:
          user: UserProfile,
          rt: StationRuntime,
          intent: WhyIntent,
@@ -6341,7 +6786,7 @@ index 5bf8470..7c6bebc 100644
              raise _ClarificationError("booking")
          if subject == "station":
              booking = None
-@@ -286,20 +457,23 @@ class CopilotIntegration:
+@@ -286,20 +479,23 @@ class CopilotIntegration:
          user: UserProfile,
          rt: StationRuntime,
          intent: WhatIfIntent,
@@ -6370,7 +6815,7 @@ index 5bf8470..7c6bebc 100644
  
          def patch(snapshot: CapturedSnapshot) -> WhatIfPatch:
              now, tz = snapshot.envelope.as_of, rt.config.timezone
-@@ -325,7 +499,7 @@ class CopilotIntegration:
+@@ -325,7 +521,7 @@ class CopilotIntegration:
                  starts_at=_resolve_time(change.starts_at, now, tz),
              )
  
@@ -6641,10 +7086,10 @@ index 37ff826..d9c930b 100644
  @pytest.mark.parametrize(
 diff --git a/tests/test_api/test_unified_copilot.py b/tests/test_api/test_unified_copilot.py
 new file mode 100644
-index 0000000..76ab847
+index 0000000..3e42344
 --- /dev/null
 +++ b/tests/test_api/test_unified_copilot.py
-@@ -0,0 +1,888 @@
+@@ -0,0 +1,1332 @@
 +"""Mock only the language-model boundary and exercise the authorized engines through chat."""
 +
 +import asyncio
@@ -7533,3 +7978,447 @@ index 0000000..76ab847
 +    job4 = await wait_chat_job(client, resident, pc4["advisory"][0]["job"], session="pc-4")
 +    assert job4["status"] == "succeeded"
 +    assert datetime.fromisoformat(job4["result"]["result"]["patch"]["deadline"]) == explicit_1430
++
++
++async def test_f01_v3_pending_clarification_cannot_erase_scope_time_or_switch_operation(demo_api, monkeypatch):
++    client, _rt, own, _dc, resident, _other, operator = demo_api
++
++    async def no_capture(*args, **kwargs):
++        pytest.fail("Multi-turn unsupported scope/time/operation switch must never capture snapshot")
++
++    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
++
++    cases = (
++        # F01-R1-MT exact: connector-scoped Turn 1 + numeric kW Turn 2
++        (
++            operator,
++            "mt-r1",
++            "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?",
++            "grid_input",
++            "50 kW.",
++            "copilot_what_if",
++            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}},
++            "unsupported",
++            None,
++        ),
++        # F01-R2-MT exact: future scheduled Turn 1 + bounds Turn 2
++        (
++            operator,
++            "mt-r2",
++            "Cần nguồn bao nhiêu từ ngày mai lúc 18h00 để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
++            "bounds",
++            "Thử 22 đến 106 kW.",
++            "copilot_how_to",
++            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
++            "unsupported",
++            None,
++        ),
++        # Cross-operation switch: outage Turn 1 + numeric kW Turn 2 mapped to site_limit
++        (
++            operator,
++            "mt-op-switch",
++            "Nếu một cổng bị hỏng thì sao?",
++            "duration",
++            "50 kW.",
++            "copilot_what_if",
++            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}},
++            "unsupported",
++            None,
++        ),
++        # Resident F01-R3 multi-turn: original-deadline shift Turn 1 + target Turn 2
++        (
++            resident,
++            "mt-r3",
++            "Nếu đổi mục tiêu và dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?",
++            "target",
++            "75%.",
++            "copilot_what_if",
++            {
++                "kind": "what_if",
++                "change": {
++                    "op": "revise_vehicle",
++                    "booking_id": own.booking_id,
++                    "target_soc": 75,
++                    "deadline": {"kind": "relative", "offset_minutes": 30},
++                },
++            },
++            "clarify",
++            "time",
++        ),
++        # Ambiguous full-sentence continuation without explicit abandonment/reset
++        (
++            operator,
++            "mt-ambig-cont",
++            "Cần nguồn bao nhiêu từ ngày mai lúc 18h00 để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
++            "bounds",
++            "Cần nguồn bao nhiêu để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn, thử 22 đến 106 kW.",
++            "copilot_how_to",
++            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
++            "unsupported",
++            None,
++        ),
++    )
++
++    for headers, sess, first, field, second, tool, args, expected_code, expected_field in cases:
++        provider(
++            monkeypatch,
++            {"thought": "missing slot", "action": "clarify", "clarify_field": field},
++            decision(tool, args),
++        )
++        r1 = await chat(client, headers, first, session=sess)
++        assert r1["advisory"][0]["kind"] == "notice" and r1["advisory"][0]["code"] == "clarify"
++        r2 = await chat(client, headers, second, session=sess)
++        adv = r2["advisory"][0]
++        assert adv["kind"] == "notice" and not adv.get("job"), (sess, adv)
++        assert adv["code"] == expected_code, (sess, adv)
++        if expected_field is not None:
++            assert adv["field"] == expected_field, (sess, adv)
++
++
++async def test_f01_v3_supported_multiturn_post_unsupported_and_explicit_reset(demo_api, monkeypatch):
++    client, rt, own, _dc, resident, _other, operator = demo_api
++    jobs = client._transport.app.state.copilot._jobs
++    orig_clock = jobs._clock
++    clock_offset = 0.0
++    monkeypatch.setattr(jobs, "_clock", lambda: orig_clock() + clock_offset)
++
++    # 1 & 2. Exact Tech Lead supported multi-turn operator cases
++    for sess, first, field, second, tool, args in (
++        (
++            "mt-pos-1",
++            "Nếu nguồn lưới của trạm bị giảm thì sao?",
++            "grid_input",
++            "50 kW.",
++            "copilot_what_if",
++            {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}},
++        ),
++        (
++            "mt-pos-2",
++            "Cần nguồn bao nhiêu hiện tại để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
++            "bounds",
++            "Thử 22 đến 106 kW.",
++            "copilot_how_to",
++            {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120},
++        ),
++    ):
++        clock_offset += 16.0
++        provider(
++            monkeypatch,
++            {"thought": "missing slot", "action": "clarify", "clarify_field": field},
++            decision(tool, args),
++        )
++        r1 = await chat(client, operator, first, session=sess)
++        assert r1["advisory"][0]["code"] == "clarify"
++        r2 = await chat(client, operator, second, session=sess)
++        assert r2["advisory"][0]["kind"] == "job"
++        job = await wait_chat_job(client, operator, r2["advisory"][0]["job"], session=sess)
++        assert job["status"] == "succeeded" and job["result"]["result"]["applied"] is False
++
++    # 3. Complete valid request immediately following a prior unsupported turn (no reset prefix needed)
++    clock_offset += 16.0
++    provider(
++        monkeypatch,
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++    )
++    bad = await chat(client, operator, "Nếu công suất sạc của cổng DC-01-1 còn 50 kW thì sao?", session="post-unsup")
++    assert bad["advisory"][0]["code"] == "unsupported"
++    recovered = await chat(
++        client,
++        operator,
++        "Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?",
++        session="post-unsup",
++    )
++    job_rec = await wait_chat_job(client, operator, recovered["advisory"][0]["job"], session="post-unsup")
++    assert job_rec["status"] == "succeeded" and job_rec["result"]["result"]["patch"]["grid_input_kw"] == 50.0
++
++    # 4. Explicit abandonment/reset from an open constrained clarification
++    clock_offset += 16.0
++    provider(
++        monkeypatch,
++        {"thought": "missing grid_input", "action": "clarify", "clarify_field": "grid_input"},
++        decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++    )
++    open_bad = await chat(
++        client,
++        operator,
++        "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?",
++        session="explicit-reset",
++    )
++    assert open_bad["advisory"][0]["code"] == "clarify"
++    reset_ok = await chat(
++        client,
++        operator,
++        "Bỏ câu trước. Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?",
++        session="explicit-reset",
++    )
++    job_rst = await wait_chat_job(client, operator, reset_ok["advisory"][0]["job"], session="explicit-reset")
++    assert job_rst["status"] == "succeeded" and job_rst["result"]["result"]["patch"]["grid_input_kw"] == 50.0
++
++    # 5. Resident explicit station-local clock resolves pending "time" clarification while preserving target_soc=75
++    provider(
++        monkeypatch,
++        {"thought": "ambiguous anchor", "action": "clarify", "clarify_field": "time"},
++        decision(
++            "copilot_what_if",
++            {
++                "kind": "what_if",
++                "change": {
++                    "op": "revise_vehicle",
++                    "booking_id": own.booking_id,
++                    "target_soc": 75,
++                    "deadline": {"kind": "station_local", "day": "today", "clock": "14:30"},
++                },
++            },
++        ),
++    )
++    t_ask = await chat(
++        client,
++        resident,
++        "Nếu đổi mục tiêu thành 75% và dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?",
++        session="res-time-resolve",
++    )
++    assert t_ask["advisory"][0]["code"] == "clarify" and t_ask["advisory"][0]["field"] == "time"
++    t_ans = await chat(client, resident, "Lúc 14:30 hôm nay.", session="res-time-resolve")
++    job_res = await wait_chat_job(client, resident, t_ans["advisory"][0]["job"], session="res-time-resolve")
++    assert job_res["status"] == "succeeded"
++    assert job_res["result"]["result"]["patch"]["target_soc"] == 75
++    assert datetime.fromisoformat(job_res["result"]["result"]["patch"]["deadline"]) == (
++        own.request.deadline + timedelta(minutes=30)
++    )
++
++
++async def test_f01_v3_mixed_why_and_clarification_preserves_pending_task_constraints(demo_api, monkeypatch):
++    from src.services.copilot import snapshot as snapshot_mod
++
++    client, _rt, _own, _dc, _resident, _other, operator = demo_api
++    captures = 0
++    real_capture = snapshot_mod.capture_atomic_snapshot
++
++    async def count_capture(*args, **kwargs):
++        nonlocal captures
++        captures += 1
++        return await real_capture(*args, **kwargs)
++
++    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", count_capture)
++    site_args = {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120}
++
++    # Subcase A: supported mixed WHY + clarify on Turn 1 -> bounds on Turn 2 succeeds
++    provider(
++        monkeypatch,
++        decision("copilot_why", OPERATOR_WHY, done=False),
++        {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
++        decision("copilot_how_to", site_args),
++    )
++    m1 = await chat(
++        client,
++        operator,
++        "Vì sao các xe bị trễ và cần nguồn bao nhiêu hiện tại để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
++        session="mixed-ok",
++    )
++    assert [item["kind"] for item in m1["advisory"]] == ["why", "notice"]
++    assert m1["advisory"][1]["code"] == "clarify" and m1["advisory"][1]["field"] == "bounds"
++    assert captures == 0
++    m2 = await chat(client, operator, "Thử 22 đến 106 kW.", session="mixed-ok")
++    job_ok = await wait_chat_job(client, operator, m2["advisory"][0]["job"], session="mixed-ok")
++    assert job_ok["status"] == "succeeded" and captures == 1
++
++    # Subcase B: unsupported future start in mixed WHY + clarify on Turn 1 -> WHY delivered, Turn 2 HOW-TO blocked
++    provider(
++        monkeypatch,
++        decision("copilot_why", OPERATOR_WHY, done=False),
++        {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
++        decision("copilot_how_to", site_args),
++    )
++    b1 = await chat(
++        client,
++        operator,
++        "Vì sao các xe bị trễ và cần nguồn bao nhiêu từ ngày mai lúc 18h00 để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn.",
++        session="mixed-bad",
++    )
++    assert [item["kind"] for item in b1["advisory"]] == ["why", "notice"]
++    assert b1["advisory"][1]["code"] == "clarify"
++    b2 = await chat(client, operator, "Thử 22 đến 106 kW.", session="mixed-bad")
++    assert b2["advisory"][0]["kind"] == "notice" and b2["advisory"][0]["code"] == "unsupported"
++    assert captures == 1
++
++
++async def test_f01_v3_clarification_lifecycle_cleanup_on_timeout_sse_abort_hitl_and_cap(demo_api, monkeypatch):
++    from starlette.requests import Request as StarletteRequest
++
++    from src.services import auth as auth_service
++
++    client, rt, _own, _dc, resident, _other, operator = demo_api
++    jobs = client._transport.app.state.copilot._jobs
++    orig_clock = jobs._clock
++    clock_offset = 0.0
++    monkeypatch.setattr(jobs, "_clock", lambda: orig_clock() + clock_offset)
++
++    def _req_and_user(headers: dict) -> tuple[StarletteRequest, object]:
++        token = headers["Authorization"].partition(" ")[2]
++        user = auth_service.decode_token(token)
++        req = StarletteRequest(
++            {
++                "type": "http",
++                "headers": [(b"authorization", headers["Authorization"].encode())],
++                "app": client._transport.app,
++            }
++        )
++        return req, user
++
++    def _state_config(headers: dict, session_id: str) -> dict:
++        req, user = _req_and_user(headers)
++        return routes._config(routes._context(req, user, session_id))
++
++    # 1. Timeout on Turn 2 scrubs pending clarification state so Turn 3 starts clean
++    shared_graph = build_graph()
++    planned = iter(
++        [
++            {"thought": "missing grid", "action": "clarify", "clarify_field": "grid_input"},
++            "HANG",
++            decision("copilot_what_if", {"kind": "what_if", "change": {"op": "site_limit", "grid_input_kw": 50}}),
++        ]
++    )
++
++    class PlannedModel:
++        async def ainvoke(self, _prompt):
++            nxt = next(planned)
++            if nxt == "HANG":
++                await asyncio.Future()
++            return AgentDecision.model_validate(nxt)
++
++    monkeypatch.setattr(routes, "agent", shared_graph)
++    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: PlannedModel())
++    t1 = await chat(client, operator, "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?", session="lc-timeout")
++    assert t1["advisory"][0]["code"] == "clarify"
++    cfg_timeout = _state_config(operator, "lc-timeout")
++    assert (await shared_graph.aget_state(cfg_timeout)).values.get("pending_copilot_clarification") is not None
++
++    orig_timeout = routes.CHAT_STREAM_TIMEOUT_SECONDS
++    monkeypatch.setattr(routes, "CHAT_STREAM_TIMEOUT_SECONDS", 0.04)
++    timed_out = await client.post(
++        CHAT,
++        headers=operator,
++        json={"message": "50 kW.", "session_id": "lc-timeout"},
++    )
++    assert timed_out.status_code == 503
++    monkeypatch.setattr(routes, "CHAT_STREAM_TIMEOUT_SECONDS", orig_timeout)
++    snap_after_timeout = await shared_graph.aget_state(cfg_timeout)
++    assert snap_after_timeout.values.get("pending_copilot_clarification") is None
++    assert snap_after_timeout.values.get("turn_in_progress") is False
++
++    clock_offset += 16.0
++    t3 = await chat(
++        client,
++        operator,
++        "Nếu công suất đầu vào lưới của trạm còn 50 kW thì sao?",
++        session="lc-timeout",
++    )
++    job_t3 = await wait_chat_job(client, operator, t3["advisory"][0]["job"], session="lc-timeout")
++    assert job_t3["status"] == "succeeded"
++
++    # 2. SSE mid-stream interruption / client disconnect scrubs pending clarification state
++    entered_reason = asyncio.Event()
++    sse_steps = iter(
++        [
++            {"thought": "missing grid", "action": "clarify", "clarify_field": "grid_input"},
++            "WAIT_DISCONNECT",
++        ]
++    )
++
++    class SseModel:
++        async def ainvoke(self, _prompt):
++            nxt = next(sse_steps)
++            if nxt == "WAIT_DISCONNECT":
++                entered_reason.set()
++                await asyncio.Future()
++            return AgentDecision.model_validate(nxt)
++
++    sse_graph = build_graph()
++    monkeypatch.setattr(routes, "agent", sse_graph)
++    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: SseModel())
++    s1 = await chat(client, operator, "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?", session="lc-sse")
++    assert s1["advisory"][0]["code"] == "clarify"
++    cfg_sse = _state_config(operator, "lc-sse")
++    assert (await sse_graph.aget_state(cfg_sse)).values.get("pending_copilot_clarification") is not None
++
++    op_req, op_user = _req_and_user(operator)
++    stream_resp = await routes.chat_stream(
++        routes.ChatRequest(message="50 kW.", session_id="lc-sse"),
++        op_user,
++        op_req,
++    )
++    first_chunk = await anext(stream_resp.body_iterator)
++    assert '"type": "status"' in first_chunk
++    await stream_resp.body_iterator.aclose()
++    assert routes._active_global_turns == 0 and not routes._active_threads
++    snap_after_sse = await sse_graph.aget_state(cfg_sse)
++    assert snap_after_sse.values.get("pending_copilot_clarification") is None
++    assert snap_after_sse.values.get("turn_in_progress") is False
++
++    # 3. Resident HITL confirm_booking clears pending Copilot clarification while preserving HITL interrupt/resume
++    arrival = rt.clock() + timedelta(minutes=15)
++    deadline = rt.clock() + timedelta(hours=3)
++    booking_req = {
++        "vehicle_model": "VF8_Eco",
++        "soc_now": 30,
++        "soc_target": 80,
++        "zone": "AC",
++        "mode": "normal",
++        "arrival_time": arrival.isoformat(),
++        "deadline": deadline.isoformat(),
++    }
++    from src.llm_chat.schemas import FinalAnswer
++
++    async def fixed_generate(_state, partial=False):
++        return FinalAnswer(answer="Đã huỷ xác nhận đặt lịch theo yêu cầu.", confidence=0.9, used_tools=[])
++
++    hitl_graph = build_graph(generate_fn=fixed_generate)
++    hitl_steps = iter(
++        [
++            {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
++            decision("confirm_booking", {"request": booking_req}, done=False),
++            {"thought": "rejected", "action": "final", "final_answer": "Đã huỷ xác nhận đặt lịch theo yêu cầu."},
++        ]
++    )
++
++    class HitlModel:
++        async def ainvoke(self, _prompt):
++            return AgentDecision.model_validate(next(hitl_steps))
++
++    monkeypatch.setattr(routes, "agent", hitl_graph)
++    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: HitlModel())
++    h1 = await chat(client, resident, "Kiểm chứng giờ đạt 90% sớm nhất.", session="lc-hitl")
++    assert h1["advisory"][0]["code"] == "clarify"
++    cfg_hitl = _state_config(resident, "lc-hitl")
++    assert (await hitl_graph.aget_state(cfg_hitl)).values.get("pending_copilot_clarification") is not None
++
++    h2 = await chat(client, resident, "Đặt lịch sạc VF8 từ 30% lên 80%.", session="lc-hitl")
++    assert h2["status"] == "needs_confirmation"
++    snap_hitl = await hitl_graph.aget_state(cfg_hitl)
++    assert snap_hitl.values.get("pending_copilot_clarification") is None
++    assert routes._pending_interrupts(snap_hitl)
++    resumed = await client.patch(
++        f"{CHAT}/sessions/lc-hitl",
++        headers=resident,
++        json={"resume": "reject"},
++    )
++    assert resumed.status_code == 200 and resumed.json()["status"] == "answer"
++
++    # 4. Consecutive clarifications bounded at MAX_PENDING_CLARIFICATION_TURNS (3)
++    cap_graph = build_graph()
++    monkeypatch.setattr(routes, "agent", cap_graph)
++    cap_steps = iter([{"thought": "still missing", "action": "clarify", "clarify_field": "bounds"} for _ in range(4)])
++
++    class CapModel:
++        async def ainvoke(self, _prompt):
++            return AgentDecision.model_validate(next(cap_steps))
++
++    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda _t, _s: CapModel())
++    for idx in range(3):
++        c_turn = await chat(client, operator, f"Cần nguồn bao nhiêu lượt {idx + 1}?", session="lc-cap")
++        assert c_turn["advisory"][0]["code"] == "clarify"
++    c_overflow = await chat(client, operator, "Cần nguồn bao nhiêu lượt 4?", session="lc-cap")
++    assert c_overflow["advisory"][0]["code"] == "unsupported"
++    cfg_cap = _state_config(operator, "lc-cap")
++    assert (await cap_graph.aget_state(cfg_cap)).values.get("pending_copilot_clarification") is None

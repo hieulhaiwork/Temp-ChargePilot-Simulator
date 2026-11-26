@@ -71,11 +71,9 @@ async def _advisory(
     elif context is None:
         result = CopilotNotice(code="structured_fallback", message="Cần phiên đăng nhập để chạy phân tích.")
     else:
-        prior_users = tuple(
-            entry["content"]
-            for entry in (state.get("history") or ())[:-1]
-            if entry.get("role") == "user" and isinstance(entry.get("content"), str)
-        )
+        pending = state.get("pending_copilot_clarification") or {}
+        prior_users = tuple(turn for turn in (pending.get("turns") or ()) if isinstance(turn, str) and turn.strip())
+        pending_field = pending.get("field") if isinstance(pending.get("field"), str) else None
         try:
             result = await invoke_copilot_tool(
                 name,
@@ -83,6 +81,7 @@ async def _advisory(
                 context,
                 message=state.get("query", ""),
                 prior_user_messages=prior_users,
+                pending_clarify_field=pending_field,
             )
         except ValidationError:
             result = CopilotNotice(code="clarify", message="Thông số phân tích còn thiếu hoặc không hợp lệ.")
@@ -138,7 +137,11 @@ async def act_node(state: AgentState, config: RunnableConfig, runtime: Runtime[C
     if tool_name in RISKY_TOOL_NAMES:
         # KHÔNG chạy — đẩy sang human_review chờ interrupt()/phê duyệt.
         logger.warning("act — tool rủi ro %s hoãn sang human_review", tool_name)
-        return {"pending_action": {"tool": tool_name, "args": tool_args}, "stage": "human_review"}
+        return {
+            "pending_action": {"tool": tool_name, "args": tool_args},
+            "pending_copilot_clarification": None,
+            "stage": "human_review",
+        }
 
     if tool_name not in TOOL_REGISTRY:
         # reason_node đã chặn, đây là defense-in-depth (belts and braces).
@@ -154,7 +157,12 @@ async def act_node(state: AgentState, config: RunnableConfig, runtime: Runtime[C
     trace.append({"tool": tool_name, "args": tool_args, "output": str(output)})
     logger.info("act — %s(%s) -> %s", tool_name, tool_args, str(output)[:80])
 
-    update: dict = {"tool_trace": trace, "pending_action": None, "stage": "act"}
+    update: dict = {
+        "tool_trace": trace,
+        "pending_action": None,
+        "pending_copilot_clarification": None,
+        "stage": "act",
+    }
     if tool_name == PROPOSAL_TOOL_NAME and not str(output).startswith(TOOL_ERROR_PREFIX):
         update["proposal"] = _parse_proposal(str(output))
     return update

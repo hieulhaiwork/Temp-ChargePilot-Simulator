@@ -174,6 +174,23 @@ _DAY = re.compile(r"\b(hom nay|ngay mai|hom qua|today|tomorrow|yesterday)\b")
 _DAY_MAP = {"hom nay": "today", "ngay mai": "tomorrow", "hom qua": "yesterday"}
 _BOOKING = re.compile(r"\b(?:booking|mã lịch|ma lich)\s*[:#]?\s*([A-Za-z0-9_-]{1,64})(?![\w-])", re.I)
 _CONNECTOR = re.compile(r"\b(?:AC|DC)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+\b", re.I)
+_EXPLICIT_RESET = re.compile(
+    r"^\s*(?:thoi\s+|vui\s+long\s+|hay\s+)*"
+    r"(?:bo(?:\s+qua)?\s+(?:cau(?:\s+hoi)?|yeu\s+cau)\s+truoc(?:\s+di|\s+nua)?|"
+    r"huy\s+(?:cau(?:\s+hoi)?|yeu\s+cau)\s+truoc(?:\s+di)?|"
+    r"khong\s+hoi\s+(?:cau(?:\s+hoi)?|yeu\s+cau)\s+truoc\s+nua|"
+    r"cau\s+hoi\s+moi|yeu\s+cau\s+moi|"
+    r"(?:thay|doi|chuyen\s+sang)\s+(?:cau\s+hoi|yeu\s+cau)\s+(?:khac|moi)|"
+    r"dat\s+lai\s+(?:cau\s+hoi|yeu\s+cau)|"
+    r"forget\s+(?:the\s+)?(?:previous|last)\s+(?:question|request)|"
+    r"cancel\s+(?:the\s+)?(?:previous|last)\s+(?:question|request)|"
+    r"ignore\s+(?:the\s+)?(?:previous|last)\s+(?:question|request)|"
+    r"new\s+(?:question|request)|start\s+over)\b[\s,:.;!-]*"
+)
+_HOW_TO_QUESTION = re.compile(
+    r"\b(?:bao nhieu|lam sao|cach nao|nen lam gi|nen tang|khuyen nghi|how (?:much|to)|recommend)\b"
+)
+_NOW_ANCHOR = re.compile(r"\b(?:hien tai|bay gio|luc nay|now|from now)\b")
 
 
 def _normalized(text: str) -> str:
@@ -182,6 +199,53 @@ def _normalized(text: str) -> str:
         for char in unicodedata.normalize("NFD", text.casefold().replace("đ", "d"))
         if unicodedata.category(char) != "Mn"
     )
+
+
+def _normalized_with_spans(raw: str) -> tuple[str, list[tuple[int, int]]]:
+    norm_chars: list[str] = []
+    spans: list[tuple[int, int]] = []
+    for idx, ch in enumerate(raw):
+        piece = "".join(
+            c for c in unicodedata.normalize("NFD", ch.casefold().replace("đ", "d")) if unicodedata.category(c) != "Mn"
+        )
+        for c in piece:
+            norm_chars.append(c)
+            spans.append((idx, idx + 1))
+    return "".join(norm_chars), spans
+
+
+def _strip_norm_pattern(raw: str, pattern: re.Pattern[str]) -> str:
+    norm, spans = _normalized_with_spans(raw)
+    matches = list(pattern.finditer(norm))
+    if not matches:
+        return raw
+    pieces: list[str] = []
+    cursor = 0
+    for match in matches:
+        if match.start() == match.end():
+            continue
+        raw_start = spans[match.start()][0]
+        raw_end = spans[match.end() - 1][1]
+        if raw_start > cursor:
+            pieces.append(raw[cursor:raw_start])
+        cursor = max(cursor, raw_end)
+    pieces.append(raw[cursor:])
+    return "".join(pieces)
+
+
+def strip_explicit_reset(raw: str) -> tuple[str, bool]:
+    norm, spans = _normalized_with_spans(raw)
+    if _INJECTION.search(norm):
+        return raw, False
+    match = _EXPLICIT_RESET.match(norm)
+    if not match or match.end() == 0:
+        return raw, False
+    cut = spans[match.end() - 1][1]
+    return raw[cut:].lstrip(" ,:.;!-"), True
+
+
+def has_explicit_reset(raw: str) -> bool:
+    return strip_explicit_reset(raw)[1]
 
 
 def _minutes(number: str, unit: str) -> int:
@@ -538,6 +602,43 @@ def _explicit_horizon(text: str) -> tuple[int | None, bool]:
     return next(iter(values)), False
 
 
+def _resolve_active_time_across_turns(
+    turn_times: Sequence[tuple[str, str, TimeSelection | None, bool]],
+    *,
+    now: datetime | None,
+    timezone: str,
+    pending_clarify_field: str | None,
+) -> tuple[TimeSelection | None, str | None]:
+    resolved_sel: TimeSelection | None = None
+    unresolved_amb = False
+    had_bad_anchor = False
+    total = len(turn_times)
+    for idx, (_raw_i, txt_i, sel_i, amb_i) in enumerate(turn_times):
+        bad_anchor_i = bool(_SHIFT_OFFSET.search(txt_i) or _NON_NOW_ANCHOR.search(txt_i))
+        if amb_i:
+            if resolved_sel is not None:
+                return None, "unsupported"
+            unresolved_amb = True
+            had_bad_anchor = had_bad_anchor or bad_anchor_i
+        elif sel_i is not None:
+            if unresolved_amb:
+                if idx == total - 1 and pending_clarify_field != "time":
+                    return None, "unsupported"
+                if had_bad_anchor and isinstance(sel_i, RelativeTime) and not _NOW_ANCHOR.search(txt_i):
+                    return None, "time"
+                resolved_sel = sel_i
+                unresolved_amb = False
+                had_bad_anchor = False
+            elif resolved_sel is not None:
+                if not _selections_match(resolved_sel, sel_i, now, timezone):
+                    return None, "unsupported"
+            else:
+                resolved_sel = sel_i
+    if unresolved_amb:
+        return None, "time"
+    return resolved_sel, None
+
+
 def why_conflicts_with_message(
     message: str,
     intent: WhyIntent,
@@ -545,38 +646,49 @@ def why_conflicts_with_message(
     now: datetime | None = None,
     timezone: str = "Asia/Ho_Chi_Minh",
     prior_user_messages: Sequence[str] = (),
+    pending_clarify_field: str | None = None,
 ) -> str | None:
-    if not message.strip():
+    if not message.strip() and not prior_user_messages:
         return None
-    text = _normalized(message)
-    if _INJECTION.search(text) or _CONTROL.search(text):
+    if _INJECTION.search(_normalized(message)):
         return "unsupported"
-    explicit_bookings = {m.casefold() for m in _BOOKING.findall(message)}
+    clean_message, reset_now = strip_explicit_reset(message)
+    effective_priors = () if reset_now else tuple(m for m in prior_user_messages if m and m.strip())
+    active_raws = (*effective_priors, clean_message) if clean_message.strip() else effective_priors
+    if not active_raws:
+        return None
+
+    explicit_bookings: set[str] = set()
+    why_time_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
+    for raw_i in active_raws:
+        txt_i = _normalized(raw_i)
+        if _INJECTION.search(txt_i) or _CONTROL.search(txt_i):
+            return "unsupported"
+        explicit_bookings.update(m.casefold() for m in _BOOKING.findall(raw_i))
+        if intent.at is not None or not (_HOW_TO.search(txt_i) or _DEADLINE.search(txt_i)):
+            sel_i, amb_i = _time(raw_i, txt_i)
+            why_time_turns.append((raw_i, txt_i, sel_i, amb_i))
+
     if len(explicit_bookings) > 1:
         return "unsupported"
     if explicit_bookings:
         expected = next(iter(explicit_bookings))
         if intent.booking_id is None or intent.booking_id.casefold() != expected:
             return "unsupported"
+
+    resolved_at, time_err = _resolve_active_time_across_turns(
+        why_time_turns,
+        now=now,
+        timezone=timezone,
+        pending_clarify_field=pending_clarify_field,
+    )
+    if time_err is not None:
+        return time_err
     if intent.at is not None:
-        specified, ambiguous = _time(message, text)
-        if ambiguous:
-            return "time"
-        if specified is None:
-            for prev in reversed(prior_user_messages):
-                specified, ambiguous = _time(prev, _normalized(prev))
-                if ambiguous:
-                    return "time"
-                if specified is not None:
-                    break
-        if specified is None or not _selections_match(intent.at, specified, now, timezone):
+        if resolved_at is None or not _selections_match(intent.at, resolved_at, now, timezone):
             return "unsupported"
-    elif not (_HOW_TO.search(text) or _DEADLINE.search(text)):
-        specified, ambiguous = _time(message, text)
-        if ambiguous:
-            return "time"
-        if specified is not None:
-            return "unsupported"
+    elif resolved_at is not None:
+        return "unsupported"
     return None
 
 
@@ -604,25 +716,39 @@ def conflicts_with_simulation(
     now: datetime | None = None,
     timezone: str = "Asia/Ho_Chi_Minh",
     prior_user_messages: Sequence[str] = (),
+    pending_clarify_field: str | None = None,
 ) -> str | None:
-    text = _normalized(message)
-    prior_texts = tuple(_normalized(m) for m in prior_user_messages if m and m.strip())
-    if _INJECTION.search(text) or _UNSUPPORTED_CONDITION.search(text) or _CONTROL.search(text):
+    if _INJECTION.search(_normalized(message)):
         return "unsupported"
+    clean_message, reset_now = strip_explicit_reset(message)
+    effective_priors = () if reset_now else tuple(m for m in prior_user_messages if m and m.strip())
+    active_raws = (*effective_priors, clean_message)
 
-    # Extract horizon from current message (or prior user turn if current message omits it).
-    horizon_in_msg, horizon_conflict = _explicit_horizon(text)
-    if horizon_conflict:
+    turns: list[tuple[str, str, str, str]] = []
+    explicit_horizons: set[int] = set()
+    booking_map: dict[str, str] = {}
+    for raw_i in active_raws:
+        txt_i = _normalized(raw_i)
+        if _INJECTION.search(txt_i) or _UNSUPPORTED_CONDITION.search(txt_i) or _CONTROL.search(txt_i):
+            return "unsupported"
+        h_val, h_conflict = _explicit_horizon(txt_i)
+        if h_conflict:
+            return "unsupported"
+        if h_val is not None:
+            explicit_horizons.add(h_val)
+        for bk_id in _BOOKING.findall(raw_i):
+            booking_map.setdefault(bk_id.casefold(), bk_id)
+        raw_wh_i = _strip_norm_pattern(raw_i, _HORIZON)
+        wh_i = _HORIZON.sub("", txt_i)
+        turns.append((raw_i, txt_i, raw_wh_i, wh_i))
+
+    if len(explicit_horizons) > 1 or len(booking_map) > 1:
         return "unsupported"
-    expected_horizon = horizon_in_msg
-    if expected_horizon is None:
-        for p_text in reversed(prior_texts):
-            h_prev, h_prev_conflict = _explicit_horizon(p_text)
-            if h_prev_conflict:
-                break
-            if h_prev is not None:
-                expected_horizon = h_prev
-                break
+    expected_horizon = next(iter(explicit_horizons)) if explicit_horizons else None
+    explicit_booking = next(iter(booking_map.values())) if booking_map else None
+
+    text = turns[-1][1]
+    prior_texts = tuple(t_i for _, t_i, _, _ in turns[:-1])
 
     goal: RecommendationGoal | None = None
     change: VehicleChange | SourceChange | ConnectorOutage | None = None
@@ -644,13 +770,13 @@ def conflicts_with_simulation(
     else:
         goal = args
 
-    hypo_granted, hypo_explicit_now = _hypothetical_granted(text, prior_texts)
+    hypo_granted, _hypo_explicit_now = _hypothetical_granted(text, prior_texts)
     wants_hypo = (isinstance(change, SourceChange) and change.hypothetical_infrastructure) or (
         isinstance(goal, MinTestedSiteLimitForSla) and goal.hypothetical_infrastructure
     )
     if wants_hypo and not hypo_granted:
         return "infrastructure"
-    if hypo_explicit_now and (
+    if hypo_granted and (
         (isinstance(change, SourceChange) and not change.hypothetical_infrastructure)
         or (isinstance(goal, MinTestedSiteLimitForSla) and not goal.hypothetical_infrastructure)
     ):
@@ -661,166 +787,180 @@ def conflicts_with_simulation(
             if getattr(goal, key) and not _consent_granted(text, prior_texts, permission):
                 return "sacrifices"
 
-    explicit_bookings = _BOOKING.findall(message)
-    if len({b.casefold() for b in explicit_bookings}) > 1:
-        return "unsupported"
-
-    without_horizon = _HORIZON.sub("", text)
-    raw_without_horizon = _HORIZON.sub("", message)
-
     if change is not None:
         if isinstance(change, SourceChange):
-            if (
-                _OUTAGE_ACTION.search(text)
-                or _PERCENT.search(text)
-                or explicit_bookings
-                or _CONNECTOR.search(message)
-                or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
-                or _PORT_OR_ZONE_SCOPE.search(without_horizon)
-                or re.search(r"\b(?:ac|dc)\b", without_horizon)
-                or _KW_DELTA.search(without_horizon)
-                or _has_site_temporal_condition(raw_without_horizon, without_horizon)
-            ):
+            if explicit_booking is not None:
                 return "unsupported"
-            if _OUTPUT.search(without_horizon):
-                return "grid_input"
-            has_subject = bool(_SITE_POWER_SUBJECT.search(without_horizon)) or any(
-                _SITE_POWER_SUBJECT.search(_HORIZON.sub("", p_text)) for p_text in prior_texts
-            )
+            has_subject = False
+            distinct_kws: set[float] = set()
+            saw_output = False
+            for raw_i, txt_i, raw_wh_i, wh_i in turns:
+                if (
+                    _HOW_TO_QUESTION.search(txt_i)
+                    or _OUTAGE_ACTION.search(txt_i)
+                    or re.search(r"\b(?:hong|ngat|fault|outage)\b", wh_i)
+                    or _PERCENT.search(txt_i)
+                    or _CONNECTOR.search(raw_i)
+                    or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
+                    or _PORT_OR_ZONE_SCOPE.search(wh_i)
+                    or re.search(r"\b(?:ac|dc)\b", wh_i)
+                    or _KW_DELTA.search(wh_i)
+                    or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
+                    or _has_site_temporal_condition(raw_wh_i, wh_i)
+                ):
+                    return "unsupported"
+                if _OUTPUT.search(wh_i):
+                    saw_output = True
+                elif _SITE_POWER_SUBJECT.search(wh_i):
+                    has_subject = True
+                kw_i, kw_conflict_i = _extract_single_grid_kw(wh_i)
+                if kw_conflict_i:
+                    return "unsupported"
+                if kw_i is not None:
+                    distinct_kws.add(kw_i)
+            if saw_output:
+                return "grid_input" if len(turns) == 1 else "unsupported"
             if not has_subject:
                 return "grid_input"
-            proposed_kw, kw_conflict = _extract_single_grid_kw(without_horizon)
-            if kw_conflict:
-                return "unsupported"
-            if proposed_kw is None:
-                for p_text in reversed(prior_texts):
-                    p_clean = _HORIZON.sub("", p_text)
-                    if _PORT_OR_ZONE_SCOPE.search(p_clean) or _KW_DELTA.search(p_clean):
-                        return "unsupported"
-                    proposed_kw, kw_conflict = _extract_single_grid_kw(p_clean)
-                    if kw_conflict or proposed_kw is not None:
-                        break
-            if kw_conflict:
-                return "unsupported"
-            if proposed_kw is None:
+            if not distinct_kws:
                 return "grid_input"
-            if proposed_kw != change.grid_input_kw:
+            if len(distinct_kws) > 1 or next(iter(distinct_kws)) != change.grid_input_kw:
                 return "unsupported"
             return None
 
         if isinstance(change, ConnectorOutage):
-            if _GRID.search(without_horizon) or _PERCENT.search(text) or _DEADLINE.search(text) or explicit_bookings:
+            if explicit_booking is not None:
                 return "unsupported"
-            durations = [_minutes(*value) for value in _DURATION.findall(without_horizon)]
-            if len(set(durations)) > 1:
+            distinct_durations: set[int] = set()
+            connector_map: dict[str, str] = {}
+            distinct_zones: set[str] = set()
+            outage_start_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
+            for raw_i, txt_i, raw_wh_i, wh_i in turns:
+                has_port_cue = bool(
+                    _CONNECTOR.search(raw_i)
+                    or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
+                    or _PORT_OR_ZONE_SCOPE.search(wh_i)
+                )
+                if (
+                    _HOW_TO_QUESTION.search(txt_i)
+                    or _GRID.search(wh_i)
+                    or (_SITE_POWER_SUBJECT.search(wh_i) and not has_port_cue)
+                    or _PERCENT.search(txt_i)
+                    or _DEADLINE.search(txt_i)
+                    or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
+                ):
+                    return "unsupported"
+                for dur_num, dur_unit in _DURATION.findall(wh_i):
+                    distinct_durations.add(_minutes(dur_num, dur_unit))
+                for cid in _CONNECTOR.findall(raw_i):
+                    connector_map.setdefault(cid.casefold(), cid)
+                wh_no_cid = _CONNECTOR.sub("", wh_i)
+                distinct_zones.update(z.upper() for z in re.findall(r"\b(ac|dc)\b", wh_no_cid))
+
+                raw_no_dur = _strip_norm_pattern(raw_wh_i, _DURATION)
+                wh_no_dur = _DURATION.sub("", wh_i)
+                start_sel_i, start_amb_i = _time(raw_no_dur, wh_no_dur)
+                outage_start_turns.append((raw_no_dur, wh_no_dur, start_sel_i, start_amb_i))
+
+            if len(distinct_durations) > 1:
                 return "unsupported"
-            expected_dur = durations[0] if durations else None
-            if expected_dur is None:
-                for p_text in reversed(prior_texts):
-                    p_durs = [_minutes(*v) for v in _DURATION.findall(_HORIZON.sub("", p_text))]
-                    if len(set(p_durs)) == 1:
-                        expected_dur = p_durs[0]
-                        break
-            if expected_dur is None:
+            if not distinct_durations:
                 return "duration"
-            if expected_dur != change.duration_minutes:
+            if next(iter(distinct_durations)) != change.duration_minutes:
                 return "unsupported"
 
-            ids = _CONNECTOR.findall(message)
-            if len({cid.casefold() for cid in ids}) > 1:
+            if len(connector_map) > 1 or len(distinct_zones) > 1:
                 return "unsupported"
-            if ids:
-                expected_id = ids[0]
+            if connector_map:
+                expected_id = next(iter(connector_map.values()))
+                prefix_zone = expected_id.split("-", 1)[0].upper()
+                if distinct_zones and distinct_zones != {prefix_zone}:
+                    return "unsupported"
                 if change.connector_id is None or change.connector_id.casefold() != expected_id.casefold():
                     return "unsupported"
-                prefix_zone = expected_id.split("-", 1)[0].upper()
                 if change.connector_zone is not None and change.connector_zone != prefix_zone:
                     return "unsupported"
             else:
-                prior_id = None
-                for prev in reversed(prior_user_messages):
-                    p_ids = _CONNECTOR.findall(prev)
-                    if len({cid.casefold() for cid in p_ids}) == 1:
-                        prior_id = p_ids[0]
-                        break
-                if prior_id is not None:
-                    if change.connector_id is None or change.connector_id.casefold() != prior_id.casefold():
-                        return "unsupported"
-                elif change.connector_id is not None:
+                if change.connector_id is not None:
                     return "connector"
-                zones = {z.upper() for z in re.findall(r"\b(ac|dc)\b", without_horizon)}
-                if len(zones) > 1:
+                if len(distinct_zones) == 1 and change.connector_zone != next(iter(distinct_zones)):
                     return "unsupported"
-                if len(zones) == 1 and change.connector_zone != next(iter(zones)):
-                    return "unsupported"
+                if not distinct_zones and change.connector_zone is not None:
+                    return "connector"
 
-            without_dur = _DURATION.sub("", without_horizon)
-            raw_without_dur = re.sub(
-                r"\b(?:trong|kéo dài|keo dai|for)\s*\d+\s*(?:phút|phut|giờ|gio|minutes?|hours?)\b",
-                "",
-                raw_without_horizon,
-                flags=re.I,
+            resolved_start, start_err = _resolve_active_time_across_turns(
+                outage_start_turns,
+                now=now,
+                timezone=timezone,
+                pending_clarify_field=pending_clarify_field,
             )
-            start_sel, start_ambiguous = _time(raw_without_dur, without_dur)
-            if start_ambiguous:
-                return "time"
-            if start_sel is not None:
-                if change.starts_at is None or not _selections_match(change.starts_at, start_sel, now, timezone):
+            if start_err is not None:
+                return start_err
+            if resolved_start is not None:
+                if change.starts_at is None or not _selections_match(change.starts_at, resolved_start, now, timezone):
                     return "unsupported"
             elif change.starts_at is not None:
                 return "unsupported"
             return None
 
         # VehicleChange
-        if (
-            _GRID.search(without_horizon)
-            or _OUTAGE_ACTION.search(text)
-            or _CONNECTOR.search(message)
-            or _DURATION.search(without_horizon)
-            or _SOC_DELTA.search(without_horizon)
-            or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
+        if explicit_booking is not None and (
+            change.booking_id is None or change.booking_id.casefold() != explicit_booking.casefold()
         ):
             return "unsupported"
-        if explicit_bookings and (
-            change.booking_id is None or change.booking_id.casefold() != explicit_bookings[0].casefold()
-        ):
-            return "unsupported"
-
-        proposed_soc, soc_conflict = _extract_single_target_soc(without_horizon)
-        if soc_conflict:
-            return "unsupported"
-        if proposed_soc is None and not _PERCENT.search(without_horizon):
-            for p_text in reversed(prior_texts):
-                proposed_soc, soc_conflict = _extract_single_target_soc(_HORIZON.sub("", p_text))
-                if soc_conflict or proposed_soc is not None:
-                    break
-        if soc_conflict:
-            return "unsupported"
-        if proposed_soc is not None:
-            if change.target_soc != proposed_soc:
+        distinct_socs: set[float] = set()
+        saw_initial_only_pct = False
+        saw_deadline_cue = False
+        vehicle_dl_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
+        for raw_i, txt_i, raw_wh_i, wh_i in turns:
+            if (
+                _GRID.search(wh_i)
+                or _SITE_POWER_SUBJECT.search(wh_i)
+                or _OUTAGE_ACTION.search(txt_i)
+                or _CONNECTOR.search(raw_i)
+                or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
+                or _PORT_OR_ZONE_SCOPE.search(wh_i)
+                or _DURATION.search(wh_i)
+                or _SOC_DELTA.search(wh_i)
+                or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
+            ):
                 return "unsupported"
-        elif _PERCENT.search(without_horizon):
-            # Only initial SOC context appeared (e.g. "pin hiện tại 30%"), so target_soc must not copy it.
+            soc_i, soc_conflict_i = _extract_single_target_soc(wh_i)
+            if soc_conflict_i:
+                return "unsupported"
+            if soc_i is not None:
+                distinct_socs.add(soc_i)
+            elif _PERCENT.search(wh_i):
+                saw_initial_only_pct = True
+            if _DEADLINE.search(wh_i):
+                saw_deadline_cue = True
+            dl_sel_i, dl_amb_i = _time(raw_wh_i, wh_i)
+            vehicle_dl_turns.append((raw_wh_i, wh_i, dl_sel_i, dl_amb_i))
+
+        if len(distinct_socs) > 1:
+            return "unsupported"
+        if len(distinct_socs) == 1:
+            if change.target_soc != next(iter(distinct_socs)):
+                return "unsupported"
+        elif saw_initial_only_pct:
             if change.target_soc is not None:
                 return "unsupported"
         elif change.target_soc is not None:
             return "target"
 
-        specified_dl, dl_ambiguous = _time(raw_without_horizon, without_horizon)
-        if dl_ambiguous:
-            return "time"
-        if specified_dl is None and not _DEADLINE.search(without_horizon):
-            for prev_raw, prev_txt in zip(reversed(prior_user_messages), reversed(prior_texts), strict=False):
-                specified_dl, dl_ambiguous = _time(_HORIZON.sub("", prev_raw), _HORIZON.sub("", prev_txt))
-                if dl_ambiguous or specified_dl is not None:
-                    break
-            if dl_ambiguous:
-                return "time"
-        if specified_dl is not None:
-            if change.deadline is None or not _selections_match(change.deadline, specified_dl, now, timezone):
+        resolved_dl, dl_err = _resolve_active_time_across_turns(
+            vehicle_dl_turns,
+            now=now,
+            timezone=timezone,
+            pending_clarify_field=pending_clarify_field,
+        )
+        if dl_err is not None:
+            return dl_err
+        if resolved_dl is not None:
+            if change.deadline is None or not _selections_match(change.deadline, resolved_dl, now, timezone):
                 return "unsupported"
         else:
-            if _DEADLINE.search(without_horizon):
+            if saw_deadline_cue:
                 return "time"
             if change.deadline is not None:
                 return "unsupported"
@@ -829,121 +969,137 @@ def conflicts_with_simulation(
     # HOW-TO RecommendationGoal validation
     assert goal is not None
     if isinstance(goal, MinTestedSiteLimitForSla):
-        without_ac_sla = _AC_WAIVE.sub("", _AC_PROTECT.sub("", without_horizon))
-        if (
-            _OUTAGE_ACTION.search(text)
-            or _OUTPUT.search(without_horizon)
-            or explicit_bookings
-            or _CONNECTOR.search(message)
-            or _ACCENTED_PORT_SCOPE.search(raw_without_horizon.casefold())
-            or _PORT_OR_ZONE_SCOPE.search(without_ac_sla)
-            or re.search(r"\b(?:ac|dc)\b", without_ac_sla)
-            or _KW_DELTA.search(without_horizon)
-            or _has_site_temporal_condition(raw_without_horizon, without_horizon)
-        ):
+        if explicit_booking is not None:
             return "unsupported"
-        kw_ranges = list(_KW_RANGE.finditer(without_horizon))
-        if len(kw_ranges) > 1:
-            return "unsupported"
-        low_kw = high_kw = None
-        if len(kw_ranges) == 1:
-            low_kw, high_kw = _number(kw_ranges[0].group(1)), _number(kw_ranges[0].group(2))
-            rest_kw = _KW_RANGE.sub("", without_horizon)
-            if _GRID.search(rest_kw):
+        collected_kw_ranges: list[tuple[float, float]] = []
+        latest_has_unranged_kw = False
+        distinct_sla_pcts: set[float] = set()
+        ac_state: str = "default"
+
+        for idx, (raw_i, txt_i, raw_wh_i, wh_i) in enumerate(turns):
+            without_ac_sla = _AC_WAIVE.sub("", _AC_PROTECT.sub("", wh_i))
+            if (
+                _OUTAGE_ACTION.search(txt_i)
+                or re.search(r"\b(?:hong|ngat|fault|outage)\b", wh_i)
+                or _OUTPUT.search(wh_i)
+                or _CONNECTOR.search(raw_i)
+                or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
+                or _PORT_OR_ZONE_SCOPE.search(without_ac_sla)
+                or re.search(r"\b(?:ac|dc)\b", without_ac_sla)
+                or _KW_DELTA.search(wh_i)
+                or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
+                or _has_site_temporal_condition(raw_wh_i, wh_i)
+            ):
                 return "unsupported"
-        elif _GRID.search(without_horizon):
+
+            kw_ranges_i = list(_KW_RANGE.finditer(wh_i))
+            if len(kw_ranges_i) > 1:
+                return "unsupported"
+            if len(kw_ranges_i) == 1:
+                rest_kw = _KW_RANGE.sub("", wh_i)
+                if _GRID.search(rest_kw):
+                    return "unsupported"
+                collected_kw_ranges.append((_number(kw_ranges_i[0].group(1)), _number(kw_ranges_i[0].group(2))))
+            elif _GRID.search(wh_i):
+                if collected_kw_ranges:
+                    return "unsupported"
+                if idx == len(turns) - 1:
+                    latest_has_unranged_kw = True
+
+            for pct_str in _PERCENT.findall(wh_i):
+                distinct_sla_pcts.add(_number(pct_str))
+
+            clauses_i = [c.strip() for c in re.split(r"[.!?;]", wh_i) if c.strip()]
+            protect_i = _has_affirmative_clause(clauses_i, _AC_PROTECT)
+            waive_i = any(_AC_WAIVE.search(c) for c in clauses_i)
+            if protect_i and waive_i:
+                return "unsupported"
+            for clause in clauses_i:
+                if _AC_WAIVE.search(clause):
+                    ac_state = "waive"
+                elif _AC_PROTECT.search(clause) and not _NEGATION.search(clause):
+                    ac_state = "protect"
+
+        if latest_has_unranged_kw or not collected_kw_ranges:
             return "bounds"
-        else:
-            for p_text in reversed(prior_texts):
-                p_ranges = list(_KW_RANGE.finditer(_HORIZON.sub("", p_text)))
-                if len(p_ranges) == 1:
-                    low_kw, high_kw = _number(p_ranges[0].group(1)), _number(p_ranges[0].group(2))
-                    break
-        if low_kw is None or high_kw is None:
-            return "bounds"
+        if len(set(collected_kw_ranges)) > 1:
+            return "unsupported"
+        low_kw, high_kw = collected_kw_ranges[-1]
         if goal.min_grid_input_kw != low_kw or goal.max_grid_input_kw != high_kw:
             return "unsupported"
 
-        pcts = [_number(v) for v in _PERCENT.findall(without_horizon)]
-        if not pcts:
-            for p_text in reversed(prior_texts):
-                pcts = [_number(v) for v in _PERCENT.findall(_HORIZON.sub("", p_text))]
-                if pcts:
-                    break
-        if len(pcts) > 1:
+        if len(distinct_sla_pcts) > 1:
             return "unsupported"
-        expected_rate = pcts[0] / 100.0 if len(pcts) == 1 else 1.0
+        expected_rate = (next(iter(distinct_sla_pcts)) / 100.0) if len(distinct_sla_pcts) == 1 else 1.0
         if abs(goal.min_original_on_time_rate - expected_rate) > 1e-9:
             return "unsupported"
 
-        current_clauses = [c.strip() for c in re.split(r"[.!?;]", without_horizon) if c.strip()]
-        protect_now = _has_affirmative_clause(current_clauses, _AC_PROTECT)
-        waive_now = any(_AC_WAIVE.search(c) for c in current_clauses)
-        if protect_now and waive_now:
+        if ac_state == "protect" and not goal.protect_on_time_ac_bookings:
             return "unsupported"
-        if protect_now and not goal.protect_on_time_ac_bookings:
+        if ac_state == "waive" and goal.protect_on_time_ac_bookings:
             return "unsupported"
-        if waive_now and goal.protect_on_time_ac_bookings:
+        if ac_state == "default" and not goal.protect_on_time_ac_bookings:
             return "unsupported"
-        if not protect_now and not waive_now:
-            all_clauses = _all_user_clauses(without_horizon, prior_texts)
-            waived_in_session = False
-            for clause in all_clauses:
-                if _AC_WAIVE.search(clause):
-                    waived_in_session = True
-                elif _AC_PROTECT.search(clause) and not _NEGATION.search(clause):
-                    waived_in_session = False
-            if not goal.protect_on_time_ac_bookings and not waived_in_session:
-                return "unsupported"
         return None
 
     # Resident HOW-TO goals
-    if explicit_bookings and goal.booking_id.casefold() != explicit_bookings[0].casefold():
+    if explicit_booking is not None and goal.booking_id.casefold() != explicit_booking.casefold():
         return "unsupported"
-    if (
-        _GRID.search(without_horizon)
-        or _OUTAGE_ACTION.search(text)
-        or _CONNECTOR.search(message)
-        or _DURATION.search(without_horizon)
-        or _SOC_DELTA.search(without_horizon)
-        or _UNSUPPORTED_VEHICLE_ASPECT.search(without_horizon)
-    ):
-        return "unsupported"
+    for raw_i, txt_i, raw_wh_i, wh_i in turns:
+        if (
+            _GRID.search(wh_i)
+            or _SITE_POWER_SUBJECT.search(wh_i)
+            or _OUTAGE_ACTION.search(txt_i)
+            or _CONNECTOR.search(raw_i)
+            or _ACCENTED_PORT_SCOPE.search(raw_wh_i.casefold())
+            or _PORT_OR_ZONE_SCOPE.search(wh_i)
+            or _DURATION.search(wh_i)
+            or _SOC_DELTA.search(wh_i)
+            or _UNSUPPORTED_VEHICLE_ASPECT.search(wh_i)
+        ):
+            return "unsupported"
 
     if isinstance(goal, MaxSocByDeadline):
-        soc_ranges = list(_SOC_RANGE.finditer(without_horizon))
-        if len(soc_ranges) > 1:
-            return "unsupported"
-        low_soc = high_soc = None
-        without_range = without_horizon
-        if len(soc_ranges) == 1:
-            low_soc, high_soc = _number(soc_ranges[0].group(1)), _number(soc_ranges[0].group(2))
-            without_range = _SOC_RANGE.sub("", without_horizon)
-            if _PERCENT.search(_INITIAL_PCT.sub("", without_range)):
+        collected_soc_ranges: list[tuple[float, float]] = []
+        latest_has_unranged_soc = False
+        max_soc_dl_turns: list[tuple[str, str, TimeSelection | None, bool]] = []
+        for idx, (_raw_i, _txt_i, raw_wh_i, wh_i) in enumerate(turns):
+            soc_ranges_i = list(_SOC_RANGE.finditer(wh_i))
+            if len(soc_ranges_i) > 1:
                 return "unsupported"
-        elif _PERCENT.search(_INITIAL_PCT.sub("", without_horizon)):
+            without_range_i = wh_i
+            raw_without_range_i = raw_wh_i
+            if len(soc_ranges_i) == 1:
+                without_range_i = _SOC_RANGE.sub("", wh_i)
+                raw_without_range_i = _strip_norm_pattern(raw_wh_i, _SOC_RANGE)
+                if _PERCENT.search(_INITIAL_PCT.sub("", without_range_i)):
+                    return "unsupported"
+                collected_soc_ranges.append((_number(soc_ranges_i[0].group(1)), _number(soc_ranges_i[0].group(2))))
+            elif _PERCENT.search(_INITIAL_PCT.sub("", wh_i)):
+                if collected_soc_ranges:
+                    return "unsupported"
+                if idx == len(turns) - 1:
+                    latest_has_unranged_soc = True
+
+            dl_sel_i, dl_amb_i = _time(raw_without_range_i, without_range_i)
+            max_soc_dl_turns.append((raw_without_range_i, without_range_i, dl_sel_i, dl_amb_i))
+
+        if latest_has_unranged_soc or not collected_soc_ranges:
             return "bounds"
-        else:
-            for p_text in reversed(prior_texts):
-                p_ranges = list(_SOC_RANGE.finditer(_HORIZON.sub("", p_text)))
-                if len(p_ranges) == 1:
-                    low_soc, high_soc = _number(p_ranges[0].group(1)), _number(p_ranges[0].group(2))
-                    break
-        if low_soc is None or high_soc is None:
-            return "bounds"
+        if len(set(collected_soc_ranges)) > 1:
+            return "unsupported"
+        low_soc, high_soc = collected_soc_ranges[-1]
         if goal.min_target_soc != low_soc or goal.max_target_soc != high_soc:
             return "unsupported"
 
-        dl_sel, dl_ambiguous = _time(raw_without_horizon, without_range)
-        if dl_ambiguous:
-            return "time"
-        if dl_sel is None:
-            for prev_raw, prev_txt in zip(reversed(prior_user_messages), reversed(prior_texts), strict=False):
-                dl_sel, dl_ambiguous = _time(_HORIZON.sub("", prev_raw), _SOC_RANGE.sub("", _HORIZON.sub("", prev_txt)))
-                if dl_ambiguous or dl_sel is not None:
-                    break
-            if dl_ambiguous:
-                return "time"
+        dl_sel, dl_err = _resolve_active_time_across_turns(
+            max_soc_dl_turns,
+            now=now,
+            timezone=timezone,
+            pending_clarify_field=pending_clarify_field,
+        )
+        if dl_err is not None:
+            return dl_err
         if dl_sel is None:
             return "time"
         if not _datetime_matches_selection(goal.deadline, dl_sel, now, timezone):
@@ -952,47 +1108,74 @@ def conflicts_with_simulation(
 
     # EarliestCompletionForTarget
     assert isinstance(goal, EarliestCompletionForTarget)
-    target_soc, soc_conflict = _extract_single_target_soc(without_horizon)
-    if soc_conflict:
+    distinct_targets: set[float] = set()
+    resolved_pair: tuple[TimeSelection, TimeSelection] | None = None
+    unresolved_time_amb = False
+    had_bad_anchor = False
+    latest_unranged_single = False
+
+    for idx, (_raw_i, _txt_i, raw_wh_i, wh_i) in enumerate(turns):
+        t_soc_i, t_soc_conflict_i = _extract_single_target_soc(wh_i)
+        if t_soc_conflict_i:
+            return "unsupported"
+        if t_soc_i is not None:
+            distinct_targets.add(t_soc_i)
+
+        bad_anchor_i = bool(_SHIFT_OFFSET.search(wh_i) or _NON_NOW_ANCHOR.search(wh_i))
+        pair_i, pair_amb_i = _time_range(raw_wh_i, wh_i)
+        single_i: TimeSelection | None = None
+        single_amb_i = False
+        if pair_i is None and not pair_amb_i:
+            single_i, single_amb_i = _time(raw_wh_i, wh_i)
+            if single_i is not None and goal.earliest_deadline == goal.latest_deadline:
+                pair_i = (single_i, single_i)
+                single_i = None
+
+        if pair_amb_i or single_amb_i:
+            if resolved_pair is not None:
+                return "unsupported"
+            unresolved_time_amb = True
+            had_bad_anchor = had_bad_anchor or bad_anchor_i
+        elif pair_i is not None:
+            if unresolved_time_amb:
+                if idx == len(turns) - 1 and pending_clarify_field not in ("time", "bounds"):
+                    return "unsupported"
+                if (
+                    had_bad_anchor
+                    and (isinstance(pair_i[0], RelativeTime) or isinstance(pair_i[1], RelativeTime))
+                    and not _NOW_ANCHOR.search(wh_i)
+                ):
+                    return "time"
+                resolved_pair = pair_i
+                unresolved_time_amb = False
+                had_bad_anchor = False
+            elif resolved_pair is not None:
+                if not (
+                    _selections_match(resolved_pair[0], pair_i[0], now, timezone)
+                    and _selections_match(resolved_pair[1], pair_i[1], now, timezone)
+                ):
+                    return "unsupported"
+            else:
+                resolved_pair = pair_i
+        elif single_i is not None:
+            if resolved_pair is not None:
+                return "unsupported"
+            if idx == len(turns) - 1:
+                latest_unranged_single = True
+
+    if len(distinct_targets) > 1:
         return "unsupported"
-    if target_soc is None:
-        for p_text in reversed(prior_texts):
-            target_soc, soc_conflict = _extract_single_target_soc(_HORIZON.sub("", p_text))
-            if soc_conflict or target_soc is not None:
-                break
-    if soc_conflict:
-        return "unsupported"
-    if target_soc is None:
+    if not distinct_targets:
         return "target"
-    if goal.target_soc != target_soc:
+    if goal.target_soc != next(iter(distinct_targets)):
         return "unsupported"
 
-    dl_pair, range_ambiguous = _time_range(raw_without_horizon, without_horizon)
-    if range_ambiguous:
+    if unresolved_time_amb:
         return "time"
-    if dl_pair is None and goal.earliest_deadline == goal.latest_deadline:
-        single_sel, single_amb = _time(raw_without_horizon, without_horizon)
-        if single_amb:
-            return "time"
-        if single_sel is not None:
-            dl_pair = (single_sel, single_sel)
-    if dl_pair is None:
-        # If current message mentioned an un-ranged single time for a non-degenerate range, ask for bounds.
-        single_now, single_amb = _time(raw_without_horizon, without_horizon)
-        if single_amb:
-            return "time"
-        if single_now is not None:
-            return "bounds"
-        for prev_raw, prev_txt in zip(reversed(prior_user_messages), reversed(prior_texts), strict=False):
-            dl_pair, range_ambiguous = _time_range(_HORIZON.sub("", prev_raw), _HORIZON.sub("", prev_txt))
-            if range_ambiguous or dl_pair is not None:
-                break
-        if range_ambiguous:
-            return "time"
-    if dl_pair is None:
+    if latest_unranged_single or resolved_pair is None:
         return "bounds"
 
-    low_sel, high_sel = dl_pair
+    low_sel, high_sel = resolved_pair
     if now is not None or not isinstance(low_sel, RelativeTime):
         if not (
             _datetime_matches_selection(goal.earliest_deadline, low_sel, now, timezone)

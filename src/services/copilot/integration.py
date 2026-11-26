@@ -11,6 +11,8 @@ from src.agents.copilot_grounding import GroundingError, render_how_to, render_w
 from src.agents.copilot_intent import (
     CopilotIntentParser,
     conflicts_with_simulation,
+    has_explicit_reset,
+    strip_explicit_reset,
     why_conflicts_with_message,
 )
 from src.models.api import ErrorCode, UserProfile
@@ -264,6 +266,14 @@ class CopilotIntegration:
     def clarification(field: ClarifyField) -> CopilotNotice:
         return _clarify(field, None)
 
+    @staticmethod
+    def has_explicit_reset(raw: str) -> bool:
+        return has_explicit_reset(raw)
+
+    @staticmethod
+    def strip_explicit_reset(raw: str) -> tuple[str, bool]:
+        return strip_explicit_reset(raw)
+
     async def agent_why(
         self,
         user: UserProfile,
@@ -271,18 +281,22 @@ class CopilotIntegration:
         *,
         message: str = "",
         prior_user_messages: Sequence[str] = (),
+        pending_clarify_field: str | None = None,
     ) -> WhyReply | CopilotNotice:
         rt = self._get_runtime()
         if user.role == Role.RESIDENT and intent.subject == "station":
             raise _forbidden()
         if intent.subject == "station" and intent.booking_id is not None:
             return _clarify("booking", None)
+        clean_msg, reset_now = strip_explicit_reset(message)
+        effective_priors = () if reset_now else prior_user_messages
         why_issue = why_conflicts_with_message(
             message,
             intent,
             now=rt.simulator.now,
             timezone=rt.config.timezone,
-            prior_user_messages=prior_user_messages,
+            prior_user_messages=effective_priors,
+            pending_clarify_field=pending_clarify_field,
         )
         if why_issue == "unsupported":
             return CopilotNotice(
@@ -292,13 +306,13 @@ class CopilotIntegration:
         if why_issue in _CLARIFICATIONS:
             return _clarify(why_issue, None)  # type: ignore[arg-type]
         if intent.booking_id is not None and user.role == Role.OPERATOR:
-            corpus = "\n".join((*prior_user_messages, message)).casefold()
+            corpus = "\n".join((*effective_priors, clean_msg)).casefold()
             if corpus.strip() and intent.booking_id.casefold() not in corpus:
                 return _clarify("booking", None)
         if user.role == Role.RESIDENT and intent.subject != "station":
             actor = ActorContext.from_user(user, rt.config.station_id)
             if intent.booking_id is not None:
-                corpus = "\n".join((*prior_user_messages, message)).casefold()
+                corpus = "\n".join((*effective_priors, clean_msg)).casefold()
                 bookings = await asyncio.to_thread(rt.store.active_bookings)
                 owned = [b.booking_id for b in bookings if b.resident_id == actor.actor_id]
                 if len(owned) > 1 and corpus.strip() and intent.booking_id.casefold() not in corpus:
@@ -321,6 +335,7 @@ class CopilotIntegration:
         now: datetime | None = None,
         timezone: str = "Asia/Ho_Chi_Minh",
         prior_user_messages: Sequence[str] = (),
+        pending_clarify_field: str | None = None,
     ) -> CopilotNotice | None:
         issue = conflicts_with_simulation(
             message,
@@ -328,6 +343,7 @@ class CopilotIntegration:
             now=now,
             timezone=timezone,
             prior_user_messages=prior_user_messages,
+            pending_clarify_field=pending_clarify_field,
         )
         if issue == "unsupported":
             return CopilotNotice(
@@ -346,6 +362,7 @@ class CopilotIntegration:
         *,
         message: str,
         prior_user_messages: Sequence[str] = (),
+        pending_clarify_field: str | None = None,
     ) -> JobReply | CopilotNotice:
         is_vehicle = isinstance(intent.change, VehicleChange)
         if is_vehicle != (user.role == Role.RESIDENT):
@@ -357,6 +374,7 @@ class CopilotIntegration:
             now=rt.simulator.now,
             timezone=rt.config.timezone,
             prior_user_messages=prior_user_messages,
+            pending_clarify_field=pending_clarify_field,
         )
         if notice:
             return notice
@@ -373,6 +391,7 @@ class CopilotIntegration:
         *,
         message: str,
         prior_user_messages: Sequence[str] = (),
+        pending_clarify_field: str | None = None,
     ) -> JobReply | CopilotNotice:
         rt = self._get_runtime()
         actor = ActorContext.from_user(user, rt.config.station_id)
@@ -385,11 +404,14 @@ class CopilotIntegration:
             now=rt.simulator.now,
             timezone=rt.config.timezone,
             prior_user_messages=prior_user_messages,
+            pending_clarify_field=pending_clarify_field,
         )
         if notice:
             return notice
         if not is_site:
-            corpus = "\n".join((*prior_user_messages, message)).casefold()
+            clean_msg, reset_now = strip_explicit_reset(message)
+            effective_priors = () if reset_now else prior_user_messages
+            corpus = "\n".join((*effective_priors, clean_msg)).casefold()
             bookings = await asyncio.to_thread(rt.store.active_bookings)
             owned = [b.booking_id for b in bookings if b.resident_id == actor.actor_id]
             if len(owned) > 1 and corpus.strip() and request.goal.booking_id.casefold() not in corpus:

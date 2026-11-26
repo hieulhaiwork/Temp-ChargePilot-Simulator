@@ -10,13 +10,20 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from time import monotonic
 
 from src.config import get_settings
 from src.llm_chat.guardrails import GuardrailViolation, guardrails
 from src.llm_chat.mock_llm import mock_generate
 from src.llm_chat.prompts import SHARED_RULES, render
 from src.llm_chat.schemas import FinalAnswer
-from src.llm_chat.state import HISTORY_LIMIT, AgentState
+from src.llm_chat.state import (
+    HISTORY_LIMIT,
+    MAX_CLARIFICATION_TURN_CHARS,
+    MAX_PENDING_CLARIFICATION_TURNS,
+    AgentState,
+    PendingCopilotClarification,
+)
 from src.models.control import Role
 from src.models.copilot_integration import CopilotNotice
 from src.services.copilot.integration import CopilotIntegration
@@ -120,6 +127,35 @@ def _finalize_advisory(state: AgentState, partial: bool) -> dict | None:
                 message="Các điều kiện kết hợp này chưa được hỗ trợ. Hãy chọn một thay đổi để mô phỏng.",
             ).model_dump(mode="json")
         )
+
+    next_pending: PendingCopilotClarification | None = None
+    clarify_items = [item for item in results if item["kind"] == "notice" and item["code"] == "clarify"]
+    terminal_items = [
+        item for item in results if item["kind"] == "job" or (item["kind"] == "notice" and item["code"] != "clarify")
+    ]
+    if not partial and clarify_items and not terminal_items:
+        prior_pending = state.get("pending_copilot_clarification") or {}
+        existing_turns = [t for t in (prior_pending.get("turns") or ()) if isinstance(t, str) and t.strip()]
+        raw_query, _ = CopilotIntegration.strip_explicit_reset(state.get("query", ""))
+        cleaned_query = raw_query.strip()[:MAX_CLARIFICATION_TURN_CHARS]
+        next_turns = [*existing_turns, cleaned_query] if cleaned_query else existing_turns
+        if len(next_turns) > MAX_PENDING_CLARIFICATION_TURNS:
+            overflow_notice = CopilotNotice(
+                code="unsupported",
+                message="Đã vượt số lượt làm rõ liên tiếp. Vui lòng gửi lại một yêu cầu đầy đủ.",
+            ).model_dump(mode="json")
+            results = [
+                overflow_notice if (item["kind"] == "notice" and item["code"] == "clarify") else item
+                for item in results
+            ]
+        elif next_turns:
+            opened_at = float(prior_pending.get("opened_at") or monotonic())
+            next_pending = {
+                "turns": next_turns,
+                "field": str(clarify_items[-1].get("field") or "intent"),
+                "opened_at": opened_at,
+            }
+
     lines = []
     if results:
         for result in results:
@@ -147,6 +183,8 @@ def _finalize_advisory(state: AgentState, partial: bool) -> dict | None:
         "response": answer,
         "history": _with_reply(state, answer),
         "copilot_results": results,
+        "pending_copilot_clarification": next_pending,
+        "turn_in_progress": False,
         "suggestions": [],
         "stage": "partial" if partial else "finalize",
     }
@@ -163,7 +201,13 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
                 confidence=1.0,
                 used_tools=[],
             )
-            return {"response": refusal.answer, "stage": "refusal", "history": _with_reply(state, refusal.answer)}
+            return {
+                "response": refusal.answer,
+                "stage": "refusal",
+                "pending_copilot_clarification": None,
+                "turn_in_progress": False,
+                "history": _with_reply(state, refusal.answer),
+            }
 
         advisory = _finalize_advisory(state, partial)
         if advisory is not None:
@@ -210,6 +254,8 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
         return {
             "response": answer,
             "suggestions": _sanitize_suggestions(list(final.suggestions), state),
+            "pending_copilot_clarification": None,
+            "turn_in_progress": False,
             "stage": "partial" if partial else "finalize",
             "history": _with_reply(state, answer),
         }

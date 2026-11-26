@@ -50,7 +50,7 @@ async def human_review_node(state: AgentState, config: RunnableConfig) -> dict:
 
     decisions = list(state.get("human_decisions", []))
     trace = list(state.get("tool_trace", []))
-    update: dict = {"pending_action": None, "stage": "assess"}
+    update: dict = {"pending_action": None, "pending_copilot_clarification": None, "stage": "assess"}
 
     if answer == "approve":
         try:
