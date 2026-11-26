@@ -26,6 +26,8 @@ from src.llm_chat.tools.charging import CONFIRM_TOOL_NAME
 
 logger = logging.getLogger("ai20k.human_review")
 
+BLOCKED_BY_HUMAN = "BLOCKED_BY_HUMAN"  # output của tool khi người dùng từ chối (reject)
+
 
 async def human_review_node(state: AgentState, config: RunnableConfig) -> dict:
     """Chờ human phê duyệt pending_action; approve thì chạy tool tại đây."""
@@ -64,7 +66,7 @@ async def human_review_node(state: AgentState, config: RunnableConfig) -> dict:
             update["draft_request"] = {}
             update["proposal"] = None
     else:
-        output = "BLOCKED_BY_HUMAN"
+        output = BLOCKED_BY_HUMAN
         trace.append({"tool": pending["tool"], "args": pending["args"], "output": output})
         decisions.append({"tool": pending["tool"], "decision": "reject"})
         logger.warning("human_review REJECT — %s bị chặn", pending["tool"])

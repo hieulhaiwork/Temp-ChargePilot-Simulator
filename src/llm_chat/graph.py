@@ -29,16 +29,17 @@ from langgraph.types import Command
 
 from src.config import get_settings
 from src.llm_chat.guardrails import GuardrailViolation, guardrails
-from src.llm_chat.nodes.act_node import act_node
+from src.llm_chat.nodes.act_node import TOOL_ERROR_PREFIX, act_node
 from src.llm_chat.nodes.assess_node import assess_node
 from src.llm_chat.nodes.finalize_node import GenerateFn, _make_finalize, llm_generate
-from src.llm_chat.nodes.human_review_node import human_review_node
+from src.llm_chat.nodes.human_review_node import BLOCKED_BY_HUMAN, human_review_node
 from src.llm_chat.nodes.reason_node import ReasonFn, llm_reason, make_reason_node
 from src.llm_chat.state import HISTORY_LIMIT, AgentState
+from src.llm_chat.tools.charging import CONFIRM_TOOL_NAME
 
 logger = logging.getLogger("ai20k.graph")
 
-__all__ = ["Command", "build_graph", "agent"]
+__all__ = ["BLOCKED_BY_HUMAN", "CONFIRM_TOOL_NAME", "TOOL_ERROR_PREFIX", "Command", "build_graph", "agent"]
 
 
 async def guardrail_check_node(state: AgentState) -> dict:

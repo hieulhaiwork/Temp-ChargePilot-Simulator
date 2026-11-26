@@ -4,7 +4,9 @@
 dropdown mẫu xe ở S2 và ô ước tính kWh ở S3.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.models.api import EnergyEstimateRequest
 from src.models.charging import EnergyEstimate, VehicleSpec
@@ -21,14 +23,14 @@ async def list_vehicles() -> list[VehicleSpec]:
     return list(catalog.load_vehicle_catalog().values())
 
 
-@router.post("/energy/estimate", response_model=EnergyEstimate)
-async def estimate(body: EnergyEstimateRequest) -> EnergyEstimate:
+@router.get("/energy-estimates", response_model=EnergyEstimate)
+async def estimate(query: Annotated[EnergyEstimateRequest, Query()]) -> EnergyEstimate:
     """FR3 — cùng công thức với tool của Agent (AC1: kWh khớp công thức)."""
     try:
-        spec = catalog.get_vehicle(body.vehicle_model)
+        spec = catalog.get_vehicle(query.vehicle_model)
     except catalog.UnknownVehicleError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Không có mẫu xe {body.vehicle_model!r}") from None
-    return estimate_energy(spec, body.soc_now, body.soc_target)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Không có mẫu xe {query.vehicle_model!r}") from None
+    return estimate_energy(spec, query.soc_now, query.soc_target)
 
 
 @router.get("/station/config", response_model=StationConfig)

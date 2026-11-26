@@ -109,7 +109,8 @@ button:disabled { cursor: not-allowed; }
   .notice { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 13px; background: var(--wash); padding: 13px 15px; font-size: 13px; }
   .notice > .ico { margin-top: 2px; }
   .notice strong { display: block; }
-  .notice p { margin-top: 2px; }
+  .notice .notice-body, .notice p { margin-top: 2px; }
+  .notice .notice-body > p:first-child { margin-top: 0; }
   .notice-gold { background: var(--amberwash); border-color: #e7d1a7; color: #704a11; }
   .notice-bad { background: var(--redwash); border-color: #e5c2b9; color: var(--red); }
   .notice-good { background: #eaf4e9; border-color: #caddc8; color: #25553d; }
@@ -203,8 +204,10 @@ button:disabled { cursor: not-allowed; }
 .mobile-only { display: none; }
 
 /* Khung vận hành: header ngang có tab (RoleShell vận hành của nhánh buivanlam, mockup van-hanh). */
-.op { max-width: 1720px; margin: 0 auto; padding: 14px clamp(14px, 2vw, 32px) 40px; }
-.op-head { position: sticky; top: 12px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; background: #fafbf7; border: 1px solid var(--line); border-radius: 18px; padding: 11px 18px; box-shadow: var(--shadow); }
+.op { max-width: 1720px; margin: 0 auto; padding: 2px clamp(14px, 2vw, 32px) 40px; }
+/* Lớp che nền phủ khe 12px phía trên và 2 góc bo của .op-head khi cuộn trang. */
+.op-sticky { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 12px 0 4px; margin-bottom: -4px; }
+.op-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; background: #fafbf7; border: 1px solid var(--line); border-radius: 18px; padding: 11px 18px; box-shadow: var(--shadow); }
 .op-left { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; min-width: 0; }
 .op-tabs { display: flex; gap: 4px; background: var(--wash); padding: 5px; border-radius: 13px; border: 1px solid #d9e2d999; overflow-x: auto; max-width: 100%; }
 .op-tabs a { display: flex; align-items: center; gap: 7px; white-space: nowrap; padding: 8px 12px; border-radius: 9px; font-size: 12px; font-weight: 650; color: var(--sub); }
@@ -234,7 +237,7 @@ button:disabled { cursor: not-allowed; }
   .kpis { grid-template-columns: 1fr; }
   .tiles, .fieldgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .op { padding: 10px 12px 32px; }
-  .op-head { position: static; }
+  .op-sticky { position: static; padding: 0; margin: 0; }
   .panel { padding: 17px; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -15,6 +15,7 @@ from src.llm_chat.tools.charging import (
     estimate_charging_energy,
     explain_schedule,
     get_queue_status,
+    get_tariff_info,
     lookup_vehicle,
     propose_charging_plan,
 )
@@ -30,6 +31,7 @@ TOOL_REGISTRY: dict = {
     "confirm_booking": confirm_booking,
     "get_queue_status": get_queue_status,
     "explain_schedule": explain_schedule,
+    "get_tariff_info": get_tariff_info,
     # Demo của template — gỡ ở T2.5
     "search_knowledge": search_knowledge,
     "calculate": calculate,
@@ -50,6 +52,7 @@ __all__ = [
     "confirm_booking",
     "get_queue_status",
     "explain_schedule",
+    "get_tariff_info",
     "search_knowledge",
     "calculate",
     "mcp_knowledge_lookup",

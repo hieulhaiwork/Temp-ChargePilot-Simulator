@@ -6,6 +6,8 @@
 
 
 > **Sửa đổi một phần:** [ADR-014](ADR-014-decision-trace-counterfactual-hitl.md) §8, 2026-11-21: envelope và quy ước giữ nguyên. Thêm mã `stale_state_version` (409), `patch_not_allowed` (403), `job_pending` (202); idempotency áp cho approve / reject / apply revision.
+>
+> **Sửa đổi một phần:** [ADR-020](ADR-020-chuan-hoa-restful-api.md), 2026-11-25: cho phép breaking change đồng bộ trên `/api/v1` trong giai đoạn nội bộ để chuẩn hoá RESTful (HTTP methods `GET`/`PATCH`/`DELETE 204`, URI danh từ số nhiều, `201` + `Location`, và pagination envelope `DecisionLogPage` cho cursor endpoints).
 
 ## Bối cảnh
 

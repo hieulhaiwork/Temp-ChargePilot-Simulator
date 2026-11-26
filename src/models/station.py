@@ -115,6 +115,27 @@ class OptimizerSettings(BaseModel):
     )
 
 
+class BayLayout(BaseModel):
+    """Một ô đỗ trên mặt bằng. Toạ độ theo khung 1000 × 600 (ngang) hoặc 360 × 640 (dọc) — G22."""
+
+    bay_id: str = Field(min_length=1)
+    connector_id: str | None = Field(default=None, description="Cổng gắn với ô; None = ô trống không có cổng")
+    zone: ChargerZone
+    x: float = Field(ge=0)
+    y: float = Field(ge=0)
+    width: float = Field(gt=0)
+    height: float = Field(gt=0)
+
+
+class SiteLayout(BaseModel):
+    """Mặt bằng sơ đồ bãi xe (G22)."""
+
+    orientation: str = "landscape"
+    width: int = Field(default=1000, gt=0)
+    height: int = Field(default=600, gt=0)
+    bays: list[BayLayout] = Field(default_factory=list)
+
+
 class StationConfig(BaseModel):
     """Cấu hình bãi sạc mô phỏng — topology hybrid AC/DC của ADR-010 (fixture nền `mvp1`).
 
@@ -165,6 +186,7 @@ class StationConfig(BaseModel):
     planning: PlanningPolicyConfig | None = Field(
         default=None, description="Chọn policy / DC model / tham số (tuỳ chọn; None = LIVE_STRATEGY + synthetic DC)"
     )
+    layout: SiteLayout | None = Field(default=None, description="Mặt bằng ô đỗ trên sơ đồ bãi (G22)")
 
     @model_validator(mode="after")
     def _unique_connector_ids(self) -> "StationConfig":
@@ -291,6 +313,47 @@ class StationState(BaseModel):
     @property
     def total_power_kw(self) -> float:
         return sum(c.power_kw for c in self.connectors)
+
+
+class ZoneUsage(BaseModel):
+    """Công suất thực tế và giới hạn theo từng vùng AC/DC (G14)."""
+
+    zone: ChargerZone
+    output_kw: float = Field(ge=0)
+    budget_kw: float | None = Field(default=None, ge=0)
+    physical_cap_kw: float | None = Field(default=None, ge=0)
+
+
+class PublicBayStatus(StrEnum):
+    """Trạng thái công khai của ô sạc (G24) — đúng ba giá trị spec: busy / idle / fault."""
+
+    BUSY = "busy"
+    IDLE = "idle"
+    FAULT = "fault"
+
+
+class PublicBay(BaseModel):
+    """Một ô trên sơ đồ công khai cho cư dân — không lộ SOC / mẫu xe / giờ rời của xe khác (G24)."""
+
+    bay_id: str
+    zone: ChargerZone
+    public_status: PublicBayStatus
+    mine: bool = False
+
+
+class ZoneQueue(BaseModel):
+    """Hàng chờ của một vùng (G24)."""
+
+    length: int = Field(default=0, ge=0)
+    my_position: int | None = Field(default=None, ge=1)
+
+
+class ResidentSiteMap(BaseModel):
+    """Sơ đồ bãi riêng tư cho màn cư dân S9 (G24)."""
+
+    timestamp: AwareDatetime
+    bays: list[PublicBay] = Field(default_factory=list)
+    queues: dict[ChargerZone, ZoneQueue] = Field(default_factory=dict)
 
 
 class LoadPoint(BaseModel):

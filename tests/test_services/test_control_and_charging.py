@@ -84,8 +84,16 @@ async def test_explanation_comes_from_decision_log(live):
     await simulation_service.inject_incident(Incident(type=IncidentType.POWER_LIMIT_CHANGE, new_power_limit_kw=20))
     facts = charging_service.explain("res-a")
     assert booking_.booking_id in facts[0]
+    assert facts[0].startswith(f"Mã đặt lịch {booking_.booking_id}:")
     assert any("emergency" in f for f in facts)
     assert charging_service.explain("res-b") == ["Bạn chưa có lịch sạc nào đang hiệu lực."]
+
+
+async def test_new_booking_id_uses_readable_cp_code(live):
+    import re
+
+    booking_ = await charging_service.book(_request(zone="DC", hours=2, soc_now=20), "res-a")
+    assert re.fullmatch(r"CP-[2-9A-HJ-NP-Z]{6}", booking_.booking_id)
 
 
 async def test_session_view_estimates_soc_from_delivered_energy(live):

@@ -45,6 +45,8 @@ const GLYPHS = {
   sun: "<circle cx='12' cy='12' r='4'/><path d='M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2'/>",
   wallet: "<rect x='3' y='6' width='18' height='14' rx='2'/><path d='m4 6 13-3 1 3m3 5h-6v4h6'/>",
   mail: "<rect x='3' y='5' width='18' height='14' rx='2'/><path d='m4 7 8 6 8-6'/>",
+  mic: "<rect x='9' y='2' width='6' height='12' rx='3'/><path d='M5 10a7 7 0 0 0 14 0M12 17v4m-4 0h8'/>",
+  stop: "<rect x='6' y='6' width='12' height='12' rx='2'/>",
 } as const;
 
 export type IconName = keyof typeof GLYPHS;

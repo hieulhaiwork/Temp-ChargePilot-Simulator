@@ -13,7 +13,7 @@ from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from src.models.charging import Booking, ConsentScope, SessionPlan, StrategyName, resolve_policy_fields
 from src.models.control import DecisionLogEntry, Role
-from src.models.station import ConnectorState, SessionProgress, StationState
+from src.models.station import ConnectorState, SessionProgress, StationState, ZoneUsage
 
 
 class ErrorCode(StrEnum):
@@ -26,7 +26,7 @@ class ErrorCode(StrEnum):
     IDEMPOTENCY_MISMATCH = "idempotency_mismatch"  # 409 — cùng Idempotency-Key, khác body
     APPROVAL_ALREADY_DECIDED = "approval_already_decided"  # 409
     PROPOSAL_EXPIRED = "proposal_expired"  # 409 — trạng thái trạm đổi giữa lúc xem và lúc chốt
-    NO_PENDING_CONFIRMATION = "no_pending_confirmation"  # 409 — /chat/resume khi phiên không còn chờ
+    NO_PENDING_CONFIRMATION = "no_pending_confirmation"  # 409 — PATCH /chat/sessions/{id} khi phiên không còn chờ
     NOT_IMPLEMENTED = "not_implemented"  # 501 — stub [Txx]
     LLM_UNAVAILABLE = "llm_unavailable"  # 503 — frontend chuyển sang form (NFR khả dụng)
     COPILOT_INVALID_PATCH = "copilot_invalid_patch"
@@ -144,6 +144,9 @@ class StationOverview(BaseModel):
     cost_vs_fcfs_pct: float | None = Field(default=None, description="S5: '-18% vs FCFS' (cần chạy bóng FCFS)")
     at_risk_booking_ids: list[str] = Field(default_factory=list, description="US5 — phiên có nguy cơ trễ hạn")
     alerts: list[str] = Field(default_factory=list)
+    grid_input_kw: float = Field(default=0.0, ge=0, description="Công suất đầu vào lưới (Σ cổng / η) — G14")
+    grid_input_limit_kw: float | None = Field(default=None, ge=0, description="Giới hạn đầu vào lưới (kW) — G14")
+    zones: list[ZoneUsage] = Field(default_factory=list, description="Công suất theo từng vùng AC/DC — G14")
 
 
 class SimulationRunRequest(BaseModel):
@@ -223,3 +226,17 @@ class ConnectorDetail(BaseModel):
     booking: Booking | None = None
     plan: SessionPlan | None = None
     recent_decisions: list[DecisionLogEntry] = Field(default_factory=list)
+
+
+class NotificationUpdateRequest(BaseModel):
+    """PATCH /resident/notifications/{id} và PATCH /resident/notifications — ADR-020."""
+
+    read: Literal[True]
+
+
+class DecisionLogPage(BaseModel):
+    """Trang kết quả phân trang cursor theo `seq` giảm dần (ADR-020)."""
+
+    items: list[DecisionLogEntry]
+    next_cursor: int | None = Field(default=None, description="Giá trị `before` cho trang kế tiếp")
+    has_more: bool = False

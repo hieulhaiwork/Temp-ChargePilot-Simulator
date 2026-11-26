@@ -12,7 +12,41 @@ const H = 250;
 const L = 44;
 const T = 18;
 const B = 34;
-const R = 12;
+const R = 26;
+const MIN_LABEL_GAP_PX = 76;
+
+type AxisTick = { key: string; x: number; label: string };
+
+function pickAxisTicks(points: LoadPoint[], xOf: (iso: string) => number): AxisTick[] {
+  const first = points[0];
+  const firstTick: AxisTick = { key: `${first.timestamp}-0`, x: xOf(first.timestamp), label: formatTime(first.timestamp) };
+  if (points.length === 1) return [firstTick];
+
+  const lastIdx = points.length - 1;
+  const last = points[lastIdx];
+  const lastTick: AxisTick = { key: `${last.timestamp}-${lastIdx}`, x: xOf(last.timestamp), label: formatTime(last.timestamp) };
+  if (lastTick.x - firstTick.x < MIN_LABEL_GAP_PX) return [firstTick];
+
+  const out: AxisTick[] = [firstTick];
+  for (let i = 1; i < lastIdx; i++) {
+    const p = points[i];
+    const px = xOf(p.timestamp);
+    const label = formatTime(p.timestamp);
+    const prev = out[out.length - 1];
+    if (
+      px - prev.x >= MIN_LABEL_GAP_PX &&
+      lastTick.x - px >= MIN_LABEL_GAP_PX &&
+      label !== prev.label &&
+      label !== lastTick.label
+    ) {
+      out.push({ key: `${p.timestamp}-${i}`, x: px, label });
+    }
+  }
+  if (lastTick.label !== out[out.length - 1].label) {
+    out.push(lastTick);
+  }
+  return out;
+}
 
 export function LoadChart({ points }: { points: LoadPoint[] }) {
   if (points.length === 0) return <p className="subcopy">Chưa có dữ liệu tải trong 24 giờ.</p>;
@@ -28,7 +62,7 @@ export function LoadChart({ points }: { points: LoadPoint[] }) {
     .join(" ");
   const last = points[points.length - 1];
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max * f));
-  const labelEvery = Math.max(1, Math.ceil(points.length / 7));
+  const xTicks = pickAxisTicks(points, x);
 
   return (
     <>
@@ -47,13 +81,11 @@ export function LoadChart({ points }: { points: LoadPoint[] }) {
             </text>
           </g>
         ))}
-        {points.map((p, i) =>
-          i % labelEvery === 0 ? (
-            <text key={p.timestamp} x={x(p.timestamp)} y={H - 12} textAnchor="middle" fontSize="11" fill="#52655d">
-              {formatTime(p.timestamp)}
-            </text>
-          ) : null,
-        )}
+        {xTicks.map((t) => (
+          <text key={t.key} data-axis-tick="x" x={t.x} y={H - 12} textAnchor="middle" fontSize="11" fill="#52655d">
+            {t.label}
+          </text>
+        ))}
         <path d={`${line} L${x(last.timestamp)} ${y(0)} L${L} ${y(0)} Z`} fill="#24654e" opacity="0.12" />
         <path d={line} fill="none" stroke="#24654e" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
         <path d={limit} fill="none" stroke="#963d32" strokeWidth="2.5" strokeDasharray="6 5" />
@@ -71,8 +103,8 @@ export function LoadChart({ points }: { points: LoadPoint[] }) {
               </tr>
             </thead>
             <tbody>
-              {points.map((p) => (
-                <tr key={p.timestamp}>
+              {points.map((p, i) => (
+                <tr key={`${p.timestamp}-${i}`}>
                   <td>{formatTime(p.timestamp)}</td>
                   <td className="num">{formatKw(p.total_power_kw)}</td>
                   <td className="num">{formatKw(p.power_limit_kw)}</td>

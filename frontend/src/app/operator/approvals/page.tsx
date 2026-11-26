@@ -11,7 +11,7 @@ import { useState } from "react";
 import { DataBlock } from "@/components/system/DataBlock";
 import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { NotImplementedPanel } from "@/components/system/NotImplementedPanel";
-import { EmptyState, KeyValues, PageHead, Panel, SectionHead, Tag } from "@/components/ui/blocks";
+import { EmptyState, KeyValues, Notice, PageHead, Panel, SectionHead, Tag } from "@/components/ui/blocks";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { queries } from "@/lib/api/queries";
@@ -21,6 +21,7 @@ import { usePollFallback } from "@/lib/ws/useStream";
 
 type Approval = components["schemas"]["Approval"];
 type Entry = components["schemas"]["DecisionLogEntry"];
+type DecisionLogPage = components["schemas"]["DecisionLogPage"];
 type Command = components["schemas"]["Command"];
 type Rule = components["schemas"]["GuardRule"];
 type Source = components["schemas"]["CommandSource"];
@@ -48,7 +49,7 @@ type TabKey = "pending" | "blocked" | "log";
 function MutationError({ error }: { error: unknown }) {
   if (!error) return null;
   return error instanceof ApiError && error.isNotImplemented ? (
-    <NotImplementedPanel endpoint="POST /api/v1/operator/approvals/{approval_id}" taskId={error.taskId} detail={error.detail} />
+    <NotImplementedPanel endpoint="PATCH /api/v1/operator/approvals/{approval_id}" taskId={error.taskId} detail={error.detail} />
   ) : (
     <ErrorPanel error={error} />
   );
@@ -62,7 +63,7 @@ function PendingTab({ items }: { items: Approval[] }) {
   const current = pending.find((a) => a.approval_id === sel) ?? pending[0];
   const decide = useMutation({
     mutationFn: ({ id, decision }: { id: string; decision: "approve" | "reject" }) =>
-      unwrap(api.POST("/api/v1/operator/approvals/{approval_id}", { params: { path: { approval_id: id } }, body: { decision, note: note.trim() || null } })),
+      unwrap(api.PATCH("/api/v1/operator/approvals/{approval_id}", { params: { path: { approval_id: id } }, body: { decision, note: note.trim() || null } })),
     onSuccess: () => {
       setNote("");
       void queryClient.invalidateQueries({ queryKey: ["operator"] });
@@ -144,10 +145,35 @@ function PendingTab({ items }: { items: Approval[] }) {
                   Từ chối
                 </button>
               </div>
-              {decide.isSuccess ? (
-                <p role="status" className="hint">
-                  Đã ghi nhận quyết định · xem kết quả thực thi ở Nhật ký.
-                </p>
+              {decide.isSuccess && decide.data ? (
+                <div style={{ marginTop: 12 }}>
+                  <Notice
+                    title={
+                      decide.data.status === "rejected"
+                        ? "Đã từ chối đề nghị"
+                        : decide.data.executed
+                          ? "Đã duyệt và thực thi thành công tới trạm"
+                          : "Đã duyệt nhưng Guard chặn lần 2 (trạng thái trạm đã đổi)"
+                    }
+                    tone={
+                      decide.data.status === "rejected"
+                        ? "neutral"
+                        : decide.data.executed
+                          ? "good"
+                          : "bad"
+                    }
+                    icon={decide.data.executed ? "checkcircle" : "alert"}
+                    role="status"
+                  >
+                    <span>
+                      {decide.data.executed
+                        ? "Lệnh điều khiển đã được gửi thành công tới đầu nối."
+                        : decide.data.status === "rejected"
+                          ? "Đề nghị đã bị từ chối."
+                          : "Guard kiểm tra lại lúc thực thi phát hiện vi phạm quy tắc an toàn."}
+                    </span>
+                  </Notice>
+                </div>
               ) : null}
               <MutationError error={decide.error} />
             </>
@@ -158,16 +184,51 @@ function PendingTab({ items }: { items: Approval[] }) {
   );
 }
 
-function BlockedTab({ entries }: { entries: Entry[] }) {
+/** "Tải thêm" theo con trỏ seq. Trang đầu đổi ⇒ tab được remount (key theo seq đầu), nên trạng thái này luôn khớp trang. */
+function useLoadMore(page: DecisionLogPage, fetchBefore: (before: number) => Promise<DecisionLogPage>) {
+  const [extraEntries, setExtraEntries] = useState<Entry[]>([]);
+  const [extraCursor, setExtraCursor] = useState<number | null | undefined>(undefined);
+  const [extraHasMore, setExtraHasMore] = useState<boolean | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const allEntries = [...page.items, ...extraEntries];
+  const nextCursor = extraCursor !== undefined ? extraCursor : page.next_cursor;
+  const hasMore = extraHasMore !== undefined ? extraHasMore : page.has_more;
+
+  const handleLoadMore = async () => {
+    const cursor = nextCursor ?? allEntries[allEntries.length - 1]?.seq;
+    if (cursor == null) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetchBefore(cursor);
+      setExtraEntries((prev) => [...prev, ...res.items]);
+      setExtraCursor(res.next_cursor ?? null);
+      setExtraHasMore(res.has_more);
+    } catch {
+      setExtraHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  return { allEntries, hasMore, loadingMore, handleLoadMore };
+}
+
+function BlockedTab({ page }: { page: DecisionLogPage }) {
   const [sel, setSel] = useState(0);
-  if (!entries.length) {
+  const { allEntries, hasMore, loadingMore, handleLoadMore } = useLoadMore(page, (before) =>
+    unwrap(api.GET("/api/v1/operator/commands/blocked", { params: { query: { before } } })),
+  );
+
+  if (!allEntries.length) {
     return (
       <Panel>
         <EmptyState icon="shield" title="Chưa có lệnh nào bị chặn" />
       </Panel>
     );
   }
-  const e = entries[Math.min(sel, entries.length - 1)];
+
+  const e = allEntries[Math.min(sel, allEntries.length - 1)];
   const v = e.verdict?.violations ?? [];
   return (
     <div className="cols">
@@ -184,8 +245,8 @@ function BlockedTab({ entries }: { entries: Entry[] }) {
               </tr>
             </thead>
             <tbody>
-              {entries.map((x, i) => (
-                <tr key={x.entry_id ?? x.timestamp} className={i === sel ? "sel" : ""}>
+              {allEntries.map((x, i) => (
+                <tr key={x.entry_id ?? `${x.timestamp}-${i}`} className={i === sel ? "sel" : ""}>
                   <td>{formatTime(x.timestamp)}</td>
                   <td>
                     <button type="button" className="textbtn" style={{ color: "var(--ink)" }} aria-pressed={i === sel} onClick={() => setSel(i)}>
@@ -205,6 +266,18 @@ function BlockedTab({ entries }: { entries: Entry[] }) {
             </tbody>
           </table>
         </div>
+        {hasMore && allEntries.length > 0 ? (
+          <div style={{ textAlign: "center", marginTop: 14 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={loadingMore}
+              onClick={handleLoadMore}
+            >
+              {loadingMore ? "Đang tải thêm…" : "Tải thêm"}
+            </button>
+          </div>
+        ) : null}
       </Panel>
       <Panel label="Lý do bị chặn">
         <SectionHead title="Lý do bị chặn" icon="ban" />
@@ -230,11 +303,15 @@ function BlockedTab({ entries }: { entries: Entry[] }) {
   );
 }
 
-function LogTab({ entries }: { entries: Entry[] }) {
+function LogTab({ page }: { page: DecisionLogPage }) {
   const [f, setF] = useState<"all" | "passed" | "blocked" | "human">("all");
-  const rows = entries.filter((e) =>
+  const { allEntries, hasMore, loadingMore, handleLoadMore } = useLoadMore(page, (before) =>
+    unwrap(api.GET("/api/v1/operator/decision-log", { params: { query: { before } } })),
+  );
+  const rows = allEntries.filter((e) =>
     f === "all" ? true : f === "blocked" ? e.verdict?.passed === false : f === "human" ? Boolean(e.approved_by) || e.command.source === "operator" : e.verdict?.passed !== false,
   );
+
   return (
     <Panel label="Nhật ký quyết định">
       <div className="seg" role="group" aria-label="Lọc nhật ký" style={{ marginBottom: 12 }}>
@@ -252,33 +329,47 @@ function LogTab({ entries }: { entries: Entry[] }) {
         ))}
       </div>
       {rows.length ? (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <caption>Ai đề xuất · Guard kết luận gì · ai duyệt · có thực thi không (FR14).</caption>
-            <thead>
-              <tr>
-                <th>Lúc</th>
-                <th>Nguồn</th>
-                <th>Lệnh</th>
-                <th>Guard</th>
-                <th>Người duyệt</th>
-                <th>Thực thi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((e) => (
-                <tr key={e.entry_id ?? e.timestamp}>
-                  <td>{formatTime(e.timestamp)}</td>
-                  <td>{SOURCE[e.command.source]}</td>
-                  <td>{cmdText(e.command)}</td>
-                  <td>{e.verdict ? e.verdict.passed ? <Tag tone="good">Đạt</Tag> : <Tag tone="bad">Chặn</Tag> : "—"}</td>
-                  <td>{e.approved_by ?? (e.approval_id ? "Chờ duyệt" : "Tự động")}</td>
-                  <td>{e.executed ? "Đã thực thi" : "Không"}</td>
+        <>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <caption>Ai đề xuất · Guard kết luận gì · ai duyệt · có thực thi không (FR14).</caption>
+              <thead>
+                <tr>
+                  <th>Lúc</th>
+                  <th>Nguồn</th>
+                  <th>Lệnh</th>
+                  <th>Guard</th>
+                  <th>Người duyệt</th>
+                  <th>Thực thi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((e) => (
+                  <tr key={e.entry_id ?? e.timestamp}>
+                    <td>{formatTime(e.timestamp)}</td>
+                    <td>{SOURCE[e.command.source]}</td>
+                    <td>{cmdText(e.command)}</td>
+                    <td>{e.verdict ? e.verdict.passed ? <Tag tone="good">Đạt</Tag> : <Tag tone="bad">Chặn</Tag> : "—"}</td>
+                    <td>{e.approved_by ?? (e.approval_id ? "Chờ duyệt" : "Tự động")}</td>
+                    <td>{e.executed ? "Đã thực thi" : "Không"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {hasMore && allEntries.length > 0 ? (
+            <div style={{ textAlign: "center", marginTop: 14 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={loadingMore}
+                onClick={handleLoadMore}
+              >
+                {loadingMore ? "Đang tải thêm…" : "Tải thêm"}
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <p className="subcopy">Nhật ký trống.</p>
       )}
@@ -317,11 +408,11 @@ export default function OperatorApprovalsPage() {
           </DataBlock>
         ) : tab === "blocked" ? (
           <DataBlock endpoint="GET /api/v1/operator/commands/blocked" query={queries.operatorBlocked()} refetchInterval={poll} loadingLines={5}>
-            {(entries) => <BlockedTab entries={entries} />}
+            {(page) => <BlockedTab key={page.items[0]?.seq ?? "empty"} page={page} />}
           </DataBlock>
         ) : (
           <DataBlock endpoint="GET /api/v1/operator/decision-log" query={queries.operatorDecisionLog()} refetchInterval={poll} loadingLines={5}>
-            {(entries) => <LogTab entries={entries} />}
+            {(page) => <LogTab key={page.items[0]?.seq ?? "empty"} page={page} />}
           </DataBlock>
         )}
       </div>

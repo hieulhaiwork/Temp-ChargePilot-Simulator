@@ -44,3 +44,43 @@ export function formatCountdown(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
+
+/**
+ * Định dạng thời lượng theo tiếng Việt dễ đọc:
+ * - < 60 phút → "45 phút"
+ * - >= 60 phút → "23 giờ 6 phút" hoặc "2 giờ" (nếu tròn giờ)
+ */
+export function formatDuration(minutes: number | null | undefined): string {
+  if (minutes == null || !Number.isFinite(minutes)) return "—";
+  const total = Math.max(0, Math.round(minutes));
+  if (total < 60) return `${total} phút`;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  return mins === 0 ? `${hours} giờ` : `${hours} giờ ${mins} phút`;
+}
+
+/**
+ * Tính số phút dự phòng giữa hai mốc ISO sau khi căn về phút tròn (khớp HH:MM hiển thị trên UI),
+ * tránh lệch 1 phút khi timestamp gốc có phần giây lẻ (vd 18:24:38 → 17:30:00 = 1386 phút).
+ */
+export function computeBufferMinutes(
+  plannedEndIso: string | null | undefined,
+  deadlineIso: string | null | undefined,
+  fallbackMinutes?: number | null,
+): number | null {
+  if (plannedEndIso && deadlineIso) {
+    const endMs = new Date(plannedEndIso).getTime();
+    const dlMs = new Date(deadlineIso).getTime();
+    if (!Number.isNaN(endMs) && !Number.isNaN(dlMs)) {
+      const endMin = Math.floor(endMs / 60_000);
+      const dlMin = Math.floor(dlMs / 60_000);
+      return Math.max(0, dlMin - endMin);
+    }
+  }
+  return fallbackMinutes ?? null;
+}
+
+/** Chuẩn hoá dấu thập phân tiếng Việt (dấu phẩy) cho chuỗi số có đơn vị như "30.7 kWh" → "30,7 kWh". */
+export function formatViNumbers(text: string): string {
+  return text.replace(/(\d+)\.(\d+)(\s*(?:kWh|kW|%))/gi, "$1,$2$3");
+}

@@ -42,7 +42,7 @@ function ApprovalBody({ approval }: { approval: Approval }) {
   const decide = useMutation({
     mutationFn: (decision: "approve" | "reject") =>
       unwrap(
-        api.POST("/api/v1/resident/approvals/{approval_id}", {
+        api.PATCH("/api/v1/resident/approvals/{approval_id}", {
           params: { path: { approval_id: approval.approval_id ?? "" } },
           body: { decision, note: note.trim() || null },
         }),
@@ -61,7 +61,17 @@ function ApprovalBody({ approval }: { approval: Approval }) {
             <KeyValues
               rows={[
                 ["Đầu nối", cmd.connector_id],
-                ["Công suất đề nghị", cmd.power_kw != null ? formatKw(cmd.power_kw) : "—"],
+                [
+                  "Công suất điều chỉnh",
+                  approval.current_power_kw != null && cmd.power_kw != null
+                    ? `từ ${formatKw(approval.current_power_kw)} → ${formatKw(cmd.power_kw)}`
+                    : cmd.power_kw != null
+                      ? formatKw(cmd.power_kw)
+                      : "—",
+                ],
+                ...(approval.effective_from && approval.effective_until
+                  ? [["Khung giờ áp dụng", `${formatTime(approval.effective_from)}–${formatTime(approval.effective_until)}`] as [string, string]]
+                  : []),
                 ["Đề nghị lúc", formatTime(approval.created_at)],
                 ["Lý do", cmd.reason || "—"],
               ]}
@@ -73,8 +83,19 @@ function ApprovalBody({ approval }: { approval: Approval }) {
         <Panel label="Quyết định">
           <SectionHead title="Quyết định của bạn" icon="adjust" />
           {decided ? (
-            <Notice title={approval.status === "approved" ? "Bạn đã đồng ý" : "Bạn đã từ chối"} tone="good" icon="checkcircle">
-              Ghi nhận lúc {formatTime(approval.decided_at)}. {approval.status === "approved" ? "Trạm kiểm lại điều kiện trước khi áp dụng." : "Lịch trước đề nghị được giữ nguyên."}
+            <Notice
+              title={approval.status === "approved" ? "Bạn đã đồng ý" : "Bạn đã từ chối"}
+              tone={approval.status === "approved" ? (approval.executed === false ? "bad" : "good") : "neutral"}
+              icon={approval.status === "approved" ? (approval.executed === false ? "alert" : "checkcircle") : "info"}
+            >
+              Ghi nhận lúc {formatTime(approval.decided_at)}.{" "}
+              {approval.status === "approved"
+                ? approval.executed === true
+                  ? "Lệnh điều chỉnh đã được trạm thực thi thành công."
+                  : approval.executed === false
+                    ? "Lệnh đã được Guard chặn khi kiểm tra an toàn lần 2 (không áp dụng)."
+                    : "Trạm đang kiểm lại điều kiện trước khi áp dụng."
+                : "Lịch trước đề nghị được giữ nguyên."}
             </Notice>
           ) : expired ? (
             <Notice title="Đề nghị đã hết hạn" tone="gold" icon="clock">
@@ -109,7 +130,7 @@ function ApprovalBody({ approval }: { approval: Approval }) {
           {decide.isError ? (
             <div style={{ marginTop: 12 }}>
               {decide.error instanceof ApiError && decide.error.isNotImplemented ? (
-                <NotImplementedPanel endpoint="POST /api/v1/resident/approvals/{approval_id}" taskId={decide.error.taskId} detail={decide.error.detail} />
+                <NotImplementedPanel endpoint="PATCH /api/v1/resident/approvals/{approval_id}" taskId={decide.error.taskId} detail={decide.error.detail} />
               ) : (
                 <ErrorPanel error={decide.error} />
               )}

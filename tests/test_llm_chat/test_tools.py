@@ -13,6 +13,7 @@ def test_registry_lists_every_tool():
         "confirm_booking",
         "get_queue_status",
         "explain_schedule",
+        "get_tariff_info",
         # demo của template (gỡ ở T2.5)
         "search_knowledge",
         "calculate",

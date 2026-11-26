@@ -51,7 +51,9 @@ def connection_count() -> int:
     return len(_connections)
 
 
-async def broadcast(message: WsMessage, *, role: Role | None = None, user_id: str | None = None) -> None:
+async def broadcast(
+    message: WsMessage, *, role: Role | None = None, user_id: str | None = None, to_residents: bool = False
+) -> None:
     """Gửi tới các kết nối khớp bộ lọc. Kết nối lỗi thì gỡ khỏi sổ, không làm rơi bản tin của người khác.
 
     role=None và user_id=None → mọi vận hành (bản tin của trạm). user_id → đúng cư dân đó (kèm mọi vận hành
@@ -60,7 +62,7 @@ async def broadcast(message: WsMessage, *, role: Role | None = None, user_id: st
     for connection_id, conn in list(_connections.items()):
         if role is not None and conn.role != role:
             continue
-        if conn.role == Role.RESIDENT and conn.user_id != user_id:
+        if conn.role == Role.RESIDENT and not to_residents and conn.user_id != user_id:
             continue
         try:
             await conn.send(message)

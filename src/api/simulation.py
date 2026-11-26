@@ -19,7 +19,7 @@ async def scenarios(user: OperatorUser) -> list[Scenario]:
     return catalog.list_scenarios()
 
 
-@router.post("/runs", response_model=SimulationRunResult)
+@router.post("/runs", response_model=SimulationRunResult, status_code=status.HTTP_201_CREATED)
 async def run(body: SimulationRunRequest, user: OperatorUser) -> SimulationRunResult:
     """S8 nút "▶ Chạy" — một kịch bản × một chiến lược → bảng KPI."""
     try:

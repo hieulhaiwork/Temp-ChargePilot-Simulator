@@ -411,6 +411,10 @@ def get_runtime() -> StationRuntime:
         _remember_executed(rt_ref, entry)
 
     async def notify(message: WsMessage, resident_id: str | None) -> None:
+        if message.type == WsMessageType.SITE_OCCUPANCY:
+            # G24: trạng thái công khai của bãi — mọi cư dân đang kết nối đều nhận, không kèm dữ liệu riêng tư.
+            await realtime.broadcast(message, role=Role.RESIDENT, to_residents=True)
+            return
         if resident_id is None:
             await realtime.broadcast(message, role=Role.OPERATOR)
             return

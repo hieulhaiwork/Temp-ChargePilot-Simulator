@@ -140,6 +140,12 @@ class Approval(BaseModel):
     expires_at: AwareDatetime | None = None
     decided_at: AwareDatetime | None = None
     decided_by: str | None = None
+    executed: bool | None = Field(
+        default=None, description="None = chưa xử lý; True/False sau khi Guard kiểm lần 2 (G9)"
+    )
+    effective_from: AwareDatetime | None = None
+    effective_until: AwareDatetime | None = None
+    current_power_kw: float | None = Field(default=None, ge=0, description="Công suất trước điều chỉnh (kW)")
 
     @model_validator(mode="after")
     def _only_guard_passed_commands(self) -> "Approval":
@@ -153,6 +159,7 @@ class Approval(BaseModel):
 class DecisionLogEntry(BaseModel):
     """FR14 — ai/thành phần nào đề xuất, Guard kết luận gì, ai duyệt, lúc nào, có thực thi không."""
 
+    seq: int | None = Field(default=None, description="Thứ tự ghi trong decision_log — con trỏ `before` (G12)")
     entry_id: str = Field(default_factory=lambda: uuid4().hex)
     timestamp: AwareDatetime
     command: Command

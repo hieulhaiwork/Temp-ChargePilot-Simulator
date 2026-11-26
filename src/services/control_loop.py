@@ -279,8 +279,8 @@ async def resolve_approval(
     repository.save_approval(decided)
     if decided.status == ApprovalStatus.APPROVED:
         async with rt.decision_lock():
-            rt.advance_clock()
-            await dispatcher.execute_approved(
+            rt.advance_clock()  # sự kiện ở lại outbox → on_event(REPLAN_REQUESTED) ngay dưới đây nhận
+            entry = await dispatcher.execute_approved(
                 decided,
                 build_guard_context(rt, None),
                 rt.simulator,
@@ -288,6 +288,8 @@ async def resolve_approval(
                 safety_holds=frozenset(rt.safety_hold_booking_ids),
                 safety_pending=rt.has_pending_safety(),
             )
+        decided = decided.model_copy(update={"executed": bool(entry.executed)})
+        repository.save_approval(decided)
     else:
         repository.append_decision(
             DecisionLogEntry(
@@ -300,6 +302,8 @@ async def resolve_approval(
                 note="Bị từ chối — không thực thi (AC4)",
             )
         )
+        decided = decided.model_copy(update={"executed": False})
+        repository.save_approval(decided)
         if decided.command.booking_id:
             rt.rejected_booking_ids.add(decided.command.booking_id)
     await on_event(StationEvent(type=EventType.REPLAN_REQUESTED, occurred_at=rt.clock(), detail="Sau phê duyệt"), rt)

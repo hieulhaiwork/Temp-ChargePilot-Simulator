@@ -94,7 +94,7 @@ export function Notice({
       <Icon name={icon} />
       <div>
         <strong>{title}</strong>
-        {children ? <p>{children}</p> : null}
+        {children ? <div className="notice-body">{children}</div> : null}
       </div>
     </div>
   );

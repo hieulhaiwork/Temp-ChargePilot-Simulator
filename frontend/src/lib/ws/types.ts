@@ -15,6 +15,8 @@ export type WsPayloads = {
   approval_request: Schemas["Approval"];
   command_blocked: Schemas["DecisionLogEntry"];
   notification: Schemas["Notification"];
+  /** G24: sơ đồ bãi đổi — cư dân làm mới /resident/site-map (chỉ chứa trạng thái công khai). */
+  site_occupancy: Schemas["ResidentSiteMap"];
   pong: Record<string, never>;
 };
 

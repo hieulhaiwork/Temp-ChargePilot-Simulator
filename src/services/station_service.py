@@ -13,11 +13,21 @@ from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from src.guard import dispatcher
-from src.models.api import ConnectorDetail, ErrorCode, StationOverview
+from src.models.api import ConnectorDetail, DecisionLogPage, ErrorCode, StationOverview
 from src.models.charging import Booking, BookingStatus, SchedulePlan
 from src.models.control import Command, CommandSource, CommandType, DecisionLogEntry, Role
 from src.models.events import EventType, StationEvent
-from src.models.station import ConnectorStatus, LoadPoint
+from src.models.station import (
+    BayLayout,
+    ChargerZone,
+    ConnectorStatus,
+    LoadPoint,
+    PublicBay,
+    PublicBayStatus,
+    ResidentSiteMap,
+    ZoneQueue,
+    ZoneUsage,
+)
 from src.services import control_loop, event_bus, repository
 from src.services.errors import DomainError
 from src.services.runtime import StationRuntime, get_runtime
@@ -61,6 +71,21 @@ def build_overview(rt: StationRuntime) -> StationOverview:
     nominal = rt.config.grid_input_limit_kw or rt.config.power_limit_kw
     if limit < nominal:
         alerts.append(f"Nguồn đang giảm: {limit:g}/{nominal:g} kW")
+    conn_zone = {c.connector_id: c.zone for c in rt.config.connectors}
+    zone_outputs: dict[ChargerZone, float] = {ChargerZone.AC: 0.0, ChargerZone.DC: 0.0}
+    for conn in state.connectors:
+        z = conn_zone.get(conn.connector_id)
+        if z in zone_outputs:
+            zone_outputs[z] += conn.power_kw
+    zones = [
+        ZoneUsage(
+            zone=z,
+            output_kw=round(zone_outputs[z], 3),
+            budget_kw=(rt.config.zone_budgets_kw or {}).get(z),
+            physical_cap_kw=rt.config.zone_cap_kw(z),
+        )
+        for z in (ChargerZone.AC, ChargerZone.DC)
+    ]
     return StationOverview(
         state=state,
         power_limit_kw=limit,
@@ -69,7 +94,85 @@ def build_overview(rt: StationRuntime) -> StationOverview:
         queue_length=len(state.queue),
         at_risk_booking_ids=at_risk,
         alerts=alerts,
+        grid_input_kw=round(grid_kw, 3),
+        grid_input_limit_kw=limit,
+        zones=zones,
     )
+
+
+def resident_site_map(resident_id: str) -> ResidentSiteMap:
+    """S9 G24 — sơ đồ bãi riêng tư cho cư dân: chỉ trả public_status (busy/idle/fault) và mine."""
+    rt = get_runtime()
+    rt.sync_clock()
+    return site_map_for(rt, resident_id)
+
+
+def queue_zones(connectors) -> tuple[ChargerZone, ...]:
+    """Vùng có hàng chờ = các vùng xuất hiện trong cấu hình đầu nối, theo thứ tự xuất hiện, không trùng."""
+    return tuple(dict.fromkeys(c.zone for c in connectors))
+
+
+def build_decision_page(rows: list[DecisionLogEntry], limit: int) -> DecisionLogPage:
+    """Cắt trang từ limit+1 dòng: có dòng thừa ⇒ còn trang sau, next_cursor = seq dòng cuối đã trả về."""
+    has_more = len(rows) > limit
+    items = rows[:limit]
+    next_cursor = items[-1].seq if has_more and items else None
+    return DecisionLogPage(items=items, next_cursor=next_cursor, has_more=has_more)
+
+
+def decision_page(limit: int, *, blocked_only: bool = False, before: int | None = None) -> DecisionLogPage:
+    """Nhật ký quyết định theo con trỏ seq (S7 — tab "Bị Guard chặn" và "Nhật ký")."""
+    rows = repository.list_decisions(limit=limit + 1, blocked_only=blocked_only, before=before)
+    return build_decision_page(rows, limit)
+
+
+def site_map_for(rt: StationRuntime, resident_id: str | None) -> ResidentSiteMap:
+    """Dựng sơ đồ công khai. resident_id None = bản dùng chung gửi mọi cư dân (không có mine / vị trí riêng)."""
+    state = rt.simulator.state()
+    my_booking = repository.active_booking(resident_id) if resident_id else None
+    my_bid = my_booking.booking_id if my_booking else None
+    conn_map = {c.connector_id: c for c in state.connectors}
+
+    bays_src = (
+        rt.config.layout.bays
+        if rt.config.layout and rt.config.layout.bays
+        else [
+            BayLayout(
+                bay_id=c.bay_id or c.connector_id,
+                connector_id=c.connector_id,
+                zone=c.zone,
+                x=0,
+                y=0,
+                width=100,
+                height=100,
+            )
+            for c in rt.config.connectors
+        ]
+    )
+    public_bays: list[PublicBay] = []
+    for b in bays_src:
+        c = conn_map.get(b.connector_id) if b.connector_id else None
+        if c is None:
+            status, mine = PublicBayStatus.IDLE, False
+        elif c.status == ConnectorStatus.FAULT:
+            status, mine = PublicBayStatus.FAULT, False
+        elif c.booking_id is not None or c.status != ConnectorStatus.IDLE:
+            status, mine = PublicBayStatus.BUSY, bool(my_bid and c.booking_id == my_bid)
+        else:
+            status, mine = PublicBayStatus.IDLE, False
+        public_bays.append(PublicBay(bay_id=b.bay_id, zone=b.zone, public_status=status, mine=mine))
+
+    # Hàng chờ tách theo vùng (G24): vùng lấy từ yêu cầu của từng booking đang chờ, thứ tự = thứ tự trong state.queue.
+    queues: dict[ChargerZone, ZoneQueue] = {z: ZoneQueue() for z in queue_zones(rt.config.connectors)}
+    for bid in state.queue:
+        booking = repository.get_booking(bid)
+        if booking is None:
+            continue
+        zone_queue = queues[booking.request.zone]
+        zone_queue.length += 1
+        if bid == my_bid:
+            zone_queue.my_position = zone_queue.length
+    return ResidentSiteMap(timestamp=state.timestamp, bays=public_bays, queues=queues)
 
 
 def overview() -> StationOverview:
@@ -118,9 +221,15 @@ def current_plan(on_date: date | None = None) -> SchedulePlan:
     return plan
 
 
-def list_bookings(status: BookingStatus | None = None) -> list[Booking]:
+def list_bookings(
+    statuses: BookingStatus | tuple[BookingStatus, ...] | list[BookingStatus] | None = None,
+) -> list[Booking]:
     """S6 — chi tiết hàng chờ ("#31 SoC 20% → 70%, trước 06:00"); SchedulePlan.queue chỉ có booking_id."""
-    return repository.list_bookings(statuses=(status,) if status else None)
+    if statuses is None:
+        return repository.list_bookings(statuses=None)
+    if isinstance(statuses, BookingStatus):
+        return repository.list_bookings(statuses=(statuses,))
+    return repository.list_bookings(statuses=tuple(statuses))
 
 
 async def replan(operator_id: str) -> SchedulePlan:

@@ -1,4 +1,4 @@
-"""API chat với Agent F1 — /chat, /chat/resume, /status.
+"""API chat với Agent F1 — /chat, /chat/sessions/{session_id}, /status.
 
 Graph compile với checkpointer nên mọi lần invoke cần `configurable.thread_id`. Client giữ
 session_id và gửi lại kèm resume khi cư dân bấm "Xác nhận" / "Đổi phương án" ở màn S3.
@@ -16,23 +16,25 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import APIRouter, HTTPException, Path, status
+from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 from openai import OpenAIError
 from pydantic import BaseModel, ValidationError
 
 from src.api.deps import ResidentUser
 from src.config import get_settings
-from src.llm_chat.graph import agent
+from src.llm_chat.graph import BLOCKED_BY_HUMAN, CONFIRM_TOOL_NAME, TOOL_ERROR_PREFIX, agent
 from src.models.api import ErrorCode, UserProfile
-from src.models.charging import ScheduleProposal
-from src.models.schemas import ChatRequest, ChatResponse
-from src.services import catalog, charging_demo
+from src.models.charging import ChargeRequest, ScheduleProposal
+from src.models.schemas import ChatRequest, ChatResponse, TranscribeRequest, TranscribeResponse
+from src.services import catalog, charging_service, speech
 from src.services.errors import DomainError
 from src.services.llm import describe_provider
+from src.services.runtime import get_runtime
 
 logger = logging.getLogger("chargepilot.api.chat")
 
@@ -69,32 +71,73 @@ def _proposal_from(payload: dict) -> ScheduleProposal | None:
         return None
 
 
+_PUBLIC_DRAFT_KEYS = frozenset({"vehicle_model", "soc_now", "soc_target", "zone", "mode", "arrival_time", "deadline"})
+
+
+def _public_draft(raw: object) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    cleaned = {k: v for k, v in raw.items() if k in _PUBLIC_DRAFT_KEYS and v is not None}
+    return cleaned or None
+
+
+def _request_from(payload: dict) -> ChargeRequest | None:
+    """G3: yêu cầu đang chờ xác nhận, lấy từ interrupt của confirm_booking. Sai schema → None, không đoán."""
+    if payload.get("tool") != CONFIRM_TOOL_NAME:
+        return None
+    raw = (payload.get("args") or {}).get("request")
+    if not raw:
+        return None
+    try:
+        return ChargeRequest.model_validate(raw)
+    except ValidationError:
+        logger.error("FAILED chat — interrupt confirm_booking có request sai schema")
+        return None
+
+
+def _confirmation_text(proposal: ScheduleProposal | None, timezone: str) -> str:
+    """G13: câu cho cư dân, dựng từ proposal (đầu nối, khung giờ, kWh) — không lấy chuỗi kỹ thuật của graph.
+
+    Giờ hiển thị theo múi giờ của trạm: planned_* là datetime có tzinfo (UTC), in thẳng sẽ lệch."""
+    if proposal is None or not proposal.feasible or proposal.connector_id is None:
+        return "Bạn xác nhận thao tác này không?"
+    window = ""
+    if proposal.planned_start and proposal.planned_end:
+        tz = ZoneInfo(timezone)
+        start = proposal.planned_start.astimezone(tz)
+        end = proposal.planned_end.astimezone(tz)
+        window = f", khung giờ {start:%H:%M}–{end:%H:%M}"
+    kwh = proposal.energy.battery_energy_kwh
+    return f"Phương án: đầu nối {proposal.connector_id}{window}, {kwh:g} kWh. Bạn xác nhận lịch này không?"
+
+
 def _to_chat_response(result: dict, session_id: str) -> ChatResponse:
-    # Cả /chat lẫn /chat/resume đều có thể dừng ở interrupt (hành động rủi ro kế tiếp).
+    # Cả /chat lẫn PATCH /chat/sessions/{session_id} đều có thể dừng ở interrupt (hành động rủi ro kế tiếp).
     if "__interrupt__" in result:
         interrupts = result["__interrupt__"]
         payload = getattr(interrupts[0], "value", interrupts[0])
         structured = payload if isinstance(payload, dict) else {}
-        proposal = _proposal_from(structured)
+        tool_name = structured.get("tool")
+        # Chỉ confirm_booking mang phương án của lượt này; interrupt rủi ro khác không được lấy proposal cũ của phiên.
+        proposal = _proposal_from(structured) if tool_name == CONFIRM_TOOL_NAME else None
         if proposal is not None:
-            msg = (
-                "[CẦN PHÊ DUYỆT] Vui lòng kiểm tra phương án sạc bên dưới và chọn "
-                "“Xác nhận lịch” để giữ chỗ hoặc “Đổi phương án” để điều chỉnh."
-            )
+            body = _confirmation_text(proposal, get_runtime().config.timezone)
         else:
             question = structured.get("question") or "Vui lòng xác nhận thao tác này."
-            tool_name = structured.get("tool")
-            msg = f"[CẦN PHÊ DUYỆT] {question}" + (f" ({tool_name})." if tool_name else "")
+            body = question
         return ChatResponse(
-            response=msg,
+            response=f"[CẦN PHÊ DUYỆT] {body}",
             analysis="HITL interrupt",
             session_id=session_id,
             status="needs_confirmation",
             proposal=proposal,
+            request=_request_from(structured),
             pending={"tool": structured.get("tool"), "args": structured.get("args")} if structured else None,
+            draft=_public_draft(result.get("draft_request")),
         )
     trace = result.get("tool_trace", [])
     analysis = "; ".join(entry["tool"] for entry in trace)
+    # G5: phương án chỉ gắn khi CHÍNH lượt này vừa tính; proposal trong state là của phiên, có thể đã cũ.
     turn_proposal = (
         _proposal_from(result) if any(entry.get("tool") == "propose_charging_plan" for entry in trace) else None
     )
@@ -105,6 +148,26 @@ def _to_chat_response(result: dict, session_id: str) -> ChatResponse:
         status="refused" if result.get("refusal_reason") else "answer",
         proposal=turn_proposal,
         suggestions=list(result.get("suggestions") or []),
+        draft=_public_draft(result.get("draft_request")),
+    )
+
+
+def _pending_interrupts(snapshot) -> list:
+    """Các interrupt đang chờ trong thread (rỗng = không còn gì để resume)."""
+    pending: list = []
+    for task in getattr(snapshot, "tasks", None) or ():
+        pending.extend(getattr(task, "interrupts", None) or ())
+    return pending
+
+
+def _confirmed_booking_succeeded(result: dict) -> bool:
+    """G4: lượt resume vừa chốt lịch thành công (tool confirm_booking không báo lỗi)."""
+    trace = result.get("tool_trace") or []
+    return any(
+        entry.get("tool") == CONFIRM_TOOL_NAME
+        and str(entry.get("output", "")) != BLOCKED_BY_HUMAN
+        and not str(entry.get("output", "")).startswith(TOOL_ERROR_PREFIX)
+        for entry in trace
     )
 
 
@@ -207,16 +270,36 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
     )
 
 
-class ResumeRequest(BaseModel):
-    session_id: str  # bắt buộc — lấy từ ChatResponse.session_id của /chat
-    resume: str  # "approve" | "reject"
+class ChatSessionResumeRequest(BaseModel):
+    resume: Literal["approve", "reject"]  # 422 nếu giá trị khác (G1)
 
 
-@router.post("/chat/resume", response_model=ChatResponse)
-async def chat_resume(request: ResumeRequest, user: ResidentUser) -> ChatResponse:
-    """S3 — "Xác nhận" (approve) hoặc "Đổi phương án" (reject) cho hành động đang chờ."""
-    result = await _invoke(Command(resume=request.resume), _config(user, request.session_id))
-    return _to_chat_response(result, request.session_id)
+@router.patch("/chat/sessions/{session_id}", response_model=ChatResponse)
+async def chat_resume(
+    session_id: Annotated[str, Path(min_length=1, max_length=128)],
+    request: ChatSessionResumeRequest,
+    user: ResidentUser,
+) -> ChatResponse:
+    """S3 — "Xác nhận" (approve) hoặc "Đổi phương án" (reject) cho hành động đang chờ.
+
+    G1: thread không còn interrupt (backend restart, bấm lặp) → 409, KHÔNG chạy graph với đầu vào rỗng.
+    """
+    config = _config(user, session_id)
+    snapshot = await agent.aget_state(config)
+    if not _pending_interrupts(snapshot):
+        raise DomainError(ErrorCode.NO_PENDING_CONFIRMATION, "Phiên chat không còn yêu cầu nào đang chờ xác nhận")
+    result = await _invoke(Command(resume=request.resume), config)
+    response = _to_chat_response(result, session_id)
+    if response.status == "answer" and _confirmed_booking_succeeded(result):
+        response.booking = charging_service.current_booking(user.user_id)
+    return response
+
+
+@router.post("/chat/transcribe", response_model=TranscribeResponse)
+async def chat_transcribe(request: TranscribeRequest, user: ResidentUser) -> TranscribeResponse:
+    """Nhận giọng nói tiếng Việt đa vùng miền (Bắc/Trung/Nam) và trả về văn bản để cư dân kiểm tra trước khi gửi."""
+    _ = user  # ADR-006: yêu cầu cư dân đã đăng nhập
+    return await speech.transcribe_audio(request.audio_base64, request.mime_type)
 
 
 @router.get("/status")
@@ -228,145 +311,4 @@ async def agent_status():
         "agent": "LangGraph Agent v2.0",
         "llm": describe_provider(),
         "demo_services": settings.agent_demo_services,
-        "playground": settings.agent_playground,
     }
-
-
-@router.post("/dev/agent/reset", include_in_schema=False)
-async def reset_demo_state():
-    """Xoá booking giả lập trong bộ nhớ khi test trên /dev/agent."""
-    if not get_settings().agent_playground:
-        raise HTTPException(status_code=404, detail="Playground đang tắt (AGENT_PLAYGROUND=false)")
-    charging_demo.reset()
-    return {"status": "reset"}
-
-
-@router.get("/dev/agent", response_class=HTMLResponse, include_in_schema=False)
-async def agent_playground_page() -> HTMLResponse:
-    """Trang web nhỏ để test nhanh Agent F1 + 6 tool + HITL S3 khi AGENT_PLAYGROUND=true."""
-    if not get_settings().agent_playground:
-        raise HTTPException(status_code=404, detail="Playground đang tắt (bật AGENT_PLAYGROUND=true trong .env)")
-    return HTMLResponse(_PLAYGROUND_HTML)
-
-
-_PLAYGROUND_HTML = """<!doctype html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <title>ChargePilot — Agent F1 Playground</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; background: #0f172a; color: #e2e8f0; }
-    h1 { font-size: 1.35rem; margin-bottom: 4px; }
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; background: #1e293b; font-size: 0.8rem; color: #38bdf8; }
-    .presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-    button { cursor: pointer; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; }
-    button:hover { background: #334155; }
-    button.primary { background: #0284c7; border-color: #0284c7; color: #fff; }
-    button.approve { background: #16a34a; border-color: #16a34a; color: #fff; }
-    button.reject { background: #dc2626; border-color: #dc2626; color: #fff; }
-    #log { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; min-height: 300px; max-height: 460px; overflow-y: auto; }
-    .msg { margin: 8px 0; padding: 10px 12px; border-radius: 8px; line-height: 1.45; white-space: pre-wrap; }
-    .user { background: #1e3a8a; align-self: flex-end; }
-    .bot { background: #1e293b; }
-    .meta { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
-    .row { display: flex; gap: 8px; margin-top: 12px; }
-    input { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #020617; color: #e2e8f0; }
-    #hitl { display: none; margin-top: 12px; padding: 12px; border-radius: 8px; background: #1e293b; border: 1px solid #f59e0b; }
-  </style>
-</head>
-<body>
-  <h1>ChargePilot — Agent F1 Playground <span id="status-badge" class="badge">loading...</span></h1>
-  <div class="presets">
-    <button onclick="sendText('Tra giúp mình mẫu xe DEMO-60')">1. lookup_vehicle</button>
-    <button onclick="sendText('Tính kWh cho xe DEMO-60 từ 32% lên 80%')">2. estimate_charging_energy</button>
-    <button onclick="sendText('Cần 80% pin trước 7h sáng mai')">3. Hỏi thiếu trường (multi-turn)</button>
-    <button onclick="sendText('Mình vừa về tới bãi, pin còn 32%, cần 80% trước 7h sáng mai')">4. propose_charging_plan</button>
-    <button onclick="sendText('Chốt lịch này giúp mình')">5. confirm_booking (HITL S3)</button>
-    <button onclick="sendText('Mình đang xếp thứ mấy trong hàng đợi?')">6. get_queue_status</button>
-    <button onclick="sendText('Vì sao lịch sạc của mình được xếp như vậy?')">7. explain_schedule</button>
-    <button onclick="newSession()">+ Phiên mới / Reset booking</button>
-  </div>
-  <div id="log"></div>
-  <div id="hitl">
-    <strong>[Màn S3 — Cần cư dân xác nhận đặt lịch]</strong>
-    <div id="hitl-detail" class="meta"></div>
-    <div style="margin-top:8px; display:flex; gap:8px;">
-      <button class="approve" onclick="resumeChat('approve')">Xác nhận đặt lịch (Approve)</button>
-      <button class="reject" onclick="resumeChat('reject')">Đổi phương án (Reject)</button>
-    </div>
-  </div>
-  <div class="row">
-    <input id="msg" placeholder="Nhập câu chat với Trợ lý sạc ChargePilot..." onkeydown="if(event.key==='Enter')sendInput()" />
-    <button class="primary" onclick="sendInput()">Gửi</button>
-  </div>
-<script>
-  let sessionId = crypto.randomUUID().replace(/-/g, '');
-  async function loadStatus() {
-    const r = await fetch('/api/v1/status');
-    const d = await r.json();
-    document.getElementById('status-badge').textContent =
-      `provider=${d.llm?.provider} | model=${d.llm?.model} | demo_services=${d.demo_services}`;
-  }
-  function appendMsg(role, text, meta='') {
-    const log = document.getElementById('log');
-    const div = document.createElement('div');
-    div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-    div.textContent = text;
-    if (meta) {
-      const m = document.createElement('div');
-      m.className = 'meta';
-      m.textContent = meta;
-      div.appendChild(m);
-    }
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
-  }
-  function handleResponse(d) {
-    const meta = `status=${d.status} | tools=${d.analysis || '(none)'} | session=${d.session_id.slice(0,8)}`;
-    appendMsg('bot', d.response, meta);
-    const hitl = document.getElementById('hitl');
-    if (d.status === 'needs_confirmation') {
-      hitl.style.display = 'block';
-      document.getElementById('hitl-detail').textContent = d.proposal
-        ? `Đầu nối ${d.proposal.connector_id} | ${d.proposal.energy.battery_energy_kwh} kWh | ${d.proposal.estimated_cost_vnd} VND`
-        : JSON.stringify(d.pending || {});
-    } else {
-      hitl.style.display = 'none';
-    }
-  }
-  async function sendText(text) {
-    appendMsg('user', text);
-    const r = await fetch('/api/v1/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: text, session_id: sessionId})
-    });
-    handleResponse(await r.json());
-  }
-  function sendInput() {
-    const inp = document.getElementById('msg');
-    if (!inp.value.trim()) return;
-    sendText(inp.value.trim());
-    inp.value = '';
-  }
-  async function resumeChat(decision) {
-    appendMsg('user', `[S3] ${decision}`);
-    const r = await fetch('/api/v1/chat/resume', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({session_id: sessionId, resume: decision})
-    });
-    handleResponse(await r.json());
-  }
-  async function newSession() {
-    sessionId = crypto.randomUUID().replace(/-/g, '');
-    await fetch('/api/v1/dev/agent/reset', {method: 'POST'});
-    document.getElementById('log').innerHTML = '';
-    document.getElementById('hitl').style.display = 'none';
-    appendMsg('bot', 'Đã tạo phiên mới và xoá booking giả lập.');
-  }
-  loadStatus();
-</script>
-</body>
-</html>
-"""

@@ -148,6 +148,58 @@ def explain_schedule(config: RunnableConfig) -> str:
     return json.dumps(_svc().explain(_current_resident_id(config)), ensure_ascii=False)
 
 
+@tool
+def get_tariff_info(time_hhmm: str | None = None) -> str:
+    """Tra biểu giá điện theo khung giờ của trạm sạc (áp dụng chung cho cả trụ AC và DC).
+
+    Args:
+        time_hhmm: Giờ cụ thể định dạng 24h 'HH:MM' (vd '22:00' cho 10 giờ tối). Bỏ trống để lấy toàn bộ biểu giá các khung giờ.
+    """
+    from datetime import time as dt_time
+
+    tariff = catalog.load_tariff()
+    station = catalog.load_station_config()
+    ac_kw = max((c.max_power_kw for c in station.connectors if c.zone.value == "AC"), default=0.0)
+    dc_kw = max((c.max_power_kw for c in station.connectors if c.zone.value == "DC"), default=0.0)
+    periods_out = [
+        {
+            "period": p.name,
+            "start": p.start.strftime("%H:%M"),
+            "end": p.end.strftime("%H:%M"),
+            "price_vnd_per_kwh": p.price_per_kwh,
+        }
+        for p in tariff.periods
+    ]
+    result: dict = {
+        "applies_to": f"Cả trụ AC ({ac_kw:g} kW) và trụ DC ({dc_kw:g} kW) dùng chung biểu giá theo khung giờ",
+        "verified": tariff.verified,
+        "source_note": tariff.source,
+        "periods": periods_out,
+    }
+    if time_hhmm:
+        raw = time_hhmm.strip()
+        parts = raw.split(":")
+        parsed_time: dt_time | None = None
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            h, m = int(parts[0]), int(parts[1])
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                parsed_time = dt_time(h, m)
+        if parsed_time is None:
+            result["time_error"] = f"Giờ '{time_hhmm}' không đúng định dạng 24h HH:MM (vd '22:00')."
+        else:
+            result["queried_time"] = parsed_time.strftime("%H:%M")
+            result["queried_price_vnd_per_kwh"] = tariff.price_at(parsed_time)
+            for p in tariff.periods:
+                in_period = (p.start <= p.end and p.start <= parsed_time < p.end) or (
+                    p.start > p.end and (parsed_time >= p.start or parsed_time < p.end)
+                )
+                if in_period:
+                    result["queried_period"] = p.name
+                    result["queried_window"] = f"{p.start.strftime('%H:%M')}–{p.end.strftime('%H:%M')}"
+                    break
+    return json.dumps(result, ensure_ascii=False)
+
+
 CHARGING_TOOLS = [
     lookup_vehicle,
     estimate_charging_energy,
@@ -155,4 +207,5 @@ CHARGING_TOOLS = [
     confirm_booking,
     get_queue_status,
     explain_schedule,
+    get_tariff_info,
 ]

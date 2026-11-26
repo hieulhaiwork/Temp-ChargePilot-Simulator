@@ -78,6 +78,28 @@ def _with_reply(state: AgentState, answer: str) -> list[dict]:
     return history[-HISTORY_LIMIT:]
 
 
+def _sanitize_suggestions(suggestions: list[str], state: AgentState) -> list[str]:
+    """Option B guardrail: khi chưa biết `soc_now`, tuyệt đối không để gợi ý 1 chạm ép/đoán % pin hiện tại."""
+    draft = state.get("draft_request") or {}
+    missing_soc_now = draft.get("soc_now") is None
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in suggestions:
+        item = str(raw).strip()
+        if not item or item in seen:
+            continue
+        if missing_soc_now and "%" in item:
+            low_item = item.lower()
+            is_target_only = any(k in low_item for k in ("mục tiêu", "sạc đầy", "lên "))
+            if not is_target_only:
+                continue
+        seen.add(item)
+        cleaned.append(item)
+        if len(cleaned) >= 3:
+            break
+    return cleaned
+
+
 def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
     fn = generate_fn or llm_generate
 
@@ -131,7 +153,7 @@ def _make_finalize(generate_fn: GenerateFn | None, partial: bool):
         logger.info("finalize (partial=%s) confidence=%.2f", partial, final.confidence)
         return {
             "response": answer,
-            "suggestions": list(final.suggestions)[:4],
+            "suggestions": _sanitize_suggestions(list(final.suggestions), state),
             "stage": "partial" if partial else "finalize",
             "history": _with_reply(state, answer),
         }

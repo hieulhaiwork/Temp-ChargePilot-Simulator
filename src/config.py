@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # không đốt model mạnh cho việc classify). Judge PHẢI khác model generator
     # để tránh self-preference bias (bài học team 002 — eval judge riêng).
     openai_api_key: str = ""
+    google_api_key: str = ""  # tuỳ chọn: key riêng cho Gemini Audio-in nếu OPENAI_API_KEY là key OpenAI (sk-...)
     openai_base_url: str = ""  # tuỳ chọn: đổi endpoint OpenAI-compatible (vd Gemini / OpenRouter) ngay ở chế độ openai
     model_name: str = "gpt-4o"  # legacy alias cho model_generate
     model_classify: str = "gpt-4o-mini"  # cheap: classify / route / quyết định tool
@@ -47,11 +48,20 @@ class Settings(BaseSettings):
     # Cách ép output theo schema: json_schema hợp với cả Ollama ≥ 0.5 và vLLM mà không cần cờ tool-calling.
     local_llm_structured_method: Literal["json_schema", "function_calling", "json_mode"] = "json_schema"
 
+    # Voice ASR (đa vùng miền Bắc/Trung/Nam — src/services/speech.py):
+    #   gemini           = gọi Gemini Audio-in bằng key hiện có (khuyên dùng trên máy RAM ≤ 8 GB không GPU)
+    #   local_phowhisper = dự phòng trên VM riêng chạy vinai/PhoWhisper-medium / large (chưa cài cục bộ)
+    #   mock             = trả transcript mẫu cho test offline
+    asr_provider: Literal["gemini", "local_phowhisper", "mock"] = "gemini"
+    asr_fallback_provider: Literal["none", "local_phowhisper", "mock"] = "none"
+    asr_model: str = "gemini-3.8-flash"
+    asr_fallback_models: str = "gemini-3.8-flash,gemini-3.1-flash-lite"
+    asr_timeout_seconds: float = Field(default=25.0, gt=0, le=120)
+    local_asr_base_url: str = ""  # URL VM PhoWhisper dự phòng (vd http://<vm-ip>:8001/transcribe)
+
     # Agent dev tools (CHỈ dev/local — validator bên dưới chặn ở production):
     # AGENT_DEMO_SERVICES: tool sạc dùng dịch vụ giả lập trong bộ nhớ (services/charging_demo.py) tới khi T2.2 xong.
     agent_demo_services: bool = False
-    # AGENT_PLAYGROUND: mở trang chat thử /dev/agent (không cần đăng nhập, cư dân demo cố định).
-    agent_playground: bool = False
 
     # Agent loop — escape hatch chống loop vô hạn (bài học team 011:
     # luôn phải có một đường tới END dù LLM cứ đòi gọi tool mãi)
@@ -109,8 +119,10 @@ class Settings(BaseSettings):
             raise ValueError("OPENAI_API_KEY is required when APP_ENV=production and LLM_PROVIDER=openai")
         if self.llm_provider == "mock":
             raise ValueError("LLM_PROVIDER=mock is for dev/test only — not allowed when APP_ENV=production")
-        if self.agent_demo_services or self.agent_playground:
-            raise ValueError("AGENT_DEMO_SERVICES / AGENT_PLAYGROUND are dev-only — turn them off in production")
+        if self.asr_provider == "mock" or self.asr_fallback_provider == "mock":
+            raise ValueError("ASR_PROVIDER=mock is for dev/test only — not allowed when APP_ENV=production")
+        if self.agent_demo_services:
+            raise ValueError("AGENT_DEMO_SERVICES is dev-only — turn it off in production")
         if len(self.jwt_secret) < 32:
             raise ValueError("JWT_SECRET (>= 32 characters) is required when APP_ENV=production")
         return self

@@ -91,7 +91,7 @@ def _dc_request(hours: float = 2, soc_now: float = 20) -> dict:
 async def test_form_booking_works_without_llm(client, station_clock, resident):
     """NFR. Đặt lịch bằng form (quote → bookings) không cần LLM; kWh đúng công thức FR3; xe được cắm ngay."""
     resident("res-a")
-    quote = await client.post("/api/v1/resident/quote", json=_ac_request())
+    quote = await client.post("/api/v1/resident/quotes", json=_ac_request())
     assert quote.status_code == 200, quote.text
     proposal = quote.json()
     assert proposal["feasible"] is True
@@ -100,6 +100,7 @@ async def test_form_booking_works_without_llm(client, station_clock, resident):
     created = await client.post("/api/v1/resident/bookings", json=_ac_request())
     assert created.status_code == 201, created.text
     booking = created.json()
+    assert created.headers["location"] == f"/api/v1/resident/bookings/{booking['booking_id']}"
     current = (await client.get("/api/v1/resident/bookings/current")).json()
     assert current["booking_id"] == booking["booking_id"]
     assert current["status"] == "charging"  # control loop đã gán cổng ngay trong request (ADR-007)
@@ -130,7 +131,7 @@ async def test_infeasible_quote_has_alternatives(client, station_clock, resident
     """FR4. 54 kWh trong 1 giờ ở cổng AC 11 kW là bất khả thi → feasible=False, có phương án thay thế."""
     resident("res-a")
     proposal = (
-        await client.post("/api/v1/resident/quote", json=_ac_request(hours=1, soc_now=10, soc_target=100))
+        await client.post("/api/v1/resident/quotes", json=_ac_request(hours=1, soc_now=10, soc_target=100))
     ).json()
     assert proposal["feasible"] is False
     kinds = {a["kind"] for a in proposal["alternatives"]}
@@ -185,7 +186,9 @@ async def test_cancel_frees_connector(client, station_clock, resident):
     resident("res-a")
     booking = (await client.post("/api/v1/resident/bookings", json=_ac_request())).json()
     cancelled = await client.delete(f"/api/v1/resident/bookings/{booking['booking_id']}")
-    assert cancelled.json()["status"] == "cancelled"
+    assert cancelled.status_code == 204
+    assert cancelled.content == b""
+    assert repository.get_booking(booking["booking_id"]).status.value == "cancelled"
     state = runtime.get_runtime().simulator.state()
     assert all(c.booking_id is None for c in state.connectors)
     assert (await client.get("/api/v1/resident/bookings/current")).json() is None
@@ -229,13 +232,13 @@ async def test_adjustment_outside_consent_waits_for_resident(client, station_clo
     assert notes[0]["approval_id"] == approval_id
     detail = (await client.get(f"/api/v1/resident/approvals/{approval_id}")).json()
     assert detail["requested_from"] == "res-a"
-    decided = await client.post(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "approve"})
+    decided = await client.patch(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "approve"})
     assert decided.status_code == 200, decided.text
     assert decided.json()["status"] == "approved"
     log = [d for d in repository.list_decisions(limit=50) if d.approval_id == approval_id]
     executed = [d for d in log if d.executed]
     assert executed and executed[0].approved_by == "res-a" and executed[0].verdict.passed
-    again = await client.post(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "reject"})
+    again = await client.patch(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "reject"})
     assert again.status_code == 409
 
 
@@ -244,7 +247,7 @@ async def test_other_resident_cannot_see_or_decide(client, station_clock, reside
     resident("res-intruder")
     assert (await client.get(f"/api/v1/resident/approvals/{approval_id}")).status_code == 404
     assert (
-        await client.post(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "approve"})
+        await client.patch(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "approve"})
     ).status_code == 404
 
 
@@ -258,7 +261,7 @@ async def test_expired_approval_is_never_applied(client, station_clock, resident
     assert repository.get_approval(approval_id).status == ApprovalStatus.EXPIRED
     log = [d for d in repository.list_decisions(limit=50) if d.approval_id == approval_id]
     assert not any(d.executed for d in log)
-    late = await client.post(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "approve"})
+    late = await client.patch(f"/api/v1/resident/approvals/{approval_id}", json={"decision": "approve"})
     assert late.status_code == 409
 
 
@@ -321,8 +324,10 @@ async def test_blocked_commands_show_up_for_operator(client, station_clock, as_r
     assert not any(e.executed for e in entries)
     assert rt.simulator.state().total_power_kw == 0
     as_role(Role.OPERATOR, user_id="op-1")
-    blocked = (await client.get("/api/v1/operator/commands/blocked")).json()
+    blocked_page = (await client.get("/api/v1/operator/commands/blocked")).json()
+    blocked = blocked_page["items"]
     assert len(blocked) == 5
+    assert blocked_page["has_more"] is False and blocked_page["next_cursor"] is None
     rules = {v["rule"] for b in blocked for v in b["verdict"]["violations"]}
     assert {"connector_power_limit", "schedule_version", "stale_state", "permission"} <= rules
 
@@ -350,14 +355,14 @@ async def test_operator_views_and_manual_assign(client, station_clock, resident,
     assert (await client.get("/api/v1/operator/load", params={"hours": 1})).json()
     # Xếp tay vào cổng ĐANG BẬN → Guard chặn; vào cổng DC (sai vùng) → Guard chặn.
     busy = await client.post(
-        f"/api/v1/operator/queue/{queued[0]['booking_id']}/assign", json={"connector_id": "AC-01-1"}
+        f"/api/v1/operator/bookings/{queued[0]['booking_id']}/assignments", json={"connector_id": "AC-01-1"}
     )
     assert busy.json()["executed"] is False
     wrong_zone = await client.post(
-        f"/api/v1/operator/queue/{queued[0]['booking_id']}/assign", json={"connector_id": "DC-01-1"}
+        f"/api/v1/operator/bookings/{queued[0]['booking_id']}/assignments", json={"connector_id": "DC-01-1"}
     )
     assert wrong_zone.json()["executed"] is False
-    replanned = await client.post("/api/v1/operator/schedule/replan")
+    replanned = await client.post("/api/v1/operator/schedule/replans")
     assert replanned.status_code == 200 and replanned.json()["version"] > plan["version"]
 
 
@@ -454,7 +459,7 @@ async def test_chat_booking_kwh_matches_fr3(client, station_clock, resident, moc
     assert t3["status"] == "needs_confirmation"
     assert t3["proposal"]["feasible"] is True
     kwh = t3["proposal"]["energy"]["battery_energy_kwh"]
-    t4 = (await client.post("/api/v1/chat/resume", json={"session_id": sid, "resume": "approve"})).json()
+    t4 = (await client.patch(f"/api/v1/chat/sessions/{sid}", json={"resume": "approve"})).json()
     assert t4["status"] == "answer" and t4["analysis"] == "confirm_booking"
     current = (await client.get("/api/v1/resident/bookings/current")).json()
     assert current is not None
@@ -477,7 +482,7 @@ async def test_e2e_unified_core_acceptance(client, station_clock, resident, as_r
 
     resident("res-a")
     request = _dc_request(hours=3, soc_now=60)
-    quote = (await client.post("/api/v1/resident/quote", json=request)).json()
+    quote = (await client.post("/api/v1/resident/quotes", json=request)).json()
     assert quote["feasible"] is True
     assert quote["certainty"] in ("estimate", "conditional") and quote["assumptions"], "quote không được là SLA"
     assert (await client.post("/api/v1/resident/bookings", json=request)).status_code == 201

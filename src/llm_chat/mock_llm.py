@@ -190,8 +190,95 @@ def _missing_fields(draft: dict) -> list[str]:
     elif draft.get("mode") == "reservation" and not draft.get("arrival_time"):
         missing.append("giờ dự kiến cắm sạc")
     if not draft.get("deadline"):
-        missing.append("giờ cần lấy xe (deadline)")
+        missing.append("giờ cần lấy xe")
     return missing
+
+
+def try_deterministic_tariff_decision(query: str) -> AgentDecision | None:
+    """0-RPM fast-path cho câu hỏi biểu giá điện — đọc trực tiếp từ config/tariff.yaml, không tốn LLM."""
+    low = query.lower()
+    if not any(
+        k in low for k in ("giá điện", "biểu giá", "bao nhiêu tiền", "giờ rẻ", "thấp điểm", "cao điểm", "đơn giá")
+    ):
+        return None
+    # Nếu cư dân đang đồng thời yêu cầu đặt lịch cụ thể (có % pin), để luồng đặt lịch xử lý.
+    if _PCT_RE.search(query):
+        return None
+
+    tariff = catalog.load_tariff()
+    period_labels = {"off_peak": "thấp điểm", "normal": "bình thường", "peak": "cao điểm"}
+
+    def _fmt_price(vnd: float) -> str:
+        return f"{int(round(vnd)):,}".replace(",", ".") + " VND/kWh"
+
+    # Kiểm tra xem cư dân có hỏi 1 khung giờ cụ thể (vd "19h00", "10 tối", "10pm", "8h sáng") không
+    times: list[tuple[int, int]] = []
+    for m in _TIME_RE.finditer(query):
+        h, mins = int(m.group(1)), int(m.group(2) or 0)
+        if 0 <= h <= 23 and 0 <= mins <= 59:
+            tail = low[m.end() : m.end() + 12]
+            if h < 12 and any(k in tail for k in ("tối", "đêm", "chiều", "pm")):
+                h += 12
+            elif h == 12 and "đêm" in tail:
+                h = 0
+            times.append((h, mins))
+    if not times:
+        colloquial = re.search(
+            r"\b(\d{1,2})\s*(?:giờ\s*)?(sáng|trưa|chiều|tối|đêm|am|pm)\b",
+            low,
+        )
+        if colloquial:
+            h = int(colloquial.group(1))
+            meridiem = colloquial.group(2)
+            if 0 <= h <= 23:
+                if h < 12 and meridiem in ("chiều", "tối", "đêm", "pm"):
+                    h += 12
+                elif h == 12 and meridiem in ("đêm", "am"):
+                    h = 0
+                times.append((h, 0))
+    note = f" (Lưu ý: {tariff.source}.)" if not tariff.verified else ""
+    if len(times) == 1:
+        h, m = times[0]
+        from datetime import time as dt_time
+
+        price = tariff.price_at(dt_time(h, m))
+        matched = next(
+            (
+                p
+                for p in tariff.periods
+                if (
+                    (p.start <= p.end and p.start <= dt_time(h, m) < p.end)
+                    or (p.start > p.end and (dt_time(h, m) >= p.start or dt_time(h, m) < p.end))
+                )
+            ),
+            None,
+        )
+        if matched:
+            label = period_labels.get(matched.name, matched.name)
+            answer = (
+                f"Lúc {h:02d}:{m:02d} thuộc khung giờ {label} ({matched.start.strftime('%H:%M')}–{matched.end.strftime('%H:%M')}), "
+                f"đơn giá là {_fmt_price(price)}. Biểu giá áp dụng theo khung giờ chung của trạm cho cả trụ AC và DC.{note}"
+            )
+        else:
+            answer = f"Đơn giá lúc {h:02d}:{m:02d} là {_fmt_price(price)} (áp dụng chung cho cả AC và DC).{note}"
+    else:
+        lines = [
+            f"• {period_labels.get(p.name, p.name).capitalize()} ({p.start.strftime('%H:%M')}–{p.end.strftime('%H:%M')}): {_fmt_price(p.price_per_kwh)}"
+            for p in tariff.periods
+        ]
+        answer = (
+            "Biểu giá điện tại trạm áp dụng theo khung giờ (chung cho cả trụ AC và DC):\n"
+            + "\n".join(lines)
+            + f"\nKhung rẻ nhất là 22:00–04:00 (1.200 VND/kWh).{note}"
+        )
+
+    return AgentDecision(
+        thought="Câu hỏi biểu giá điện → trả lời trực tiếp từ config/tariff.yaml (0 RPM).",
+        action="final",
+        enough_data=True,
+        final_answer=answer,
+        suggestions=["Đang ở bãi, sạc AC", "Đang ở bãi, sạc nhanh DC", "Hẹn 22:00, sạc AC"],
+    )
 
 
 async def mock_reason(state: AgentState) -> AgentDecision:
@@ -207,6 +294,27 @@ async def mock_reason(state: AgentState) -> AgentDecision:
 
     query = state.get("query", "")
     low = query.lower()
+
+    # 0. Biểu giá điện (0 RPM, đọc từ config/tariff.yaml)
+    tariff_decision = try_deterministic_tariff_decision(query)
+    if tariff_decision is not None:
+        return tariff_decision
+
+    # 0b. Không thể gộp/mix AC và DC trong cùng một phiên
+    if ("ac" in low and "dc" in low) and any(
+        k in low for k in ("mix", "kết hợp", "gộp", "vừa ac vừa dc", "cả ac và dc")
+    ):
+        return AgentDecision(
+            thought="Cư dân hỏi gộp AC và DC trong cùng một phiên — hai trụ khác nhau về vật lý.",
+            action="final",
+            enough_data=True,
+            final_answer=(
+                "Mỗi lịch sạc chỉ gắn với một trụ duy nhất (AC hoặc DC) vì trụ AC (11 kW) và trụ DC (60 kW) "
+                "nằm ở hai vị trí đỗ và đầu cắm khác nhau, không thể tự động chuyển đổi giữa phiên. "
+                "Bạn muốn chọn sạc AC tiết kiệm hay sạc nhanh DC nhé?"
+            ),
+            suggestions=["Đang ở bãi, sạc AC", "Đang ở bãi, sạc nhanh DC"],
+        )
 
     # 1. Hàng đợi (US2)
     if any(k in low for k in ("hàng đợi", "xếp thứ mấy", "chờ bao lâu", "queue")):
@@ -240,7 +348,7 @@ async def mock_reason(state: AgentState) -> AgentDecision:
             enough_data=True,
             draft_request=draft,
             final_answer="Hiện bạn chưa có lịch sạc nào để đổi. Bạn có muốn đặt lịch mới với giờ lấy xe này không? Nếu có, cho mình biết thêm % pin hiện tại, % mục tiêu, vùng sạc (AC/DC) và thời điểm đến bãi nhé.",
-            suggestions=["Đặt lịch mới, pin 30% lên 80%", "Sạc nhanh DC, đang ở bãi", "Sạc AC qua đêm"],
+            suggestions=["Đặt lịch sạc mới", "Đang ở bãi, sạc nhanh DC", "Đang ở bãi, sạc AC"],
         )
 
     # 3. Tra thông số mẫu xe
@@ -400,25 +508,28 @@ async def mock_reason(state: AgentState) -> AgentDecision:
 
     quick: list[str] = []
     if draft.get("soc_now") is None:
-        quick = (
-            ["30%, ở bãi, DC", "20%, ở bãi, DC", "40%, ở bãi, AC"]
-            if prefer_dc
-            else ["30%, ở bãi, AC", "20%, ở bãi, DC", "40%, hẹn 22:00, AC"]
-        )
+        # Option B: KHÔNG ép/đoán % pin hiện tại trong gợi ý 1 chạm.
+        # Chỉ gợi ý các trường rời rạc (mode/zone/deadline) còn thiếu; nếu chỉ thiếu soc_now thì để trống để cư dân tự nhập/nói.
+        if not draft.get("mode") or not draft.get("zone"):
+            quick = (
+                ["Đang ở bãi, sạc nhanh DC", "Đang ở bãi, sạc AC", "Hẹn 22:00, sạc AC"]
+                if prefer_dc
+                else ["Đang ở bãi, sạc AC", "Đang ở bãi, sạc nhanh DC", "Hẹn 22:00, sạc AC"]
+            )
+        elif not draft.get("deadline"):
+            quick = ["Lấy 07:00 mai", "Lấy 06:30 mai", "Lấy 18:00 nay"]
+        else:
+            quick = []
     elif not draft.get("mode"):
         quick = (
-            ["Ở bãi, sạc nhanh DC", "Ở bãi, sạc AC", "Hẹn 22:00, AC"]
+            ["Đang ở bãi, sạc nhanh DC", "Đang ở bãi, sạc AC", "Hẹn 22:00, sạc AC"]
             if prefer_dc
-            else ["Ở bãi, sạc AC", "Ở bãi, sạc nhanh DC", "Hẹn 22:00, AC"]
+            else ["Đang ở bãi, sạc AC", "Đang ở bãi, sạc nhanh DC", "Hẹn 22:00, sạc AC"]
         )
     elif draft.get("soc_target") is None:
-        quick = (
-            ["Lên 80%, DC", "Đầy 100%, DC", "Lên 80%, AC"]
-            if prefer_dc
-            else ["Lên 80%, AC", "Lên 90%, AC", "Đầy 100%, DC"]
-        )
+        quick = ["Mục tiêu 80%", "Sạc đầy 100%", "Mục tiêu 90%"]
     elif not draft.get("deadline"):
-        quick = ["Lấy 07:00 mai", "Lấy 06:30 mai", "Sạc DC, 18:00 nay"]
+        quick = ["Lấy 07:00 mai", "Lấy 06:30 mai", "Lấy 18:00 nay"]
     return AgentDecision(
         thought=f"Thiếu thông tin: {ask} → hỏi lại cư dân.",
         action="final",

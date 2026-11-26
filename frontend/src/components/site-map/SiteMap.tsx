@@ -4,11 +4,32 @@
  * SiteMap — mặt bằng bãi sạc (S9), dùng chung 2 vai trò (docs/plan/22-ui-work-split.md §9):
  *   vận hành: layout="landscape", interactive — chọn ô bằng chuột hoặc phím mũi tên + Enter;
  *   cư dân:   privacy — ô của người khác chỉ còn "Đang dùng / Trống / Tạm ngưng" (NFR riêng tư).
- * Port 1-1 từ docs/mockups/cu-dan/assets/site-map.js (renderMap).
  */
 import { useRef, type KeyboardEvent } from "react";
 
-import { LAYOUTS, SITE, usage, type BayStatus, type PortState, type QueueCar, type Zone } from "./fixture";
+import type { components } from "@/lib/api/schema";
+
+export type Zone = components["schemas"]["ChargerZone"];
+export type BayStatus = components["schemas"]["ConnectorStatus"];
+export type BayLayout = components["schemas"]["BayLayout"];
+export type SiteLayout = components["schemas"]["SiteLayout"];
+
+export type PortState = {
+  status: BayStatus;
+  veh?: string;
+  kw?: number;
+  soc?: number;
+  target?: number;
+  dep?: string;
+  eta?: string;
+  why?: string;
+};
+
+export type QueueCar = {
+  veh?: string;
+  dep?: string;
+  start?: string;
+};
 
 type Style = { label: string; short?: string; fg: string; bg: string; mark: string; symbol: string };
 
@@ -19,6 +40,7 @@ export const BAY_STATUS: Record<BayStatus, Style> = {
   finished: { label: "Đã đầy, chưa rút", short: "Đã đầy", fg: "#23585b", bg: "#e6efef", mark: "#326467", symbol: "✓" },
   fault: { label: "Lỗi", fg: "#963d32", bg: "#fbece7", mark: "#963d32", symbol: "✕" },
 };
+
 export const PUBLIC_STATUS = {
   busy: { label: "Đang dùng", fg: "#3f5249", bg: "#e3e8e1", mark: "#6f8279", symbol: "●" },
   idle: BAY_STATUS.idle,
@@ -27,6 +49,104 @@ export const PUBLIC_STATUS = {
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const kw = (v: number) => `${v.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} kW`;
+
+type Rect = { x: number; y: number; w: number; h: number };
+type Gate = { x: number; label: string; dir: "in" | "out" };
+
+type LayoutSpec = {
+  w: number;
+  h: number;
+  road: Rect;
+  gates?: Gate[];
+  room?: Rect | null;
+  zones: Record<Zone, Rect>;
+  cabinets: Record<string, Rect>;
+  bays: Record<string, Rect>;
+  lanes: Record<Zone, Rect>;
+  regular: { x: number; y: number; n: number; w: number; h: number } | null;
+};
+
+const LAYOUT_SPECS: Record<"landscape" | "portrait", LayoutSpec> = {
+  landscape: {
+    w: 1000,
+    h: 600,
+    road: { x: 0, y: 0, w: 1000, h: 64 },
+    gates: [
+      { x: 60, label: "Lối vào", dir: "in" },
+      { x: 940, label: "Lối ra", dir: "out" },
+    ],
+    room: { x: 24, y: 96, w: 176, h: 150 },
+    regular: { x: 230, y: 84, n: 13, w: 52, h: 96 },
+    zones: { AC: { x: 230, y: 214, w: 290, h: 262 }, DC: { x: 550, y: 214, w: 420, h: 262 } },
+    cabinets: {
+      "AC-01": { x: 255, y: 250, w: 110, h: 30 },
+      "AC-02": { x: 385, y: 250, w: 110, h: 30 },
+      "DC-01": { x: 650, y: 250, w: 220, h: 30 },
+    },
+    bays: {
+      "AC-01-1": { x: 255, y: 300, w: 110, h: 160 },
+      "AC-02-1": { x: 385, y: 300, w: 110, h: 160 },
+      "DC-01-1": { x: 585, y: 300, w: 165, h: 160 },
+      "DC-01-2": { x: 775, y: 300, w: 165, h: 160 },
+    },
+    lanes: { AC: { x: 230, y: 500, w: 290, h: 76 }, DC: { x: 550, y: 500, w: 420, h: 76 } },
+  },
+  portrait: {
+    w: 360,
+    h: 640,
+    road: { x: 0, y: 0, w: 360, h: 44 },
+    gates: [{ x: 60, label: "Lối vào", dir: "in" }],
+    room: null,
+    regular: null,
+    zones: { AC: { x: 12, y: 58, w: 336, h: 214 }, DC: { x: 12, y: 286, w: 336, h: 214 } },
+    cabinets: {
+      "AC-01": { x: 32, y: 88, w: 136, h: 26 },
+      "AC-02": { x: 192, y: 88, w: 136, h: 26 },
+      "DC-01": { x: 32, y: 316, w: 296, h: 26 },
+    },
+    bays: {
+      "AC-01-1": { x: 32, y: 124, w: 136, h: 136 },
+      "AC-02-1": { x: 192, y: 124, w: 136, h: 136 },
+      "DC-01-1": { x: 32, y: 352, w: 136, h: 136 },
+      "DC-01-2": { x: 192, y: 352, w: 136, h: 136 },
+    },
+    lanes: { AC: { x: 12, y: 514, w: 164, h: 112 }, DC: { x: 184, y: 514, w: 164, h: 112 } },
+  },
+};
+
+export const DEFAULT_PORTS: Array<{
+  id: string;
+  cabinet: string;
+  zone: Zone;
+  bay: string;
+  limitKw: number;
+}> = [
+  { id: "AC-01-1", cabinet: "AC-01", zone: "AC", bay: "B-A1", limitKw: 11 },
+  { id: "AC-02-1", cabinet: "AC-02", zone: "AC", bay: "B-A2", limitKw: 11 },
+  { id: "DC-01-1", cabinet: "DC-01", zone: "DC", bay: "B-D1", limitKw: 60 },
+  { id: "DC-01-2", cabinet: "DC-01", zone: "DC", bay: "B-D2", limitKw: 60 },
+];
+
+export const DEFAULT_CABINETS: Array<{
+  id: string;
+  zone: Zone;
+  ports: number;
+  portLimitKw: number;
+}> = [
+  { id: "AC-01", zone: "AC", ports: 1, portLimitKw: 11 },
+  { id: "AC-02", zone: "AC", ports: 1, portLimitKw: 11 },
+  { id: "DC-01", zone: "DC", ports: 2, portLimitKw: 60 },
+];
+
+export function usage(ports: Record<string, PortState>, eff = 0.95) {
+  const out: Record<Zone, number> = { AC: 0, DC: 0 };
+  for (const [id, st] of Object.entries(ports)) {
+    const z: Zone = id.startsWith("DC") ? "DC" : "AC";
+    out[z] += st?.kw ?? 0;
+  }
+  const safeEff = eff > 0 ? eff : 1;
+  return { ...out, grid: (out.AC + out.DC) / safeEff };
+}
 
 function Car({ x, y, w, h, color, mine }: { x: number; y: number; w: number; h: number; color: string; mine: boolean }) {
   const cw = Math.min(w * 0.56, 70);
@@ -52,19 +172,75 @@ export type SiteMapProps = {
   mineQueue?: { zone: Zone; pos: number } | null;
   selected?: string;
   onSelect?: (portId: string) => void;
+  bays?: BayLayout[];
+  gridLimitKw?: number;
+  budgets?: Record<Zone, number>;
+  conversionEff?: number;
 };
 
-export function SiteMap({ layout, ports, queues, title, filter = "all", privacy = false, mine = null, mineQueue = null, selected, onSelect }: SiteMapProps) {
-  const L = LAYOUTS[layout];
+export function SiteMap({
+  layout,
+  ports,
+  queues,
+  title,
+  filter = "all",
+  privacy = false,
+  mine = null,
+  mineQueue = null,
+  selected,
+  onSelect,
+  bays,
+  gridLimitKw = 106,
+  budgets = { AC: 22, DC: 78 },
+  conversionEff = 0.95,
+}: SiteMapProps) {
+  const L = LAYOUT_SPECS[layout];
   const compact = layout === "portrait";
   const interactive = Boolean(onSelect);
   const ref = useRef<SVGSVGElement>(null);
   const dim = (z: Zone) => (filter !== "all" && filter !== z ? 0.35 : 1);
-  const ids = SITE.ports.map((p) => p.id);
+
+  // Danh sách cổng hiển thị
+  const renderedPorts: Array<{
+    id: string;
+    bay: string;
+    zone: Zone;
+    limitKw: number;
+    cabinet: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  }> = bays && bays.length > 0
+    ? bays.map((b) => {
+        const id = b.connector_id ?? b.bay_id;
+        const defaultMatch = DEFAULT_PORTS.find((p) => p.id === id || p.bay === b.bay_id);
+        return {
+          id,
+          bay: b.bay_id,
+          zone: b.zone as Zone,
+          limitKw: defaultMatch?.limitKw ?? (b.zone === "AC" ? 11 : 60),
+          cabinet: defaultMatch?.cabinet ?? (b.zone === "AC" ? "AC-01" : "DC-01"),
+          x: b.x,
+          y: b.y,
+          width: b.width,
+          height: b.height,
+        };
+      })
+    : DEFAULT_PORTS;
+
+  const ids = renderedPorts.map((p) => p.id);
 
   function onKey(e: KeyboardEvent<SVGGElement>, id: string) {
+    if (ids.length === 0) return;
     const i = ids.indexOf(id);
-    const next = e.key === "ArrowRight" || e.key === "ArrowDown" ? ids[(i + 1) % ids.length] : e.key === "ArrowLeft" || e.key === "ArrowUp" ? ids[(i + ids.length - 1) % ids.length] : null;
+    if (i === -1) return;
+    const next =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? ids[(i + 1) % ids.length]
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? ids[(i + ids.length - 1) % ids.length]
+          : null;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onSelect?.(id);
@@ -73,6 +249,8 @@ export function SiteMap({ layout, ports, queues, title, filter = "all", privacy 
       ref.current?.querySelector<SVGGElement>(`[data-port="${next}"]`)?.focus();
     }
   }
+
+  const u = usage(ports, conversionEff);
 
   return (
     <svg ref={ref} className="map-svg" viewBox={`0 0 ${L.w} ${L.h}`} role={interactive ? "group" : "img"} aria-label={title}>
@@ -99,12 +277,11 @@ export function SiteMap({ layout, ports, queues, title, filter = "all", privacy 
         const cabAC = L.cabinets["AC-01"];
         const cabDC = L.cabinets["DC-01"];
         const zoneDC = L.zones.DC;
-        const u = usage(ports);
         const yAC = cabAC.y + 15;
         const yDC = cabDC.y + 15;
         const busX = r.x + r.w + 12;
-        const isAcFull = u.AC >= SITE.budgets.AC - 0.05;
-        const isDcFull = u.DC >= SITE.budgets.DC - 0.05;
+        const isAcFull = u.AC >= (budgets.AC ?? 22) - 0.05;
+        const isDcFull = u.DC >= (budgets.DC ?? 78) - 0.05;
         return (
           <g>
             <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={14} fill="#122d27" stroke="#24654e" strokeWidth={1.5} />
@@ -113,9 +290,9 @@ export function SiteMap({ layout, ports, queues, title, filter = "all", privacy 
             <text x={r.x + 16} y={r.y + 84} fontSize="22" fontWeight="800" fill="#fff" className="num">
               {u.grid.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}
             </text>
-            <text x={r.x + 16} y={r.y + 104} fontSize="12" fill="#d8edd8">/ {SITE.gridLimitKw} kW đầu vào</text>
+            <text x={r.x + 16} y={r.y + 104} fontSize="12" fill="#d8edd8">/ {gridLimitKw} kW đầu vào</text>
             <text x={r.x + 16} y={r.y + 132} fontSize="11" fill="#9fc3b1">
-              hiệu suất chuyển đổi {Math.round(SITE.conversionEff * 100)}%
+              hiệu suất chuyển đổi {Math.round(conversionEff * 100)}%
             </text>
 
             {/* Bus line sang AC */}
@@ -161,27 +338,28 @@ export function SiteMap({ layout, ports, queues, title, filter = "all", privacy 
         return (
           <g key={z} opacity={dim(z)}>
             <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="16" fill={z === "AC" ? "#eef4ea" : "#eaf0ef"} stroke={z === "AC" ? "#b8dabf" : "#c0d8d8"} strokeWidth="1.5" />
-            <text x={b.x + 14} y={b.y + 22} fontSize="13" fontWeight="800" fill={z === "AC" ? "#163d34" : "#23585b"}>
-              Vùng {z} · {z === "AC" ? "sạc chậm, đỗ dài" : "sạc nhanh, đỗ ngắn"}
+            <text x={b.x + 14} y={b.y + 22} fontSize="12.5" fontWeight="800" fill={z === "AC" ? "#163d34" : "#23585b"} data-zone-title={z}>
+              Vùng {z} · {z === "AC" ? "sạc chậm" : "sạc nhanh"}
             </text>
             {compact ? null : (
-              <text x={b.x + b.w - 14} y={b.y + 22} textAnchor="end" fontSize="12" fill="#52655d">
-                ngân sách {SITE.budgets[z]} kW
+              <text x={b.x + b.w - 14} y={b.y + 22} textAnchor="end" fontSize="11.5" fill="#52655d" data-zone-budget={z}>
+                ngân sách {budgets[z] ?? (z === "AC" ? 22 : 78)} kW
               </text>
             )}
           </g>
         );
       })}
 
-      {SITE.cabinets.map((c) => {
+      {DEFAULT_CABINETS.map((c) => {
         const b = L.cabinets[c.id];
+        if (!b) return null;
         return (
           <g key={c.id} opacity={dim(c.zone)}>
             <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="8" fill="#163d34" />
-            <text x={b.x + 10} y={b.y + b.h / 2 + 4} fontSize={compact ? 11 : 12} fontWeight="800" fill="#fff">
+            <text x={b.x + 8} y={b.y + b.h / 2 + 4} fontSize={11} fontWeight="800" fill="#fff" data-cabinet-title={c.id}>
               Tủ {c.id}
             </text>
-            <text x={b.x + b.w - 10} y={b.y + b.h / 2 + 4} textAnchor="end" fontSize="11" fill="#ffce70">
+            <text x={b.x + b.w - 8} y={b.y + b.h / 2 + 4} textAnchor="end" fontSize="10.5" fill="#ffce70" data-cabinet-power={c.id}>
               {c.ports > 1 ? `${c.ports} × ` : ""}
               {c.portLimitKw} kW
             </text>
@@ -189,10 +367,15 @@ export function SiteMap({ layout, ports, queues, title, filter = "all", privacy 
         );
       })}
 
-      {SITE.ports.map((p) => {
-        const b = L.bays[p.id];
-        const st = ports[p.id] ?? { status: "idle" };
-        const isMine = mine === p.id;
+      {renderedPorts.map((p) => {
+        const b = L.bays[p.id] ?? {
+          x: "x" in p && typeof p.x === "number" ? p.x : 100,
+          y: "y" in p && typeof p.y === "number" ? p.y : 300,
+          w: "width" in p && typeof p.width === "number" ? p.width : 110,
+          h: "height" in p && typeof p.height === "number" ? p.height : 160,
+        };
+        const st = ports[p.id] ?? ports[p.bay] ?? { status: "idle" };
+        const isMine = mine === p.id || mine === p.bay;
         let S: Style;
         let aria: string;
         const lines: string[] = [];
@@ -201,14 +384,14 @@ export function SiteMap({ layout, ports, queues, title, filter = "all", privacy 
           aria = `Ô ${p.bay}, cổng ${p.id}, ${p.zone} ${p.limitKw} kW: ${S.label}`;
           lines.push(`${p.limitKw} kW · ${p.zone}`);
         } else {
-          S = BAY_STATUS[st.status];
+          S = BAY_STATUS[st.status] ?? BAY_STATUS.idle;
           if (st.veh) lines.push(privacy ? "Xe của bạn" : `Xe ${st.veh}`);
           if ((st.status === "charging" || st.status === "throttled") && st.kw != null) lines.push(`${kw(st.kw)} / ${p.limitKw} kW`);
           if (st.soc != null && st.target != null) lines.push(`Pin ${pct(st.soc)} → ${pct(st.target)}`);
           if (!lines.length) lines.push(`${p.limitKw} kW · ${p.zone}`);
           aria = `Ô ${p.bay}, cổng ${p.id}: ${S.label}${lines.length ? ", " + lines.join(", ") : ""}`;
         }
-        const sel = selected === p.id;
+        const sel = selected === p.id || selected === p.bay;
         const fs = compact ? 11.5 : 12.5;
         const showCar = Boolean(st.veh) || (privacy && st.status !== "idle" && st.status !== "fault");
         return (

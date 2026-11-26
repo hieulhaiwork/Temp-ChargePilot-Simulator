@@ -2,10 +2,12 @@
 
 > Điều phối lịch và công suất cho một bãi sạc EV hỗn hợp AC + DC — đề tài SC-16, nhóm T019. Hệ thống là
 > **simulation-only**.
-> **Cập nhật 21/11/2026 theo ADR-010…015.** Mô tả bài toán và hướng kiến trúc đã đổi; sườn thư mục và bảng truy vết
-> vẫn mô tả **code hiện có** của skeleton (`8f6f08a`), phần đích ghi riêng là "chưa có trong code".
-> Sơ đồ chi tiết: [`docs/architecture_diagram.md`](docs/architecture_diagram.md).
-> Quyết định kiến trúc: [`docs/adr/`](docs/adr/README.md) (ADR-001 … ADR-015).
+> **Nguồn hiện trạng (24/11):** chức năng nào đã làm, test và bằng chứng nào → [`docs/FEATURE_REGISTRY.md`](docs/FEATURE_REGISTRY.md).
+> Hiểu hệ thống theo 4 tầng (nghiệp vụ → kiến trúc → nguyên lý → kiểm chứng), sơ đồ hiện trạng và 3 luồng chính →
+> [`docs/architecture_diagram.md`](docs/architecture_diagram.md). File này giữ sườn thư mục, ranh giới module,
+> persistence, bảo mật. Một số đoạn dưới đây viết ngày 21–23/11; chỗ mâu thuẫn với registry hoặc code thì registry /
+> code đúng.
+> Quyết định kiến trúc + phân loại cần duyệt: [`docs/adr/`](docs/adr/README.md) (ADR-001 … ADR-019).
 > Plan chi tiết theo mảng: [`docs/plan/`](docs/plan/00-overview.md). Yêu cầu: PRD v0.4 [`docs/PRD.md`](docs/PRD.md).
 > Nguồn sự thật kỹ thuật là code trong `src/`; khi tài liệu mâu thuẫn với code, code thắng.
 
@@ -41,9 +43,9 @@ Nguyên tắc 3 trụ của Brief vẫn giữ:
 3. **Bộ kiểm tra an toàn kiểm soát thực thi** (`src/guard/`): cửa duy nhất tới trạm giả lập (`src/simulator/`);
    ADR-011 tách hai lớp vật lý + chính sách
 
-Trạng thái hiện tại là **skeleton contract-first** (ADR-004): đủ schema, đủ endpoint, đủ chữ ký hàm; phần chưa làm
-`raise NotImplementedError("[Txx] …")` và API trả HTTP 501 kèm `task_id`. Simulator v1.2 thật nằm ở branch
-`feature/simulator` @ `d15871a`, **chưa merge**; `src/simulator/` dưới đây là bản cũ của skeleton.
+Quy ước contract-first (ADR-004) vẫn giữ: phần chưa làm `raise NotImplementedError("[Txx] …")` và API trả HTTP 501
+kèm `task_id`. Hiện chỉ còn dự báo (F12, "F6 cũ") dùng quy ước này. Simulator đã nằm trong `src/simulator/` (kernel
+chung với backend, ADR-019).
 
 ## Sườn thư mục
 
@@ -105,15 +107,15 @@ P-019/
 │   │   └── simulation_service.py   ✅ chạy kịch bản S8 + benchmark B0–M3b + baseline có version (T3.4, T3.5)
 │   ├── db/                         TẦNG LƯU TRỮ (ADR-005) — chỉ repository.py được gọi vào
 │   │   ├── base.py, types.py       ✅ DeclarativeBase, UtcDateTime (từ chối datetime không múi giờ)
-│   │   ├── tables.py               ✅ 9 bảng: users, bookings, idempotency_keys, schedule_plans, approvals,
-│   │   │                              decision_log, notifications, station_events, load_points
+│   │   ├── tables.py               ✅ 10 bảng: users, bookings, idempotency_keys, schedule_plans, approvals,
+│   │   │                              decision_log, notifications, station_events, load_points, decision_traces
 │   │   ├── session.py              ✅ engine + session_scope; chuẩn hoá URL Neon → postgresql+psycopg://
 │   │   └── mappers.py              🧩 Row ↔ model Pydantic (T1.6)
 │   ├── optimizer/                  TRỤ 2 — F2/F3 (TV1) — code thuần
 │   │   ├── dispatch/, zones/       ✅ dispatch FCFS / EDF / LLF; LP vùng AC / DC (HiGHS), equal share — gốc simulator
 │   │   ├── coordination/           ✅ Global Coordinator (fixed share / dynamic slack)
 │   │   └── registry.py             ✅ POLICIES B0 / M2b / M3a / M3b (version 1). A–D (LP backend) đã xoá ở ADR-019
-│   ├── forecast/                   F6 — HOÃN khỏi sprint 20–26/11 (ADR-015); stub giữ nguyên, không làm
+│   ├── forecast/                   F12 (= "F6 cũ") — HOÃN khỏi sprint 20–26/11 (ADR-015); stub giữ nguyên, không làm
 │   │   ├── datasets.py, features.py   🧩 nạp dữ liệu phiên sạc, feature không rò rỉ nhãn (T1.3, T2.3)
 │   │   ├── predict.py, train.py, evaluate.py   🧩 3 forecaster cùng interface, CLI train, MAE (T2.3)
 │   │   └── artifacts/              📄 mô hình đã huấn luyện (nhỏ, commit được)
@@ -133,8 +135,8 @@ P-019/
 │   │   └── tests/                  ✅ bộ test R&D (golden regression), job CI `simulator`
 │   └── api/                        REST + WebSocket — router chỉ gọi src/services
 │       ├── deps.py                 ✅ get_current_user, ResidentUser, OperatorUser (401/403)
-│       ├── catalog.py              ✅ /vehicles, /energy/estimate, /station/config, /tariff (công khai)
-│       ├── routes.py               ✅ /chat, /chat/resume (token cư dân), /status
+│       ├── catalog.py              ✅ /vehicles, /energy-estimates, /station/config, /tariff (công khai)
+│       ├── routes.py               ✅ /chat, /chat/sessions/{id} (PATCH resume, token cư dân), /status
 │       ├── auth.py                 🧩 /auth/login, /auth/me
 │       ├── resident.py             🧩 /resident/* — S2–S4 + hồ sơ (15 thao tác)
 │       ├── operations.py           🧩 /operator/* — S5–S7 (12 thao tác)
@@ -182,10 +184,11 @@ Liệt kê toàn bộ việc còn stub, theo task (hiện 129 stub):
 grep -rn 'NotImplementedError("\[T' src/ --include=*.py | sort -t'[' -k2
 ```
 
-### Thành phần đích theo ADR-011 … ADR-014 (chưa có trong code của branch này)
+### Thành phần đích theo ADR-011 … ADR-014 (bảng lịch sử 21/11)
 
-Tên dưới đây lấy từ master context §5, §10 và ADR; chữ ký **chưa khoá**. Không có file nào trong số này tồn tại ở
-`8f6f08a`.
+> **Lỗi thời một phần (24/11):** simulator, bộ thuật toán chung, Guard hai lớp và DecisionTrace **đã có**;
+> `src/simulator/base.py` và `SimulatorGateway` **không được làm** (thay bằng `StationKernel`, ADR-019); sandbox, Proposal
+> / HITL, Copilot, bảng AI-1 **chưa có**. Hiện trạng đúng: [`docs/FEATURE_REGISTRY.md`](docs/FEATURE_REGISTRY.md) §2, §4.
 
 | Thành phần | Vai trò | Nguồn / ADR |
 |---|---|---|
@@ -209,10 +212,10 @@ Khoá bằng `tests/test_architecture.py`. Muốn nới một quy tắc thì s�
 | `src/llm_chat` | `simulator`, `guard`, `optimizer`, `forecast`, `db`, `api`, `agents` | FR5: chat chỉ đi qua `services` |
 | `src/agents` | `simulator`, `guard`, `optimizer`, `forecast`, `db`, `api`, `llm_chat` | ADR-019: AI-1 / AI-4 chỉ đi qua `services` |
 | `src/api` | `guard`, `optimizer`, `simulator`, `forecast`, `db` | ADR-007: router chỉ gọi `services` (và `llm_chat.graph` cho `/chat`) |
-| `src/guard` | `agents`, `services.llm`, `api`, `db`, `optimizer`, `forecast` | F4: chạy được khi LLM sập |
+| `src/guard` | `agents`, `services.llm`, `api`, `db`, `optimizer`, `forecast`, `simulator` | F4: chạy được khi LLM sập; không import simulator để tránh vòng (ADR-019) |
 | `src/optimizer` | `agents`, `api`, `services`, `simulator`, `guard`, `db`, `forecast` | thuần: context vào → plan ra |
 | `src/forecast` | `agents`, `api`, `services`, `simulator`, `guard`, `optimizer`, `db` | thuần, train/eval offline |
-| `src/simulator` | `agents`, `api`, `services`, `optimizer`, `guard`, `db`, `forecast` | adapter thuần |
+| `src/simulator` | `agents`, `api`, `services`, `db`, `forecast` | chạy standalone; được dùng `optimizer` và Guard vật lý (ADR-019) |
 | `src/db` | mọi package khác trừ `models`, `config` | ADR-005: persistence chỉ biết hợp đồng dữ liệu |
 | `src/models` | mọi package khác trong `src/` (kể cả `config`) | hợp đồng dữ liệu đứng độc lập |
 
@@ -231,44 +234,9 @@ Các khoá bổ sung:
 
 ## Truy vết yêu cầu → module → test
 
-`✅` = test đang chạy · `⏭` = test đã viết, đang `skip` kèm lý do + task ID (bỏ `skip` khi làm task đó).
-
-| Yêu cầu | Module chính | Owner | Task | Test / bằng chứng |
-|---|---|---|---|---|
-| FR1 đăng nhập 2 vai trò | `api/auth.py`, `api/deps.py`, `services/auth.py` | TV3 | T1.7 | ✅ `test_api/test_contract.py`, `test_errors.py` (401/403) · ⏭ `test_service_contracts.py::test_token_roundtrip` |
-| FR2 trích xuất yêu cầu | `models/charging.py:ChargeRequest`, `llm_chat/tools/charging.py`, `prompts/charging_domain.md` | TV3 | T2.5 | ✅ `test_models/test_contracts.py`, `test_llm_chat/test_charging_agent.py` · ⏭ `test_flows.py::test_chat_asks_for_missing_field_then_continues` |
-| FR3 kWh do code tính | `services/energy.py` | TV3 | — | ✅ `test_services/test_energy.py` · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
-| FR4 phương án thay thế | `ScheduleProposal` validator, `charging_service.quote` | TV1/TV3 | T2.2 | ✅ `test_models` · ⏭ `test_infeasible_quote_has_alternative` |
-| FR5 Agent không ra lệnh trạm | ranh giới import | TV3 | — | ✅ `test_architecture.py` |
-| FR6 tối ưu công suất (LP liên tục + receding horizon; không phải MILP) | `optimizer/zones/` (LP AC/DC) qua `StationKernel.propose` (ADR-019; `mpc` / `lp_model` đã xoá) | TV1 | T2.1 | ✅ `src/simulator/tests`, `tests/test_refactor/test_differential.py` |
-| FR7, AC2 gán đầu nối, hàng đợi | `optimizer/assignment.py`, `simulator/parking_queue.py` | TV1/TV3 | T2.2 | ⏭ `test_waiting_cars_are_ordered_by_earliest_deadline`, `test_flows.py::test_walk_in_when_full_gets_queue_position` |
-| FR8 tính lại khi có sự kiện | `services/control_loop.py`, `event_bus.py`, `runtime.py` | TV3 | T2.6 | ⏭ `test_every_event_type_triggers_replan`, `test_concurrent_events_are_serialized`, `test_change_booking_triggers_replan` |
-| FR9 deadline là ràng buộc cứng | `PlanningContext`, zone optimizer | TV1 | T2.1 | ⏭ `test_forecast_never_relaxes_declared_deadline`, `test_no_energy_is_scheduled_after_declared_deadline` |
-| FR10–11 cân bằng tải, simulator | `simulator/*` | TV3/TV1 | T1.4 | ✅ `test_simulator/test_factory.py` · ⏭ `test_adapter_contract_*` |
-| FR12, AC6 7 luật Guard | `guard/rules.py`, `checker.py`, `dispatcher.py` | TV3 | T3.1 | ✅ `test_guard/test_checker.py` · ⏭ `test_each_rule_blocks_its_violation`, `test_blocked_command_never_reaches_actuator` |
-| FR13, AC4 phê duyệt | `guard/approval.py`, `control_loop.resolve_approval` | TV3 | T3.2 | ⏭ `test_guard/test_dispatcher.py` (trong/ngoài phạm vi đồng ý, re-check), `test_expired_approval_is_never_applied` |
-| AC5 bảo vệ khẩn cấp | `guard/emergency.py` | TV3 | T3.2 | ⏭ `test_emergency_command_is_never_held_for_approval`, `test_power_drop_is_curtailed_before_replan` |
-| FR14 nhật ký quyết định | `DecisionLogEntry`, `repository.append_decision`, bảng `decision_log` | TV3 | T1.6 | ✅ `test_decision_log_has_no_update_or_delete_function` · ⏭ `test_decision_log_is_append_only_and_ordered` |
-| FR15–16 web 2 vai trò, WS | `api/resident.py`, `operations.py`, `ws.py`, `services/realtime.py`, `frontend/` | TV4 | T2.7, T3.6 | ✅ `test_contract.py`, `test_openapi_snapshot.py`, vitest (24 test) · ⏭ `test_ws_requires_auth_message` |
-| FR17, MT7 dự báo F6 — **HOÃN** (ADR-015) | `forecast/*` | TV2 | T2.3 | HOÃN; test hiện có giữ nguyên: ✅ `test_label_is_forbidden_as_feature` · ⏭ `test_unplug_time_never_leaks`, `test_split_is_temporal_not_random` |
-| FR18, AC7 sự cố + đối chứng B0 / M2b / M3a / M3b | `config/scenarios/`, `simulation_service`, baseline `eval/evidence/*-baseline/`, `eval/run_benchmark.py` | TV1 | T3.4, T3.5 | ✅ `test_services/test_catalog.py`, `test_kpi_report_covers_every_prd_metric` · ⏭ KPI theo từng bước |
-| AC1 đặt lịch qua chat | `api/routes.py`, `llm_chat/graph.py`, `charging_service` | TV3 | T2.5 | ✅ `test_charging_agent.py` (interrupt mang phương án, xác nhận một lần) · ⏭ `test_flows.py::test_chat_booking_kwh_matches_fr3` |
-| AC3 cao điểm tối | `simulation_service.run_scenario` | TV1 | T3.4 | ⏭ `test_peak_evening_respects_limit_and_meets_deadlines` |
-| AC8 deploy + 2 vai trò | `Dockerfile`, `render.yaml`, `.github/workflows/ci.yml`, Vercel | TV4 | T4.4 | job CI `docker-smoke`: build image + `/health`, `/ready` trong container |
-| MT5 tính lại ≤ 2 s | `control_loop.on_event` | TV1/TV3 | T3.7 | ⏭ `test_replan_p95_under_two_seconds` |
-| Idempotency đặt lịch (ADR-008) | `charging_service.book`, bảng `idempotency_keys` | TV3 | T2.2 | ✅ `test_one_active_booking_per_resident_is_enforced_by_database` · ⏭ `test_double_confirm_creates_one_booking` |
-
-Ghi chú 21/11: AC3 và AC5 trong bảng trên còn viết theo giới hạn 35 kW của bản cũ; con số nghiệm thu mới lấy theo
-PRD v0.4 và fixture ADR-010. Phần hướng mới **chưa có module hay test** trong branch này:
-
-| Yêu cầu (hướng mới) | Module đích | ADR | Test |
-|---|---|---|---|
-| MVP-1 hồi quy `mvp1` (9/9, năng lượng khớp) | simulator v1.2 (`feature/simulator`) | ADR-010, ADR-011 | `src/simulator/tests` ở branch `feature/simulator` (112 passed với `PYTHONUTF8=1`, `eval/evidence/2026-11-21/`) — chưa có trong branch này |
-| MVP-2/3 DC LP, AC optimizer, Global Coordinator | `Algorithms` (ADR-011) | ADR-011 | chưa có |
-| AI-4 WHY | `DecisionTrace` + Copilot service | ADR-014 | chưa có |
-| AI-4 WHAT-IF, isolation | counterfactual sandbox | ADR-014 | chưa có |
-| AI-1 Proposal + HITL | proposal lifecycle, bảng `proposals` / `consents` / `vehicle_revisions` / `audit_log` | ADR-014 | chưa có |
-| F14 chiếm cổng `FINISHED_PLUGGED` (Should) | simulator v1.2 (đã mô phỏng AC giữ cổng, DC rút sau 5 phút) | ADR-015 | chưa có trong branch này |
+Đã chuyển sang [`docs/FEATURE_REGISTRY.md`](docs/FEATURE_REGISTRY.md) §3 (2026-11-24). Bảng cũ ở đây dùng hệ mã
+skeleton (FR12 = Guard, FR17 = dự báo…), dẫn 4 test không tồn tại và ghi nhiều test là "skip" trong khi chúng đang
+chạy, nên đã gỡ. Ánh xạ mã cũ → mã PRD v0.4: registry §1. Bản cũ: `git log -p -- ARCHITECTURE.md`.
 
 ## API contract (theo màn hình)
 
@@ -278,16 +246,16 @@ Snapshot hợp đồng: `frontend/openapi.json` (`python scripts/export_openapi.
 | Màn | Endpoint | Trạng thái |
 |---|---|---|
 | hệ thống | `GET /health`, `GET /ready` (config + database), `GET /api/v1/status` | ✅ |
-| danh mục | `GET /vehicles`, `POST /energy/estimate`, `GET /station/config`, `GET /tariff` | ✅ công khai |
+| danh mục | `GET /vehicles`, `GET /energy-estimates`, `GET /station/config`, `GET /tariff` | ✅ công khai |
 | S1 | `POST /auth/login`, `GET /auth/me` | 🧩 T1.7 |
-| S2 | `POST /chat`, `POST /chat/resume` (token cư dân) · `GET /resident/bookings/current`, `/resident/session`, `/resident/notifications`, `POST /resident/notifications/{id}/read` | chat ✅ khi có LLM key + T1.7 · còn lại 🧩 |
-| S3 | `POST /resident/quote`, `POST /resident/bookings` (`Idempotency-Key`), `PATCH`/`DELETE /resident/bookings/{id}`, `GET /resident/explanation` | 🧩 T2.2, T2.8, T2.5 |
-| S4 | `GET`/`POST /resident/approvals/{id}` | 🧩 T3.2 |
+| S2 | `POST /chat`, `PATCH /chat/sessions/{id}` (token cư dân) · `GET /resident/bookings/current`, `/resident/session`, `/resident/notifications`, `PATCH /resident/notifications/{id}` | chat ✅ khi có LLM key + T1.7 · còn lại 🧩 |
+| S3 | `POST /resident/quotes`, `POST /resident/bookings` (`Idempotency-Key`), `PATCH`/`DELETE /resident/bookings/{id}`, `GET /resident/explanation` | 🧩 T2.2, T2.8, T2.5 |
+| S4 | `GET`/`PATCH /resident/approvals/{id}` | 🧩 T3.2 |
 | US2 | `GET /resident/queue` | 🧩 T2.2 |
 | hồ sơ (NFR riêng tư) | `GET`/`PUT`/`DELETE /resident/profile` | 🧩 T2.8 |
 | S5 | `GET /operator/station`, `/operator/load`, `/operator/connectors/{id}`, `/operator/events` | 🧩 T3.6 |
-| S6 | `GET /operator/schedule`, `/operator/bookings`, `POST /operator/schedule/replan`, `POST /operator/queue/{id}/assign` | 🧩 T3.6, T3.2 |
-| S7 | `GET /operator/approvals`, `POST /operator/approvals/{id}`, `GET /operator/commands/blocked`, `/operator/decision-log` | 🧩 T3.2, T1.6 |
+| S6 | `GET /operator/schedule`, `/operator/bookings`, `POST /operator/schedule/replans`, `POST /operator/bookings/{id}/assignments` | 🧩 T3.6, T3.2 |
+| S7 | `GET /operator/approvals`, `PATCH /operator/approvals/{id}`, `GET /operator/commands/blocked`, `/operator/decision-log` | 🧩 T3.2, T1.6 |
 | S8 | `GET /simulation/scenarios`, `POST /simulation/runs`, `POST /simulation/incidents`, `GET /simulation/benchmark` | 🧩 T3.4, T3.5 |
 | realtime | `WS /api/v1/ws/operator`, `WS /api/v1/ws/resident` | 🧩 T3.6 (đóng 1011) |
 
@@ -309,8 +277,8 @@ Quy ước (ADR-008):
 |---|---|---|
 | S1 Đăng nhập | `/login` | `/auth/login`; resident → `/resident`, operator → `/operator` |
 | S2 Trang chủ cư dân | `/resident` | `/chat`, `/vehicles`, `/resident/bookings/current`, WS resident |
-| Form đặt lịch (không cần LLM) | `/resident/book` | `/energy/estimate` → `/resident/quote` |
-| S3 Xác nhận lịch | `/resident/plan` | `proposal` của `/chat` → `/chat/resume`, hoặc `/resident/bookings` |
+| Form đặt lịch (không cần LLM) | `/resident/book` | `/energy-estimates` → `/resident/quotes` |
+| S3 Xác nhận lịch | `/resident/plan` | `proposal` của `/chat` → `PATCH /chat/sessions/{id}`, hoặc `/resident/bookings` |
 | S4 Thông báo HITL | `/resident/notifications`, `/resident/notifications/[approvalId]` | `/resident/notifications`, `/resident/approvals/{id}` |
 | Hồ sơ | `/resident/profile` | `/resident/profile` |
 | S5 Dashboard | `/operator` | `/operator/station`, `/operator/load`, WS operator |
@@ -328,28 +296,9 @@ Quy ước (ADR-008):
 
 ## Data Flow
 
-### Đích theo ADR-011 / ADR-013 / ADR-014 (chưa có trong code)
-
-1. Cư dân chat (LLM trích trường, hỏi lại chỗ thiếu) hoặc điền form → `ChargeRequest` có schema → cư dân xác nhận.
-2. `charging_service.quote` / `book` → `SimulatorGateway.submit_request` → `HybridSimulator` + `QueueController`.
-3. Mỗi interval: DispatchPolicy (cổng trống) → ZonePowerOptimizer AC/DC → GlobalCoordinator → Guard vật lý (pre-apply)
-   → EV2Gym adapter → kiểm công suất thực (post-apply) → `DecisionTrace`, KPI, sự kiện.
-4. WHY đọc `DecisionTrace`; WHAT-IF chạy counterfactual sandbox (`applied=false`); AI-1 sinh option đã mô phỏng →
-   Proposal → cư dân / vận hành duyệt → re-verify → `vehicle_revisions` + audit.
-5. LLM chỉ diễn đạt facts đã tính; không có đường nào từ LLM tới công suất.
-
-### Hiện có trong code (đúng tới 22/11)
-
-1. Cư dân chat hoặc điền form → `ChargeRequest` (validator chặn dữ liệu sai ngay tại ranh giới).
-2. `charging_service.quote` → optimizer what-if → `ScheduleProposal` (S3). Không giữ chỗ.
-3. Xác nhận (interrupt của graph / form) → `charging_service.book` (async, idempotent) → lưu `Booking` →
-   `event_bus.publish(BOOKING_CREATED)`.
-4. `control_loop.on_event(event, rt)`: `build_planning_context` → (forecast) → `rt.scheduler.plan` → `diff_commands`.
-5. `guard.dispatcher.submit(commands, ctx, actuator, sinks)`: checker → (approval) → `apply_commands` → `DecisionLogEntry`.
-6. `sinks.notify` → `services.realtime.broadcast` → WebSocket đẩy `schedule_changed` / `approval_request` /
-   `command_blocked` lên web.
-7. Trạm là `HybridStation` (kernel chung với simulator); vòng nền `control_loop.run_forever` (bật trên deploy) tiến đồng hồ trạm, phát `TICK` để tính
-   lại lịch và cho phê duyệt quá hạn hết hiệu lực.
+Luồng dữ liệu hiện trạng (đặt lịch, vòng điều khiển, sự cố) có sơ đồ tuần tự tại
+[`docs/architecture_diagram.md`](docs/architecture_diagram.md) §2.5. Phần AI-4 / AI-1 (WHY, WHAT-IF, Proposal) **chưa có
+code**: xem PRD §6.7–6.9 cho yêu cầu, registry §2 cho hiện trạng.
 
 Benchmark chạy **cùng** `on_event` và cùng đường Guard, chỉ khác `StationRuntime`
 (`build_sim_runtime`: đồng hồ mô phỏng, sinks vào bộ nhớ) — ADR-007.

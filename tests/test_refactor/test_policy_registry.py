@@ -261,7 +261,7 @@ async def test_run_endpoint_accepts_a_new_policy_id(client, as_role, new_policy)
     as_role(Role.OPERATOR)
     body = {"scenario_id": "hybrid_evening", "policy_id": NEW_ID, "n_vehicles": 3}
     response = await client.post("/api/v1/simulation/runs", json=body)
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text
     data = response.json()
     assert (data["policy_id"], data["policy_version"], data["strategy"]) == (NEW_ID, NEW_VERSION, None)
     assert data["kpis"]["power_limit_violations"] == 0

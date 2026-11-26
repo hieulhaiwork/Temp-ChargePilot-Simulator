@@ -149,6 +149,7 @@ class Alternative(BaseModel):
     description: str
     soc_target: float | None = Field(default=None, gt=0, le=100)
     deadline: AwareDatetime | None = None
+    request: ChargeRequest | None = Field(default=None, description="Yêu cầu đã chỉnh sẵn (G6)")
 
 
 class ProposalCertainty(StrEnum):

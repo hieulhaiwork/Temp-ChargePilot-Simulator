@@ -5,7 +5,7 @@ from src.models.control import Role
 
 @pytest.fixture
 def resident(as_role):
-    """/chat và /chat/resume yêu cầu vai trò resident (ADR-006)."""
+    """/chat và PATCH /chat/sessions/{session_id} yêu cầu vai trò resident (ADR-006)."""
     return as_role(Role.RESIDENT)
 
 
@@ -46,9 +46,11 @@ async def test_chat_without_session_id_gets_own_session(client, monkeypatch, res
 
 
 @pytest.mark.asyncio
-async def test_resume_requires_session_id(client, resident):
-    response = await client.post("/api/v1/chat/resume", json={"resume": "approve"})
-    assert response.status_code == 422
+async def test_resume_requires_session_id_and_valid_decision(client, resident):
+    missing_session = await client.patch("/api/v1/chat/sessions/", json={"resume": "approve"})
+    assert missing_session.status_code == 404
+    invalid_body = await client.patch("/api/v1/chat/sessions/s1", json={})
+    assert invalid_body.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -87,7 +89,7 @@ async def test_resume_surfaces_second_interrupt(client, monkeypatch, resident):
     monkeypatch.setattr(routes, "agent", make_test_graph(ScriptedReasoner([email, email])))
 
     first = (await client.post("/api/v1/chat", json={"message": "Gửi 2 email"})).json()
-    resumed = await client.post("/api/v1/chat/resume", json={"session_id": first["session_id"], "resume": "approve"})
+    resumed = await client.patch(f"/api/v1/chat/sessions/{first['session_id']}", json={"resume": "approve"})
 
     assert resumed.status_code == 200
     assert resumed.json()["response"].startswith("[CẦN PHÊ DUYỆT]")

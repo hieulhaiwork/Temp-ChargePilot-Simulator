@@ -5,12 +5,13 @@
  * Thẻ chính đặt giờ đạt mục tiêu lên đầu; vị trí hàng chờ; chip "giờ rẻ" lấy khung từ GET /tariff (không dùng ML,
  * docs/plan/00-overview.md Q5); Trợ lý sạc nằm ngay trong trang. Mỗi khối xử lý 501 / lỗi riêng.
  */
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 import { ChatPanel } from "@/components/resident/ChatPanel";
 import { DataBlock } from "@/components/system/DataBlock";
-import { EmptyState, KeyValues, PageHead, Panel, SectionHead, Tag } from "@/components/ui/blocks";
+import { EmptyState, KeyValues, Notice, PageHead, Panel, SectionHead, Tag } from "@/components/ui/blocks";
 import { Icon } from "@/components/ui/Icon";
 import { queries } from "@/lib/api/queries";
 import type { components } from "@/lib/api/schema";
@@ -28,6 +29,10 @@ const BOOKING_LABEL: Record<BookingStatus, [string, "good" | "gold" | "neutral" 
 
 export default function ResidentHomePage() {
   const poll = usePollFallback();
+  const pendingApprovals = useQuery({
+    ...queries.residentApprovals("pending"),
+    refetchInterval: poll,
+  });
   return (
     <>
       <PageHead
@@ -40,6 +45,23 @@ export default function ResidentHomePage() {
           </Link>
         }
       />
+      {pendingApprovals.data?.length ? (
+        <div style={{ marginBottom: 16 }}>
+          <Notice
+            title={`Bạn có ${pendingApprovals.data.length} đề nghị điều chỉnh cần phản hồi`}
+            tone="gold"
+            icon="alert"
+          >
+            <p>{pendingApprovals.data[0].impact_summary || "Trạm đề nghị điều chỉnh công suất hoặc dời lịch sạc của bạn."}</p>
+            <div style={{ marginTop: 8 }}>
+              <Link href={`/resident/notifications/${pendingApprovals.data[0].approval_id}`} className="btn btn-primary small">
+                Xem và trả lời đề nghị
+                <Icon name="arrow" />
+              </Link>
+            </div>
+          </Notice>
+        </div>
+      ) : null}
       <div className="cols">
         <div className="stack">
           <Panel className="hero" label="Lịch sạc của tôi">

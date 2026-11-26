@@ -4,7 +4,6 @@ Kiểm chứng:
 1. LLM_PROVIDER=mock + AGENT_DEMO_SERVICES=true chạy thật cả 6 tool sạc qua LangGraph và FastAPI.
 2. Hội thoại nhiều lượt (hỏi thiếu trường → bổ sung → propose_charging_plan → confirm_booking HITL S3).
 3. Guardrail check_grounded_numbers bắt số kWh hoặc mã đầu nối bịa ngoài tool_trace.
-4. Trang test nhanh /api/v1/dev/agent khi bật AGENT_PLAYGROUND=true.
 """
 
 import pytest
@@ -20,7 +19,6 @@ def mock_agent_env(monkeypatch):
     """Bật chế độ mock LLM + dịch vụ sạc giả lập trong bộ nhớ cho toàn bộ test trong file này."""
     monkeypatch.setenv("LLM_PROVIDER", "mock")
     monkeypatch.setenv("AGENT_DEMO_SERVICES", "true")
-    monkeypatch.setenv("AGENT_PLAYGROUND", "true")
     get_settings.cache_clear()
     charging_demo.reset()
     yield
@@ -90,7 +88,7 @@ async def test_mock_agent_multi_turn_propose_confirm_queue_and_explain(client, m
     assert assigned_connector
 
     # Lượt 4: cư dân bấm "Xác nhận" ở màn S3 → resume="approve" → đặt lịch thành công
-    t4 = (await client.post("/api/v1/chat/resume", json={"session_id": sid, "resume": "approve"})).json()
+    t4 = (await client.patch(f"/api/v1/chat/sessions/{sid}", json={"resume": "approve"})).json()
     assert t4["status"] == "answer"
     assert t4["analysis"] == "confirm_booking"
     assert "confirmed" in t4["response"]
@@ -192,18 +190,6 @@ async def test_llm_generate_skips_second_llm_call_when_no_tools_used(monkeypatch
     )
     assert ans.answer == "Bạn cho mình biết thêm % pin hiện tại nhé?"
     assert ans.used_tools == []
-
-
-@pytest.mark.asyncio
-async def test_playground_page_and_no_token_demo_access(client, mock_agent_env):
-    page = await client.get("/api/v1/dev/agent")
-    assert page.status_code == 200
-    assert "Agent F1 Playground" in page.text
-
-    # Khi AGENT_PLAYGROUND=true, gọi /api/v1/chat không cần Bearer token vẫn dùng DEMO_RESIDENT
-    chat = await client.post("/api/v1/chat", json={"message": "Tra giúp mình mẫu xe DEMO-60"})
-    assert chat.status_code == 200
-    assert chat.json()["analysis"] == "lookup_vehicle"
 
 
 def test_resolve_time_month_boundary_and_timezone():

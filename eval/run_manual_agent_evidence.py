@@ -58,9 +58,17 @@ def _parse_sse(raw_text: str) -> list[dict]:
     return events
 
 
+async def _patch_json(client: httpx.AsyncClient, path: str, payload: dict) -> dict:
+    return await _send_json(client, "PATCH", path, payload)
+
+
 async def _post_json(client: httpx.AsyncClient, path: str, payload: dict) -> dict:
+    return await _send_json(client, "POST", path, payload)
+
+
+async def _send_json(client: httpx.AsyncClient, method: str, path: str, payload: dict) -> dict:
     t0 = time.perf_counter()
-    resp = await client.post(path, json=payload)
+    resp = await client.request(method, path, json=payload)
     latency_ms = round((time.perf_counter() - t0) * 1000, 1)
     try:
         body = resp.json()
@@ -129,7 +137,7 @@ async def run_all_cases(delay_s: float) -> dict:
             turns_01 = [t1, t2, t3]
             if isinstance(t3["response"], dict) and t3["response"].get("status") == "needs_confirmation":
                 await asyncio.sleep(delay_s)
-                t4 = await _post_json(client, "/api/v1/chat/resume", {"session_id": sid_01, "resume": "approve"})
+                t4 = await _patch_json(client, f"/api/v1/chat/sessions/{sid_01}", {"resume": "approve"})
                 turns_01.append(t4)
             else:
                 t4 = None

@@ -96,7 +96,7 @@ def test_every_domain_error_code_has_http_status():
 async def test_validation_error_keeps_fastapi_shape(client, as_role):
     """422 giữ dạng mặc định của FastAPI (detail là mảng) — frontend gắn lỗi vào từng ô nhập."""
     as_role(Role.RESIDENT)
-    response = await client.post("/api/v1/resident/quote", json={"vehicle_model": "DEMO-60"})
+    response = await client.post("/api/v1/resident/quotes", json={"vehicle_model": "DEMO-60"})
     assert response.status_code == 422
     assert isinstance(response.json()["detail"], list)
 
@@ -124,12 +124,12 @@ async def test_chat_rejects_operator(client, as_role):
         ("get", "/api/v1/resident/explanation", Role.RESIDENT, None),
         ("get", "/api/v1/resident/profile", Role.RESIDENT, None),
         ("patch", "/api/v1/resident/bookings/b1", Role.RESIDENT, {"soc_target": 70}),
-        ("post", "/api/v1/resident/approvals/a1", Role.RESIDENT, {"decision": "approve"}),
+        ("patch", "/api/v1/resident/approvals/a1", Role.RESIDENT, {"decision": "approve"}),
         ("get", "/api/v1/operator/connectors/AC-01-1", Role.OPERATOR, None),
         ("get", "/api/v1/operator/events", Role.OPERATOR, None),
         ("get", "/api/v1/operator/bookings", Role.OPERATOR, None),
-        ("post", "/api/v1/operator/schedule/replan", Role.OPERATOR, None),
-        ("post", "/api/v1/operator/approvals/a1", Role.OPERATOR, {"decision": "reject"}),
+        ("post", "/api/v1/operator/schedule/replans", Role.OPERATOR, None),
+        ("patch", "/api/v1/operator/approvals/a1", Role.OPERATOR, {"decision": "reject"}),
         ("post", "/api/v1/simulation/incidents", Role.OPERATOR, {"type": "connector_fault", "connector_id": "A05"}),
     ],
 )

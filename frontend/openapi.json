@@ -22,6 +22,17 @@
           "kind": {
             "$ref": "#/components/schemas/AlternativeKind"
           },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Yêu cầu đã chỉnh sẵn (G6)"
+          },
           "soc_target": {
             "anyOf": [
               {
@@ -68,6 +79,19 @@
             "title": "Created At",
             "type": "string"
           },
+          "current_power_kw": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Công suất trước điều chỉnh (kW)",
+            "title": "Current Power Kw"
+          },
           "decided_at": {
             "anyOf": [
               {
@@ -90,6 +114,42 @@
               }
             ],
             "title": "Decided By"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Until"
+          },
+          "executed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = chưa xử lý; True/False sau khi Guard kiểm lần 2 (G9)",
+            "title": "Executed"
           },
           "expires_at": {
             "anyOf": [
@@ -182,6 +242,61 @@
         ],
         "title": "ApprovalStatus",
         "type": "string"
+      },
+      "BayLayout": {
+        "description": "Một ô đỗ trên mặt bằng. Toạ độ theo khung 1000 × 600 (ngang) hoặc 360 × 640 (dọc) — G22.",
+        "properties": {
+          "bay_id": {
+            "minLength": 1,
+            "title": "Bay Id",
+            "type": "string"
+          },
+          "connector_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cổng gắn với ô; None = ô trống không có cổng",
+            "title": "Connector Id"
+          },
+          "height": {
+            "exclusiveMinimum": 0.0,
+            "title": "Height",
+            "type": "number"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/ChargerZone"
+          }
+        },
+        "required": [
+          "bay_id",
+          "zone",
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "BayLayout",
+        "type": "object"
       },
       "BenchmarkReport": {
         "description": "Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.",
@@ -623,6 +738,8 @@
           },
           "session_id": {
             "description": "Thread ID cho checkpointer (HITL multi-turn). Bỏ trống → mỗi request một thread mới",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Session Id",
             "type": "string"
           }
@@ -640,6 +757,30 @@
             "description": "Phân tích nội bộ (tool trace tóm tắt)",
             "title": "Analysis",
             "type": "string"
+          },
+          "booking": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Booking"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Booking vừa được xác nhận (G4)"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Các trường yêu cầu sạc đã thu được tới hiện tại (vehicle_model, soc_now, soc_target, zone, mode, deadline)",
+            "title": "Draft"
           },
           "pending": {
             "anyOf": [
@@ -665,6 +806,17 @@
             ],
             "description": "Phương án hiện ở S3 — số liệu do CODE tính"
           },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChargeRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Yêu cầu đã chỉnh sẵn khi chờ xác nhận (G3)"
+          },
           "response": {
             "description": "Phản hồi từ agent",
             "title": "Response",
@@ -678,7 +830,7 @@
           },
           "status": {
             "default": "answer",
-            "description": "needs_confirmation = graph đang dừng ở interrupt, chờ /chat/resume",
+            "description": "needs_confirmation = graph đang dừng ở interrupt, chờ PATCH /chat/sessions/{id}",
             "enum": [
               "answer",
               "needs_confirmation",
@@ -688,7 +840,7 @@
             "type": "string"
           },
           "suggestions": {
-            "description": "2–3 gợi ý trả lời nhanh (1 chạm) cho lượt tiếp theo của cư dân",
+            "description": "0–3 gợi ý trả lời nhanh (1 chạm) cho lượt tiếp theo của cư dân",
             "items": {
               "type": "string"
             },
@@ -700,6 +852,23 @@
           "response"
         ],
         "title": "ChatResponse",
+        "type": "object"
+      },
+      "ChatSessionResumeRequest": {
+        "properties": {
+          "resume": {
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Resume",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resume"
+        ],
+        "title": "ChatSessionResumeRequest",
         "type": "object"
       },
       "Command": {
@@ -1429,6 +1598,18 @@
             "title": "Note",
             "type": "string"
           },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Thứ tự ghi trong decision_log — con trỏ `before` (G12)",
+            "title": "Seq"
+          },
           "timestamp": {
             "format": "date-time",
             "title": "Timestamp",
@@ -1451,6 +1632,40 @@
           "executed"
         ],
         "title": "DecisionLogEntry",
+        "type": "object"
+      },
+      "DecisionLogPage": {
+        "description": "Trang kết quả phân trang cursor theo `seq` giảm dần (ADR-020).",
+        "properties": {
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionLogEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Giá trị `before` cho trang kế tiếp",
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DecisionLogPage",
         "type": "object"
       },
       "DeltaUnavailableReason": {
@@ -1527,35 +1742,6 @@
           "efficiency"
         ],
         "title": "EnergyEstimate",
-        "type": "object"
-      },
-      "EnergyEstimateRequest": {
-        "description": "FR3 — tính kWh cho form/web, cùng công thức với tool của Agent.",
-        "properties": {
-          "soc_now": {
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Soc Now",
-            "type": "number"
-          },
-          "soc_target": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 100.0,
-            "title": "Soc Target",
-            "type": "number"
-          },
-          "vehicle_model": {
-            "minLength": 1,
-            "title": "Vehicle Model",
-            "type": "string"
-          }
-        },
-        "required": [
-          "vehicle_model",
-          "soc_now",
-          "soc_target"
-        ],
-        "title": "EnergyEstimateRequest",
         "type": "object"
       },
       "ErrorCode": {
@@ -2407,6 +2593,21 @@
         "title": "NotificationKind",
         "type": "string"
       },
+      "NotificationUpdateRequest": {
+        "description": "PATCH /resident/notifications/{id} và PATCH /resident/notifications — ADR-020.",
+        "properties": {
+          "read": {
+            "const": true,
+            "title": "Read",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "read"
+        ],
+        "title": "NotificationUpdateRequest",
+        "type": "object"
+      },
       "OptimizerSettings": {
         "description": "Hệ số hàm mục tiêu của bài LP (FR6) — nạp từ khối `optimizer:` của station.yaml.\n\nCông thức đầy đủ: docs/plan/30-ai.md §5.2. Đặt ở config (ADR-003) để phân tích độ nhạy\nkhông phải sửa code.",
         "properties": {
@@ -2690,6 +2891,43 @@
         "title": "ProposalCertainty",
         "type": "string"
       },
+      "PublicBay": {
+        "description": "Một ô trên sơ đồ công khai cho cư dân — không lộ SOC / mẫu xe / giờ rời của xe khác (G24).",
+        "properties": {
+          "bay_id": {
+            "title": "Bay Id",
+            "type": "string"
+          },
+          "mine": {
+            "default": false,
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "public_status": {
+            "$ref": "#/components/schemas/PublicBayStatus"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/ChargerZone"
+          }
+        },
+        "required": [
+          "bay_id",
+          "zone",
+          "public_status"
+        ],
+        "title": "PublicBay",
+        "type": "object"
+      },
+      "PublicBayStatus": {
+        "description": "Trạng thái công khai của ô sạc (G24) — đúng ba giá trị spec: busy / idle / fault.",
+        "enum": [
+          "busy",
+          "idle",
+          "fault"
+        ],
+        "title": "PublicBayStatus",
+        "type": "string"
+      },
       "QueueStatus": {
         "description": "US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.",
         "properties": {
@@ -2878,6 +3116,38 @@
         "title": "ResidentSessionView",
         "type": "object"
       },
+      "ResidentSiteMap": {
+        "description": "Sơ đồ bãi riêng tư cho màn cư dân S9 (G24).",
+        "properties": {
+          "bays": {
+            "items": {
+              "$ref": "#/components/schemas/PublicBay"
+            },
+            "title": "Bays",
+            "type": "array"
+          },
+          "queues": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ZoneQueue"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ChargerZone"
+            },
+            "title": "Queues",
+            "type": "object"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timestamp"
+        ],
+        "title": "ResidentSiteMap",
+        "type": "object"
+      },
       "ResolvedComponent": {
         "description": "Một thành phần đã resolve của policy (registry): tên, version, implementation, tham số ĐẦY ĐỦ sau mặc định.",
         "properties": {
@@ -2997,24 +3267,6 @@
           "fingerprint"
         ],
         "title": "ResolvedExperiment",
-        "type": "object"
-      },
-      "ResumeRequest": {
-        "properties": {
-          "resume": {
-            "title": "Resume",
-            "type": "string"
-          },
-          "session_id": {
-            "title": "Session Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "session_id",
-          "resume"
-        ],
-        "title": "ResumeRequest",
         "type": "object"
       },
       "ReviseVehicle": {
@@ -3695,6 +3947,37 @@
         "title": "SimulationRunResult",
         "type": "object"
       },
+      "SiteLayout": {
+        "description": "Mặt bằng sơ đồ bãi xe (G22).",
+        "properties": {
+          "bays": {
+            "items": {
+              "$ref": "#/components/schemas/BayLayout"
+            },
+            "title": "Bays",
+            "type": "array"
+          },
+          "height": {
+            "default": 600,
+            "exclusiveMinimum": 0.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "orientation": {
+            "default": "landscape",
+            "title": "Orientation",
+            "type": "string"
+          },
+          "width": {
+            "default": 1000,
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "title": "SiteLayout",
+        "type": "object"
+      },
       "SiteLimit": {
         "additionalProperties": false,
         "properties": {
@@ -3835,6 +4118,17 @@
             ],
             "description": "Giới hạn đầu vào lưới riêng từng vùng — bắt buộc khi supply_mode=independent",
             "title": "Independent Grid Input Limit Kw"
+          },
+          "layout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SiteLayout"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mặt bằng ô đỗ trên sơ đồ bãi (G22)"
           },
           "name": {
             "title": "Name",
@@ -4242,6 +4536,26 @@
             ],
             "title": "Energy Cost Today Vnd"
           },
+          "grid_input_kw": {
+            "default": 0.0,
+            "description": "Công suất đầu vào lưới (Σ cổng / η) — G14",
+            "minimum": 0.0,
+            "title": "Grid Input Kw",
+            "type": "number"
+          },
+          "grid_input_limit_kw": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Giới hạn đầu vào lưới (kW) — G14",
+            "title": "Grid Input Limit Kw"
+          },
           "power_limit_kw": {
             "minimum": 0.0,
             "title": "Power Limit Kw",
@@ -4260,6 +4574,14 @@
             "minimum": 0.0,
             "title": "Utilization Pct",
             "type": "number"
+          },
+          "zones": {
+            "description": "Công suất theo từng vùng AC/DC — G14",
+            "items": {
+              "$ref": "#/components/schemas/ZoneUsage"
+            },
+            "title": "Zones",
+            "type": "array"
           }
         },
         "required": [
@@ -4620,6 +4942,57 @@
           "post_apply_status"
         ],
         "title": "TraceProvenance",
+        "type": "object"
+      },
+      "TranscribeRequest": {
+        "description": "Nhận âm thanh base64 từ trình duyệt (MediaRecorder) để chuyển thành văn bản tiếng Việt.",
+        "properties": {
+          "audio_base64": {
+            "description": "Dữ liệu âm thanh mã hoá base64 (≤ 5 MB)",
+            "maxLength": 7000000,
+            "minLength": 8,
+            "title": "Audio Base64",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "audio/webm",
+            "description": "MIME của audio, vd audio/webm, audio/mp4",
+            "maxLength": 64,
+            "title": "Mime Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audio_base64"
+        ],
+        "title": "TranscribeRequest",
+        "type": "object"
+      },
+      "TranscribeResponse": {
+        "description": "Văn bản tiếng Việt đã chuẩn hoá từ giọng nói đa vùng miền.",
+        "properties": {
+          "fallback_used": {
+            "default": false,
+            "description": "True nếu API chính lỗi và đã chuyển sang fallback",
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "provider": {
+            "description": "Nhà cung cấp ASR đã xử lý (gemini | local_phowhisper | mock)",
+            "title": "Provider",
+            "type": "string"
+          },
+          "text": {
+            "description": "Nội dung tiếng Việt đã nhận dạng",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "provider"
+        ],
+        "title": "TranscribeResponse",
         "type": "object"
       },
       "UserProfile": {
@@ -5908,6 +6281,74 @@
         ],
         "title": "WhySubjectScope",
         "type": "string"
+      },
+      "ZoneQueue": {
+        "description": "Hàng chờ của một vùng (G24).",
+        "properties": {
+          "length": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Length",
+            "type": "integer"
+          },
+          "my_position": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Position"
+          }
+        },
+        "title": "ZoneQueue",
+        "type": "object"
+      },
+      "ZoneUsage": {
+        "description": "Công suất thực tế và giới hạn theo từng vùng AC/DC (G14).",
+        "properties": {
+          "budget_kw": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Kw"
+          },
+          "output_kw": {
+            "minimum": 0.0,
+            "title": "Output Kw",
+            "type": "number"
+          },
+          "physical_cap_kw": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Physical Cap Kw"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/ChargerZone"
+          }
+        },
+        "required": [
+          "zone",
+          "output_kw"
+        ],
+        "title": "ZoneUsage",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -6216,15 +6657,28 @@
         "summary": "Chat"
       }
     },
-    "/api/v1/chat/resume": {
-      "post": {
-        "description": "S3 — \"Xác nhận\" (approve) hoặc \"Đổi phương án\" (reject) cho hành động đang chờ.",
-        "operationId": "chat_resume_api_v1_chat_resume_post",
+    "/api/v1/chat/sessions/{session_id}": {
+      "patch": {
+        "description": "S3 — \"Xác nhận\" (approve) hoặc \"Đổi phương án\" (reject) cho hành động đang chờ.\n\nG1: thread không còn interrupt (backend restart, bấm lặp) → 409, KHÔNG chạy graph với đầu vào rỗng.",
+        "operationId": "chat_resume_api_v1_chat_sessions__session_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResumeRequest"
+                "$ref": "#/components/schemas/ChatSessionResumeRequest"
               }
             }
           },
@@ -6420,6 +6874,110 @@
           }
         ],
         "summary": "Chat Stream"
+      }
+    },
+    "/api/v1/chat/transcribe": {
+      "post": {
+        "description": "Nhận giọng nói tiếng Việt đa vùng miền (Bắc/Trung/Nam) và trả về văn bản để cư dân kiểm tra trước khi gửi.",
+        "operationId": "chat_transcribe_api_v1_chat_transcribe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscribeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Chat Transcribe"
       }
     },
     "/api/v1/copilot/context": {
@@ -7111,20 +7669,44 @@
         ]
       }
     },
-    "/api/v1/energy/estimate": {
-      "post": {
+    "/api/v1/energy-estimates": {
+      "get": {
         "description": "FR3 — cùng công thức với tool của Agent (AC1: kWh khớp công thức).",
-        "operationId": "estimate_api_v1_energy_estimate_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EnergyEstimateRequest"
-              }
+        "operationId": "estimate_api_v1_energy_estimates_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "vehicle_model",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Vehicle Model",
+              "type": "string"
             }
           },
-          "required": true
-        },
+          {
+            "in": "query",
+            "name": "soc_now",
+            "required": true,
+            "schema": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Soc Now",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "soc_target",
+            "required": true,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Soc Target",
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -7334,9 +7916,9 @@
       }
     },
     "/api/v1/operator/approvals/{approval_id}": {
-      "post": {
+      "patch": {
         "description": "S7 nút Duyệt / Từ chối.",
-        "operationId": "decide_approval_api_v1_operator_approvals__approval_id__post",
+        "operationId": "decide_approval_api_v1_operator_approvals__approval_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -7463,7 +8045,10 @@
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/BookingStatus"
+                  "items": {
+                    "$ref": "#/components/schemas/BookingStatus"
+                  },
+                  "type": "array"
                 },
                 {
                   "type": "null"
@@ -7570,6 +8155,124 @@
         ]
       }
     },
+    "/api/v1/operator/bookings/{booking_id}/assignments": {
+      "post": {
+        "description": "S6 nút \"Xếp thủ công\" — trả nhật ký để thấy Guard cho qua hay chặn.",
+        "operationId": "manual_assign_api_v1_operator_bookings__booking_id__assignments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualAssignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLogEntry"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Manual Assign",
+        "tags": [
+          "operator"
+        ]
+      }
+    },
     "/api/v1/operator/commands/blocked": {
       "get": {
         "description": "S7 tab \"Bị Guard chặn\" — kèm luật vi phạm (AC6).",
@@ -7595,6 +8298,7 @@
             "schema": {
               "anyOf": [
                 {
+                  "maximum": 9223372036854775807,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -7612,11 +8316,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DecisionLogEntry"
-                  },
-                  "title": "Response Blocked Commands Api V1 Operator Commands Blocked Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/DecisionLogPage"
                 }
               }
             },
@@ -7837,6 +8537,7 @@
             "schema": {
               "anyOf": [
                 {
+                  "maximum": 9223372036854775807,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -7854,11 +8555,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DecisionLogEntry"
-                  },
-                  "title": "Response Decision Log Api V1 Operator Decision Log Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/DecisionLogPage"
                 }
               }
             },
@@ -8176,124 +8873,6 @@
         ]
       }
     },
-    "/api/v1/operator/queue/{booking_id}/assign": {
-      "post": {
-        "description": "S6 nút \"Xếp thủ công\" — trả nhật ký để thấy Guard cho qua hay chặn.",
-        "operationId": "manual_assign_api_v1_operator_queue__booking_id__assign_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ManualAssignRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DecisionLogEntry"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Implemented"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Manual Assign",
-        "tags": [
-          "operator"
-        ]
-      }
-    },
     "/api/v1/operator/schedule": {
       "get": {
         "description": "S6 — Gantt theo đầu nối + hàng chờ.",
@@ -8412,10 +8991,10 @@
         ]
       }
     },
-    "/api/v1/operator/schedule/replan": {
+    "/api/v1/operator/schedule/replans": {
       "post": {
         "description": "S6 nút \"Lập lịch lại\".",
-        "operationId": "replan_api_v1_operator_schedule_replan_post",
+        "operationId": "replan_api_v1_operator_schedule_replans_post",
         "responses": {
           "200": {
             "content": {
@@ -8586,6 +9165,126 @@
         ]
       }
     },
+    "/api/v1/resident/approvals": {
+      "get": {
+        "description": "G17 — đề nghị gửi cho chính cư dân, lọc theo trạng thái (mặc định pending).",
+        "operationId": "list_approvals_api_v1_resident_approvals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ApprovalStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "pending",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Approval"
+                  },
+                  "title": "Response List Approvals Api V1 Resident Approvals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Approvals",
+        "tags": [
+          "resident"
+        ]
+      }
+    },
     "/api/v1/resident/approvals/{approval_id}": {
       "get": {
         "description": "S4 — chi tiết đề nghị điều chỉnh. Cư dân chỉ xem được đề nghị gửi cho chính mình.",
@@ -8693,9 +9392,9 @@
           "resident"
         ]
       },
-      "post": {
+      "patch": {
         "description": "S4 — Đồng ý / Từ chối điều chỉnh vượt phạm vi đã đồng ý (AC4).",
-        "operationId": "decide_approval_api_v1_resident_approvals__approval_id__post",
+        "operationId": "decide_approval_api_v1_resident_approvals__approval_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -8812,7 +9511,7 @@
     },
     "/api/v1/resident/bookings": {
       "post": {
-        "description": "S3 nút \"Xác nhận\" (luồng form). Luồng chat chốt qua /chat/resume.\n\nGửi lại cùng `Idempotency-Key` + cùng body sẽ nhận lại đúng booking cũ (bấm hai lần không tạo hai lịch).",
+        "description": "S3 nút \"Xác nhận\" (luồng form). Luồng chat chốt qua PATCH /chat/sessions/{session_id}.\n\nGửi lại cùng `Idempotency-Key` + cùng body sẽ nhận lại đúng booking cũ (bấm hai lần không tạo hai lịch).",
         "operationId": "create_booking_api_v1_resident_bookings_post",
         "parameters": [
           {
@@ -9049,14 +9748,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Booking"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "401": {
@@ -9257,6 +9949,124 @@
         ]
       }
     },
+    "/api/v1/resident/bookings/{booking_id}/quotes": {
+      "post": {
+        "description": "G2 — xem trước lịch sau khi đổi yêu cầu; KHÔNG giữ chỗ, KHÔNG đổi booking.",
+        "operationId": "quote_change_api_v1_resident_bookings__booking_id__quotes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleProposal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quote Change",
+        "tags": [
+          "resident"
+        ]
+      }
+    },
     "/api/v1/resident/explanation": {
       "get": {
         "description": "US3 — \"Vì sao?\" ở S3: lý do lấy từ nhật ký quyết định, KHÔNG cần LLM.",
@@ -9437,11 +10247,120 @@
         "tags": [
           "resident"
         ]
+      },
+      "patch": {
+        "description": "G18 — đánh dấu tất cả thông báo của chính cư dân là đã đọc.",
+        "operationId": "mark_all_notifications_read_api_v1_resident_notifications_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Mark All Notifications Read Api V1 Resident Notifications Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mark All Notifications Read",
+        "tags": [
+          "resident"
+        ]
       }
     },
-    "/api/v1/resident/notifications/{notification_id}/read": {
-      "post": {
-        "operationId": "mark_notification_read_api_v1_resident_notifications__notification_id__read_post",
+    "/api/v1/resident/notifications/{notification_id}": {
+      "patch": {
+        "operationId": "mark_notification_read_api_v1_resident_notifications__notification_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -9453,6 +10372,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -9901,10 +10830,10 @@
         ]
       }
     },
-    "/api/v1/resident/quote": {
+    "/api/v1/resident/quotes": {
       "post": {
         "description": "S3 — phương án what-if (chưa giữ chỗ); không khả thi thì có phương án thay thế (FR4).",
-        "operationId": "quote_api_v1_resident_quote_post",
+        "operationId": "quote_api_v1_resident_quotes_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -10090,6 +11019,93 @@
           }
         ],
         "summary": "Session",
+        "tags": [
+          "resident"
+        ]
+      }
+    },
+    "/api/v1/resident/site-map": {
+      "get": {
+        "description": "G24 — chỉ public_status / mine / vị trí hàng của chính cư dân; không lộ SOC, mẫu xe, giờ rời.",
+        "operationId": "site_map_api_v1_resident_site_map_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResidentSiteMap"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Site Map",
         "tags": [
           "resident"
         ]
@@ -10399,7 +11415,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {

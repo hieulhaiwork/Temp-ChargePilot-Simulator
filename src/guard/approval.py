@@ -75,6 +75,7 @@ def open_approval(
     *,
     booking: Booking | None = None,
     ttl_minutes: int = 15,
+    current_power_kw: float | None = None,
 ) -> Approval:
     """Tạo Approval PENDING (chưa lưu) — dispatcher lưu qua sinks.save_approval và đẩy APPROVAL_REQUEST."""
     if kind == ApprovalKind.RESIDENT_CONSENT and booking is None:
@@ -94,6 +95,10 @@ def open_approval(
         impact_summary=f"{impact}{reason}",
         created_at=cmd.created_at,
         expires_at=cmd.created_at + timedelta(minutes=ttl_minutes),
+        # G7: khung áp dụng = từ lúc lệnh được đề xuất tới khi cam kết của booking kết thúc; công suất hiện tại để so.
+        current_power_kw=current_power_kw,
+        effective_from=cmd.created_at,
+        effective_until=booking.planned_end if booking is not None else None,
     )
 
 

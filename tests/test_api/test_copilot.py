@@ -4,7 +4,6 @@ import asyncio
 import json
 from dataclasses import replace
 from datetime import UTC, timedelta
-from types import SimpleNamespace
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -396,9 +395,8 @@ async def test_job_cancellation_expiry_and_shutdown_ownership(demo_api, monkeypa
     # Leaving the API fixture now invokes the real lifespan while work is outstanding.
 
 
-async def test_playground_does_not_bypass_copilot_jwt(demo_api, monkeypatch):
+async def test_copilot_requires_real_jwt(demo_api):
     client, _, _, _, resident, _, operator = demo_api
-    monkeypatch.setattr("src.api.deps.get_settings", lambda: SimpleNamespace(agent_playground=True))
     assert (await client.get(f"{PREFIX}/context")).status_code == 401
     assert (await client.get(f"{PREFIX}/context", headers={"Authorization": "Bearer demo"})).status_code == 401
     context = (await client.get(f"{PREFIX}/context", headers=operator)).json()

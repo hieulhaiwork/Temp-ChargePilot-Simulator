@@ -10,10 +10,11 @@ from src.models.control import Role
 PLANNED_PATHS = {
     "/api/v1/auth/login",
     "/api/v1/vehicles",
-    "/api/v1/energy/estimate",
+    "/api/v1/energy-estimates",
     "/api/v1/station/config",
-    "/api/v1/resident/quote",
+    "/api/v1/resident/quotes",
     "/api/v1/resident/bookings",
+    "/api/v1/resident/bookings/{booking_id}/quotes",
     "/api/v1/resident/queue",
     "/api/v1/resident/approvals/{approval_id}",
     "/api/v1/operator/station",
@@ -28,20 +29,20 @@ PLANNED_PATHS = {
     "/api/v1/auth/me",
     "/api/v1/tariff",
     "/api/v1/chat",
-    "/api/v1/chat/resume",
+    "/api/v1/chat/sessions/{session_id}",
     "/api/v1/resident/bookings/current",
     "/api/v1/resident/bookings/{booking_id}",
     "/api/v1/resident/session",
     "/api/v1/resident/explanation",
     "/api/v1/resident/notifications",
-    "/api/v1/resident/notifications/{notification_id}/read",
+    "/api/v1/resident/notifications/{notification_id}",
     "/api/v1/resident/profile",
     "/api/v1/operator/load",
     "/api/v1/operator/connectors/{connector_id}",
     "/api/v1/operator/events",
     "/api/v1/operator/bookings",
-    "/api/v1/operator/schedule/replan",
-    "/api/v1/operator/queue/{booking_id}/assign",
+    "/api/v1/operator/schedule/replans",
+    "/api/v1/operator/bookings/{booking_id}/assignments",
     "/api/v1/operator/approvals/{approval_id}",
     "/api/v1/simulation/incidents",
     "/health",
@@ -61,16 +62,18 @@ async def test_vehicle_catalog_is_public(client):
 
 
 async def test_energy_estimate_uses_fr3_formula(client):
-    body = {"vehicle_model": "DEMO-60", "soc_now": 32, "soc_target": 80}
-    data = (await client.post("/api/v1/energy/estimate", json=body)).json()
+    params = {"vehicle_model": "DEMO-60", "soc_now": 32, "soc_target": 80}
+    resp = await client.get("/api/v1/energy-estimates", params=params)
+    assert resp.status_code == 200
+    data = resp.json()
     assert data["battery_energy_kwh"] == pytest.approx(28.8)
     assert data["grid_energy_kwh"] == pytest.approx(28.8 / data["efficiency"])
 
 
 async def test_energy_estimate_rejects_bad_input(client):
-    unknown = await client.post("/api/v1/energy/estimate", json={"vehicle_model": "X", "soc_now": 1, "soc_target": 2})
-    reversed_soc = await client.post(
-        "/api/v1/energy/estimate", json={"vehicle_model": "DEMO-60", "soc_now": 80, "soc_target": 20}
+    unknown = await client.get("/api/v1/energy-estimates", params={"vehicle_model": "X", "soc_now": 1, "soc_target": 2})
+    reversed_soc = await client.get(
+        "/api/v1/energy-estimates", params={"vehicle_model": "DEMO-60", "soc_now": 80, "soc_target": 20}
     )
     assert unknown.status_code == 404
     assert reversed_soc.status_code == 422
@@ -111,6 +114,16 @@ async def test_scenarios_listed_for_operator(client, as_role):
     response = await client.get("/api/v1/simulation/scenarios")
     assert response.status_code == 200
     assert {"peak_evening", "power_drop"} <= {s["scenario_id"] for s in response.json()}
+
+
+async def test_simulation_run_returns_201(client, as_role):
+    as_role(Role.OPERATOR)
+    response = await client.post(
+        "/api/v1/simulation/runs",
+        json={"scenario_id": "peak_evening", "policy_id": "B0", "n_vehicles": 2, "seed": 1},
+    )
+    assert response.status_code == 201
+    assert response.json()["policy_id"] == "B0"
 
 
 async def test_simulation_run_unknown_scenario_is_404(client, as_role):

@@ -12,7 +12,13 @@ from datetime import date
 from fastapi import APIRouter, Query
 
 from src.api.deps import OperatorUser
-from src.models.api import ApprovalDecisionRequest, ConnectorDetail, ManualAssignRequest, StationOverview
+from src.models.api import (
+    ApprovalDecisionRequest,
+    ConnectorDetail,
+    DecisionLogPage,
+    ManualAssignRequest,
+    StationOverview,
+)
 from src.models.charging import Booking, BookingStatus, SchedulePlan
 from src.models.control import Approval, ApprovalStatus, DecisionLogEntry, Role
 from src.models.events import StationEvent
@@ -20,6 +26,9 @@ from src.models.station import LoadPoint
 from src.services import control_loop, repository, station_service
 
 router = APIRouter(prefix="/operator", tags=["operator"])
+
+# seq lưu ở cột BIGINT/INTEGER 64-bit; con trỏ vượt ngưỡng này làm DB lỗi (500) thay vì 422.
+_MAX_SEQ = 2**63 - 1
 
 
 # ---- S5: dashboard ---------------------------------------------------------------------
@@ -62,18 +71,21 @@ def schedule(
 
 
 @router.get("/bookings", response_model=list[Booking])
-def bookings(user: OperatorUser, status: BookingStatus | None = None) -> list[Booking]:
+def bookings(
+    user: OperatorUser,
+    status: list[BookingStatus] | None = Query(default=None),
+) -> list[Booking]:
     """S6 — chi tiết các xe trong hàng chờ / đang sạc (SchedulePlan.queue chỉ có booking_id)."""
     return station_service.list_bookings(status)
 
 
-@router.post("/schedule/replan", response_model=SchedulePlan)
+@router.post("/schedule/replans", response_model=SchedulePlan)
 async def replan(user: OperatorUser) -> SchedulePlan:
     """S6 nút "Lập lịch lại"."""
     return await station_service.replan(user.user_id)
 
 
-@router.post("/queue/{booking_id}/assign", response_model=DecisionLogEntry)
+@router.post("/bookings/{booking_id}/assignments", response_model=DecisionLogEntry)
 async def manual_assign(booking_id: str, body: ManualAssignRequest, user: OperatorUser) -> DecisionLogEntry:
     """S6 nút "Xếp thủ công" — trả nhật ký để thấy Guard cho qua hay chặn."""
     return await station_service.manual_assign(booking_id, body.connector_id, user.user_id)
@@ -88,27 +100,27 @@ def approvals(user: OperatorUser, status: ApprovalStatus | None = ApprovalStatus
     return repository.list_approvals(status)
 
 
-@router.post("/approvals/{approval_id}", response_model=Approval)
+@router.patch("/approvals/{approval_id}", response_model=Approval)
 async def decide_approval(approval_id: str, body: ApprovalDecisionRequest, user: OperatorUser) -> Approval:
     """S7 nút Duyệt / Từ chối."""
     return await control_loop.resolve_approval(approval_id, body.decision, user.user_id, actor_role=Role.OPERATOR)
 
 
-@router.get("/commands/blocked", response_model=list[DecisionLogEntry])
+@router.get("/commands/blocked", response_model=DecisionLogPage)
 def blocked_commands(
     user: OperatorUser,
     limit: int = Query(default=100, ge=1, le=1000),
-    before: int | None = Query(default=None, ge=1, description="Con trỏ phân trang (seq)"),
-) -> list[DecisionLogEntry]:
+    before: int | None = Query(default=None, ge=1, le=_MAX_SEQ, description="Con trỏ phân trang (seq)"),
+) -> DecisionLogPage:
     """S7 tab "Bị Guard chặn" — kèm luật vi phạm (AC6)."""
-    return repository.list_decisions(limit=limit, blocked_only=True, before=before)
+    return station_service.decision_page(limit, blocked_only=True, before=before)
 
 
-@router.get("/decision-log", response_model=list[DecisionLogEntry])
+@router.get("/decision-log", response_model=DecisionLogPage)
 def decision_log(
     user: OperatorUser,
     limit: int = Query(default=100, ge=1, le=1000),
-    before: int | None = Query(default=None, ge=1, description="Con trỏ phân trang (seq)"),
-) -> list[DecisionLogEntry]:
+    before: int | None = Query(default=None, ge=1, le=_MAX_SEQ, description="Con trỏ phân trang (seq)"),
+) -> DecisionLogPage:
     """FR14 — ai đề xuất, Guard kết luận gì, ai duyệt, lúc nào."""
-    return repository.list_decisions(limit=limit, before=before)
+    return station_service.decision_page(limit, before=before)

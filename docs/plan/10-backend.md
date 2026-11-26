@@ -48,9 +48,9 @@ src/
 ├── config.py               sửa: jwt_ttl_minutes, control_loop_enabled, sim_time_scale
 ├── api/
 │   ├── deps.py             ✅ giữ; thêm get_runtime_dep để test override
-│   ├── routes.py           sửa: /chat + /chat/resume nhận ResidentUser (I1), trả ChatResponse có cấu trúc (I2)
+│   ├── routes.py           sửa: /chat + PATCH /chat/sessions/{id} nhận ResidentUser (I1), trả ChatResponse có cấu trúc (I2)
 │   ├── auth.py             🧩 /auth/login, /auth/me
-│   ├── catalog.py          ✅ /vehicles, /energy/estimate, /station/config, /tariff
+│   ├── catalog.py          ✅ /vehicles, /energy-estimates, /station/config, /tariff
 │   ├── resident.py         🧩 7 endpoint có sẵn + 🆕 8 endpoint (mục 3)
 │   ├── operations.py       🧩 9 endpoint có sẵn + 🆕 3 endpoint; bỏ import src.guard (I4)
 │   ├── simulation.py       ✅/🧩 giữ
@@ -98,31 +98,31 @@ Tất cả dưới prefix `/api/v1`. Cột "Service" là hàm thật (hoặc hà
 | S1 | `POST /auth/login` | công khai | `auth.authenticate` | 🧩 T1.7 |
 | S1 | `GET /auth/me` | bất kỳ | `deps.get_current_user` | 🧩 T1.7 |
 | S2 | `GET /vehicles` · `GET /tariff` · `GET /station/config` | công khai | `catalog.*` | ✅ |
-| S2 | `POST /chat` · `POST /chat/resume` | resident | `agents.graph.agent.ainvoke` | ✅ (cần key) · sửa I1, I2 ở T2.5 |
+| S2 | `POST /chat` · `PATCH /chat/sessions/{session_id}` | resident | `agents.graph.agent.ainvoke` | ✅ (cần key) · sửa I1, I2 ở T2.5 |
 | S2 | `GET /resident/bookings/current` | resident | `charging_service.current_booking` | 🧩 T2.2 |
 | S2 | `GET /resident/session` | resident | `charging_service.session_view` | 🆕 T2.2 — trạng thái sạc, % pin ước tính (FR15) |
 | S2 | `GET /resident/queue` | resident | `charging_service.queue_status` | 🧩 T2.2 |
 | S2 | `GET /resident/notifications` | resident | `repository.list_notifications` | 🧩 T1.6 |
 | S2 | `POST /resident/notifications/{notification_id}/read` | resident | `repository.mark_notification_read` | 🆕 T3.2 |
 | S2 | `GET` · `PUT` · `DELETE /resident/profile` | resident | `auth.get_profile` · `update_profile` · `delete_account` | 🆕 T2.8 (F8, Q9) |
-| S3 | `POST /energy/estimate` | công khai | `energy.estimate_energy` | ✅ |
-| S3 | `POST /resident/quote` | resident | `charging_service.quote` | 🧩 T2.2 |
+| S3 | `GET /energy-estimates` | công khai | `energy.estimate_energy` | ✅ |
+| S3 | `POST /resident/quotes` | resident | `charging_service.quote` | 🧩 T2.2 |
 | S3 | `POST /resident/bookings` (+ header `Idempotency-Key`) | resident | `charging_service.book` | 🧩 T2.2 |
 | S3 | `PATCH /resident/bookings/{booking_id}` | resident | `charging_service.change` | 🆕 T2.8 (FR8 "đổi yêu cầu") |
 | S3 | `DELETE /resident/bookings/{booking_id}` | resident | `charging_service.cancel` | 🧩 T2.2 |
 | S3 | `GET /resident/explanation` | resident | `charging_service.explain` | 🆕 T2.5 — "Vì sao?" không cần LLM (US3) |
 | S4 | `GET /resident/approvals/{approval_id}` | resident | `repository.get_approval` | 🆕 T3.2 |
-| S4 | `POST /resident/approvals/{approval_id}` | resident | `control_loop.resolve_approval` | 🧩 T3.2 (đổi nơi gọi, I4) |
+| S4 | `PATCH /resident/approvals/{approval_id}` | resident | `control_loop.resolve_approval` | 🧩 T3.2 (đổi nơi gọi, I4) |
 | S5 | `GET /operator/station` | operator | `station_service.overview` | 🧩 T3.6 |
 | S5 | `GET /operator/load?hours=` | operator | `station_service.load_history` | 🧩 T3.6 |
 | S5 | `GET /operator/connectors/{connector_id}` | operator | `station_service.connector_detail` | 🆕 T3.6 — popup chi tiết cột |
 | S5 | `GET /operator/events?limit=` | operator | `station_service.recent_events` | 🆕 T3.6 — "Sự kiện gần nhất" |
 | S6 | `GET /operator/schedule?date=` | operator | `station_service.current_plan` | 🧩 T3.6 (thêm query `date`) |
 | S6 | `GET /operator/bookings?status=` | operator | `station_service.list_bookings` | 🆕 T3.6 — chi tiết hàng chờ |
-| S6 | `POST /operator/schedule/replan` | operator | `station_service.replan` | 🧩 T2.6 |
+| S6 | `POST /operator/schedule/replans` | operator | `station_service.replan` | 🧩 T2.6 |
 | S6 | `POST /operator/queue/{booking_id}/assign` | operator | `station_service.manual_assign` | 🧩 T3.2 |
 | S7 | `GET /operator/approvals?status=` | operator | `repository.list_approvals` | 🧩 T1.6 |
-| S7 | `POST /operator/approvals/{approval_id}` | operator | `control_loop.resolve_approval` | 🧩 T3.2 (I4) |
+| S7 | `PATCH /operator/approvals/{approval_id}` | operator | `control_loop.resolve_approval` | 🧩 T3.2 (I4) |
 | S7 | `GET /operator/commands/blocked` · `GET /operator/decision-log` | operator | `repository.list_decisions` | 🧩 T1.6 |
 | S8 | `GET /simulation/scenarios` | operator | `catalog.list_scenarios` | ✅ |
 | S8 | `POST /simulation/runs` · `POST /simulation/incidents` · `GET /simulation/benchmark` | operator | `simulation_service.*` | 🧩 T3.4, T3.5 |
@@ -256,7 +256,7 @@ sequenceDiagram
     SCHED-->>CS: SchedulePlan → ScheduleProposal
     AG->>AG: reason chọn confirm_booking → act_node → human_review_node.interrupt
     API-->>R: ChatResponse{status: needs_confirmation, proposal}
-    R->>API: POST /chat/resume {resume: approve}
+    R->>API: PATCH /chat/sessions/{session_id} {resume: approve}
     API->>AG: ainvoke(Command(resume="approve"))
     AG->>CS: tool confirm_booking → book(request, resident_id, idempotency_key)
     CS->>CS: repository.save_booking
@@ -271,7 +271,7 @@ sequenceDiagram
 
 Giữa lúc xem phương án và lúc bấm xác nhận, trạng thái trạm có thể đổi. `book` tính lại; nếu không còn khả thi thì
 ném `proposal_expired` (409) và Agent đưa phương án mới. Khi LLM lỗi (503 `llm_unavailable`), frontend dùng form:
-`POST /resident/quote` rồi `POST /resident/bookings`, đi cùng `quote` / `book`.
+`POST /resident/quotes` rồi `POST /resident/bookings`, đi cùng `quote` / `book`.
 
 ### 6.2 AC2 — đến trực tiếp khi hết đầu nối
 
@@ -329,7 +329,7 @@ sequenceDiagram
     DP->>AP: open_approval(cmd, verdict, kind)
     DP->>RT: sinks.notify → WS approval_request + Notification
     alt Đồng ý
-        R->>CL: POST /resident/approvals/{id} → resolve_approval＊(id, "approve", actor, rt)
+        R->>CL: PATCH /resident/approvals/{id} → resolve_approval＊(id, "approve", actor, rt)
         CL->>AP: decide(id, "approve", actor)
         CL->>DP: execute_approved(approval, ctx mới, rt.simulator)
         DP->>CK: check(cmd, ctx mới) lần 2
@@ -375,7 +375,7 @@ sequenceDiagram
     participant ST as station_service
     participant CL as control_loop
     participant DP as guard.dispatcher
-    O->>API: POST /operator/schedule/replan
+    O->>API: POST /operator/schedule/replans
     API->>ST: replan(operator_id)
     ST->>CL: on_event(StationEvent(REPLAN_REQUESTED), rt)
     CL->>CL: build_planning_context＊ → rt.scheduler.plan → diff_commands＊

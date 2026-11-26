@@ -4,7 +4,7 @@
     Điện lấy từ lưới  ≈ điện nạp vào pin ÷ hiệu suất sạc
 
 Hiệu suất: lấy của mẫu xe nếu có, không thì giả định chung trong config/station.yaml.
-Dùng chung cho tool của Agent, API /energy/estimate và bộ tối ưu — AC1 yêu cầu kWh
+Dùng chung cho tool của Agent, API /energy-estimates và bộ tối ưu — AC1 yêu cầu kWh
 hiển thị cho cư dân khớp đúng công thức này.
 """
 

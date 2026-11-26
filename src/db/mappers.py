@@ -146,7 +146,8 @@ def decision_to_row(entry: DecisionLogEntry) -> DecisionLogRow:
 
 
 def row_to_decision(row: DecisionLogRow) -> DecisionLogEntry:
-    return DecisionLogEntry.model_validate(row.payload)
+    entry = DecisionLogEntry.model_validate(row.payload)
+    return entry.model_copy(update={"seq": row.seq})
 
 
 def notification_to_row(resident_id: str, notification: Notification) -> NotificationRow:

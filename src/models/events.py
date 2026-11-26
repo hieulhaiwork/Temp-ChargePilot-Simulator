@@ -12,6 +12,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 from src.models.api import Notification, ResidentSessionView, StationOverview
 from src.models.charging import SchedulePlan
 from src.models.control import Approval, DecisionLogEntry
+from src.models.station import ResidentSiteMap
 
 
 class EventType(StrEnum):
@@ -68,6 +69,7 @@ class WsMessageType(StrEnum):
     APPROVAL_REQUEST = "approval_request"  # S4 cư dân, S7 vận hành
     COMMAND_BLOCKED = "command_blocked"  # S7 tab "Bị Guard chặn"
     NOTIFICATION = "notification"  # chuông 🔔 của cư dân
+    SITE_OCCUPANCY = "site_occupancy"  # G24: sơ đồ bãi đổi — gửi mọi cư dân, chỉ chứa trạng thái công khai
     PONG = "pong"  # trả lời {"type": "ping"} của client — giữ kết nối
 
 
@@ -90,5 +92,6 @@ WS_PAYLOAD_MODELS: dict[WsMessageType, tuple[type[BaseModel], ...]] = {
     WsMessageType.APPROVAL_REQUEST: (Approval,),
     WsMessageType.COMMAND_BLOCKED: (DecisionLogEntry,),
     WsMessageType.NOTIFICATION: (Notification,),
+    WsMessageType.SITE_OCCUPANCY: (ResidentSiteMap,),
     WsMessageType.PONG: (),
 }

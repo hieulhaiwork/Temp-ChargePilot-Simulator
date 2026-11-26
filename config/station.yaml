@@ -90,10 +90,21 @@ cabinets:
 # Mã cổng theo ADR-010. Hai nhãn 60 kW KHÔNG có nghĩa mỗi xe luôn nhận 60 kW
 # (còn cap tủ, ngân sách DC, lưới và đường sạc của xe).
 connectors:
-  - { connector_id: AC-01-1, cabinet_id: AC-01, zone: AC, max_power_kw: 11.0 }
-  - { connector_id: AC-02-1, cabinet_id: AC-02, zone: AC, max_power_kw: 11.0 }
-  - { connector_id: DC-01-1, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
-  - { connector_id: DC-01-2, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0 }
+  - { connector_id: AC-01-1, cabinet_id: AC-01, zone: AC, max_power_kw: 11.0, bay_id: B-A1 }
+  - { connector_id: AC-02-1, cabinet_id: AC-02, zone: AC, max_power_kw: 11.0, bay_id: B-A2 }
+  - { connector_id: DC-01-1, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0, bay_id: B-D1 }
+  - { connector_id: DC-01-2, cabinet_id: DC-01, zone: DC, max_power_kw: 60.0, bay_id: B-D2 }
+
+# Mặt bằng sơ đồ bãi (G22) — toạ độ khung 1000 x 600 (landscape).
+layout:
+  orientation: landscape
+  width: 1000
+  height: 600
+  bays:
+    - { bay_id: B-A1, connector_id: AC-01-1, zone: AC, x: 48,  y: 90,  width: 165, height: 112 }
+    - { bay_id: B-A2, connector_id: AC-02-1, zone: AC, x: 245, y: 90,  width: 165, height: 112 }
+    - { bay_id: B-D1, connector_id: DC-01-1, zone: DC, x: 48,  y: 350, width: 200, height: 120 }
+    - { bay_id: B-D2, connector_id: DC-01-2, zone: DC, x: 280, y: 350, width: 200, height: 120 }
 
 # Chọn policy / DC model / tham số (TUỲ CHỌN, Final Review 4.1 / 4.2). VẮNG khối này = hành vi cũ:
 # policy live theo env LIVE_STRATEGY (mặc định M3a), DC model synthetic_taper_v1. Id policy hợp lệ:

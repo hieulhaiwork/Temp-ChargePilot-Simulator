@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api import auth, catalog, copilot, operations, resident, simulation, ws
+from src.api.paths import API_PREFIX
 from src.api.routes import router
 from src.config import get_settings
 from src.models.api import ErrorCode, ErrorResponse, ReadinessReport
@@ -27,7 +28,6 @@ from src.services import control_loop, repository, runtime
 from src.services.copilot.integration import CopilotIntegration
 from src.services.errors import DomainError
 
-API_PREFIX = "/api/v1"
 REQUEST_ID_HEADER = "X-Request-ID"
 
 logger = logging.getLogger("chargepilot.app")
@@ -94,7 +94,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=[REQUEST_ID_HEADER],
+    expose_headers=[REQUEST_ID_HEADER, "Location"],
 )
 
 
@@ -159,7 +159,7 @@ async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-app.include_router(router, prefix=API_PREFIX)  # F1 chat: /chat, /chat/resume, /status
+app.include_router(router, prefix=API_PREFIX)  # F1 chat: /chat, /chat/sessions/{session_id}, /status
 for feature_router in (
     auth.router,
     catalog.router,

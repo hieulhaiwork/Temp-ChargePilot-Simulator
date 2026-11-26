@@ -162,7 +162,26 @@ def save_booking(booking: Booking, *, idempotency_key: str | None = None, reques
                     )
                 )
     except IntegrityError as exc:
+        # Chỉ vi phạm UNIQUE (Q6) mới là "đã có lịch hiệu lực"; khoá ngoại / lỗi khác ném lại nguyên trạng.
+        if not is_unique_violation(exc):
+            raise
         raise DomainError(ErrorCode.BOOKING_CONFLICT, "Bạn đang có một lịch sạc hiệu lực khác") from exc
+
+
+UNIQUE_VIOLATION_SQLSTATE = "23505"  # Postgres: unique_violation
+
+
+def is_unique_violation(exc: IntegrityError) -> bool:
+    """Nhận diện vi phạm UNIQUE theo mã lỗi của driver, không dựa vào nội dung thông báo.
+
+    Postgres (psycopg3 `sqlstate` / psycopg2 `pgcode`) có mã SQLSTATE chuẩn. SQLite không có SQLSTATE nên
+    dùng thông báo của `sqlite3` ("UNIQUE constraint failed") — đây là chỗ duy nhất còn phụ thuộc chuỗi.
+    """
+    orig = exc.orig
+    sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+    if sqlstate:
+        return sqlstate == UNIQUE_VIOLATION_SQLSTATE
+    return "unique constraint failed" in str(orig).lower()
 
 
 def get_booking(booking_id: str) -> Booking | None:
@@ -620,6 +639,21 @@ def mark_notification_read(notification_id: str, resident_id: str) -> Notificati
         if row.read_at is None:
             row.read_at = datetime.now(UTC)
         return mappers.row_to_notification(row)
+
+
+def mark_all_notifications_read(resident_id: str) -> int:
+    """G18 — đánh dấu tất cả thông báo chưa đọc của cư dân là đã đọc; trả số lượng đã cập nhật."""
+    _ensure()
+    now = datetime.now(UTC)
+    with db_session.session_scope() as s:
+        rows = s.scalars(
+            select(NotificationRow)
+            .where(NotificationRow.resident_id == resident_id)
+            .where(NotificationRow.read_at.is_(None))
+        ).all()
+        for r in rows:
+            r.read_at = now
+        return len(rows)
 
 
 # ---- Chuỗi thời gian cho S5 (FR16) ------------------------------------------------------

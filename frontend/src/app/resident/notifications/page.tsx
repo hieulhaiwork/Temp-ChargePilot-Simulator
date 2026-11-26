@@ -2,7 +2,7 @@
 
 /**
  * Thông báo (mockup cu-dan/resident-notifications.html; spec 21 §2.5; FR15, FR13 · AC4, AC5 · US4).
- * Ba bộ lọc Tất cả / Chưa đọc / Cần phản hồi; mở chi tiết thì đánh dấu đã đọc (POST …/read).
+ * Ba bộ lọc Tất cả / Chưa đọc / Cần phản hồi; mở chi tiết thì đánh dấu đã đọc (PATCH …/{notification_id}).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -33,13 +33,37 @@ export default function ResidentNotificationsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
   const markRead = useMutation({
-    mutationFn: (id: string) => unwrap(api.POST("/api/v1/resident/notifications/{notification_id}/read", { params: { path: { notification_id: id } } })),
+    mutationFn: (id: string) =>
+      unwrap(
+        api.PATCH("/api/v1/resident/notifications/{notification_id}", {
+          params: { path: { notification_id: id } },
+          body: { read: true },
+        }),
+      ),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["resident", "notifications"] }),
+  });
+  const readAll = useMutation({
+    mutationFn: () => unwrap(api.PATCH("/api/v1/resident/notifications", { body: { read: true } })),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["resident", "notifications"] }),
   });
 
   return (
     <>
-      <PageHead title="Thông báo" sub="Cập nhật của trạm và những đề nghị cần bạn quyết định." />
+      <PageHead
+        title="Thông báo"
+        sub="Cập nhật của trạm và những đề nghị cần bạn quyết định."
+        actions={
+          <button
+            type="button"
+            className="btn btn-secondary small"
+            disabled={readAll.isPending}
+            onClick={() => readAll.mutate()}
+          >
+            <Icon name="check" />
+            {readAll.isPending ? "Đang xử lý…" : "Đánh dấu tất cả đã đọc"}
+          </button>
+        }
+      />
       <Panel label="Hộp thư">
         <DataBlock endpoint="GET /api/v1/resident/notifications" query={queries.residentNotifications()} refetchInterval={poll} loadingLines={5}>
           {(items) => {

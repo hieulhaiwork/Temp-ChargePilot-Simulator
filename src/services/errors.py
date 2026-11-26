@@ -27,6 +27,7 @@ HTTP_STATUS: dict[ErrorCode, int] = {
     ErrorCode.COPILOT_NOT_READY: 503,
     ErrorCode.DATABASE_UNAVAILABLE: 503,
     ErrorCode.INTERNAL_ERROR: 500,
+    ErrorCode.HTTP_ERROR: 400,
 }
 
 

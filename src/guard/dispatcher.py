@@ -116,7 +116,15 @@ async def submit(
     for i, cmd, kind in held:
         verdict = verdicts[i]
         booking = _booking_for(cmd, ctx)
-        pending = approval_rules.open_approval(cmd, verdict, kind, booking=booking, ttl_minutes=approval_ttl_minutes)
+        current_kw = next((c.power_kw for c in ctx.state.connectors if c.connector_id == cmd.connector_id), None)
+        pending = approval_rules.open_approval(
+            cmd,
+            verdict,
+            kind,
+            booking=booking,
+            ttl_minutes=approval_ttl_minutes,
+            current_power_kw=current_kw,
+        )
         sinks.save_approval(pending)
         entry = DecisionLogEntry(
             timestamp=ctx.now,

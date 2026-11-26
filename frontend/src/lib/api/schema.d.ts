@@ -61,7 +61,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chat/resume": {
+    "/api/v1/chat/sessions/{session_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -70,15 +70,17 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Chat Resume
-         * @description S3 — "Xác nhận" (approve) hoặc "Đổi phương án" (reject) cho hành động đang chờ.
-         */
-        post: operations["chat_resume_api_v1_chat_resume_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Chat Resume
+         * @description S3 — "Xác nhận" (approve) hoặc "Đổi phương án" (reject) cho hành động đang chờ.
+         *
+         *     G1: thread không còn interrupt (backend restart, bấm lặp) → 409, KHÔNG chạy graph với đầu vào rỗng.
+         */
+        patch: operations["chat_resume_api_v1_chat_sessions__session_id__patch"];
         trace?: never;
     };
     "/api/v1/chat/stream": {
@@ -95,6 +97,26 @@ export interface paths {
          * @description Chat streaming (SSE) cho S2 — phát tiến độ node, từng đoạn câu trả lời và ChatResponse cuối.
          */
         post: operations["chat_stream_api_v1_chat_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat Transcribe
+         * @description Nhận giọng nói tiếng Việt đa vùng miền (Bắc/Trung/Nam) và trả về văn bản để cư dân kiểm tra trước khi gửi.
+         */
+        post: operations["chat_transcribe_api_v1_chat_transcribe_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -205,20 +227,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/energy/estimate": {
+    "/api/v1/energy-estimates": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
          * Estimate
          * @description FR3 — cùng công thức với tool của Agent (AC1: kWh khớp công thức).
          */
-        post: operations["estimate_api_v1_energy_estimate_post"];
+        get: operations["estimate_api_v1_energy_estimates_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -254,15 +276,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Decide Approval
          * @description S7 nút Duyệt / Từ chối.
          */
-        post: operations["decide_approval_api_v1_operator_approvals__approval_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["decide_approval_api_v1_operator_approvals__approval_id__patch"];
         trace?: never;
     };
     "/api/v1/operator/bookings": {
@@ -279,6 +301,26 @@ export interface paths {
         get: operations["bookings_api_v1_operator_bookings_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/bookings/{booking_id}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manual Assign
+         * @description S6 nút "Xếp thủ công" — trả nhật ký để thấy Guard cho qua hay chặn.
+         */
+        post: operations["manual_assign_api_v1_operator_bookings__booking_id__assignments_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -385,26 +427,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/operator/queue/{booking_id}/assign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Manual Assign
-         * @description S6 nút "Xếp thủ công" — trả nhật ký để thấy Guard cho qua hay chặn.
-         */
-        post: operations["manual_assign_api_v1_operator_queue__booking_id__assign_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/operator/schedule": {
         parameters: {
             query?: never;
@@ -425,7 +447,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/operator/schedule/replan": {
+    "/api/v1/operator/schedule/replans": {
         parameters: {
             query?: never;
             header?: never;
@@ -438,7 +460,7 @@ export interface paths {
          * Replan
          * @description S6 nút "Lập lịch lại".
          */
-        post: operations["replan_api_v1_operator_schedule_replan_post"];
+        post: operations["replan_api_v1_operator_schedule_replans_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -465,6 +487,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resident/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Approvals
+         * @description G17 — đề nghị gửi cho chính cư dân, lọc theo trạng thái (mặc định pending).
+         */
+        get: operations["list_approvals_api_v1_resident_approvals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resident/approvals/{approval_id}": {
         parameters: {
             query?: never;
@@ -478,15 +520,15 @@ export interface paths {
          */
         get: operations["get_approval_api_v1_resident_approvals__approval_id__get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Decide Approval
          * @description S4 — Đồng ý / Từ chối điều chỉnh vượt phạm vi đã đồng ý (AC4).
          */
-        post: operations["decide_approval_api_v1_resident_approvals__approval_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["decide_approval_api_v1_resident_approvals__approval_id__patch"];
         trace?: never;
     };
     "/api/v1/resident/bookings": {
@@ -500,7 +542,7 @@ export interface paths {
         put?: never;
         /**
          * Create Booking
-         * @description S3 nút "Xác nhận" (luồng form). Luồng chat chốt qua /chat/resume.
+         * @description S3 nút "Xác nhận" (luồng form). Luồng chat chốt qua PATCH /chat/sessions/{session_id}.
          *
          *     Gửi lại cùng `Idempotency-Key` + cùng body sẽ nhận lại đúng booking cũ (bấm hai lần không tạo hai lịch).
          */
@@ -552,6 +594,26 @@ export interface paths {
         patch: operations["change_booking_api_v1_resident_bookings__booking_id__patch"];
         trace?: never;
     };
+    "/api/v1/resident/bookings/{booking_id}/quotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Quote Change
+         * @description G2 — xem trước lịch sau khi đổi yêu cầu; KHÔNG giữ chỗ, KHÔNG đổi booking.
+         */
+        post: operations["quote_change_api_v1_resident_bookings__booking_id__quotes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resident/explanation": {
         parameters: {
             query?: never;
@@ -589,10 +651,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Mark All Notifications Read
+         * @description G18 — đánh dấu tất cả thông báo của chính cư dân là đã đọc.
+         */
+        patch: operations["mark_all_notifications_read_api_v1_resident_notifications_patch"];
         trace?: never;
     };
-    "/api/v1/resident/notifications/{notification_id}/read": {
+    "/api/v1/resident/notifications/{notification_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -601,12 +667,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark Notification Read */
-        post: operations["mark_notification_read_api_v1_resident_notifications__notification_id__read_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Mark Notification Read */
+        patch: operations["mark_notification_read_api_v1_resident_notifications__notification_id__patch"];
         trace?: never;
     };
     "/api/v1/resident/profile": {
@@ -651,7 +717,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/resident/quote": {
+    "/api/v1/resident/quotes": {
         parameters: {
             query?: never;
             header?: never;
@@ -664,7 +730,7 @@ export interface paths {
          * Quote
          * @description S3 — phương án what-if (chưa giữ chỗ); không khả thi thì có phương án thay thế (FR4).
          */
-        post: operations["quote_api_v1_resident_quote_post"];
+        post: operations["quote_api_v1_resident_quotes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -683,6 +749,26 @@ export interface paths {
          * @description S2 — lịch + tiến độ sạc + % pin ước tính của chính cư dân (FR15).
          */
         get: operations["session_api_v1_resident_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resident/site-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Site Map
+         * @description G24 — chỉ public_status / mine / vị trí hàng của chính cư dân; không lộ SOC, mẫu xe, giờ rời.
+         */
+        get: operations["site_map_api_v1_resident_site_map_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -922,6 +1008,8 @@ export interface components {
             /** Description */
             description: string;
             kind: components["schemas"]["AlternativeKind"];
+            /** @description Yêu cầu đã chỉnh sẵn (G6) */
+            request?: components["schemas"]["ChargeRequest"] | null;
             /** Soc Target */
             soc_target?: number | null;
         };
@@ -944,10 +1032,24 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Current Power Kw
+             * @description Công suất trước điều chỉnh (kW)
+             */
+            current_power_kw?: number | null;
             /** Decided At */
             decided_at?: string | null;
             /** Decided By */
             decided_by?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Until */
+            effective_until?: string | null;
+            /**
+             * Executed
+             * @description None = chưa xử lý; True/False sau khi Guard kiểm lần 2 (G9)
+             */
+            executed?: boolean | null;
             /** Expires At */
             expires_at?: string | null;
             /**
@@ -988,6 +1090,28 @@ export interface components {
          * @enum {string}
          */
         ApprovalStatus: "pending" | "approved" | "rejected" | "expired";
+        /**
+         * BayLayout
+         * @description Một ô đỗ trên mặt bằng. Toạ độ theo khung 1000 × 600 (ngang) hoặc 360 × 640 (dọc) — G22.
+         */
+        BayLayout: {
+            /** Bay Id */
+            bay_id: string;
+            /**
+             * Connector Id
+             * @description Cổng gắn với ô; None = ô trống không có cổng
+             */
+            connector_id?: string | null;
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            zone: components["schemas"]["ChargerZone"];
+        };
         /**
          * BenchmarkReport
          * @description Bảng B0 / M2b / M3a / M3b cùng tập phiên, cùng biểu giá (PRD §8, AC7). `source` ghi nguồn + version.
@@ -1204,6 +1328,15 @@ export interface components {
              * @default
              */
             analysis: string;
+            /** @description Booking vừa được xác nhận (G4) */
+            booking?: components["schemas"]["Booking"] | null;
+            /**
+             * Draft
+             * @description Các trường yêu cầu sạc đã thu được tới hiện tại (vehicle_model, soc_now, soc_target, zone, mode, deadline)
+             */
+            draft?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Pending
              * @description Hành động đang chờ xác nhận: {tool, args}
@@ -1213,6 +1346,8 @@ export interface components {
             } | null;
             /** @description Phương án hiện ở S3 — số liệu do CODE tính */
             proposal?: components["schemas"]["ScheduleProposal"] | null;
+            /** @description Yêu cầu đã chỉnh sẵn khi chờ xác nhận (G3) */
+            request?: components["schemas"]["ChargeRequest"] | null;
             /**
              * Response
              * @description Phản hồi từ agent
@@ -1226,16 +1361,24 @@ export interface components {
             session_id: string;
             /**
              * Status
-             * @description needs_confirmation = graph đang dừng ở interrupt, chờ /chat/resume
+             * @description needs_confirmation = graph đang dừng ở interrupt, chờ PATCH /chat/sessions/{id}
              * @default answer
              * @enum {string}
              */
             status: "answer" | "needs_confirmation" | "refused";
             /**
              * Suggestions
-             * @description 2–3 gợi ý trả lời nhanh (1 chạm) cho lượt tiếp theo của cư dân
+             * @description 0–3 gợi ý trả lời nhanh (1 chạm) cho lượt tiếp theo của cư dân
              */
             suggestions?: string[];
+        };
+        /** ChatSessionResumeRequest */
+        ChatSessionResumeRequest: {
+            /**
+             * Resume
+             * @enum {string}
+             */
+            resume: "approve" | "reject";
         };
         /**
          * Command
@@ -1537,11 +1680,34 @@ export interface components {
              */
             note: string;
             /**
+             * Seq
+             * @description Thứ tự ghi trong decision_log — con trỏ `before` (G12)
+             */
+            seq?: number | null;
+            /**
              * Timestamp
              * Format: date-time
              */
             timestamp: string;
             verdict?: components["schemas"]["GuardVerdict"] | null;
+        };
+        /**
+         * DecisionLogPage
+         * @description Trang kết quả phân trang cursor theo `seq` giảm dần (ADR-020).
+         */
+        DecisionLogPage: {
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["DecisionLogEntry"][];
+            /**
+             * Next Cursor
+             * @description Giá trị `before` cho trang kế tiếp
+             */
+            next_cursor?: number | null;
         };
         /** DeltaUnavailableReason */
         DeltaUnavailableReason: {
@@ -1573,18 +1739,6 @@ export interface components {
              * @description Điện lấy từ lưới = điện nạp vào pin ÷ hiệu suất
              */
             grid_energy_kwh: number;
-            /** Soc Now */
-            soc_now: number;
-            /** Soc Target */
-            soc_target: number;
-            /** Vehicle Model */
-            vehicle_model: string;
-        };
-        /**
-         * EnergyEstimateRequest
-         * @description FR3 — tính kWh cho form/web, cùng công thức với tool của Agent.
-         */
-        EnergyEstimateRequest: {
             /** Soc Now */
             soc_now: number;
             /** Soc Target */
@@ -1955,6 +2109,17 @@ export interface components {
          */
         NotificationKind: "approval_request" | "schedule_changed" | "emergency_curtailment" | "info";
         /**
+         * NotificationUpdateRequest
+         * @description PATCH /resident/notifications/{id} và PATCH /resident/notifications — ADR-020.
+         */
+        NotificationUpdateRequest: {
+            /**
+             * Read
+             * @constant
+             */
+            read: true;
+        };
+        /**
          * OptimizerSettings
          * @description Hệ số hàm mục tiêu của bài LP (FR6) — nạp từ khối `optimizer:` của station.yaml.
          *
@@ -2092,6 +2257,27 @@ export interface components {
          */
         ProposalCertainty: "estimate" | "conditional";
         /**
+         * PublicBay
+         * @description Một ô trên sơ đồ công khai cho cư dân — không lộ SOC / mẫu xe / giờ rời của xe khác (G24).
+         */
+        PublicBay: {
+            /** Bay Id */
+            bay_id: string;
+            /**
+             * Mine
+             * @default false
+             */
+            mine: boolean;
+            public_status: components["schemas"]["PublicBayStatus"];
+            zone: components["schemas"]["ChargerZone"];
+        };
+        /**
+         * PublicBayStatus
+         * @description Trạng thái công khai của ô sạc (G24) — đúng ba giá trị spec: busy / idle / fault.
+         * @enum {string}
+         */
+        PublicBayStatus: "busy" | "idle" | "fault";
+        /**
          * QueueStatus
          * @description US2 / AC2 — vị trí hàng đợi và thời gian chờ dự kiến.
          */
@@ -2157,6 +2343,23 @@ export interface components {
              * @description % pin ước tính — CODE tính
              */
             soc_estimate?: number | null;
+        };
+        /**
+         * ResidentSiteMap
+         * @description Sơ đồ bãi riêng tư cho màn cư dân S9 (G24).
+         */
+        ResidentSiteMap: {
+            /** Bays */
+            bays?: components["schemas"]["PublicBay"][];
+            /** Queues */
+            queues?: {
+                [key: string]: components["schemas"]["ZoneQueue"];
+            };
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
         };
         /**
          * ResolvedComponent
@@ -2232,13 +2435,6 @@ export interface components {
             time_config?: {
                 [key: string]: number | null;
             };
-        };
-        /** ResumeRequest */
-        ResumeRequest: {
-            /** Resume */
-            resume: string;
-            /** Session Id */
-            session_id: string;
         };
         /** ReviseVehicle */
         ReviseVehicle: {
@@ -2518,6 +2714,29 @@ export interface components {
             /** @description Vượt giới hạn lấy mẫu (MT4) tách khỏi vi phạm cứng vật lý của kernel (§3.5) */
             violations?: components["schemas"]["ViolationCounts"] | null;
         };
+        /**
+         * SiteLayout
+         * @description Mặt bằng sơ đồ bãi xe (G22).
+         */
+        SiteLayout: {
+            /** Bays */
+            bays?: components["schemas"]["BayLayout"][];
+            /**
+             * Height
+             * @default 600
+             */
+            height: number;
+            /**
+             * Orientation
+             * @default landscape
+             */
+            orientation: string;
+            /**
+             * Width
+             * @default 1000
+             */
+            width: number;
+        };
         /** SiteLimit */
         SiteLimit: {
             /** Grid Input Kw */
@@ -2592,6 +2811,8 @@ export interface components {
             independent_grid_input_limit_kw?: {
                 [key: string]: number;
             } | null;
+            /** @description Mặt bằng ô đỗ trên sơ đồ bãi (G22) */
+            layout?: components["schemas"]["SiteLayout"] | null;
             /** Name */
             name: string;
             optimizer: components["schemas"]["OptimizerSettings"];
@@ -2747,6 +2968,17 @@ export interface components {
             cost_vs_fcfs_pct?: number | null;
             /** Energy Cost Today Vnd */
             energy_cost_today_vnd?: number | null;
+            /**
+             * Grid Input Kw
+             * @description Công suất đầu vào lưới (Σ cổng / η) — G14
+             * @default 0
+             */
+            grid_input_kw: number;
+            /**
+             * Grid Input Limit Kw
+             * @description Giới hạn đầu vào lưới (kW) — G14
+             */
+            grid_input_limit_kw?: number | null;
             /** Power Limit Kw */
             power_limit_kw: number;
             /** Queue Length */
@@ -2757,6 +2989,11 @@ export interface components {
              * @description Tải tổng / giới hạn × 100
              */
             utilization_pct: number;
+            /**
+             * Zones
+             * @description Công suất theo từng vùng AC/DC — G14
+             */
+            zones?: components["schemas"]["ZoneUsage"][];
         };
         /**
          * StationState
@@ -2931,6 +3168,45 @@ export interface components {
             state_version?: number | null;
             /** Trace Schema */
             trace_schema: string;
+        };
+        /**
+         * TranscribeRequest
+         * @description Nhận âm thanh base64 từ trình duyệt (MediaRecorder) để chuyển thành văn bản tiếng Việt.
+         */
+        TranscribeRequest: {
+            /**
+             * Audio Base64
+             * @description Dữ liệu âm thanh mã hoá base64 (≤ 5 MB)
+             */
+            audio_base64: string;
+            /**
+             * Mime Type
+             * @description MIME của audio, vd audio/webm, audio/mp4
+             * @default audio/webm
+             */
+            mime_type: string;
+        };
+        /**
+         * TranscribeResponse
+         * @description Văn bản tiếng Việt đã chuẩn hoá từ giọng nói đa vùng miền.
+         */
+        TranscribeResponse: {
+            /**
+             * Fallback Used
+             * @description True nếu API chính lỗi và đã chuyển sang fallback
+             * @default false
+             */
+            fallback_used: boolean;
+            /**
+             * Provider
+             * @description Nhà cung cấp ASR đã xử lý (gemini | local_phowhisper | mock)
+             */
+            provider: string;
+            /**
+             * Text
+             * @description Nội dung tiếng Việt đã nhận dạng
+             */
+            text: string;
         };
         /**
          * UserProfile
@@ -3395,6 +3671,32 @@ export interface components {
          * @enum {string}
          */
         WhySubjectScope: "own_booking" | "booking" | "station";
+        /**
+         * ZoneQueue
+         * @description Hàng chờ của một vùng (G24).
+         */
+        ZoneQueue: {
+            /**
+             * Length
+             * @default 0
+             */
+            length: number;
+            /** My Position */
+            my_position?: number | null;
+        };
+        /**
+         * ZoneUsage
+         * @description Công suất thực tế và giới hạn theo từng vùng AC/DC (G14).
+         */
+        ZoneUsage: {
+            /** Budget Kw */
+            budget_kw?: number | null;
+            /** Output Kw */
+            output_kw: number;
+            /** Physical Cap Kw */
+            physical_cap_kw?: number | null;
+            zone: components["schemas"]["ChargerZone"];
+        };
     };
     responses: never;
     parameters: never;
@@ -3652,16 +3954,18 @@ export interface operations {
             };
         };
     };
-    chat_resume_api_v1_chat_resume_post: {
+    chat_resume_api_v1_chat_sessions__session_id__patch: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                session_id: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ResumeRequest"];
+                "application/json": components["schemas"]["ChatSessionResumeRequest"];
             };
         };
         responses: {
@@ -3759,6 +4063,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    chat_transcribe_api_v1_chat_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscribeResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -4358,18 +4749,18 @@ export interface operations {
             };
         };
     };
-    estimate_api_v1_energy_estimate_post: {
+    estimate_api_v1_energy_estimates_get: {
         parameters: {
-            query?: never;
+            query: {
+                vehicle_model: string;
+                soc_now: number;
+                soc_target: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EnergyEstimateRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -4530,7 +4921,7 @@ export interface operations {
             };
         };
     };
-    decide_approval_api_v1_operator_approvals__approval_id__post: {
+    decide_approval_api_v1_operator_approvals__approval_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -4622,7 +5013,7 @@ export interface operations {
     bookings_api_v1_operator_bookings_get: {
         parameters: {
             query?: {
-                status?: components["schemas"]["BookingStatus"] | null;
+                status?: components["schemas"]["BookingStatus"][] | null;
             };
             header?: never;
             path?: never;
@@ -4637,6 +5028,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Booking"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    manual_assign_api_v1_operator_bookings__booking_id__assignments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLogEntry"];
                 };
             };
             /** @description Unauthorized */
@@ -4723,7 +5203,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DecisionLogEntry"][];
+                    "application/json": components["schemas"]["DecisionLogPage"];
                 };
             };
             /** @description Unauthorized */
@@ -4895,7 +5375,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DecisionLogEntry"][];
+                    "application/json": components["schemas"]["DecisionLogPage"];
                 };
             };
             /** @description Unauthorized */
@@ -5133,95 +5613,6 @@ export interface operations {
             };
         };
     };
-    manual_assign_api_v1_operator_queue__booking_id__assign_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ManualAssignRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionLogEntry"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     schedule_api_v1_operator_schedule_get: {
         parameters: {
             query?: {
@@ -5308,7 +5699,7 @@ export interface operations {
             };
         };
     };
-    replan_api_v1_operator_schedule_replan_post: {
+    replan_api_v1_operator_schedule_replans_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -5456,6 +5847,91 @@ export interface operations {
             };
         };
     };
+    list_approvals_api_v1_resident_approvals_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ApprovalStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approval"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_approval_api_v1_resident_approvals__approval_id__get: {
         parameters: {
             query?: never;
@@ -5541,7 +6017,7 @@ export interface operations {
             };
         };
     };
-    decide_approval_api_v1_resident_approvals__approval_id__post: {
+    decide_approval_api_v1_resident_approvals__approval_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -5806,13 +6282,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["Booking"];
-                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {
@@ -5901,6 +6375,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Booking"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    quote_change_api_v1_resident_bookings__booking_id__quotes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleProposal"];
                 };
             };
             /** @description Unauthorized */
@@ -6116,7 +6679,96 @@ export interface operations {
             };
         };
     };
-    mark_notification_read_api_v1_resident_notifications__notification_id__read_post: {
+    mark_all_notifications_read_api_v1_resident_notifications_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    mark_notification_read_api_v1_resident_notifications__notification_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -6125,7 +6777,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -6508,7 +7164,7 @@ export interface operations {
             };
         };
     };
-    quote_api_v1_resident_quote_post: {
+    quote_api_v1_resident_quotes_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -6611,6 +7267,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResidentSessionView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    site_map_api_v1_resident_site_map_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResidentSiteMap"];
                 };
             };
             /** @description Unauthorized */
@@ -6920,7 +7650,7 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

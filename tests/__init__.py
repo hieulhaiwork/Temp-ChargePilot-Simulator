@@ -19,4 +19,3 @@ os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///
 os.environ["LLM_PROVIDER"] = "openai"
 os.environ["OPENAI_BASE_URL"] = ""
 os.environ["AGENT_DEMO_SERVICES"] = "false"
-os.environ["AGENT_PLAYGROUND"] = "false"

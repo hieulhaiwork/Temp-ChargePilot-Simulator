@@ -1,6 +1,6 @@
-"""Màn cư dân S2–S4 (FR15). Chat với Agent nằm ở routes.py (/chat, /chat/resume).
+"""Màn cư dân S2–S4 (FR15). Chat với Agent nằm ở routes.py (/chat, /chat/sessions/{session_id}).
 
-Form đặt lịch (/quote, /bookings) là đường dự phòng khi LLM lỗi (NFR khả dụng) và đi
+Form đặt lịch (/quotes, /bookings) là đường dự phòng khi LLM lỗi (NFR khả dụng) và đi
 CÙNG charging_service với tool của Agent.
 
 Quy ước (ADR-006, ADR-007):
@@ -14,22 +14,25 @@ Owner: TV3. Task: T2.2, T2.5, T2.8, T3.2.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, HTTPException, Response, status
+from fastapi import APIRouter, Header, HTTPException, Query, Response, status
 
 from src.api.deps import ResidentUser
+from src.api.paths import API_PREFIX
 from src.models.api import (
     ApprovalDecisionRequest,
     BookingChangeRequest,
     Notification,
+    NotificationUpdateRequest,
     ProfileUpdateRequest,
     QueueStatus,
     ResidentProfile,
     ResidentSessionView,
 )
 from src.models.charging import Booking, ChargeRequest, ScheduleProposal
-from src.models.control import Approval, Role
+from src.models.control import Approval, ApprovalStatus, Role
+from src.models.station import ResidentSiteMap
 from src.services import auth as auth_service
-from src.services import charging_service, control_loop, repository
+from src.services import charging_service, control_loop, repository, station_service
 
 router = APIRouter(prefix="/resident", tags=["resident"])
 
@@ -43,19 +46,23 @@ IdempotencyKey = Annotated[
 # ---- S3: phương án + đặt lịch (form) ---------------------------------------------------
 
 
-@router.post("/quote", response_model=ScheduleProposal)
+@router.post("/quotes", response_model=ScheduleProposal)
 def quote(body: ChargeRequest, user: ResidentUser) -> ScheduleProposal:
     """S3 — phương án what-if (chưa giữ chỗ); không khả thi thì có phương án thay thế (FR4)."""
     return charging_service.quote(body, user.user_id)
 
 
 @router.post("/bookings", response_model=Booking, status_code=201)
-async def create_booking(body: ChargeRequest, user: ResidentUser, idempotency_key: IdempotencyKey = None) -> Booking:
-    """S3 nút "Xác nhận" (luồng form). Luồng chat chốt qua /chat/resume.
+async def create_booking(
+    body: ChargeRequest, user: ResidentUser, response: Response, idempotency_key: IdempotencyKey = None
+) -> Booking:
+    """S3 nút "Xác nhận" (luồng form). Luồng chat chốt qua PATCH /chat/sessions/{session_id}.
 
     Gửi lại cùng `Idempotency-Key` + cùng body sẽ nhận lại đúng booking cũ (bấm hai lần không tạo hai lịch).
     """
-    return await charging_service.book(body, user.user_id, idempotency_key=idempotency_key)
+    booking = await charging_service.book(body, user.user_id, idempotency_key=idempotency_key)
+    response.headers["Location"] = f"{API_PREFIX}/resident/bookings/{booking.booking_id}"
+    return booking
 
 
 @router.get("/bookings/current", response_model=Booking | None)
@@ -70,9 +77,16 @@ async def change_booking(booking_id: str, body: BookingChangeRequest, user: Resi
     return await charging_service.change(booking_id, body, user.user_id)
 
 
-@router.delete("/bookings/{booking_id}", response_model=Booking)
-async def cancel_booking(booking_id: str, user: ResidentUser) -> Booking:
-    return await charging_service.cancel(booking_id, user.user_id)
+@router.post("/bookings/{booking_id}/quotes", response_model=ScheduleProposal)
+def quote_change(booking_id: str, body: BookingChangeRequest, user: ResidentUser) -> ScheduleProposal:
+    """G2 — xem trước lịch sau khi đổi yêu cầu; KHÔNG giữ chỗ, KHÔNG đổi booking."""
+    return charging_service.quote_change(booking_id, body, user.user_id)
+
+
+@router.delete("/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_booking(booking_id: str, user: ResidentUser) -> Response:
+    await charging_service.cancel(booking_id, user.user_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # ---- S2: trạng thái của tôi ------------------------------------------------------------
@@ -102,15 +116,36 @@ def notifications(user: ResidentUser) -> list[Notification]:
     return repository.list_notifications(user.user_id)
 
 
-@router.post("/notifications/{notification_id}/read", response_model=Notification)
-def mark_notification_read(notification_id: str, user: ResidentUser) -> Notification:
+@router.patch("/notifications/{notification_id}", response_model=Notification)
+def mark_notification_read(notification_id: str, body: NotificationUpdateRequest, user: ResidentUser) -> Notification:
     notification = repository.mark_notification_read(notification_id, user.user_id)
     if notification is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Không có thông báo này")
     return notification
 
 
+@router.patch("/notifications")
+def mark_all_notifications_read(body: NotificationUpdateRequest, user: ResidentUser) -> dict[str, int]:
+    """G18 — đánh dấu tất cả thông báo của chính cư dân là đã đọc."""
+    return {"updated": repository.mark_all_notifications_read(user.user_id)}
+
+
+@router.get("/site-map", response_model=ResidentSiteMap)
+def site_map(user: ResidentUser) -> ResidentSiteMap:
+    """G24 — chỉ public_status / mine / vị trí hàng của chính cư dân; không lộ SOC, mẫu xe, giờ rời."""
+    return station_service.resident_site_map(user.user_id)
+
+
 # ---- S4: phê duyệt điều chỉnh (AC4) ----------------------------------------------------
+
+
+@router.get("/approvals", response_model=list[Approval])
+def list_approvals(
+    user: ResidentUser,
+    status: ApprovalStatus | None = Query(default=ApprovalStatus.PENDING),
+) -> list[Approval]:
+    """G17 — đề nghị gửi cho chính cư dân, lọc theo trạng thái (mặc định pending)."""
+    return repository.list_approvals(status=status, requested_from=user.user_id)
 
 
 @router.get("/approvals/{approval_id}", response_model=Approval)
@@ -123,7 +158,7 @@ def get_approval(approval_id: str, user: ResidentUser) -> Approval:
     return approval
 
 
-@router.post("/approvals/{approval_id}", response_model=Approval)
+@router.patch("/approvals/{approval_id}", response_model=Approval)
 async def decide_approval(approval_id: str, body: ApprovalDecisionRequest, user: ResidentUser) -> Approval:
     """S4 — Đồng ý / Từ chối điều chỉnh vượt phạm vi đã đồng ý (AC4)."""
     return await control_loop.resolve_approval(approval_id, body.decision, user.user_id, actor_role=Role.RESIDENT)

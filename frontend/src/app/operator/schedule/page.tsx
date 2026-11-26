@@ -161,7 +161,7 @@ function QueueItem({ booking, index, connectorIds }: { booking: Booking; index: 
   const [to, setTo] = useState(connectorIds[0] ?? "");
   const assign = useMutation({
     mutationFn: () =>
-      unwrap(api.POST("/api/v1/operator/queue/{booking_id}/assign", { params: { path: { booking_id: booking.booking_id } }, body: { connector_id: to } })),
+      unwrap(api.POST("/api/v1/operator/bookings/{booking_id}/assignments", { params: { path: { booking_id: booking.booking_id } }, body: { connector_id: to } })),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["operator"] }),
   });
   return (
@@ -170,7 +170,12 @@ function QueueItem({ booking, index, connectorIds }: { booking: Booking; index: 
         <span>
           {index + 1}. {booking.booking_id}
         </span>
-        <Tag>{booking.request.vehicle_model}</Tag>
+        <span style={{ display: "inline-flex", gap: 6 }}>
+          <Tag tone={booking.status === "charging" ? "good" : booking.status === "confirmed" ? "gold" : "neutral"}>
+            {booking.status === "charging" ? "Đang sạc" : booking.status === "confirmed" ? "Đã chốt" : "Chờ xếp"}
+          </Tag>
+          <Tag>{booking.request.vehicle_model}</Tag>
+        </span>
       </h3>
       <p className="hint">
         {booking.request.soc_now}% → {booking.request.soc_target}% · hạn {formatTime(booking.request.deadline)} · dự kiến bắt đầu {formatTime(booking.planned_start)}
@@ -189,7 +194,7 @@ function QueueItem({ booking, index, connectorIds }: { booking: Booking; index: 
         </button>
       </div>
       {assign.data ? <AssignResult entry={assign.data} /> : null}
-      <MutationError error={assign.error} endpoint="POST /api/v1/operator/queue/{booking_id}/assign" />
+      <MutationError error={assign.error} endpoint="POST /api/v1/operator/bookings/{booking_id}/assignments" />
     </li>
   );
 }
@@ -200,7 +205,7 @@ export default function OperatorSchedulePage() {
   const config = useQuery(queries.stationConfig());
   const connectorIds = config.data?.connectors.map((c) => c.connector_id) ?? [];
   const replan = useMutation({
-    mutationFn: () => unwrap(api.POST("/api/v1/operator/schedule/replan")),
+    mutationFn: () => unwrap(api.POST("/api/v1/operator/schedule/replans")),
     onSuccess: (plan) => queryClient.setQueryData(queries.operatorSchedule().queryKey, plan),
   });
 
@@ -221,7 +226,7 @@ export default function OperatorSchedulePage() {
           {replan.data.solve_time_s != null ? `Thời gian tính ${replan.data.solve_time_s.toLocaleString("vi-VN")} giây.` : null}
         </Notice>
       ) : null}
-      <MutationError error={replan.error} endpoint="POST /api/v1/operator/schedule/replan" />
+      <MutationError error={replan.error} endpoint="POST /api/v1/operator/schedule/replans" />
       <div className="cols">
         <div className="stack">
           <Panel label="Lịch công suất">
@@ -241,8 +246,13 @@ export default function OperatorSchedulePage() {
         </div>
         <aside className="stack">
           <Panel label="Hàng đợi xe chờ">
-            <SectionHead title="Hàng đợi xe chờ" icon="queue" sub="Lệnh xếp thủ công vẫn đi qua Guard." />
-            <DataBlock endpoint="GET /api/v1/operator/bookings?status=queued" query={queries.operatorQueue()} refetchInterval={poll} loadingLines={4}>
+            <SectionHead title="Hàng đợi & danh sách xe" icon="queue" sub="Lệnh xếp thủ công vẫn đi qua Guard." />
+            <DataBlock
+              endpoint="GET /api/v1/operator/bookings?status=queued,confirmed,charging"
+              query={queries.operatorQueue(["queued", "confirmed", "charging"])}
+              refetchInterval={poll}
+              loadingLines={4}
+            >
               {(queue) =>
                 queue.length ? (
                   <ul style={{ listStyle: "none", margin: 0, padding: 0 }} className="stack">

@@ -4,7 +4,11 @@
 |:---:|:---:|:---:|---|
 | **v0.4** | 2026-11-21 | T019 | **Bản nháp chờ nhóm + mentor duyệt.** Thay thế PRD v0.3 (20/11, bản nháp nội bộ chưa commit) |
 
-> **Hiện trạng triển khai 22/11 ([ADR-016](adr/ADR-016-livestation-cho-backend.md)):** backend chạy trên `LiveStation`, chưa phải `HybridSimulator`; FR9a và FR12 **chưa đạt** ở runtime (HybridSimulator chỉ chạy R&D offline). Số benchmark của backend và của R&D không được trộn.
+> **PRD = yêu cầu (cần làm gì). Hiện trạng (đã làm gì, bằng chứng nào) nằm ở [`FEATURE_REGISTRY.md`](FEATURE_REGISTRY.md)**
+> (cập nhật 2026-11-24). Các nhãn [ĐÃ TRIỂN KHAI] / [MỤC TIÊU] trong PRD là trạng thái tại 21/11 và một số đã lỗi thời:
+> MVP-2/3 đã có code; backend không còn chạy `LiveStation` mà chạy kernel chung với simulator (ADR-019); `src/simulator/base.py`
+> và `SimulatorGateway` (FR12) không được làm. Mã F6 / F7 / F8 trong code và plan cũ mang nghĩa khác PRD này — xem registry §1.1.
+> Nội dung yêu cầu bên dưới **không** đổi trong lần cập nhật này.
 
 **Nguồn của bản này** (thứ tự ưu tiên khi mâu thuẫn theo master context §0.1):
 

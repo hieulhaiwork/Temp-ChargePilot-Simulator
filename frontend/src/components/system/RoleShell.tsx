@@ -141,7 +141,8 @@ function OperatorShell({ children }: { children: ReactNode }) {
         Bỏ qua tới nội dung chính
       </a>
       <div className="op">
-        <header className="op-head">
+        <div className="op-sticky">
+          <header className="op-head">
           <div className="op-left">
             <Link href="/operator" aria-label="ChargePilot Vận hành, Dashboard">
               <Brand caption="Control Center · Vận hành" />
@@ -177,7 +178,8 @@ function OperatorShell({ children }: { children: ReactNode }) {
               Đăng xuất
             </button>
           </div>
-        </header>
+          </header>
+        </div>
         <main id="main" tabIndex={-1} className="op-main">
           {children}
           <p className="footnote">

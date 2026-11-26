@@ -269,7 +269,7 @@ Không đề xuất thêm: Redis, Celery, vector DB, thư viện Gantt, `langgra
 
 | # | Thay đổi | Ảnh hưởng | Plan |
 |---|---|---|---|
-| I1 | `POST /chat`, `/chat/resume` yêu cầu token `resident` (hiện đang mở) | Test `test_api/test_routes.py` phải thêm override user | 10 §2 |
+| I1 | `POST /chat`, `PATCH /chat/sessions/{id}` yêu cầu token `resident` (hiện đang mở) | Test `test_api/test_routes.py` phải thêm override user | 10 §2 |
 | I2 | `ChatResponse` thêm `status`, `proposal`, `pending` (giữ nguyên 3 field cũ) | Chỉ thêm, không phá client cũ | 10 §2 |
 | I3 | `control_loop.on_event(event, rt)`; `dispatcher.submit(..., sinks)`; `book` / `cancel` / `replan` / `manual_assign` / `inject_incident` thành `async` | Toàn là stub, chưa có caller thật | 10 §5 |
 | I4 | Router không gọi thẳng `src.guard`; quyết định phê duyệt đi qua `control_loop.resolve_approval` | Thêm ranh giới `api` vào test kiến trúc | 10 §5 |

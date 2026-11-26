@@ -46,6 +46,21 @@ export const queries = {
     }),
   residentProfile: () =>
     queryOptions({ queryKey: ["resident", "profile"], queryFn: () => unwrap(api.GET("/api/v1/resident/profile")) }),
+  residentApprovals: (status?: "pending" | "approved" | "rejected" | "expired") =>
+    queryOptions({
+      queryKey: ["resident", "approvals", status ?? "all"],
+      queryFn: () =>
+        unwrap(
+          api.GET("/api/v1/resident/approvals", {
+            params: { query: status ? { status } : {} },
+          }),
+        ),
+    }),
+  residentSiteMap: () =>
+    queryOptions({
+      queryKey: ["resident", "site-map"],
+      queryFn: () => unwrap(api.GET("/api/v1/resident/site-map")),
+    }),
   residentApproval: (approvalId: string) =>
     queryOptions({
       queryKey: ["resident", "approval", approvalId],
@@ -67,10 +82,10 @@ export const queries = {
     queryOptions({ queryKey: ["operator", "events"], queryFn: () => unwrap(api.GET("/api/v1/operator/events")) }),
   operatorSchedule: () =>
     queryOptions({ queryKey: ["operator", "schedule"], queryFn: () => unwrap(api.GET("/api/v1/operator/schedule")) }),
-  operatorQueue: () =>
+  operatorQueue: (statuses: ("charging" | "queued" | "confirmed" | "completed" | "cancelled")[] = ["queued", "confirmed", "charging"]) =>
     queryOptions({
-      queryKey: ["operator", "bookings", "queued"],
-      queryFn: () => unwrap(api.GET("/api/v1/operator/bookings", { params: { query: { status: "queued" } } })),
+      queryKey: ["operator", "bookings", statuses],
+      queryFn: () => unwrap(api.GET("/api/v1/operator/bookings", { params: { query: { status: statuses } } })),
     }),
   operatorApprovals: () =>
     queryOptions({

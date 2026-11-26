@@ -13,6 +13,7 @@ import { useState } from "react";
 import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 import { ConnectorGrid } from "@/components/station/ConnectorGrid";
 import { LoadChart } from "@/components/station/LoadChart";
+import { PowerTiers } from "@/components/station/PowerTiers";
 import { StatusLegend, StatusTag } from "@/components/station/status";
 import { DataBlock } from "@/components/system/DataBlock";
 import { ErrorPanel } from "@/components/system/ErrorPanel";
@@ -142,19 +143,24 @@ export default function OperatorDashboardPage() {
       <DataBlock endpoint="GET /api/v1/operator/station" query={queries.operatorStation()} refetchInterval={interval} loadingLines={4}>
         {(o) => {
           const limit = o.state.available_power_kw;
-          const load = o.state.connectors.reduce((s, c) => s + c.power_kw, 0);
+          const load = o.grid_input_kw;
           const drop = limit < o.power_limit_kw;
           const count = (s: string) => o.state.connectors.filter((c) => c.status === s).length;
           return (
             <>
               {drop ? (
                 <Notice title={`Nguồn cấp giảm còn ${formatKw(limit)}`} tone="bad" icon="alert" role="alert">
-                  Giới hạn hiện hành thấp hơn cấu hình {formatKw(o.power_limit_kw)}. Tải được phân bổ lại theo giới hạn mới.
+                  Giới hạn hiện hành {formatKw(limit)} (cấu hình {formatKw(o.power_limit_kw)}). Tải được phân bổ lại theo giới hạn mới.
                 </Notice>
               ) : null}
               {o.alerts?.map((a) => (
                 <Notice key={a} title={a} tone="gold" icon="alert" />
               ))}
+              <PowerTiers
+                gridInputKw={o.grid_input_kw ?? load}
+                gridInputLimitKw={o.grid_input_limit_kw ?? o.power_limit_kw}
+                zones={o.zones}
+              />
               <section className="kpis" aria-label="Chỉ số vận hành">
                 <Panel className="kpi">
                   <div>

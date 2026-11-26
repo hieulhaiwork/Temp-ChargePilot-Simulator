@@ -19,8 +19,8 @@ Owner: TV3. Task: T2.2 (gán đầu nối, hàng đợi, idempotency), T2.5 (Age
 
 import hashlib
 import math
+import secrets
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from src.models.api import BookingChangeRequest, ErrorCode, QueueStatus, ResidentSessionView
@@ -43,6 +43,20 @@ from src.services.errors import DomainError
 from src.services.runtime import StationRuntime, get_runtime, visit_of
 
 QUOTE_ID = "quote-what-if"
+_BOOKING_ID_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+_BOOKING_ID_PREFIX = "CP-"
+_BOOKING_ID_LEN = 6
+
+
+def _new_booking_id() -> str:
+    """Sinh mã đặt lịch ngắn gọn dạng CP-XXXXXX (bỏ 0/O/1/I tránh nhầm), kiểm tra tránh trùng DB."""
+    for _ in range(10):
+        code = _BOOKING_ID_PREFIX + "".join(secrets.choice(_BOOKING_ID_ALPHABET) for _ in range(_BOOKING_ID_LEN))
+        if repository.get_booking(code) is None:
+            return code
+    return _BOOKING_ID_PREFIX + "".join(secrets.choice(_BOOKING_ID_ALPHABET) for _ in range(8))
+
+
 UNMET_TOL_KWH = 0.05  # dưới mức này coi như đủ (sai số làm tròn của LP)
 # Final Review §4.6: số lần chạy lại admission khi tập booking đổi giữa lúc tính và lúc commit; hết lượt → PROPOSAL_EXPIRED
 BOOKING_COMMIT_ATTEMPTS = 3
@@ -146,7 +160,13 @@ async def _what_if(
             "lịch của bạn có thể đổi"
         )
     reasons.append("Đây là ước tính theo trạng thái trạm lúc này, không phải cam kết bảo đảm (xem giả định)")
-    slack = (candidate.request.deadline - planned_end).total_seconds() / 60 if feasible and planned_end else None
+    if feasible and planned_end:
+        # Căn mốc giây về 0 để khớp chính xác với giờ HH:MM hiển thị trên UI (tránh lệch 1 phút do cắt giây).
+        dl_min = candidate.request.deadline.replace(second=0, microsecond=0)
+        end_min = planned_end.replace(second=0, microsecond=0)
+        slack = max(0.0, (dl_min - end_min).total_seconds() / 60)
+    else:
+        slack = None
     alternatives = [] if feasible else _alternatives(rt, candidate, need - unmet, planned_start, connector_id)
     return ScheduleProposal(
         feasible=feasible,
@@ -166,6 +186,11 @@ async def _what_if(
     )
 
 
+def _with_changes(req: ChargeRequest, **changes) -> ChargeRequest:
+    """Yêu cầu đã chỉnh sẵn cho một phương án (G6). Validator chạy lại để không tạo yêu cầu sai."""
+    return ChargeRequest.model_validate({**req.model_dump(), **changes})
+
+
 def _alternatives(
     rt: StationRuntime, candidate: Booking, deliverable_kwh: float, start: datetime | None, connector_id: str | None
 ) -> list[Alternative]:
@@ -181,6 +206,7 @@ def _alternatives(
             kind=AlternativeKind.OTHER_TIME,
             description=f"Lấy xe lúc {_local(later, rt)} để đạt {req.soc_target:g}%",
             deadline=later,
+            request=_with_changes(req, deadline=later),  # G6: bấm là đổi được, không cần nhập lại
         )
     ]
     efficiency = candidate.energy.efficiency
@@ -191,12 +217,15 @@ def _alternatives(
                 kind=AlternativeKind.LOWER_TARGET,
                 description=f"Sạc tới {reachable}% thì kịp giờ lấy xe",
                 soc_target=reachable,
+                request=_with_changes(req, soc_target=reachable),
             )
         )
     if connector_id is None:
         options.append(
             Alternative(
-                kind=AlternativeKind.JOIN_QUEUE, description="Vào hàng đợi, hệ thống gán cổng khi có cổng trống"
+                kind=AlternativeKind.JOIN_QUEUE,
+                description="Vào hàng đợi, hệ thống gán cổng khi có cổng trống",
+                request=req,
             )
         )
     return options
@@ -234,6 +263,18 @@ def quote(request: ChargeRequest, resident_id: str) -> ScheduleProposal:
     return admission.run_sync(_what_if(rt, candidate, assume_consent=True))
 
 
+def quote_change(booking_id: str, patch: BookingChangeRequest, resident_id: str) -> ScheduleProposal:
+    """G2 — xem trước lịch sau khi đổi yêu cầu; KHÔNG giữ chỗ, KHÔNG đổi booking."""
+    rt = get_runtime()
+    rt.sync_clock()
+    booking = _own_active(booking_id, resident_id)
+    new_req = _changed_request(booking, patch)
+    candidate = _hypothetical(rt, new_req, resident_id, booking.booking_id).model_copy(
+        update={"consent": booking.consent}
+    )
+    return admission.run_sync(_what_if(rt, candidate, exclude=booking.booking_id, assume_consent=False))
+
+
 async def book(
     request: ChargeRequest,
     resident_id: str,
@@ -262,7 +303,7 @@ async def book(
     rt = get_runtime()
     user = repository.get_user(resident_id)
     chosen = consent or (user.consent if user else ConsentScope())
-    booking_id = uuid4().hex[:12]
+    booking_id = _new_booking_id()
     booking: Booking | None = None
     event: StationEvent | None = None
     for _attempt in range(BOOKING_COMMIT_ATTEMPTS):
@@ -449,7 +490,7 @@ def explain(resident_id: str) -> list[str]:
         return ["Bạn chưa có lịch sạc nào đang hiệu lực."]
     rt = get_runtime()
     facts = [
-        f"Lịch {booking.booking_id}: cần {booking.energy.grid_energy_kwh:.1f} kWh để từ {booking.request.soc_now:g}% "
+        f"Mã đặt lịch {booking.booking_id}: cần {booking.energy.grid_energy_kwh:.1f} kWh để từ {booking.request.soc_now:g}% "
         f"lên {booking.request.soc_target:g}% trước {_local(booking.request.deadline, rt)}."
     ]
     if booking.connector_id:
