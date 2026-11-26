@@ -1,0 +1,4775 @@
+[
+  {
+    "test": "test_max_soc_deadline_positive_actual_oracle",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "c3363e9b29d45ee6d4ddcdc6532a5b5643d49c75cb1c1736af0c55597617120e",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:50:00+07:00",
+    "candidate_count": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 4,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": true,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": true,
+      "goal": "max_soc_by_deadline",
+      "deadline": "2026-11-23T12:16:00+07:00",
+      "min_target_soc": 21.0,
+      "max_target_soc": 30.0
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:97e1a095ebeab7d4f4458e951a1863ab8ada53a43954089f37d1d06c885b7bf4",
+      "input_sha256": "c3363e9b29d45ee6d4ddcdc6532a5b5643d49c75cb1c1736af0c55597617120e",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "29a8ddac10a081d6b6763ed7776700f38eb79b9272ea3df0509b531fc61ba0bd",
+      "observed_until": "2026-11-23T12:50:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 26.052,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 25.0,
+        "deadline": "2026-11-23T12:46:00+07:00",
+        "target_reached_at": "2026-11-23T12:31:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": 24.516480403570053,
+      "subject_soc_observed_at": "2026-11-23T12:16:00+07:00",
+      "subject_release_at": "2026-11-23T12:46:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": 21.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:470fc8587eca7641a231f47b67b27b8df2fe91db02758e90298f1175d44bdaa0",
+          "input_sha256": "a141f427b20a3a1ebc71f7e681754cf6b396c80a033bb71ff969cccd2ea65ec1",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "14eef3ddf2d82da649d04a110b6257de4c0b982180d3452e5ee8d5953827a079",
+          "observed_until": "2026-11-23T12:50:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 24.223,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 25.0,
+            "deadline": "2026-11-23T12:46:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 2.4052,
+            "remaining_output_kwh": 2.454286
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:16:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 21.0,
+          "subject_soc_observed_at": "2026-11-23T12:16:00+07:00",
+          "subject_release_at": "2026-11-23T12:16:00+07:00"
+        }
+      },
+      {
+        "value": 25.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:dea4620811d7da09082a242e9de1862730962febc67de532653933175149dcd6",
+          "input_sha256": "5bda96beaa7d74cd11c27ac49a377525f86768faae24400e129671d69c51ea55",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "8bfa444710cdf3993f4f9a089dac42cde4109343cc3736ae0ea42070a9c26854",
+          "observed_until": "2026-11-23T12:50:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 23.362,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 25.0,
+            "deadline": "2026-11-23T12:46:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.131833,
+            "remaining_output_kwh": 0.134523
+          },
+          "subject_revised": {
+            "target_soc": 25.0,
+            "deadline": "2026-11-23T05:16:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.131833,
+            "remaining_output_kwh": 0.134523
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 24.780752813348865,
+          "subject_soc_observed_at": "2026-11-23T12:16:00+07:00",
+          "subject_release_at": "2026-11-23T12:16:00+07:00"
+        }
+      },
+      {
+        "value": 30.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:7028dc8490f55c168f52cca1eadcab2d0edfa14a3adb125858bcfa912faab05e",
+          "input_sha256": "748392dd6c68d8e3226b85d458c134011ca944f74834b2e8956971de7d5038be",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "fdb557070c64c64fe14bbe9ce166eb618d7d6f3412f92c96491ed808c2519998",
+          "observed_until": "2026-11-23T12:50:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 22.913,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 25.0,
+            "deadline": "2026-11-23T12:46:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.131833,
+            "remaining_output_kwh": 0.134523
+          },
+          "subject_revised": {
+            "target_soc": 30.0,
+            "deadline": "2026-11-23T05:16:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 3.138333,
+            "remaining_output_kwh": 3.202381
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 24.780752813348865,
+          "subject_soc_observed_at": "2026-11-23T12:16:00+07:00",
+          "subject_release_at": "2026-11-23T12:16:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      21.0
+    ],
+    "elapsed_ms_fixture": 101.791,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_max_soc_deadline_negative_actual_oracle",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:35:00+07:00",
+    "candidate_count": 2,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 3,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "max_soc_by_deadline",
+      "deadline": "2026-11-23T12:03:00+07:00",
+      "min_target_soc": 21.0,
+      "max_target_soc": 25.0
+    },
+    "search_status": "no_feasible_in_tested_set",
+    "baseline": {
+      "ref": "how-to:projection:v1:dc8803eadf87903774d8d9bb3106921e0d8e5f8360de0a356b8c49eee3aad4df",
+      "input_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "c1035c13bd5a427a4f2ca0dbdf45416d56c1597a69a2700df4448bf0f8524276",
+      "observed_until": "2026-11-23T12:35:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 17.706,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 21.0,
+        "deadline": "2026-11-23T12:30:00+07:00",
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": 20.199976717112918,
+      "subject_soc_observed_at": "2026-11-23T12:03:00+07:00",
+      "subject_release_at": "2026-11-23T12:30:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": 21.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:0157d0e25f7f23cefa9f6b23cbfed45a95d0bddb531907c8caf63ff2e1368360",
+          "input_sha256": "b80c8fe7d74fb14bb701bda081b91465751f2a4e7be478a1a8057a79d7f6b16d",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "89005d474cf6d80b6db0d81d351757943b46f41809af1428bf00501d5da8694e",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 17.442,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.0623,
+            "remaining_output_kwh": 0.063571
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:03:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.0623,
+            "remaining_output_kwh": 0.063571
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 20.896391152502915,
+          "subject_soc_observed_at": "2026-11-23T12:03:00+07:00",
+          "subject_release_at": "2026-11-23T12:03:00+07:00"
+        }
+      },
+      {
+        "value": 25.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:95fecea5bc1777ea728717ddbdf303d4377f99ebea3aa711ebc2ad5e38a9e6e9",
+          "input_sha256": "0d7b47356470ee4e4b67855a931cc2cb3d82446d92ab75d7dcf76ff019172a12",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "a58f8bc0249c467b27b893c5a48dc3bc2ad335246baaae93f8f9863b244d8499",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 15.681,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.0623,
+            "remaining_output_kwh": 0.063571
+          },
+          "subject_revised": {
+            "target_soc": 25.0,
+            "deadline": "2026-11-23T05:03:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 2.4675,
+            "remaining_output_kwh": 2.517857
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 20.896391152502915,
+          "subject_soc_observed_at": "2026-11-23T12:03:00+07:00",
+          "subject_release_at": "2026-11-23T12:03:00+07:00"
+        }
+      }
+    ],
+    "selected": [],
+    "elapsed_ms_fixture": 54.875,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_earliest_completion_uses_actual_crossing_and_stable_tie",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:35:00+07:00",
+    "candidate_count": 5,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 6,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 21.0,
+      "earliest_deadline": "2026-11-23T12:19:00+07:00",
+      "latest_deadline": "2026-11-23T12:23:00+07:00"
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:91ef9447b97fbab4a6502bd3e3790057727a27298e225c07d9921bbdb6093b78",
+      "input_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "c1035c13bd5a427a4f2ca0dbdf45416d56c1597a69a2700df4448bf0f8524276",
+      "observed_until": "2026-11-23T12:35:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 18.566,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 21.0,
+        "deadline": "2026-11-23T12:30:00+07:00",
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 21.0,
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:30:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:19:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:7269ea85d2b3a0714c96d1b0d8069d5322fa6ebca0e752d087dc414f0995bd82",
+          "input_sha256": "1f6ae4a6567318e4c6977356fb924c1c4551d6bf027fc3796c45b168755178db",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "9be10b19efb4939b60b68244227cb43055d8aa5f315583dce2f9ca1af9046a9a",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 20.025,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:19:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:19:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:20:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:d92bc84b825c685a4fb6dae61e240d425e87d954287f7f3b6609757401b5660a",
+          "input_sha256": "66c269a94ec81735079fd2c538b65104f822475b9f91a888af016f6206782b05",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "19b0d3641f773ab9239e604cf9116587da5fbb849bed1a4df12bb36621494c87",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 16.966,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:20:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:20:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:21:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:2c4e68c6a0288a8e576a84b0cbceda98e99300d417fc28fe07681d10ea4206e8",
+          "input_sha256": "1069813051bdd8485f6c946a19bf054474c0ea4ab465864decacd3b77d945e4c",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "601f2b4438d00eae99264e27e1ec99a2a7b6c8797bf026117cd5d4ca4c33dbbf",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 17.663,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:21:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:21:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:22:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:0f873f99f173051179a5d89b64c616c783cb0dc7fcec621c595ee2fd045a3190",
+          "input_sha256": "19fc804d56c3b789cdee02fa0e60123465e856aa00dc129271afd0eabd7076d0",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "159ca4a7011ab3b78461aa135eddfaab59bf242e05760afbf34ed4ffb62bca39",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 18.249,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:22:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:22:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:23:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:4f28838954eb3a81879fc12a5d15932e9e6a16b55c0b036c3f54f8904db19508",
+          "input_sha256": "7cb6f1a2b5c29e5e8f67ac3e05383d4fb3eca9d5b10482c855890b4154aeaebe",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "20103ace71ce879fbace19435baedf1c0eddb26bcd3eafa0bc74ef5ac2619069",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 18.409,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:23:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:23:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:23:00Z",
+      "2026-11-23T05:22:00Z",
+      "2026-11-23T05:21:00Z"
+    ],
+    "elapsed_ms_fixture": 116.864,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_earliest_completion_negative_actual_oracle",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:35:00+07:00",
+    "candidate_count": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 4,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 21.0,
+      "earliest_deadline": "2026-11-23T12:01:00+07:00",
+      "latest_deadline": "2026-11-23T12:03:00+07:00"
+    },
+    "search_status": "no_feasible_in_tested_set",
+    "baseline": {
+      "ref": "how-to:projection:v1:91ef9447b97fbab4a6502bd3e3790057727a27298e225c07d9921bbdb6093b78",
+      "input_sha256": "d435bab2b6b4ccc8d90975c2ff7bb6e43a0f52c31659d080c6f7c3295e4e7d1c",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "c1035c13bd5a427a4f2ca0dbdf45416d56c1597a69a2700df4448bf0f8524276",
+      "observed_until": "2026-11-23T12:35:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 17.303,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 21.0,
+        "deadline": "2026-11-23T12:30:00+07:00",
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 21.0,
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:30:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:01:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:90361755d71bb2f31afd9dfb867565450ae8de0cd5960718ada9c1848596c7cc",
+          "input_sha256": "244cb5e959888220e36512ab576885fe7d17c7d7def614d23120192d87120684",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "57228147360843712a12d8552cfef8e99539c4d63d63cc5c8e7f02e985e5b2e0",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 17.021,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.421633,
+            "remaining_output_kwh": 0.430238
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:01:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.421633,
+            "remaining_output_kwh": 0.430238
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:01:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:02:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:f2d9f6e7e1eafe04ee3e287f0d44013b0c1160f75f033f8d223e36abe44b6b62",
+          "input_sha256": "1e8d89df271152114ace7dce05abf75238eac11b4c217b922db3c34e844a8248",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "70f21c66a160376a146a0632e125e016ccc5df2d76bd68145da44c13fcd9b260",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 16.396,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.241967,
+            "remaining_output_kwh": 0.246905
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:02:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.241967,
+            "remaining_output_kwh": 0.246905
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:02:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:03:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:95b4c4249da765e7cc811aaa4cdc2b9ca4667f61df7a5e158ffe8cb20c83969d",
+          "input_sha256": "b80c8fe7d74fb14bb701bda081b91465751f2a4e7be478a1a8057a79d7f6b16d",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "89005d474cf6d80b6db0d81d351757943b46f41809af1428bf00501d5da8694e",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 15.036,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.0623,
+            "remaining_output_kwh": 0.063571
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:03:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.0623,
+            "remaining_output_kwh": 0.063571
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:03:00+07:00"
+        }
+      }
+    ],
+    "selected": [],
+    "elapsed_ms_fixture": 71.066,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_site_minimum_actual_oracle_and_budget",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "b736f50b2fc405382d31bf1239d626dc78f1167f3b5c37eb1cdf3d13cb6f3271",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:19:00+07:00",
+    "candidate_count": 8,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 9,
+    "goal": {
+      "goal": "min_tested_site_limit_for_sla",
+      "min_grid_input_kw": 7.0,
+      "max_grid_input_kw": 14.0,
+      "min_original_on_time_rate": 1.0,
+      "protect_on_time_ac_bookings": true,
+      "hypothetical_infrastructure": false
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:7b20c9c7fb622cb246e81a8582f8876a32cb641e6e59b85bc5ed1b0ae815cdd2",
+      "input_sha256": "b736f50b2fc405382d31bf1239d626dc78f1167f3b5c37eb1cdf3d13cb6f3271",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "9cccb45cc90243d3f8978319b2dd50a9e1d151ed7d8c4e6c0c7cf5154da4c361",
+      "observed_until": "2026-11-23T12:19:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 10.184,
+      "original_sla": {
+        "cohort_size": 1,
+        "denominator": 1,
+        "met_count": 1,
+        "on_time_rate": 1.0,
+        "censored_count": 0
+      },
+      "booking_sla": [
+        {
+          "booking_id": "a",
+          "zone": "AC",
+          "original": {
+            "target_soc": 20.835274,
+            "deadline": "2026-11-23T12:16:00+07:00",
+            "target_reached_at": "2026-11-23T12:15:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          }
+        }
+      ],
+      "subject_original": null,
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": null
+    },
+    "candidates": [
+      {
+        "value": 7.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:8b50281b6ba09aa2b19b33fd88537c441d022901745ccc07c799931385ed4e5f",
+          "input_sha256": "adae578839c114f2a54ae991d0c8ffa943402f4c77e09e69995214f414b8b6e8",
+          "config_sha256": "6c8151f8572252978728f37b8632c9ef71da8323099bf8807e2975574f00e8a5",
+          "final_physics_sha256": "80e4670896bf31896492f4241b10e548fc018e947d3184ecf229693115242ce7",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 13.523,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.119919,
+                "remaining_output_kwh": 0.122366
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 8.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:068f7ed9b6de971568314becd2ea52c2c070d3d636641d9b5864e4656631a6ca",
+          "input_sha256": "61c588b750728babc9ae7f17675a19ba6e6428160e2f07a05873f2f0b1b62eee",
+          "config_sha256": "c863a1397258543cea85468839f66be574f0e21de2de3b2741eb574a727bfff9",
+          "final_physics_sha256": "b1aa095d248fb11f3629895d0f538428cfb2126cbf27adc48535f472c54b3bf9",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 12.074,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.065301,
+                "remaining_output_kwh": 0.066634
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 9.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:7fe980f1f83c1a5056fa24849a233db8ae929b1fe1bc70544b2f54ed7c24efde",
+          "input_sha256": "f95bab54ba94177ae16153f8c7f9bd9117adc2c68a72521b6ed3eeb0b5a00e30",
+          "config_sha256": "4ab687b708ae181b91874b3de7d0b9e8fe16e9d79d04931f3c7bde9c35001849",
+          "final_physics_sha256": "32382ff924c3017620ad062decc457c6af44895a0b4c81e7716985a3a99725bb",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 13.079,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.010682,
+                "remaining_output_kwh": 0.0109
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 10.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:e7befb26309e48d83a96e3427cd9ad654589f9f7cd4b2307e6588f2999bd860c",
+          "input_sha256": "3cb3bddd0f8111cb66f2da5c158652d7d9476b3408883a6a24ba60f8e4097ba3",
+          "config_sha256": "bf4c8698407258a945022ff3c7b1b13c562737475cc03f639c1613bed22d6444",
+          "final_physics_sha256": "3ea3e12c9ce1383c5d88d8f784509b086c7eed272e8120462118b424df3cd14e",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 11.563,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 1,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": "2026-11-23T12:15:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 11.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:d749d93e0829b0ce2a110b320bb1f6599b676b2d19a7af80be46aee4741fe0b3",
+          "input_sha256": "93ebf7fea277da61e0ad8f1845abfd73ec3f05c70e9b22236c2a0f497796c9dd",
+          "config_sha256": "bf07c405201876ffd17622f5b9737a46b2f0d363bb4086f301cf6750ef090e19",
+          "final_physics_sha256": "31ef5118cc2f4da0eff16f6d7ef1d29bedef477f80f0df53aa6bbf0d99455fa4",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 11.584,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 1,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": "2026-11-23T12:15:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 12.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:335f41da52d220da6c5fc327142c1b3b21330af7a0d740f35d19983e03a47c86",
+          "input_sha256": "fba6e9f66577fa129c7716abe8b6277e02fcf1abf3912f35acf81adba5410142",
+          "config_sha256": "25f725bb703723d42080bc87d74089f487df5836ba4c4a5d2fb0004a1c946a73",
+          "final_physics_sha256": "6b24c2d3d9a6069610ddee15f97f995e529bd51a6ef0d981475ab14143c6c424",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 11.522,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 1,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": "2026-11-23T12:15:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 13.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:d1f00e57f4cef3daa716a791a2268e3fc32823fb85245576a26a1c8a0a5c934e",
+          "input_sha256": "f40225d57f73e3a21c74ad4f4ea4e374d15ab9ed3565bbc42ccbef66103e54e1",
+          "config_sha256": "907f75632270c138fec71c11d4a00c258cc58efc68813b39b346f94b5c420861",
+          "final_physics_sha256": "6e5d50de80691231b6712dbba82060101952f1b79e0937487ed24b0dc8990112",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 14.761,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 1,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": "2026-11-23T12:15:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 14.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:3fbc063e13ec09c51e86af8f4b5c6edfef8db9cd9e4c703c72eae01f657462a0",
+          "input_sha256": "31dda255ca03abfd7f28ca7f446ebe6b4c324a04ddbce906bc4929fa86af5a73",
+          "config_sha256": "294483630b38b1a0de5d0a3f57828fb035f7d29f86a94645a4bc6ab2a2ddcc53",
+          "final_physics_sha256": "258ff9a846b04a68451c1d3ff61835ccd1bbe40933e857b66686bea5ee22b80a",
+          "observed_until": "2026-11-23T12:19:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 12.465,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 1,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 20.835274,
+                "deadline": "2026-11-23T12:16:00+07:00",
+                "target_reached_at": "2026-11-23T12:15:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      }
+    ],
+    "selected": [
+      10.0,
+      11.0,
+      12.0
+    ],
+    "elapsed_ms_fixture": 120.171,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_site_extra_supply_cannot_remove_ac_connector_bottleneck",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "2023c8fbd8e0e1128acdd7a8b51fa3d9abeac52eba7b347bdd0a4a51e76e6ddd",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:22:00+07:00",
+    "candidate_count": 8,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 9,
+    "goal": {
+      "goal": "min_tested_site_limit_for_sla",
+      "min_grid_input_kw": 105.0,
+      "max_grid_input_kw": 125.0,
+      "min_original_on_time_rate": 1.0,
+      "protect_on_time_ac_bookings": true,
+      "hypothetical_infrastructure": true
+    },
+    "search_status": "no_feasible_in_tested_set",
+    "baseline": {
+      "ref": "how-to:projection:v1:001d7136184f9931fc8bee16592e461ab01aa62f4c96c28511091a14ba82e990",
+      "input_sha256": "2023c8fbd8e0e1128acdd7a8b51fa3d9abeac52eba7b347bdd0a4a51e76e6ddd",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "80adb147da0c392c8f5a0a4e2cc169aba30ba7fbd66928835135c1b32d0498a8",
+      "observed_until": "2026-11-23T12:22:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 13.058,
+      "original_sla": {
+        "cohort_size": 1,
+        "denominator": 1,
+        "met_count": 0,
+        "on_time_rate": 0.0,
+        "censored_count": 0
+      },
+      "booking_sla": [
+        {
+          "booking_id": "a",
+          "zone": "AC",
+          "original": {
+            "target_soc": 30.0,
+            "deadline": "2026-11-23T12:20:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 2.419667,
+            "remaining_output_kwh": 2.469048
+          }
+        }
+      ],
+      "subject_original": null,
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": null
+    },
+    "candidates": [
+      {
+        "value": 105.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:5aaa445ee32c30a9256822851e259ec6f08ebc93e233cda4ae67b27b31268f01",
+          "input_sha256": "78a89bf90c1dc7eaa45abad21772ba047dbd15b7ff00528131c7a256ad252ed6",
+          "config_sha256": "9505b6001bf5b07f16ca31c73f6062376e1a73c3e3744aa5c50187b10f9f59f2",
+          "final_physics_sha256": "45d9047e220ee80133233ed80807500e80fb9cd40b58cf6287e0c104b8cb6fe0",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 12.913,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 107.85714285714286,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:cee91ee272006a56f0debb38df9070658776e16da5b3aa563d5ba7395827f6f4",
+          "input_sha256": "dfba90e886c8e024542c8731ab9fb6ebed9112447588174b4195889fc618bc39",
+          "config_sha256": "09d9f9a067547291997a163d3fa4f909a610514df8cbc8c6d1c19410f97890d2",
+          "final_physics_sha256": "c984fee86ffb0671d02804cc8ed13e09da90f999f57f0cb501acde6e72095c05",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 13.341,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 110.71428571428571,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:6bc170c261b780b06762d1ad8f18162d0b4d5171c5db4c807c44a5304fe811e9",
+          "input_sha256": "1e2fe079157d8832a64850f28fb42c7b03cefe1263d851f948d2e17e528ba9dc",
+          "config_sha256": "b3465ea35672d1dd6b59d95dc5b23ace666b4a419dd7f960135218aed0340814",
+          "final_physics_sha256": "c40557034a37aa9221d4ec7c32a5a289003f4ed8ae33a2fa64f299676ed07269",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 12.879,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 113.57142857142857,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:8ed3cf455d15003b45c189c4cd2b3b656d04db93717b0ac1435ea7b051f34409",
+          "input_sha256": "944d0c43f6dad1d576bae20bbf5478e334cba0ef07e44d51ac0a9fdb46ccf812",
+          "config_sha256": "55cd20e0362f092a771c0e839b5ea49178f8e24ac4202a5ce0bf062825a46bb4",
+          "final_physics_sha256": "60f5626485db298d5017e17b60dd54dfd1f609c3c23fb927f0cc1ba3d10210a1",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 14.029,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 116.42857142857143,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:e2264aa59e87152e1260db4e8361e747cc035ab5dde0315c0ba6d99ea1ed66b1",
+          "input_sha256": "f090849c3309ede6933b34a673a1d102916164d68ad99569d72dccadafade0ee",
+          "config_sha256": "4528a0eebdf74c76dbe31b57a8c84e48fc1040de1d32f17bc5dad4aab02abb0c",
+          "final_physics_sha256": "16fe3e6e0b4bb4e0d49e1f9193b75cc54e47ee68bf1790d5369acc350d928ad4",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 12.149,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 119.28571428571429,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:14bea06ea359ecb4096f9621ea00d97656f482241ea856cf90c7af8b4a34c4a4",
+          "input_sha256": "c0c1c77713a379fcc0f61f9148cddc22190c2b52ffab17183e502aaeb8d5b32c",
+          "config_sha256": "a6cc39e4d96b340fd255203b32c3097b2a11de9c7d052ee47b08dccc5cf2779d",
+          "final_physics_sha256": "e9b4a46ae724de2622c6fd9eec36b5275ea4e61824628f8f35c8531ecedbfa9e",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 15.478,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 122.14285714285714,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:91bb05da23d7fedc25fef9ab8ec86ef59cb6a08a93690052b500196dfa8ccb24",
+          "input_sha256": "651b828531dc6543cb3b54e8f76ebc68d129e84acb145bf0ee50bd8d35e38679",
+          "config_sha256": "7cd0708436a85dff3b8216c07b3c369ba069bc3c9e2bf5162f817e68d3232ef7",
+          "final_physics_sha256": "7e907855f2fb835d15b1e163dd8886f7a06ae1afab5ceadb15701636146a9918",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 15.417,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 125.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "site_sla_not_met",
+        "hypothetical_infrastructure": true,
+        "evidence": {
+          "ref": "how-to:projection:v1:5068e48d860921765b87b32e31934b38e45bc23238f987f7b1c23fc8eeaf80b1",
+          "input_sha256": "72d5e1a5ae5132ef9d441594862412516a39385a68f264a747c962535c488c6b",
+          "config_sha256": "ac5bb2411c68bd083c4f52f716be2e98272cc71edcbc9485e5cb44719b8022dd",
+          "final_physics_sha256": "3a5fd0f889423d30a48271e78089c940f7c318899c26fcce321bf31684e3392f",
+          "observed_until": "2026-11-23T12:22:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 13.665,
+          "original_sla": {
+            "cohort_size": 1,
+            "denominator": 1,
+            "met_count": 0,
+            "on_time_rate": 0.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 30.0,
+                "deadline": "2026-11-23T12:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.419667,
+                "remaining_output_kwh": 2.469048
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      }
+    ],
+    "selected": [],
+    "elapsed_ms_fixture": 132.858,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_site_unknown_does_not_shrink_denominator",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "c5c5f5f6efe5f55a10907e0b9b422abef285b4f6707bb7902e2d21199ef49147",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:35:00+07:00",
+    "candidate_count": 1,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 2,
+    "goal": {
+      "goal": "min_tested_site_limit_for_sla",
+      "min_grid_input_kw": 12.0,
+      "max_grid_input_kw": 12.0,
+      "min_original_on_time_rate": 1.0,
+      "protect_on_time_ac_bookings": true,
+      "hypothetical_infrastructure": false
+    },
+    "search_status": "partial",
+    "baseline": {
+      "ref": "how-to:projection:v1:f845ac335b771b75e76c1f15c96cb2b4f3e895e8cfa543565b66a6bf91ede607",
+      "input_sha256": "c5c5f5f6efe5f55a10907e0b9b422abef285b4f6707bb7902e2d21199ef49147",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "731ffd989c47da464b3ec5a0fe39806e892be0cdd04bc2c478b558ad071d2df2",
+      "observed_until": "2026-11-23T12:35:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 17.611,
+      "original_sla": {
+        "cohort_size": 2,
+        "denominator": 1,
+        "met_count": 1,
+        "on_time_rate": 1.0,
+        "censored_count": 1
+      },
+      "booking_sla": [
+        {
+          "booking_id": "a",
+          "zone": "AC",
+          "original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          }
+        },
+        {
+          "booking_id": "future-private",
+          "zone": "AC",
+          "original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T13:20:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": null,
+            "remaining_battery_kwh": 0.6013,
+            "remaining_output_kwh": 0.613571
+          }
+        }
+      ],
+      "subject_original": null,
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": null
+    },
+    "candidates": [
+      {
+        "value": 12.0,
+        "status": "completed",
+        "feasibility": "unknown",
+        "reason": "unknown_sla",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:6917604262f7dacf7585125da43c1c60184c93a8ba4fe532c275ce3effc031eb",
+          "input_sha256": "86c847192a3d65f3b0f67253ce3a59e9d36222b29bdef7dd25b7c18da857bb87",
+          "config_sha256": "25f725bb703723d42080bc87d74089f487df5836ba4c4a5d2fb0004a1c946a73",
+          "final_physics_sha256": "bf8869c70c7deb4de3c7ff0658d1830bbbf67b715ebb82ff47541a20a9665b44",
+          "observed_until": "2026-11-23T12:35:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 18.227,
+          "original_sla": {
+            "cohort_size": 2,
+            "denominator": 1,
+            "met_count": 1,
+            "on_time_rate": 1.0,
+            "censored_count": 1
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 21.0,
+                "deadline": "2026-11-23T12:30:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "future-private",
+              "zone": "AC",
+              "original": {
+                "target_soc": 21.0,
+                "deadline": "2026-11-23T13:20:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": null,
+                "remaining_battery_kwh": 0.6013,
+                "remaining_output_kwh": 0.613571
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      }
+    ],
+    "selected": [],
+    "elapsed_ms_fixture": 38.782,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_partial_retains_prior_feasible_and_records_failures[timeout]",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:34:00+07:00",
+    "candidate_count": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 3,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 21.0,
+      "earliest_deadline": "2026-11-23T12:20:00+07:00",
+      "latest_deadline": "2026-11-23T12:22:00+07:00"
+    },
+    "search_status": "partial",
+    "baseline": {
+      "ref": "how-to:projection:v1:9eb42cef08665ea8ca11b91341bb1344183fa47821e1387339cba77ef4458718",
+      "input_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "0d59e0926f3d6fdddf3c506a8a8aa9f12fba72b05c3b51c262cd7e5ed96cc9c1",
+      "observed_until": "2026-11-23T12:34:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 16.372,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 21.0,
+        "deadline": "2026-11-23T12:30:00+07:00",
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 21.0,
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:30:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:20:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:3546701c250f7b0b4b9558befe317f651675470242c8f62980a642e8ec93d8a0",
+          "input_sha256": "0e3253533cf0c514ac87a78bcaadfe870bc8e0c96c9a2f7e5f2832d8fe5adab1",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "7a71657d82d6da6e7031911660ec7174ede6218ec2d8a7499f3d753957f1225e",
+          "observed_until": "2026-11-23T12:34:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 16.935,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:20:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:20:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:21:00Z",
+        "status": "failed",
+        "feasibility": "unknown",
+        "reason": "timeout",
+        "hypothetical_infrastructure": false,
+        "evidence": null
+      },
+      {
+        "value": "2026-11-23T05:22:00Z",
+        "status": "skipped",
+        "feasibility": "unknown",
+        "reason": "timeout",
+        "hypothetical_infrastructure": false,
+        "evidence": null
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:20:00Z"
+    ],
+    "elapsed_ms_fixture": 38.894,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_partial_retains_prior_feasible_and_records_failures[cancelled]",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:34:00+07:00",
+    "candidate_count": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 3,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 21.0,
+      "earliest_deadline": "2026-11-23T12:20:00+07:00",
+      "latest_deadline": "2026-11-23T12:22:00+07:00"
+    },
+    "search_status": "partial",
+    "baseline": {
+      "ref": "how-to:projection:v1:9eb42cef08665ea8ca11b91341bb1344183fa47821e1387339cba77ef4458718",
+      "input_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "0d59e0926f3d6fdddf3c506a8a8aa9f12fba72b05c3b51c262cd7e5ed96cc9c1",
+      "observed_until": "2026-11-23T12:34:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 16.842,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 21.0,
+        "deadline": "2026-11-23T12:30:00+07:00",
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 21.0,
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:30:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:20:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:3546701c250f7b0b4b9558befe317f651675470242c8f62980a642e8ec93d8a0",
+          "input_sha256": "0e3253533cf0c514ac87a78bcaadfe870bc8e0c96c9a2f7e5f2832d8fe5adab1",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "7a71657d82d6da6e7031911660ec7174ede6218ec2d8a7499f3d753957f1225e",
+          "observed_until": "2026-11-23T12:34:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 16.555,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:20:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:20:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:21:00Z",
+        "status": "failed",
+        "feasibility": "unknown",
+        "reason": "cancelled",
+        "hypothetical_infrastructure": false,
+        "evidence": null
+      },
+      {
+        "value": "2026-11-23T05:22:00Z",
+        "status": "skipped",
+        "feasibility": "unknown",
+        "reason": "cancelled",
+        "hypothetical_infrastructure": false,
+        "evidence": null
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:20:00Z"
+    ],
+    "elapsed_ms_fixture": 36.96,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_partial_retains_prior_feasible_and_records_failures[execution_failed]",
+    "policy": "B0",
+    "version": "1",
+    "experiment_fingerprint": "0c99d34f4e1a58b7f5a1b457ae7353a3176e36993638c6326b33a1c507a11fa8",
+    "snapshot_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:34:00+07:00",
+    "candidate_count": 3,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 4,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 21.0,
+      "earliest_deadline": "2026-11-23T12:20:00+07:00",
+      "latest_deadline": "2026-11-23T12:22:00+07:00"
+    },
+    "search_status": "partial",
+    "baseline": {
+      "ref": "how-to:projection:v1:9eb42cef08665ea8ca11b91341bb1344183fa47821e1387339cba77ef4458718",
+      "input_sha256": "eac4af8e7d7c4aa47c910ac9eb003c943567ee6e54c567f31efe85fa9ed4a229",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "0d59e0926f3d6fdddf3c506a8a8aa9f12fba72b05c3b51c262cd7e5ed96cc9c1",
+      "observed_until": "2026-11-23T12:34:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 19.51,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 21.0,
+        "deadline": "2026-11-23T12:30:00+07:00",
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 21.0,
+        "target_reached_at": "2026-11-23T12:16:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:30:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:20:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:3546701c250f7b0b4b9558befe317f651675470242c8f62980a642e8ec93d8a0",
+          "input_sha256": "0e3253533cf0c514ac87a78bcaadfe870bc8e0c96c9a2f7e5f2832d8fe5adab1",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "7a71657d82d6da6e7031911660ec7174ede6218ec2d8a7499f3d753957f1225e",
+          "observed_until": "2026-11-23T12:34:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 15.893,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:20:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:20:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:21:00Z",
+        "status": "failed",
+        "feasibility": "unknown",
+        "reason": "execution_failed",
+        "hypothetical_infrastructure": false,
+        "evidence": null
+      },
+      {
+        "value": "2026-11-23T05:22:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:b310d5e1b37cd4c411c30a75158fe6483b960f7814fea7475fb5e95424df206f",
+          "input_sha256": "d89892aa2b09afbaf0e68cd9e4967547b829af59806c122e4e8f1a26a5d7e451",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "52ff307499b43a65b9292efeb747438a2f630ac33421cb65370efdfa45c66fad",
+          "observed_until": "2026-11-23T12:34:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 16.962,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T12:30:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 21.0,
+            "deadline": "2026-11-23T05:22:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 21.0,
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:22:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:22:00Z",
+      "2026-11-23T05:20:00Z"
+    ],
+    "elapsed_ms_fixture": 57.122,
+    "independent_oracle": null
+  },
+  {
+    "test": "test_m3a_dc_max_soc_uses_deadline_taper_and_keeps_original_sla",
+    "policy": "M3a",
+    "version": "1",
+    "experiment_fingerprint": "17a151ced7d5bd93491b662b43a6e793b2651492d8c3ff326653251ef010203a",
+    "snapshot_sha256": "8d8a78028297341fe5d46d9feb67b4ee709986c6bc68c9bedcaf5b4ba2e1b0ad",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T13:00:00+07:00",
+    "candidate_count": 6,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 7,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": true,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": true,
+      "goal": "max_soc_by_deadline",
+      "deadline": "2026-11-23T12:18:00+07:00",
+      "min_target_soc": 70.0,
+      "max_target_soc": 90.0
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:c5351771e6ad22bf2a6f42484d8ee1a2291d07a798e0e43137213b982db65104",
+      "input_sha256": "8d8a78028297341fe5d46d9feb67b4ee709986c6bc68c9bedcaf5b4ba2e1b0ad",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "159748de1aed845ae87dd4926fe61613bab24cc828465340d69bfaf7b3b95092",
+      "observed_until": "2026-11-23T13:00:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 83.782,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 83.0,
+        "deadline": "2026-11-23T12:38:00+07:00",
+        "target_reached_at": "2026-11-23T12:29:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": 75.56465657741553,
+      "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+      "subject_release_at": "2026-11-23T12:34:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": 70.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:cc172432a951cc36d62506da691758ffd14f3266b2e88765261fd4388a078143",
+          "input_sha256": "b621f44713cbc607536e0ccdcee1f4574cca1f5cd463831a95ba98e4e88c849b",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "524d704ca05c7901343c57dae6f93209a46d1f0606c9ecb6d78a6395e566e420",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 83.434,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 7.8169,
+            "remaining_output_kwh": 7.976429
+          },
+          "subject_revised": {
+            "target_soc": 70.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 70.0,
+          "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      },
+      {
+        "value": 75.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:a89ac0f105735db0c9cc003233ace4ab873c19704c842b1e9e0f87aba1d74c39",
+          "input_sha256": "0673dc67d2c8701dc4cb82a2a8f4b438dc8eabe59f0a7d2f9457156f9833eb3e",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "6606f459b567c85c637b59c9b24420266035ed823ca5eca989b778978e1156c1",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 80.392,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 4.810442,
+            "remaining_output_kwh": 4.908614
+          },
+          "subject_revised": {
+            "target_soc": 75.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 4.2e-05,
+            "remaining_output_kwh": 4.3e-05
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 74.99993015133869,
+          "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      },
+      {
+        "value": 80.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:277a0efe78ae3d8ffe6380b77c58ba7fa6b65054fb960e48d7ae27be09e4f0f0",
+          "input_sha256": "906ecc3650ae90162ad7af0ef519671d26d7ad9fd1088e1b52a1eb93b98573e3",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "a19e102737d4d8d93f7ec48cfe9e776f5ba41e5523a15ccbb5f069d28e78d2ca",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 84.911,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 1.869753,
+            "remaining_output_kwh": 1.907911
+          },
+          "subject_revised": {
+            "target_soc": 80.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.065853,
+            "remaining_output_kwh": 0.067197
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 79.89048257943779,
+          "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      },
+      {
+        "value": 83.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:b400edc0a14d72c1d70ca73ac629ebab7a912c19b204da004594d34258149bfd",
+          "input_sha256": "368a112e173c3f0d93c22e4b37e5a1842c6ab9e398040f30922dd7c20efcbc66",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "bbdfcbb6982b7ae613aa59bf4108ab60b6d89b43f452854d187b9592cb78c6d0",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 88.118,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.079651,
+            "remaining_output_kwh": 0.081277
+          },
+          "subject_revised": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.079651,
+            "remaining_output_kwh": 0.081277
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 82.86753534298947,
+          "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      },
+      {
+        "value": 85.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:8d8152cffcfa589d90f26ecb72fdb3ace7cf99b3d83000e48543db4fe2980c6c",
+          "input_sha256": "07686c60e6e0069861510cf94a651b406a9d8834502926ca862d4c1b5bab1adb",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "1c2bd5e4e152f45aefd51f2ca9f9cb59bd6c4da4d7ffec049c82a56f36bca1f3",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 81.961,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:17:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 85.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.555064,
+            "remaining_output_kwh": 0.566392
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 84.07689321720544,
+          "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      },
+      {
+        "value": 90.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:bd1f3bb730cd8dbc9bbae5f98b6fcaefd7ace6099a2053ecad4de235d329e2ff",
+          "input_sha256": "8b8550469c8eac322308a3e0404b826b4d5c2eed0f3f51619957585fad909bd2",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "430ae5cb130d9592a7cbccdcb2a2e7874e68514b9b0bfb67dd3272b057489747",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 83.389,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 90.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 3.114281,
+            "remaining_output_kwh": 3.177838
+          },
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": 84.8207539994046,
+          "subject_soc_observed_at": "2026-11-23T12:18:00+07:00",
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      70.0
+    ],
+    "elapsed_ms_fixture": 598.101,
+    "independent_oracle": {
+      "dc_model": "synthetic_taper_v1",
+      "hardware_soc_ceiling_pct": 84.8207539994046,
+      "physics": {
+        "baseline": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.85052629473685,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 78.0,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 62
+        },
+        "candidate-1": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 90.23684210526315,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 69.81700002,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 49
+        },
+        "candidate-2": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.85052629473685,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 78.0,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 51
+        },
+        "candidate-3": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947370526316,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 51
+        },
+        "candidate-4": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.8494737684211,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000004,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 51
+        },
+        "candidate-5": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.8494737052632,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000001,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 51
+        },
+        "candidate-6": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.85052629473685,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 78.0,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 51
+        }
+      }
+    }
+  },
+  {
+    "test": "test_m3a_dc_deadline_changes_actual_completion_under_contention",
+    "policy": "M3a",
+    "version": "1",
+    "experiment_fingerprint": "17a151ced7d5bd93491b662b43a6e793b2651492d8c3ff326653251ef010203a",
+    "snapshot_sha256": "12175900f73ad738986ee75c407a426da46a51c2e2a008bc732139e11a59bf70",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T13:00:00+07:00",
+    "candidate_count": 8,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 9,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": true,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 59.0,
+      "earliest_deadline": "2026-11-23T12:18:00+07:00",
+      "latest_deadline": "2026-11-23T12:42:00+07:00"
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:a6642bd015efa31c9638f5c55911eaf166efe13d7aa66b0b4ec470e08c1fb677",
+      "input_sha256": "12175900f73ad738986ee75c407a426da46a51c2e2a008bc732139e11a59bf70",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "867813e262bcaa3f59a884559e2cc7d4e0aa17957ec882844d96ab2b75c0ce91",
+      "observed_until": "2026-11-23T13:00:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 88.941,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 59.0,
+        "deadline": "2026-11-23T12:55:00+07:00",
+        "target_reached_at": "2026-11-23T12:37:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 59.0,
+        "target_reached_at": "2026-11-23T12:37:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:42:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:18:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:8a65e343635a20adb1b738fc3c8fce559e78b5aa0fc650e4732adda14b81b3b2",
+          "input_sha256": "de7fd46a1df8c30998cd7d06380bdf931638a3783387748004e0a35a6b83cb5f",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "52ac7eaa260de7b66841520e53c650dffd1a6627597eec1c881ce46fe3ba53ef",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 83.109,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 2.1e-05,
+            "remaining_output_kwh": 2.1e-05
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:18:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 2.1e-05,
+            "remaining_output_kwh": 2.1e-05
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:18:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:21:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:8879eeeff3b4290adf24bd2aa013088d9f402c225d49b8541dd3de52fd41f724",
+          "input_sha256": "c1ac68d731a3f25a2eb12c2d1f9de7c38c1a25ff5b6202b526eb559e3c05490b",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "c6462bdc35196402f09b4f5739c6af211991bb2ec3b95dbfc1143eb314543ff7",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 81.242,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 7e-05,
+            "remaining_output_kwh": 7.1e-05
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:21:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 7e-05,
+            "remaining_output_kwh": 7.1e-05
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:21:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:24:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:47ed6a18a4cdbfa61c36bf1f531d6003290c4a2c4fcd0d28f7b5206ae4b37fcd",
+          "input_sha256": "1bbf843dd7c9a7962249d7e8f8e02c6b04acc1147b8bfa7ec277eb63865bab6f",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "82055d9f35684fc5af4bb07f8975d6de17fef2e38b2d9af41b67c75218b1a705",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 83.01,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.000119,
+            "remaining_output_kwh": 0.000121
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:24:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 0.000119,
+            "remaining_output_kwh": 0.000121
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:24:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:28:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:1632788fd30b34a9929ba43d31e16900f626f61d39215f1a37d14362c819650c",
+          "input_sha256": "3f6321ab0425d00f26ffc05753e03bf2b1a270d59b55cee05fff3162edea9537",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "fcf41abbf0aae55b6f3ea8672d74355d5e2867b346435e800167dfa93d0aa9c7",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 74.112,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 3.7e-05,
+            "remaining_output_kwh": 3.8e-05
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:28:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 3.7e-05,
+            "remaining_output_kwh": 3.8e-05
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:28:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:31:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:d3576e8d18bff194eee3f2386c459a1b67e9863f9e3cbef6a608b37b9f8c542b",
+          "input_sha256": "6d6027f898454f9699497daf5bbddc7d489531c29c2d6996d7561a48c8426eb7",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "ffb17961609fa16ab25cb98080888f88abbb5f9b79ab49a0d09798fc0ffdc7df",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 83.445,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": "2026-11-23T12:31:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:31:00Z",
+            "target_reached_at": "2026-11-23T12:31:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": "2026-11-23T12:31:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:31:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:35:00Z",
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "target_not_met_by_deadline",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:c5ea23d7e4efc3a9e0ce47210a405e999b4d79e7945e20e06276a23af5d65491",
+          "input_sha256": "6fd9082d2a4a7f86a0700757c989dd036f2917d22e02a044797a9133b6874183",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "6f65a8c3fea32c5f465a21491b372733de1e5ab167d05be56b4876eba857ca8f",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 84.096,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 5.4e-05,
+            "remaining_output_kwh": 5.5e-05
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:35:00Z",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 5.4e-05,
+            "remaining_output_kwh": 5.5e-05
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:35:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:38:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:0b03f47ea4b1f025780969a3b7ed2954ae444a588a6c36fc0f4d05a8ade26738",
+          "input_sha256": "24902b2625d85f2c88824cc8ca12693623603a4c4a69a3e2f94343939500de31",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "4b9067f1824a3707863941b22f6496c6c9ca0f4207e183a7cbe48a03a89a01f5",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 89.521,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": "2026-11-23T12:37:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:38:00Z",
+            "target_reached_at": "2026-11-23T12:37:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": "2026-11-23T12:37:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:38:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:42:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:51574331e42580461fd6c7db274212d63fa8a80f0a1135d7c9585d1f30b03db4",
+          "input_sha256": "65db57c02795521de3ef7dc977b49dd7512cb21bcd2aab7461214d8228750bc8",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "4108e41d81099bdd0c7792d62c0eea47a88d548425614a77186aec9e40e923d4",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 83.931,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T12:55:00+07:00",
+            "target_reached_at": "2026-11-23T12:37:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 59.0,
+            "deadline": "2026-11-23T05:42:00Z",
+            "target_reached_at": "2026-11-23T12:37:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 59.0,
+            "target_reached_at": "2026-11-23T12:37:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:42:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:31:00Z",
+      "2026-11-23T05:42:00Z",
+      "2026-11-23T05:38:00Z"
+    ],
+    "elapsed_ms_fixture": 769.032,
+    "independent_oracle": {
+      "dc_model": "synthetic_taper_v1",
+      "crossings_from_stored_energy": {
+        "baseline": 37,
+        "candidate-1": null,
+        "candidate-2": null,
+        "candidate-3": null,
+        "candidate-4": null,
+        "candidate-5": 31,
+        "candidate-6": null,
+        "candidate-7": 37,
+        "candidate-8": 37
+      },
+      "physics": {
+        "baseline": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947376842106,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000001,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 3
+        },
+        "candidate-1": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.85052635789476,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 78.00000000000001,
+          "minutes_with_both_zones_charging": 19,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-2": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.85052635789476,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 78.00000000000001,
+          "minutes_with_both_zones_charging": 22,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-3": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.8494737684211,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000006,
+          "minutes_with_both_zones_charging": 25,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-4": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947370526324,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000006,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 2
+        },
+        "candidate-5": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947376842113,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000023,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 3
+        },
+        "candidate-6": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947376842106,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000001,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 3
+        },
+        "candidate-7": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947376842106,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000001,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 3
+        },
+        "candidate-8": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 98.84947376842113,
+          "peak_ac_output_kw": 15.908000040000008,
+          "peak_dc_output_kw": 77.99900004000023,
+          "minutes_with_both_zones_charging": 29,
+          "dc_vehicle_minutes_in_taper": 3
+        }
+      }
+    }
+  },
+  {
+    "test": "test_m3a_baseline_already_meets_goal_and_feasible_deadlines_do_not_improve_completion",
+    "policy": "M3a",
+    "version": "1",
+    "experiment_fingerprint": "17a151ced7d5bd93491b662b43a6e793b2651492d8c3ff326653251ef010203a",
+    "snapshot_sha256": "8d8a78028297341fe5d46d9feb67b4ee709986c6bc68c9bedcaf5b4ba2e1b0ad",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T13:00:00+07:00",
+    "candidate_count": 5,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 6,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": false,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": false,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 83.0,
+      "earliest_deadline": "2026-11-23T12:34:00+07:00",
+      "latest_deadline": "2026-11-23T12:38:00+07:00"
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:d4c28e8673cf8d8a9eb8b489d08fbda87d9d7d1361b04141946a6aa6a6022456",
+      "input_sha256": "8d8a78028297341fe5d46d9feb67b4ee709986c6bc68c9bedcaf5b4ba2e1b0ad",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "159748de1aed845ae87dd4926fe61613bab24cc828465340d69bfaf7b3b95092",
+      "observed_until": "2026-11-23T13:00:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 77.942,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 83.0,
+        "deadline": "2026-11-23T12:38:00+07:00",
+        "target_reached_at": "2026-11-23T12:29:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 83.0,
+        "target_reached_at": "2026-11-23T12:29:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:34:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:34:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:77a4494335552bd207a5c0fe477f1f9457107be4c691fb891eae2f8af9c8b0c9",
+          "input_sha256": "7de01b858fb4f793bbd0b69172eb9f969ab308192f19f34567b581a31c57513f",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "0b34f49304d9247357af3a31b752e2e9302f3b5607cebd6f73c13ef28c273755",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 76.722,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T05:34:00Z",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 83.0,
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:34:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:35:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:3c531d1a63053ca4864d03cec9030e1d94da0f91e68cfa72d505c413fcc811e1",
+          "input_sha256": "d779593cdd9f25470e9051f0ef056f80d5d67b6e8237527eb37a694e06eae5db",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "c9ecdbf8984dea1de6755c634a5f7c41b756df8a07f3c53096f9be50b6073439",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 76.621,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T05:35:00Z",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 83.0,
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:34:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:36:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:e735d62c9380a0b25ffb2d6696cb0ae4224f0e5f6778aeaa32701182a4a5ed50",
+          "input_sha256": "f7707356a41150a285de93421856560c0d1c8e04105386f036eedf64a4af3d8b",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "82910f40dab8f2f82fc51dac0e475f1bc5d5aebb174043159f44179ed4ef0244",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 76.351,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T05:36:00Z",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 83.0,
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:34:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:37:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:e17f10ba5d5336f100856ae5309b6a48117fb610dc1c8464dd67796c3962d7b7",
+          "input_sha256": "a472e0203ca5f6b56ca3411612dab8558c466e6983a70f309ec22e3a16d86d48",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "61851fc60831199bddd4d8a5024e0e3b293a863991550cc7e64dc1b7e7cb59b0",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 75.775,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T05:37:00Z",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 83.0,
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:34:00+07:00"
+        }
+      },
+      {
+        "value": "2026-11-23T05:38:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:71f7e7f48f20c7473526f67148a85630dde7d44679d6de2a5ecc573e2162d7ed",
+          "input_sha256": "11999c853a1642b6811a197c7e9dda5dcfec25c38470b6b7c3466e2d573c811e",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "33390562e09c795df5072c28cdb45482bf5bc5af1709b6289dc1ee808352ae17",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 78.636,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_revised": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T05:38:00Z",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 83.0,
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:34:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:38:00Z",
+      "2026-11-23T05:37:00Z",
+      "2026-11-23T05:36:00Z"
+    ],
+    "elapsed_ms_fixture": 472.272,
+    "independent_oracle": {
+      "dc_model": "synthetic_taper_v1",
+      "goal_reached_minute": 29,
+      "original_release_minute": 34
+    }
+  },
+  {
+    "test": "test_m3b_shared_source_increase_and_per_booking_ac_protection",
+    "policy": "M3b",
+    "version": "1",
+    "experiment_fingerprint": "c034460d0285dad74680f279d87039e2fe172232b3f68cf12764e82d01e32456",
+    "snapshot_sha256": "283bd23334c463314725a7af7ff9ace39528a2db8d267beeaca2bc559e55ff77",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T12:45:00+07:00",
+    "candidate_count": 8,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 9,
+    "goal": {
+      "goal": "min_tested_site_limit_for_sla",
+      "min_grid_input_kw": 22.0,
+      "max_grid_input_kw": 106.0,
+      "min_original_on_time_rate": 0.75,
+      "protect_on_time_ac_bookings": true,
+      "hypothetical_infrastructure": false
+    },
+    "search_status": "partial",
+    "baseline": {
+      "ref": "how-to:projection:v1:5055bbe87a556244c28a876737a2073cff4f398dc4b55b8c30d33735351d60bf",
+      "input_sha256": "283bd23334c463314725a7af7ff9ace39528a2db8d267beeaca2bc559e55ff77",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "b0f3fcd529997349ce943e44f472aba731ed64264837169750207696cfb09785",
+      "observed_until": "2026-11-23T12:45:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 49.709,
+      "original_sla": {
+        "cohort_size": 4,
+        "denominator": 4,
+        "met_count": 4,
+        "on_time_rate": 1.0,
+        "censored_count": 0
+      },
+      "booking_sla": [
+        {
+          "booking_id": "a",
+          "zone": "DC",
+          "original": {
+            "target_soc": 50.0,
+            "deadline": "2026-11-23T12:27:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          }
+        },
+        {
+          "booking_id": "ac-a",
+          "zone": "AC",
+          "original": {
+            "target_soc": 31.0,
+            "deadline": "2026-11-23T12:22:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          }
+        },
+        {
+          "booking_id": "ac-b",
+          "zone": "AC",
+          "original": {
+            "target_soc": 41.0,
+            "deadline": "2026-11-23T12:22:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          }
+        },
+        {
+          "booking_id": "dc-rival",
+          "zone": "DC",
+          "original": {
+            "target_soc": 54.0,
+            "deadline": "2026-11-23T12:27:00+07:00",
+            "target_reached_at": "2026-11-23T12:16:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          }
+        }
+      ],
+      "subject_original": null,
+      "subject_revised": null,
+      "subject_goal_target": null,
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": null
+    },
+    "candidates": [
+      {
+        "value": 22.0,
+        "status": "completed",
+        "feasibility": "unknown",
+        "reason": "blocked_command",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:faf659ef96722c367a098c884218cf8fbd15968a40b06716fd2205e9e18b4b9f",
+          "input_sha256": "2e4cd7ecbc9d15178e7d8d831beab682cbc324678f5973cc9b3df7882551244e",
+          "config_sha256": "be944d42b03f23db9bd2bc68f93b4104625b4f01bd4de078f833eb0b53d58d77",
+          "final_physics_sha256": "fed62297a11042edfbef026b2359793a6af73c0d51bc47a555078cc1bd8cc9fa",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 2,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 61.114,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 1,
+            "on_time_rate": 0.25,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 12.026,
+                "remaining_output_kwh": 12.271429
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.020454,
+                "remaining_output_kwh": 0.020871
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 3.430579,
+                "remaining_output_kwh": 3.500591
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 34.0,
+        "status": "completed",
+        "feasibility": "unknown",
+        "reason": "blocked_command",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:3aa0574e3f368cd15b5774f4f9a23a7858b89b17ca13d17e4504f9a034617a3d",
+          "input_sha256": "e70e97ff5f9d451488d3f4dadfffa627733c73e55ea3e465773f521196ec012d",
+          "config_sha256": "0dfa20bef8a058428f38317d99a24a3f67e78ae42ee4643e38bde17326a05fbc",
+          "final_physics_sha256": "e96591211aec37963df18cd140e0e8368a33fd32ba7ba8ed4432c3e29e801617",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 1,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 61.618,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 1,
+            "on_time_rate": 0.25,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 10.62001,
+                "remaining_output_kwh": 10.836745
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.006963,
+                "remaining_output_kwh": 0.007105
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 4e-05,
+                "remaining_output_kwh": 4.1e-05
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 46.0,
+        "status": "completed",
+        "feasibility": "unknown",
+        "reason": "blocked_command",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:d93b38ce3aa17d5f8338117fad79bfbaf8725435da63e36d04c1c1a47a0cbde9",
+          "input_sha256": "297f8640945cc767f4ec0fe34a5f17d7dc6575957c10469f4abac525cc363d67",
+          "config_sha256": "7a523027dbc61ee66625d2113595a8bf8e978fe6d0d722137840bc22489616c0",
+          "final_physics_sha256": "684731918364eb538c7aa9c3f3f68c7a6aeea6536b50c04fa3eb84c3a3e2924f",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 1,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 60.491,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 1,
+            "on_time_rate": 0.25,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 6.075685,
+                "remaining_output_kwh": 6.199679
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.002977,
+                "remaining_output_kwh": 0.003038
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 2.3e-05,
+                "remaining_output_kwh": 2.3e-05
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 58.0,
+        "status": "completed",
+        "feasibility": "unknown",
+        "reason": "blocked_command",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:57a91f6bb04a9a94968786b61a46d701dc02048d264885ba753cf068e0888716",
+          "input_sha256": "357f4d0aa1dc97e8a54adbfbbb16a72f9410f0d734bd6a35c8dc16cb62afe0f0",
+          "config_sha256": "112cbc0e07828a52074ead198a47079aedaa9207015da48df9ca65d157b722ea",
+          "final_physics_sha256": "d86db8df4ea21e5ee7bfe585d82984e15661d4fd8a61fe5782c7e08269e93728",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 1,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 68.165,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 2,
+            "on_time_rate": 0.5,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 1.167861,
+                "remaining_output_kwh": 1.191695
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 0.007502,
+                "remaining_output_kwh": 0.007655
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 70.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:7c6dc165bdd3e7a0544979fd61c4dd579c1c5b063b0d5b60ac4d60a75baf25df",
+          "input_sha256": "0f1fa31cfd0a257c252364da16596563120d24f873e445e9b343b3692badeb4b",
+          "config_sha256": "a1f006d3946419e60b234873268524c5c2037a9fbf14465ab2cb2d67ecfd86f3",
+          "final_physics_sha256": "6ba03d601b389fa22871aa6ef0130b238b4612c70792b1e2c186b1f91d7ea4aa",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 63.803,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 2,
+            "on_time_rate": 0.5,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 1.2e-05,
+                "remaining_output_kwh": 1.2e-05
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 7e-05,
+                "remaining_output_kwh": 7.1e-05
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:23:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 82.0,
+        "status": "completed",
+        "feasibility": "infeasible",
+        "reason": "original_sla_regression",
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:19ba691c99f53cb616cdebeff8f7eca245f1d06dc8d46ddf6edfc308ba4f550a",
+          "input_sha256": "b610c9940a03bfdd1b135c2dd3b2b2343fc658d7905ca3fbe76c051f690d8d83",
+          "config_sha256": "cf1b37e9cd4107cbec1d0ffa2a111bc07a30476f7eeb255ece92ba8bf2039ffd",
+          "final_physics_sha256": "c6625ec3d76bf6900f1afeb3f808df18ada1260a5822efddbf2561a69a98c074",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 65.722,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 3,
+            "on_time_rate": 0.75,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:23:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": null,
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": false,
+                "remaining_battery_kwh": 8.6e-05,
+                "remaining_output_kwh": 8.8e-05
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:23:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 94.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:0673db762a6a19217fec1a6494d38b9a553b91d8930d835dbdc4ea4ba67fcd79",
+          "input_sha256": "aa2ea24cc1a290a440355fefe5ffdaba9a4483aa81c587afa10bcbe0c964d5f7",
+          "config_sha256": "5e954c3ed97578e4b5af8571c376293319c5668bcef0a40458bcab644a85d013",
+          "final_physics_sha256": "a3b6bcec07de6f7320aa61b23456ddd8ff8a46356d9d5dcaf3612739952ba105",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 59.934,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 4,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:22:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      },
+      {
+        "value": 106.0,
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:f51edad1fee88468980e819305dea04e61a9168bc91cf69aed9153b1d5450641",
+          "input_sha256": "24f8fcf04c6e0d22f511d8ec4e66a4ef76629ce602cbc2e7b7328fe94122593f",
+          "config_sha256": "6729c1a552234d20f05143c93cf9adca29dd82054dd4450f76d2c8d45de63dd6",
+          "final_physics_sha256": "b0f3fcd529997349ce943e44f472aba731ed64264837169750207696cfb09785",
+          "observed_until": "2026-11-23T12:45:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 49.803,
+          "original_sla": {
+            "cohort_size": 4,
+            "denominator": 4,
+            "met_count": 4,
+            "on_time_rate": 1.0,
+            "censored_count": 0
+          },
+          "booking_sla": [
+            {
+              "booking_id": "a",
+              "zone": "DC",
+              "original": {
+                "target_soc": 50.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "ac-a",
+              "zone": "AC",
+              "original": {
+                "target_soc": 31.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "ac-b",
+              "zone": "AC",
+              "original": {
+                "target_soc": 41.0,
+                "deadline": "2026-11-23T12:22:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            },
+            {
+              "booking_id": "dc-rival",
+              "zone": "DC",
+              "original": {
+                "target_soc": 54.0,
+                "deadline": "2026-11-23T12:27:00+07:00",
+                "target_reached_at": "2026-11-23T12:16:00+07:00",
+                "already_satisfied_at_snapshot": false,
+                "met_deadline": true,
+                "remaining_battery_kwh": 0.0,
+                "remaining_output_kwh": 0.0
+              }
+            }
+          ],
+          "subject_original": null,
+          "subject_revised": null,
+          "subject_goal_target": null,
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": null
+        }
+      }
+    ],
+    "selected": [
+      94.0,
+      106.0
+    ],
+    "elapsed_ms_fixture": 556.056,
+    "independent_oracle": {
+      "dc_model": "synthetic_taper_v1",
+      "total_commitment_kwh": 24.653299999999998,
+      "low_source_ceiling_kwh": 9.2169,
+      "physics": {
+        "baseline": {
+          "site_cap_grid_kw": 106,
+          "peak_grid_kw": 105.92000008421059,
+          "peak_ac_output_kw": 4.908000000000006,
+          "peak_dc_output_kw": 95.71600008000004,
+          "minutes_with_both_zones_charging": 16,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-1": {
+          "site_cap_grid_kw": 22.0,
+          "peak_grid_kw": 22.000000042105285,
+          "peak_ac_output_kw": 3.9330000000000034,
+          "peak_dc_output_kw": 20.90000004000002,
+          "minutes_with_both_zones_charging": 22,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-2": {
+          "site_cap_grid_kw": 34.0,
+          "peak_grid_kw": 33.998947452631604,
+          "peak_ac_output_kw": 4.241000040000003,
+          "peak_dc_output_kw": 32.299000019999966,
+          "minutes_with_both_zones_charging": 22,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-3": {
+          "site_cap_grid_kw": 46.0,
+          "peak_grid_kw": 45.99894738947371,
+          "peak_ac_output_kw": 4.401000000000005,
+          "peak_dc_output_kw": 43.69900002000003,
+          "minutes_with_both_zones_charging": 21,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-4": {
+          "site_cap_grid_kw": 58.0,
+          "peak_grid_kw": 58.00000004210536,
+          "peak_ac_output_kw": 4.803000000000004,
+          "peak_dc_output_kw": 55.10000004000009,
+          "minutes_with_both_zones_charging": 17,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-5": {
+          "site_cap_grid_kw": 70.0,
+          "peak_grid_kw": 69.99789486315792,
+          "peak_ac_output_kw": 4.565000040000003,
+          "peak_dc_output_kw": 61.93300008000003,
+          "minutes_with_both_zones_charging": 22,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-6": {
+          "site_cap_grid_kw": 82.0,
+          "peak_grid_kw": 81.99789473684221,
+          "peak_ac_output_kw": 4.613000040000005,
+          "peak_dc_output_kw": 73.2850000200001,
+          "minutes_with_both_zones_charging": 22,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-7": {
+          "site_cap_grid_kw": 94.0,
+          "peak_grid_kw": 93.99894745263158,
+          "peak_ac_output_kw": 4.908000000000006,
+          "peak_dc_output_kw": 84.39100008,
+          "minutes_with_both_zones_charging": 16,
+          "dc_vehicle_minutes_in_taper": 0
+        },
+        "candidate-8": {
+          "site_cap_grid_kw": 106.0,
+          "peak_grid_kw": 105.92000008421059,
+          "peak_ac_output_kw": 4.908000000000006,
+          "peak_dc_output_kw": 95.71600008000004,
+          "minutes_with_both_zones_charging": 16,
+          "dc_vehicle_minutes_in_taper": 0
+        }
+      }
+    }
+  },
+  {
+    "test": "test_earliest_baseline_observes_requested_target_separately_from_original",
+    "policy": "M3a",
+    "version": "1",
+    "experiment_fingerprint": "17a151ced7d5bd93491b662b43a6e793b2651492d8c3ff326653251ef010203a",
+    "snapshot_sha256": "8d8a78028297341fe5d46d9feb67b4ee709986c6bc68c9bedcaf5b4ba2e1b0ad",
+    "known_at": "2026-11-23T12:00:00+07:00",
+    "horizon_end": "2026-11-23T13:00:00+07:00",
+    "candidate_count": 1,
+    "baseline_runs": 1,
+    "branch_runs_including_baseline": 2,
+    "goal": {
+      "booking_id": "a",
+      "allow_lower_target": true,
+      "allow_later_deadline": false,
+      "allow_subject_original_sla_regression": true,
+      "goal": "earliest_completion_for_target",
+      "target_soc": 75.0,
+      "earliest_deadline": "2026-11-23T12:38:00+07:00",
+      "latest_deadline": "2026-11-23T12:38:00+07:00"
+    },
+    "search_status": "found",
+    "baseline": {
+      "ref": "how-to:projection:v1:b989022d55500eb247deca0deabac8f97d21160f6298c31d4debf9f904eb38a9",
+      "input_sha256": "8d8a78028297341fe5d46d9feb67b4ee709986c6bc68c9bedcaf5b4ba2e1b0ad",
+      "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+      "final_physics_sha256": "159748de1aed845ae87dd4926fe61613bab24cc828465340d69bfaf7b3b95092",
+      "observed_until": "2026-11-23T13:00:00+07:00",
+      "branch_status": "completed",
+      "hard_violations": 0,
+      "rejected_allocations": 0,
+      "safety_holds": 0,
+      "unresolved_safety_count": 0,
+      "blocked_commands": 0,
+      "pending_approvals": 0,
+      "pending_approval_commands": 0,
+      "elapsed_ms": 77.567,
+      "original_sla": null,
+      "booking_sla": [],
+      "subject_original": {
+        "target_soc": 83.0,
+        "deadline": "2026-11-23T12:38:00+07:00",
+        "target_reached_at": "2026-11-23T12:29:00+07:00",
+        "already_satisfied_at_snapshot": false,
+        "met_deadline": true,
+        "remaining_battery_kwh": 0.0,
+        "remaining_output_kwh": 0.0
+      },
+      "subject_revised": null,
+      "subject_goal_target": {
+        "target_soc": 75.0,
+        "target_reached_at": "2026-11-23T12:18:00+07:00",
+        "already_satisfied_at_snapshot": false
+      },
+      "subject_soc_at_deadline_pct": null,
+      "subject_soc_observed_at": null,
+      "subject_release_at": "2026-11-23T12:34:00+07:00"
+    },
+    "candidates": [
+      {
+        "value": "2026-11-23T05:38:00Z",
+        "status": "completed",
+        "feasibility": "feasible",
+        "reason": null,
+        "hypothetical_infrastructure": false,
+        "evidence": {
+          "ref": "how-to:projection:v1:99aecd1de7266953c91216d46058516f9e2cef077e51b87dda6f1dc78814a567",
+          "input_sha256": "380e0794f0e7dcce908db5d7d74565d5054446d015d59edab8b4212948a3d655",
+          "config_sha256": "47a83f680ebb0dd55e030282db587501c208d7eea2fa4d185a01b7ec030a3516",
+          "final_physics_sha256": "756cbcafb98d1ca1b4e54facc7b80fe41d7495ee46bf0cdee7d9795fcebfc917",
+          "observed_until": "2026-11-23T13:00:00+07:00",
+          "branch_status": "completed",
+          "hard_violations": 0,
+          "rejected_allocations": 0,
+          "safety_holds": 0,
+          "unresolved_safety_count": 0,
+          "blocked_commands": 0,
+          "pending_approvals": 0,
+          "pending_approval_commands": 0,
+          "elapsed_ms": 78.532,
+          "original_sla": null,
+          "booking_sla": [],
+          "subject_original": {
+            "target_soc": 83.0,
+            "deadline": "2026-11-23T12:38:00+07:00",
+            "target_reached_at": null,
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": false,
+            "remaining_battery_kwh": 4.8104,
+            "remaining_output_kwh": 4.908571
+          },
+          "subject_revised": {
+            "target_soc": 75.0,
+            "deadline": "2026-11-23T05:38:00Z",
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false,
+            "met_deadline": true,
+            "remaining_battery_kwh": 0.0,
+            "remaining_output_kwh": 0.0
+          },
+          "subject_goal_target": {
+            "target_soc": 75.0,
+            "target_reached_at": "2026-11-23T12:29:00+07:00",
+            "already_satisfied_at_snapshot": false
+          },
+          "subject_soc_at_deadline_pct": null,
+          "subject_soc_observed_at": null,
+          "subject_release_at": "2026-11-23T12:34:00+07:00"
+        }
+      }
+    ],
+    "selected": [
+      "2026-11-23T05:38:00Z"
+    ],
+    "elapsed_ms_fixture": 160.442,
+    "independent_oracle": {
+      "dc_model": "synthetic_taper_v1",
+      "baseline_goal_crossing": 18,
+      "baseline_original_crossing": 29
+    }
+  }
+]

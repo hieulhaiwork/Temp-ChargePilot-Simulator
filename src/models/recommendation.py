@@ -116,8 +116,14 @@ class BookingSla(_Contract):
     original: CommitmentOutcome
 
 
+class TargetAttainment(_Contract):
+    target_soc: Soc
+    target_reached_at: AwareDatetime | None
+    already_satisfied_at_snapshot: bool
+
+
 class RecommendationEvidence(_Contract):
-    ref: str
+    ref: str = Field(description="Identity of the authorized evidence projection. Append a JSON Pointer for a field.")
     input_sha256: str
     config_sha256: str
     final_physics_sha256: str
@@ -135,7 +141,9 @@ class RecommendationEvidence(_Contract):
     booking_sla: tuple[BookingSla, ...] = ()
     subject_original: CommitmentOutcome | None = None
     subject_revised: CommitmentOutcome | None = None
+    subject_goal_target: TargetAttainment | None = None
     subject_soc_at_deadline_pct: Soc | None = None
+    subject_soc_observed_at: AwareDatetime | None = None
     subject_release_at: AwareDatetime | None = None
 
 

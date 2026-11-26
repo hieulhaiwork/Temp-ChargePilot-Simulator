@@ -23,6 +23,7 @@ from src.models.recommendation import (
     RecommendationGoal,
     RecommendationResult,
     SearchStatus,
+    TargetAttainment,
 )
 from src.models.station import SupplyMode
 from src.models.what_if import ReviseVehicle, SiteLimit, SlaMetrics, WhatIfPatch
@@ -56,22 +57,44 @@ _RANKING = {
 
 
 class _DeadlineObservation(_WhatIfIntervention):
-    def __init__(
-        self, snapshot: CapturedSnapshot, prepared: PreparedWhatIf | None, goal: RecommendationGoal | None
-    ) -> None:
+    def __init__(self, snapshot: CapturedSnapshot, prepared: PreparedWhatIf | None, goal: RecommendationGoal) -> None:
         super().__init__(prepared, _announced_grid_limits(snapshot), capture_minute=snapshot.envelope.sim_minute)
         self.goal = goal
         self.deadline_soc_pct: float | None = None
+        self.baseline_goal_soc: float | None = None
+        self.baseline_goal_reached_at: datetime | None = None
+        self.baseline_goal_satisfied_at_snapshot = False
+        if prepared is None and isinstance(goal, EarliestCompletionForTarget):
+            original = next(b for b in snapshot.known_bookings if b.booking_id == goal.booking_id)
+            if goal.target_soc != original.request.soc_target:
+                self.baseline_goal_soc = goal.target_soc
+                session = snapshot.physics_state["sessions"][goal.booking_id]
+                self.baseline_goal_satisfied_at_snapshot = (
+                    session["state"] != "NOT_ARRIVED" and session["current_soc"] * 100 >= goal.target_soc - SOC_EPS_PCT
+                )
 
     def after_step(self, runtime: StationRuntime) -> None:
         super().after_step(runtime)
         goal = self.goal
-        if isinstance(goal, MaxSocByDeadline) and runtime.simulator.now == goal.deadline:
-            station = runtime.simulator
-            with station.lock:
-                session = station.queue.sessions[goal.booking_id]
-                if session.state != "NOT_ARRIVED":
-                    self.deadline_soc_pct = station.adapter.soc(goal.booking_id) * 100
+        if isinstance(goal, MinTestedSiteLimitForSla):
+            return
+        station = runtime.simulator
+        measure_deadline = isinstance(goal, MaxSocByDeadline) and station.now == goal.deadline
+        target = self.baseline_goal_soc
+        measure_target = target is not None and not (
+            self.baseline_goal_satisfied_at_snapshot or self.baseline_goal_reached_at is not None
+        )
+        if not (measure_deadline or measure_target):
+            return
+        with station.lock:
+            session = station.queue.sessions[goal.booking_id]
+            if session.state == "NOT_ARRIVED":
+                return
+            soc = station.adapter.soc(goal.booking_id) * 100
+            if measure_deadline:
+                self.deadline_soc_pct = soc
+            elif target is not None and soc >= target - SOC_EPS_PCT:
+                self.baseline_goal_reached_at = station.now
 
 
 def _even_indices(size: int, limit: int) -> tuple[int, ...]:
@@ -175,8 +198,23 @@ def _evidence(
                 {"station_config_sha256": config_sha, "site_grid_input_kw": patch.grid_input_kw}
             )
     ledger = branch.outcome_ledger
+    scope: dict[str, str | float] = {"goal": goal.goal}
+    if not isinstance(goal, MinTestedSiteLimitForSla):
+        scope["booking_id"] = goal.booking_id
+        if isinstance(goal, MaxSocByDeadline):
+            scope["soc_observation_at"] = goal.deadline.astimezone(UTC).isoformat()
+        else:
+            scope["target_soc"] = goal.target_soc
+    projection_sha = canonical_sha256(
+        {
+            "input_sha256": input_sha,
+            "final_physics_sha256": branch.final_physics_digest,
+            "observed_until": branch.observed_until.astimezone(UTC).isoformat(),
+            "scope": scope,
+        }
+    )
     common = dict(
-        ref=f"how-to:branch:{input_sha}",
+        ref=f"how-to:projection:v1:{projection_sha}",
         input_sha256=input_sha,
         config_sha256=config_sha,
         final_physics_sha256=branch.final_physics_digest,
@@ -214,11 +252,33 @@ def _evidence(
 
     row = next(row for row in ledger.vehicles if row.booking_id == goal.booking_id)
     eff = next(b.energy.efficiency for b in snapshot.known_bookings if b.booking_id == goal.booking_id)
+    original = _original_outcome(row, eff)
+    revised = _revised_outcome(row, branch, intervention) if prepared else None
+    attainment = None
+    soc_observed_at = None
+    if isinstance(goal, EarliestCompletionForTarget):
+        outcome = revised or original
+        observes_new_target = intervention.baseline_goal_soc is not None
+        attainment = TargetAttainment(
+            target_soc=goal.target_soc,
+            target_reached_at=intervention.baseline_goal_reached_at
+            if observes_new_target
+            else outcome.target_reached_at,
+            already_satisfied_at_snapshot=(
+                intervention.baseline_goal_satisfied_at_snapshot
+                if observes_new_target
+                else outcome.already_satisfied_at_snapshot
+            ),
+        )
+    elif intervention.deadline_soc_pct is not None:
+        soc_observed_at = goal.deadline
     return RecommendationEvidence(
         **common,
-        subject_original=_original_outcome(row, eff),
-        subject_revised=_revised_outcome(row, branch, intervention) if prepared else None,
+        subject_original=original,
+        subject_revised=revised,
+        subject_goal_target=attainment,
         subject_soc_at_deadline_pct=intervention.deadline_soc_pct,
+        subject_soc_observed_at=soc_observed_at,
         subject_release_at=row.release_or_departure_at,
     )
 
@@ -458,6 +518,7 @@ async def run_recommendation(
     assumptions = (
         *snapshot.event_manifest.assumptions,
         "Recommendations are simulated and advisory. Ranking applies only to the finite tested set.",
+        "Feasibility is assessed against the requested goal and constraints. Use baseline evidence to assess improvement.",
         "SLA uses original commitments unless explicitly labeled revised.",
     )
     if is_site:

@@ -120,7 +120,7 @@ tạo tài liệu song song thay vì sửa tài liệu cũ.
 
 ### 1.3 Task Phase 1
 
-**G5 (26/11) — READY_FOR_REVIEW · HANDOFF_READY.** Checkpoint A–E đạt ở phạm vi cục bộ. Tech Lead nhận review.
+**G5 (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Targeted remediation F01–F04 đã qua 10 cổng. Tech Lead nhận nghiệm thu cuối.
 [Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
 
 
@@ -158,7 +158,7 @@ Ngoài task: HACP (protocol giao tiếp) đã áp dụng trước Phase 1 —
 
 **Merged develop `0f877f1`, Codex, 26/11.** Focused 399 pass, backend 808 pass + 8 forecast skips, standalone 180,
 frontend 59, Golden 38/38 và frozen backend 100/100. **Patch G5** qua 24 focused, 180 regression G2/G3/G4/G6A,
-832 backend + 8 forecast skips, standalone 180 và mọi cổng trong runner. [Evidence G5](../../eval/evidence/2026-11-26-ai4-g5/raw)
+832 backend + 8 forecast skips, standalone 180 và mọi cổng trong runner. **Sau remediation** đạt 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips và standalone 180. [Evidence G5](../../eval/evidence/2026-11-26-ai4-g5/raw)
 
 | Kiểm | Kết quả | Khi / ai | Commit code | Hiệu lực |
 |---|---|---|---|---|
@@ -248,7 +248,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 - **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
   Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
-  provenance ở [báo cáo](../ai4/PHASE_4_3_REPORT.md).
+  provenance ở [báo cáo](../ai4/PHASE_4_3_REPORT.md). Targeted remediation giữ HEAD và cập nhật 2 file recommendation,
+  thêm oracle hybrid và verification bundle có SHA-256. Các thay đổi ở working tree.
 
 - Repo `D:\VIN\P-019`, branch `feature/unified-core`, HEAD `ce23136` — trùng `origin/feature/unified-core`.
 - **Thay đổi chưa commit của Phase 1** (chỉ tài liệu, không được reset / ghi đè):
@@ -277,6 +278,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 - **Targeted Independent Re-review sau P1-12e (25/11, Codex):** bốn hash §1.4 khớp và vẫn khớp cuối lượt; chỉ cập nhật báo cáo hiện có và checkpoint được cấp quyền trong HANDOFF. Không thêm file repo, không sửa tài liệu review/source/test/baseline/CI. Technical Acceptance **PASS**, Formal Closure **NOT_READY**; evidence hiện hành ở báo cáo §T0–T5. Đã render thực tế đủ5 sơ đồ bằng Mermaid CLI12.2.0 trong cache tạm riêng, ảnh nằm ngoài repo trong Temp (đường dẫn/hash/lệnh ở §T3); không đổi dependency dự án. Trạng thái render chưa kiểm ở §1.4/P1-12e là evidence lịch sử, được thay bởi kết quả độc lập này.
 
 ### 1.9 Agent và khoá chỉnh sửa
+
+**G5 targeted remediation.** Codex đã nhận khoá F01–F04 theo review `9ecb1af`, đối chiếu đủ năm hash của patch cũ và chạy lại 10 cổng trên candidate mới. Chênh lệch checkpoint là RECOVERABLE. Đã nhả khoá sau HANDOFF_READY.
 
 **AI-4 G5 (2026-11-26).** Codex nhận khoá implementation, tests, roadmap và evidence G5 trên `feature/ai-4-how-to` tại merged develop `0f877f1`. Đã nhả khoá sau HANDOFF_READY. Review độc lập chuyển Tech Lead. [Checkpoint G5](../ai4/PROJECT_STATE.md)
 
@@ -307,8 +310,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
 
 ### 1.10 Việc Agent tiếp theo cần làm
 
-**G5.** Tech Lead review candidate, đối chiếu patch SHA-256 và oracle. Nhóm duyệt đề xuất đồng bộ PRD/ADR-015.
-G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5)**.
+**G5.** Tech Lead đối chiếu patch, oracle và gói evidence để nghiệm thu cuối. Nhóm duyệt đề xuất đồng bộ PRD/ADR-015.
+G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 5)**.
 
 1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
    (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
@@ -320,6 +323,10 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5
    (chỉ kế hoạch, implementation chưa duyệt).
 
 ### 1.11 Nhật ký checkpoint
+
+**26/11, Codex.** Targeted remediation G5–F01–F04 đã qua 10 cổng. Hai file recommendation thay đổi, 24 tests trước
+remediation khớp byte và thêm 6 tests. Đã đóng gói bằng chứng, ghi READY_FOR_FINAL_ACCEPTANCE và nhả khoá.
+[Báo cáo và bundle](../ai4/PHASE_4_3_REPORT.md)
 
 **26/11, Codex.** Đã khôi phục checkpoint từ merged develop, ghi quyết định roadmap, triển khai G5 và xác minh patch cuối.
 **HANDOFF_READY**, nhả khoá và dừng chờ Tech Lead. [Báo cáo G5](../ai4/PHASE_4_3_REPORT.md)

@@ -122,4 +122,18 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
 | G6A-F02 | PENDING G6B | Phản hồi 401 trễ khi đổi phiên. |
 | G6A-F03 | PENDING G6B | Parser semantic correctness. |
 
-G5 **READY_FOR_REVIEW**. Oracle và gate candidate đã qua. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
+Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
+
+
+## G5 targeted remediation
+
+| Finding | Xử lý |
+|---|---|
+| G5-F01 | Oracle actual simulator trên M3a/M3b dùng 2 AC + 2 DC với DC taper synthetic, lấy mẫu vật lý từng phút. 94 kW là mức nhỏ nhất đã xác minh giữ 4/4 SLA trong ca mixed load. |
+| G5-F02 | Baseline quan sát cùng target với goal, giữ original SLA riêng. Có ca M3a đạt sớm 6 phút và ca baseline đã đáp ứng với cùng attainment/release trên cả năm ứng viên. |
+| G5-F03 | Tách provenance đầu vào khỏi ref của projection. Cùng snapshot có 4 projection theo booking, goal hoặc phút quan sát. Trước sửa chỉ có 1 ref. Field-level claim dùng JSON Pointer tới phần evidence đã chiếu. |
+| G5-F04 | Rule Git bỏ qua raw logs và patch rời. Gói verification ZIP nhỏ gồm bản patch, checksum, file hashes, full/gate logs, JUnit, oracle và exit ledger. |
+
+[Báo cáo và bằng chứng](PHASE_4_3_REPORT.md)
+
+**G5 — READY_FOR_FINAL_ACCEPTANCE.** Bốn finding đã có bằng chứng kiểm chứng cục bộ. Tech Lead quyết định cuối.

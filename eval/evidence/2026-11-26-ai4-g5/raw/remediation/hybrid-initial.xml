@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="6" time="4.012" timestamp="2026-11-26T02:30:36.854072+00:00" hostname="LEHIEULAP"><testcase classname="tests.test_services.test_recommendation_hybrid" name="test_m3a_dc_max_soc_uses_deadline_taper_and_keeps_original_sla" file="tests/test_services/test_recommendation_hybrid.py" line="172" time="0.856"><failure message="assert 98.85052629473685 &lt;= (65 + 2e-06)">minute_samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 22, 'schedule_version': 1, ...}, ...], ...}
+record_property = &lt;function record_property.&lt;locals&gt;.append_property at 0x76b95ca74cc0&gt;
+
+    async def test_m3a_dc_max_soc_uses_deadline_taper_and_keeps_original_sla(minute_samples, record_property):
+        rt = _hybrid_runtime("M3a", 65, _TAPER_LOAD)
+        t = rt.clock()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
+        goal = _max_at(rt, 18, low=70, high=90, allow_lower_target=True, allow_subject_original_sla_regression=True)
+        res = await run_recommendation(snap, _actor(rt), goal)
+        assert res.policy_id == "M3a"
+&gt;       physics = _physics_oracle(minute_samples, dict.fromkeys(minute_samples, 65))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_recommendation_hybrid.py:180: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 22, 'schedule_version': 1, ...}, ...], ...}
+branches = {'baseline': 65, 'candidate-1': 65, 'candidate-2': 65, 'candidate-3': 65, ...}
+
+    def _physics_oracle(samples, branches):
+        """Integrate actual meter deltas and independently check installed limits and taper."""
+        port_caps = {"AC-01-1": 11, "AC-02-1": 11, "DC-01-1": 60, "DC-01-2": 60}
+        assert set(samples) == set(branches)
+        summaries = {}
+        for label, frames in samples.items():
+            site_cap = branches[label]
+            peak_grid = peak_ac = peak_dc = 0.0
+            mixed_minutes = 0
+            dc_taper_minutes = 0
+            for before, after in zip(frames, frames[1:], strict=False):
+                assert after["minute"] - before["minute"] == 1
+                assert len(after["occupied_connectors"]) == len(set(after["occupied_connectors"].values()))
+                zones = {"AC": 0.0, "DC": 0.0}
+                for name, session in after["sessions"].items():
+                    previous = before["sessions"][name]
+                    output = (session["output_kwh"] - previous["output_kwh"]) * 60
+                    grid = (session["delivered_grid_kwh"] - previous["delivered_grid_kwh"]) * 60
+                    stored = session["delivered_battery_kwh"] - previous["delivered_battery_kwh"]
+                    assert output &gt;= -2e-6
+                    assert grid == pytest.approx(output / CONVERSION, abs=2e-6)
+                    assert stored == pytest.approx(output * EFFICIENCY / 60, abs=2e-8)
+                    if output &lt;= 2e-6:
+                        continue
+                    connector = session["connector_id"] or session["last_connector_id"]
+                    zone = connector[:2]
+                    zones[zone] += output
+                    assert output &lt;= port_caps[connector] + 2e-6
+                    if zone == "DC":
+                        # Configured synthetic acceptance starts tapering above 60% SOC.
+                        soc = previous["current_soc"]
+                        taper = max(0.05, 1 - 2.25 * max(0, soc - 0.60))
+                        assert output &lt;= 60 * taper + 2e-6
+                        dc_taper_minutes += soc &gt; 0.60
+                assert zones["AC"] &lt;= 22 + 2e-6 and zones["DC"] &lt;= 120 + 2e-6
+                total_grid = sum(zones.values()) / CONVERSION
+&gt;               assert total_grid &lt;= site_cap + 2e-6
+E               assert 98.85052629473685 &lt;= (65 + 2e-06)
+
+tests/test_services/test_recommendation_hybrid.py:134: AssertionError</failure></testcase><testcase classname="tests.test_services.test_recommendation_hybrid" name="test_m3a_dc_deadline_changes_actual_completion_under_contention" file="tests/test_services/test_recommendation_hybrid.py" line="208" time="0.763"><failure message="assert 98.84947364210527 &lt;= (55 + 2e-06)">minute_samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 22, 'schedule_version': 1, ...}, ...], ...}
+record_property = &lt;function record_property.&lt;locals&gt;.append_property at 0x76b94ea73a60&gt;
+
+    async def test_m3a_dc_deadline_changes_actual_completion_under_contention(minute_samples, record_property):
+        load = (
+            ("a", "DC", 30, 59, 55),
+            ("dc-rival", "DC", 30, 65, 30),
+            ("ac-a", "AC", 30, 35, 36),
+            ("ac-b", "AC", 40, 42, 28),
+        )
+        rt = _hybrid_runtime("M3a", 55, load)
+        t = rt.clock()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
+        res = await run_recommendation(
+            snap, _actor(rt), _earliest(rt, 18, 42, target_soc=59, allow_subject_original_sla_regression=True)
+        )
+        assert res.policy_id == "M3a" and res.search_status == SearchStatus.FOUND
+&gt;       physics = _physics_oracle(minute_samples, dict.fromkeys(minute_samples, 55))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_recommendation_hybrid.py:223: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 22, 'schedule_version': 1, ...}, ...], ...}
+branches = {'baseline': 55, 'candidate-1': 55, 'candidate-2': 55, 'candidate-3': 55, ...}
+
+    def _physics_oracle(samples, branches):
+        """Integrate actual meter deltas and independently check installed limits and taper."""
+        port_caps = {"AC-01-1": 11, "AC-02-1": 11, "DC-01-1": 60, "DC-01-2": 60}
+        assert set(samples) == set(branches)
+        summaries = {}
+        for label, frames in samples.items():
+            site_cap = branches[label]
+            peak_grid = peak_ac = peak_dc = 0.0
+            mixed_minutes = 0
+            dc_taper_minutes = 0
+            for before, after in zip(frames, frames[1:], strict=False):
+                assert after["minute"] - before["minute"] == 1
+                assert len(after["occupied_connectors"]) == len(set(after["occupied_connectors"].values()))
+                zones = {"AC": 0.0, "DC": 0.0}
+                for name, session in after["sessions"].items():
+                    previous = before["sessions"][name]
+                    output = (session["output_kwh"] - previous["output_kwh"]) * 60
+                    grid = (session["delivered_grid_kwh"] - previous["delivered_grid_kwh"]) * 60
+                    stored = session["delivered_battery_kwh"] - previous["delivered_battery_kwh"]
+                    assert output &gt;= -2e-6
+                    assert grid == pytest.approx(output / CONVERSION, abs=2e-6)
+                    assert stored == pytest.approx(output * EFFICIENCY / 60, abs=2e-8)
+                    if output &lt;= 2e-6:
+                        continue
+                    connector = session["connector_id"] or session["last_connector_id"]
+                    zone = connector[:2]
+                    zones[zone] += output
+                    assert output &lt;= port_caps[connector] + 2e-6
+                    if zone == "DC":
+                        # Configured synthetic acceptance starts tapering above 60% SOC.
+                        soc = previous["current_soc"]
+                        taper = max(0.05, 1 - 2.25 * max(0, soc - 0.60))
+                        assert output &lt;= 60 * taper + 2e-6
+                        dc_taper_minutes += soc &gt; 0.60
+                assert zones["AC"] &lt;= 22 + 2e-6 and zones["DC"] &lt;= 120 + 2e-6
+                total_grid = sum(zones.values()) / CONVERSION
+&gt;               assert total_grid &lt;= site_cap + 2e-6
+E               assert 98.84947364210527 &lt;= (55 + 2e-06)
+
+tests/test_services/test_recommendation_hybrid.py:134: AssertionError</failure></testcase><testcase classname="tests.test_services.test_recommendation_hybrid" name="test_m3a_baseline_already_meets_goal_and_feasible_deadlines_do_not_improve_completion" file="tests/test_services/test_recommendation_hybrid.py" line="245" time="0.627"><failure message="AssertionError: assert '33390562e09c...1ee808352ae17' == '159748de1aed...bfaf7b3b95092'&#10;  &#10;  - 159748de1aed845ae87dd4926fe61613bab24cc828465340d69bfaf7b3b95092&#10;  + 33390562e09c795df5072c28cdb45482bf5bc5af1709b6289dc1ee808352ae17">minute_samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 22, 'schedule_version': 1, ...}, ...], ...}
+record_property = &lt;function record_property.&lt;locals&gt;.append_property at 0x76b94ea73d80&gt;
+
+    async def test_m3a_baseline_already_meets_goal_and_feasible_deadlines_do_not_improve_completion(
+        minute_samples, record_property
+    ):
+        rt = _hybrid_runtime("M3a", 65, _TAPER_LOAD)
+        t = rt.clock()
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=60)
+        res = await run_recommendation(snap, _actor(rt), _earliest(rt, 34, 38, target_soc=83))
+        assert res.search_status == SearchStatus.FOUND and res.baseline.subject_original.met_deadline
+        assert _crossing(minute_samples["baseline"], "a", 83) == 29
+        base_attainment = res.baseline.subject_goal_target
+        assert base_attainment.target_reached_at == t + timedelta(minutes=29)
+        assert res.baseline.subject_release_at == t + timedelta(minutes=34)
+        assert len(res.options) == 3
+        for i, candidate in enumerate(res.candidates, start=1):
+            _assert_safe(candidate.evidence)
+            assert candidate.feasibility == Feasibility.FEASIBLE
+            assert candidate.evidence.subject_revised.met_deadline
+            assert candidate.evidence.subject_goal_target == base_attainment
+            assert candidate.evidence.subject_release_at == res.baseline.subject_release_at
+            assert _crossing(minute_samples[f"candidate-{i}"], "a", 83) == 29
+        unchanged = res.options[0]
+        assert unchanged.value == res.baseline.subject_original.deadline
+&gt;       assert unchanged.evidence.final_physics_sha256 == res.baseline.final_physics_sha256
+E       AssertionError: assert '33390562e09c...1ee808352ae17' == '159748de1aed...bfaf7b3b95092'
+E         
+E         - 159748de1aed845ae87dd4926fe61613bab24cc828465340d69bfaf7b3b95092
+E         + 33390562e09c795df5072c28cdb45482bf5bc5af1709b6289dc1ee808352ae17
+
+tests/test_services/test_recommendation_hybrid.py:268: AssertionError</failure></testcase><testcase classname="tests.test_services.test_recommendation_hybrid" name="test_m3b_shared_source_increase_and_per_booking_ac_protection" file="tests/test_services/test_recommendation_hybrid.py" line="272" time="0.537"><failure message="assert 105.91999995789475 &lt;= (75 + 2e-06)">minute_samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 21, 'schedule_version': 1, ...}, ...], ...}
+record_property = &lt;function record_property.&lt;locals&gt;.append_property at 0x76b93d235a80&gt;
+
+    async def test_m3b_shared_source_increase_and_per_booking_ac_protection(minute_samples, record_property):
+        load = (
+            ("a", "DC", 30, 50, 27),
+            ("dc-rival", "DC", 35, 54, 27),
+            ("ac-a", "AC", 30, 31, 22),
+            ("ac-b", "AC", 40, 41, 22),
+        )
+        rt = _hybrid_runtime("M3b", 75, load)
+        snap = await capture_atomic_snapshot(rt, horizon_minutes=45)
+        actor = _actor(rt, role=Role.OPERATOR)
+        goal = _site(22, 106, min_original_on_time_rate=0.75, hypothetical_infrastructure=True)
+        res = await run_recommendation(snap, actor, goal)
+        assert res.policy_id == "M3b" and res.policy_version == "1"
+        caps = {f"candidate-{i}": cap for i, cap in enumerate(res.candidate_set.values, start=1)}
+&gt;       physics = _physics_oracle(minute_samples, {"baseline": 75, **caps})
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_services/test_recommendation_hybrid.py:287: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+samples = {'baseline': [mappingproxy({'minute': 0, 'now_iso': '2026-11-23T12:00:00+07:00', 'state_version': 8, 'schedule_version.....}, {'minute': 5, 'now_iso': '2026-11-23T12:05:00+07:00', 'state_version': 21, 'schedule_version': 1, ...}, ...], ...}
+branches = {'baseline': 75, 'candidate-1': 22.0, 'candidate-2': 34.0, 'candidate-3': 46.0, ...}
+
+    def _physics_oracle(samples, branches):
+        """Integrate actual meter deltas and independently check installed limits and taper."""
+        port_caps = {"AC-01-1": 11, "AC-02-1": 11, "DC-01-1": 60, "DC-01-2": 60}
+        assert set(samples) == set(branches)
+        summaries = {}
+        for label, frames in samples.items():
+            site_cap = branches[label]
+            peak_grid = peak_ac = peak_dc = 0.0
+            mixed_minutes = 0
+            dc_taper_minutes = 0
+            for before, after in zip(frames, frames[1:], strict=False):
+                assert after["minute"] - before["minute"] == 1
+                assert len(after["occupied_connectors"]) == len(set(after["occupied_connectors"].values()))
+                zones = {"AC": 0.0, "DC": 0.0}
+                for name, session in after["sessions"].items():
+                    previous = before["sessions"][name]
+                    output = (session["output_kwh"] - previous["output_kwh"]) * 60
+                    grid = (session["delivered_grid_kwh"] - previous["delivered_grid_kwh"]) * 60
+                    stored = session["delivered_battery_kwh"] - previous["delivered_battery_kwh"]
+                    assert output &gt;= -2e-6
+                    assert grid == pytest.approx(output / CONVERSION, abs=2e-6)
+                    assert stored == pytest.approx(output * EFFICIENCY / 60, abs=2e-8)
+                    if output &lt;= 2e-6:
+                        continue
+                    connector = session["connector_id"] or session["last_connector_id"]
+                    zone = connector[:2]
+                    zones[zone] += output
+                    assert output &lt;= port_caps[connector] + 2e-6
+                    if zone == "DC":
+                        # Configured synthetic acceptance starts tapering above 60% SOC.
+                        soc = previous["current_soc"]
+                        taper = max(0.05, 1 - 2.25 * max(0, soc - 0.60))
+                        assert output &lt;= 60 * taper + 2e-6
+                        dc_taper_minutes += soc &gt; 0.60
+                assert zones["AC"] &lt;= 22 + 2e-6 and zones["DC"] &lt;= 120 + 2e-6
+                total_grid = sum(zones.values()) / CONVERSION
+&gt;               assert total_grid &lt;= site_cap + 2e-6
+E               assert 105.91999995789475 &lt;= (75 + 2e-06)
+
+tests/test_services/test_recommendation_hybrid.py:134: AssertionError</failure></testcase><testcase classname="tests.test_services.test_recommendation_hybrid" name="test_earliest_baseline_observes_requested_target_separately_from_original" file="tests/test_services/test_recommendation_hybrid.py" line="327" time="0.159"><properties><property name="result" value="{&quot;applied&quot;:false,&quot;goal&quot;:{&quot;booking_id&quot;:&quot;a&quot;,&quot;allow_lower_target&quot;:true,&quot;allow_later_deadline&quot;:false,&quot;allow_subject_original_sla_regression&quot;:true,&quot;goal&quot;:&quot;earliest_completion_for_target&quot;,&quot;target_soc&quot;:75.0,&quot;earliest_deadline&quot;:&quot;2026-11-23T12:38:00+07:00&quot;,&quot;latest_deadline&quot;:&quot;2026-11-23T12:38:00+07:00&quot;},&quot;search_status&quot;:&quot;found&quot;,&quot;unsupported_reason&quot;:null,&quot;baseline_issue&quot;:null,&quot;snapshot_id&quot;:&quot;snap-328ad1eb50d047f7&quot;,&quot;snapshot_sha256&quot;:&quot;208f0e85927455e61d0538a92b2823ec5724f88699657c95f9556457283a13fd&quot;,&quot;known_at&quot;:&quot;2026-11-23T12:00:00+07:00&quot;,&quot;horizon_end&quot;:&quot;2026-11-23T13:00:00+07:00&quot;,&quot;event_manifest_sha256&quot;:&quot;6989eab17a0f1430531e63fe7307ff54640a45a862d885821b25e2a8b3fb7b27&quot;,&quot;experiment_fingerprint&quot;:&quot;82d029f05a5255a11203751f93f795927c2e5c6608374d560ad9931a5daa0c12&quot;,&quot;policy_id&quot;:&quot;M3a&quot;,&quot;policy_version&quot;:&quot;1&quot;,&quot;candidate_set&quot;:{&quot;version&quot;:&quot;chargepilot.how_to_candidates/1&quot;,&quot;search_variable&quot;:&quot;deadline&quot;,&quot;values&quot;:[&quot;2026-11-23T05:38:00Z&quot;]},&quot;baseline&quot;:{&quot;ref&quot;:&quot;how-to:projection:v1:246c90d35149c703083307c178e0048770d9765d24b7c44c26eb514c5d827f96&quot;,&quot;input_sha256&quot;:&quot;208f0e85927455e61d0538a92b2823ec5724f88699657c95f9556457283a13fd&quot;,&quot;config_sha256&quot;:&quot;f95c1783d2a1ba08a7c307877469cdc5c241de47f3263745adf4530aecc5bb0d&quot;,&quot;final_physics_sha256&quot;:&quot;159748de1aed845ae87dd4926fe61613bab24cc828465340d69bfaf7b3b95092&quot;,&quot;observed_until&quot;:&quot;2026-11-23T13:00:00+07:00&quot;,&quot;branch_status&quot;:&quot;completed&quot;,&quot;hard_violations&quot;:0,&quot;rejected_allocations&quot;:0,&quot;safety_holds&quot;:0,&quot;unresolved_safety_count&quot;:0,&quot;blocked_commands&quot;:0,&quot;pending_approvals&quot;:0,&quot;pending_approval_commands&quot;:0,&quot;elapsed_ms&quot;:74.869,&quot;original_sla&quot;:null,&quot;booking_sla&quot;:[],&quot;subject_original&quot;:{&quot;target_soc&quot;:83.0,&quot;deadline&quot;:&quot;2026-11-23T12:38:00+07:00&quot;,&quot;target_reached_at&quot;:&quot;2026-11-23T12:29:00+07:00&quot;,&quot;already_satisfied_at_snapshot&quot;:false,&quot;met_deadline&quot;:true,&quot;remaining_battery_kwh&quot;:0.0,&quot;remaining_output_kwh&quot;:0.0},&quot;subject_revised&quot;:null,&quot;subject_goal_target&quot;:{&quot;target_soc&quot;:75.0,&quot;target_reached_at&quot;:&quot;2026-11-23T12:18:00+07:00&quot;,&quot;already_satisfied_at_snapshot&quot;:false},&quot;subject_soc_at_deadline_pct&quot;:null,&quot;subject_soc_observed_at&quot;:null,&quot;subject_release_at&quot;:&quot;2026-11-23T12:34:00+07:00&quot;},&quot;candidates&quot;:[{&quot;value&quot;:&quot;2026-11-23T05:38:00Z&quot;,&quot;status&quot;:&quot;completed&quot;,&quot;feasibility&quot;:&quot;feasible&quot;,&quot;reason&quot;:null,&quot;hypothetical_infrastructure&quot;:false,&quot;evidence&quot;:{&quot;ref&quot;:&quot;how-to:projection:v1:d06ed738f94f91f9ab276bdba310a4f074ea268521e11308244590f95b53d577&quot;,&quot;input_sha256&quot;:&quot;3d1edb4ce1344c0bddd1038d9a036b27ed315a6b6fe50353ec41c04b9fdfd395&quot;,&quot;config_sha256&quot;:&quot;f95c1783d2a1ba08a7c307877469cdc5c241de47f3263745adf4530aecc5bb0d&quot;,&quot;final_physics_sha256&quot;:&quot;756cbcafb98d1ca1b4e54facc7b80fe41d7495ee46bf0cdee7d9795fcebfc917&quot;,&quot;observed_until&quot;:&quot;2026-11-23T13:00:00+07:00&quot;,&quot;branch_status&quot;:&quot;completed&quot;,&quot;hard_violations&quot;:0,&quot;rejected_allocations&quot;:0,&quot;safety_holds&quot;:0,&quot;unresolved_safety_count&quot;:0,&quot;blocked_commands&quot;:0,&quot;pending_approvals&quot;:0,&quot;pending_approval_commands&quot;:0,&quot;elapsed_ms&quot;:73.489,&quot;original_sla&quot;:null,&quot;booking_sla&quot;:[],&quot;subject_original&quot;:{&quot;target_soc&quot;:83.0,&quot;deadline&quot;:&quot;2026-11-23T12:38:00+07:00&quot;,&quot;target_reached_at&quot;:null,&quot;already_satisfied_at_snapshot&quot;:false,&quot;met_deadline&quot;:false,&quot;remaining_battery_kwh&quot;:4.8104,&quot;remaining_output_kwh&quot;:4.908571},&quot;subject_revised&quot;:{&quot;target_soc&quot;:75.0,&quot;deadline&quot;:&quot;2026-11-23T05:38:00Z&quot;,&quot;target_reached_at&quot;:&quot;2026-11-23T12:29:00+07:00&quot;,&quot;already_satisfied_at_snapshot&quot;:false,&quot;met_deadline&quot;:true,&quot;remaining_battery_kwh&quot;:0.0,&quot;remaining_output_kwh&quot;:0.0},&quot;subject_goal_target&quot;:{&quot;target_soc&quot;:75.0,&quot;target_reached_at&quot;:&quot;2026-11-23T12:29:00+07:00&quot;,&quot;already_satisfied_at_snapshot&quot;:false},&quot;subject_soc_at_deadline_pct&quot;:null,&quot;subject_soc_observed_at&quot;:null,&quot;subject_release_at&quot;:&quot;2026-11-23T12:34:00+07:00&quot;}}],&quot;options&quot;:[{&quot;value&quot;:&quot;2026-11-23T05:38:00Z&quot;,&quot;status&quot;:&quot;completed&quot;,&quot;feasibility&quot;:&quot;feasible&quot;,&quot;reason&quot;:null,&quot;hypothetical_infrastructure&quot;:false,&quot;evidence&quot;:{&quot;ref&quot;:&quot;how-to:projection:v1:d06ed738f94f91f9ab276bdba310a4f074ea268521e11308244590f95b53d577&quot;,&quot;input_sha256&quot;:&quot;3d1edb4ce1344c0bddd1038d9a036b27ed315a6b6fe50353ec41c04b9fdfd395&quot;,&quot;config_sha256&quot;:&quot;f95c1783d2a1ba08a7c307877469cdc5c241de47f3263745adf4530aecc5bb0d&quot;,&quot;final_physics_sha256&quot;:&quot;756cbcafb98d1ca1b4e54facc7b80fe41d7495ee46bf0cdee7d9795fcebfc917&quot;,&quot;observed_until&quot;:&quot;2026-11-23T13:00:00+07:00&quot;,&quot;branch_status&quot;:&quot;completed&quot;,&quot;hard_violations&quot;:0,&quot;rejected_allocations&quot;:0,&quot;safety_holds&quot;:0,&quot;unresolved_safety_count&quot;:0,&quot;blocked_commands&quot;:0,&quot;pending_approvals&quot;:0,&quot;pending_approval_commands&quot;:0,&quot;elapsed_ms&quot;:73.489,&quot;original_sla&quot;:null,&quot;booking_sla&quot;:[],&quot;subject_original&quot;:{&quot;target_soc&quot;:83.0,&quot;deadline&quot;:&quot;2026-11-23T12:38:00+07:00&quot;,&quot;target_reached_at&quot;:null,&quot;already_satisfied_at_snapshot&quot;:false,&quot;met_deadline&quot;:false,&quot;remaining_battery_kwh&quot;:4.8104,&quot;remaining_output_kwh&quot;:4.908571},&quot;subject_revised&quot;:{&quot;target_soc&quot;:75.0,&quot;deadline&quot;:&quot;2026-11-23T05:38:00Z&quot;,&quot;target_reached_at&quot;:&quot;2026-11-23T12:29:00+07:00&quot;,&quot;already_satisfied_at_snapshot&quot;:false,&quot;met_deadline&quot;:true,&quot;remaining_battery_kwh&quot;:0.0,&quot;remaining_output_kwh&quot;:0.0},&quot;subject_goal_target&quot;:{&quot;target_soc&quot;:75.0,&quot;target_reached_at&quot;:&quot;2026-11-23T12:29:00+07:00&quot;,&quot;already_satisfied_at_snapshot&quot;:false},&quot;subject_soc_at_deadline_pct&quot;:null,&quot;subject_soc_observed_at&quot;:null,&quot;subject_release_at&quot;:&quot;2026-11-23T12:34:00+07:00&quot;}}],&quot;ranking&quot;:[&quot;earliest_observed_target_attainment&quot;,&quot;smallest_change_from_original_deadline&quot;,&quot;earliest_requested_deadline&quot;],&quot;assumptions&quot;:[&quot;Prospective known_at(T) boundary: live bookings are known through committed store membership at capture; synthetic bookings use created_at &lt;= T in simulator time.&quot;,&quot;Prospective known_at(T) boundary: only supply/cabinet limit events announced at or before T (announced_minute &lt;= as_of_minute) are visible to optimizer and sandbox physics.&quot;,&quot;Current backend Incident payloads carry no announcement timestamp; only incidents already effective in station state at T are included (no unannounced future benchmark incidents).&quot;,&quot;Pending HITL/resident approvals remain undecided during non-interactive sandbox rollout unless explicitly resolved in future phases.&quot;,&quot;Live runtime is never stepped, drained, or mutated during snapshot capture or sandbox rollout.&quot;,&quot;Recommendations are simulated and advisory. Ranking applies only to the finite tested set.&quot;,&quot;Feasibility is assessed against the requested goal and constraints. Use baseline evidence to assess improvement.&quot;,&quot;SLA uses original commitments unless explicitly labeled revised.&quot;,&quot;Other bookings' original on-time outcomes are protected. Unknown preservation prevents verification.&quot;,&quot;Target attainment and connector release are separate. Already-satisfied targets need no further charging.&quot;],&quot;baseline_execution_count&quot;:1,&quot;branch_execution_count&quot;:2,&quot;elapsed_ms&quot;:152.312}" /><property name="numerical_oracle" value="{&quot;dc_model&quot;: &quot;synthetic_taper_v1&quot;, &quot;baseline_goal_crossing&quot;: 18, &quot;baseline_original_crossing&quot;: 29}" /></properties></testcase><testcase classname="tests.test_services.test_recommendation_hybrid" name="test_evidence_identity_distinguishes_subject_goal_and_observation_time" file="tests/test_services/test_recommendation_hybrid.py" line="349" time="0.717" /></testsuite></testsuites>

@@ -55,3 +55,12 @@
 - **G5 READY_FOR_REVIEW · HANDOFF_READY.** Merge baseline `0f877f1`, mirror `20bb246`. Patch cuối qua 24 tests G5, 180 hồi quy focused và 832 backend pass + 8 forecast skips. [Báo cáo](PHASE_4_3_REPORT.md) G6A-F01/F02/F03 dành cho G6B. Real LLM và PostgreSQL runtime PENDING. [Recovery](G5_RECOVERY_STATE.md)
 
 **STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5)**
+
+
+## 8. Gate 5 · Targeted remediation
+
+- **Tech Lead review `9ecb1af`.** CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED. Phạm vi gồm G5-F01–F04. Kiến trúc bounded search và 24 tests cũ đã được chấp nhận.
+- **Findings.** Thêm oracle mixed AC/DC trên M3a/M3b, đối chiếu actual completion và release với baseline, tách branch provenance và projection ref, đóng gói raw evidence độc lập. [Báo cáo](PHASE_4_3_REPORT.md)
+- **G5 READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Patch cuối SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`. 30 G5, 137 focused regression, 43 architecture, 838 backend và 8 forecast skips. [Verification bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip) [Recovery](G5_RECOVERY_STATE.md)
+
+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 5)**

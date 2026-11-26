@@ -1,0 +1,11 @@
+check	exit
+focused-g5	0
+g2-g3-g4-g6a	0
+architecture	1
+backend	1
+standalone	0
+ruff-check	0
+ruff-format	0
+docs	0
+openapi	0
+offline-f1	0

@@ -1,6 +1,86 @@
 # AI-4.3 — HOW-TO Engine · Gate 5
 
-**READY_FOR_REVIEW.** Checkpoint A–E đã kiểm cục bộ trên merged develop và patch G5. Chờ Tech Lead review độc lập.
+**G5 — READY_FOR_FINAL_ACCEPTANCE.** Bốn finding đã qua kiểm chứng cục bộ. Tech Lead quyết định nghiệm thu cuối.
+
+## Targeted remediation · G5-F01–F04
+
+Tech Lead ghi **CONDITIONAL PASS — TARGETED REMEDIATION REQUIRED** cho mirror
+`9ecb1af2fad75ab9a5a92abee7d9de5246664abe`, với patch SHA-256
+`f6ae745b88dd61bbcd19312b96fa09d608a7de3350b56d41c703387d3fd9153e`.
+Lượt này dùng local `0f877f1` tương ứng merged baseline mirror `20bb246`. Năm file đã review khớp checksum trước khi sửa.
+
+| Finding | Xử lý và evidence |
+|---|---|
+| G5-F01 | Thêm oracle mô phỏng trên M3a và M3b version 1, topology 2 AC + 2 DC. Dùng default `synthetic_taper_v1` đã resolve bởi runtime. Test xác minh provenance trong snapshot và trace từng fork. Dữ liệu xe dùng dung lượng fixture 60,13 kWh. Đường sạc DC là mô hình synthetic. |
+| G5-F02 | Bổ sung `subject_goal_target` cho earliest completion, đo cùng target trên baseline và candidate, kể cả khi goal target khác cam kết gốc. `subject_soc_observed_at` ghi phút quan sát SOC của mục tiêu deadline. Kết quả giữ target, deadline, attainment, release, original/revised SLA và các cờ cho phép đánh đổi. |
+| G5-F03 | Giữ `input_sha256` làm provenance của branch. `ref` định danh projection với version, hash đầu vào và trạng thái cuối, cutoff, goal và ngữ cảnh quan sát được phép. Probe trên bản đã review thấy 1 ref cho 4 projection. Bản sửa tạo 4 ref và giữ ref ổn định khi chạy lại cùng projection. |
+| G5-F04 | `git check-ignore -v` xác nhận rule cho `raw/`, `*.patch` và `*.log`. Gói ZIP có checksum chứa bộ bằng chứng cuối và có thể chuyển độc lập. Artifact lịch sử vẫn lưu ở đường dẫn cũ. |
+
+### Oracle định lượng
+
+Các oracle tích phân delta công tơ từng phút trên các fork. Đối chiếu nguồn chung, trần vùng 22/120 kW đầu ra, trần cổng
+11/60 kW, taper trên 60% SOC và chuyển đổi 95% lưới → cổng, 98% cổng → pin. Mốc đạt target kiểm bằng năng lượng thực vào pin.
+Nhánh được chọn phải hoàn thành và qua kiểm safety, Guard và pending approval. `T` là phút capture.
+
+| Ca thử | Candidates + baseline | Quan sát độc lập |
+|---|---:|---|
+| M3a max SOC trước T+18 | 6 + 1 | Chọn 70%. Trần taper độc lập là 84,820754%. Ứng viên 75% đo 74,999930% tại deadline và hụt target. Cam kết gốc 83% đạt T+29 ở baseline. Ứng viên 70% đạt revised SLA và mất original SLA theo cờ cho phép. |
+| M3a deadline trong tải cạnh tranh | 8 + 1 | Cùng target 59%, deadline T+31 cho attainment T+31, sớm hơn 6 phút so với T+37 của baseline. Baseline nhả cổng T+42. Hai ứng viên khả thi khác vẫn đạt T+37. |
+| M3a baseline đã đáp ứng | 5 + 1 | Cả năm ứng viên khả thi có attainment T+29 và release T+34 giống baseline. Tie-break xếp deadline gốc T+38 đầu tiên. |
+| M3b mixed site limit | 8 + 1 | 22 kW đo peak 22,000 kW và cả hai vùng cùng sạc. Nguồn chỉ có thể nạp 9,2169 kWh trước deadline cuối, so với 24,6533 kWh cam kết. Tại 82 kW đạt 3/4, trong đó booking AC `ac-a` từ đúng hạn sang trễ nên bị loại dù đáp ứng ngưỡng 75%. 94 kW là mức thấp nhất đã xác minh đạt 4/4, cuối cùng trả partial vì bốn mức thấp có lệnh bị chặn. |
+| M3a đối chiếu cùng target | 1 + 1 | Goal 75% đo trên baseline tại T+18, khác mốc đạt cam kết gốc 83% tại T+29. Cả hai mốc có trường riêng. |
+
+Feasibility được quyết định theo goal và constraints. Để kết luận có lợi ích, so với baseline tại cùng target hoặc
+cùng phút quan sát. Tách lợi ích về attainment khỏi thay đổi deadline hoặc release. Kết quả unknown cần được diễn giải
+cùng trạng thái nhánh và cutoff. Bảng trên đo fixture, không dùng để cam kết latency triển khai.
+
+### Handoff cho G6B
+
+- Với mỗi claim, ghép `RecommendationEvidence.ref`, `#` và JSON Pointer chính xác tới trường đã qua projection.
+  Ví dụ `#/subject_goal_target/target_reached_at` và `#/subject_release_at` cho hai mốc khác nhau. Giữ subject,
+  stage, unit và thời điểm phù hợp khi G6B xác minh claim.
+- `ref` là định danh bằng chứng được chiếu theo quyền, còn `input_sha256` chứng minh input của branch. Hai projection
+  khác nhau có thể cùng branch input và physics. Validate quyền trước khi resolve pointer.
+- Luồng F8 advisory giữ bounded search, original/revised SLA và `applied=false`. G6B có thể đọc chứng cứ để diễn giải
+  lợi ích theo baseline. Round này dừng ở service contract và tests. Tech Lead tiếp nhận review cuối.
+
+### Xác minh và bàn giao candidate
+
+Patch cuối trên `0f877f1` có SHA-256
+`7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`.
+So byte 380 đường dẫn giữa candidate đã review và candidate cuối. Delta gồm `src/models/recommendation.py`,
+`src/services/copilot/recommendation.py` và `tests/test_services/test_recommendation_hybrid.py`.
+Kế thừa Golden 38/38 và frozen benchmark 100/100 từ merged baseline dựa trên diff. Standalone được chạy lại.
+PostgreSQL và real LLM còn PENDING.
+
+| Cổng trên candidate cuối | Kết quả |
+|---|---:|
+| Focused G5 | 30 pass, gồm 24 tests đã review và 6 tests mới |
+| G2/G3/G4/G6A | 137 pass |
+| Architecture | 43 pass |
+| Full backend | 838 pass, 8 forecast skips |
+| Standalone simulator | 180 pass |
+| Ruff lint/format, docs và OpenAPI | Pass |
+| Offline F1 | 55 câu hợp lệ |
+
+Tất cả 10 mục trong exit ledger trả 0. Architecture từng phát hiện test mới import class DC nội bộ. Test cuối lấy
+provenance từ metadata runtime và snapshot, rồi xác minh cùng model qua trạng thái fork. Architecture gate giữ nguyên.
+Log lỗi và artifact điều tra vẫn nằm dưới `raw/remediation`. Rule rsync từng được nhắc trong báo cáo G1. Workspace
+hiện tại và cây mirror baseline đã tải không chứa `.rsync-exclude`. Nguồn loại trừ xác minh được ở lượt này là Git ignore.
+Gói ZIP và SHA đủ điều kiện đồng bộ Git thông thường hoặc chuyển riêng.
+
+[Verification bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip) ·
+[Checksum bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/BUNDLE.sha256) ·
+[Patch](../../eval/evidence/2026-11-26-ai4-g5/remediation/candidate.patch) ·
+[Checksum patch](../../eval/evidence/2026-11-26-ai4-g5/remediation/SHA256SUMS) ·
+[Raw logs và JUnit](../../eval/evidence/2026-11-26-ai4-g5/raw/remediation/final-v2) ·
+[Fail-before identity](../../eval/evidence/2026-11-26-ai4-g5/raw/remediation/identity-fail-before.log)
+
+[Hướng dẫn tái hiện và rollback](G5_RECOVERY_STATE.md)
+
+---
+
+*Các mục 1–5 dưới đây lưu bằng chứng của candidate trước targeted remediation.*
 
 ## 1. Merged baseline readiness
 
@@ -132,4 +212,4 @@ Runner exit 0 và tất cả 11 mục verification exit 0. [Lệnh và kết qu�
 7. Đây là bằng chứng do implementation tự chạy trên fixture. Tech Lead review độc lập mới đóng gate. Real LLM smoke
    và PostgreSQL runtime còn PENDING.
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5)**
+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 5)**

@@ -14,5 +14,6 @@ Roadmap 26/11 do Project Owner và nhóm chọn là **Merged baseline readiness 
 
 
 - **Merged baseline readiness — Tested (26/11).** Local `feature/ai-4-how-to` tại cùng commit `0f877f1` với `develop` và `origin/develop`. Blob/path của source, config, tests, frontend và research PDF trùng mirror `20bb246`. Backend 808 pass + 8 forecast skips, standalone 180, frontend 59, Golden 38/38 (CRLF fixture provenance), frozen 100/100. [Evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
-- **G5 — READY_FOR_REVIEW (Tested).** Service advisory có đủ ba mục tiêu. 24 oracle tests, 180 focused regression, 832 backend pass + 8 forecast skips, standalone 180. Tất cả cổng của candidate exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Recovery](G5_RECOVERY_STATE.md)
+- **G5 — candidate trước remediation (Tested).** Service advisory có đủ ba mục tiêu. 24 oracle tests, 180 focused regression, 832 backend pass + 8 forecast skips, standalone 180. Tất cả cổng của candidate exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Recovery](G5_RECOVERY_STATE.md)
+- **G5 — READY_FOR_FINAL_ACCEPTANCE (Tested).** Sau CONDITIONAL PASS tại `9ecb1af`, đã xử lý F01–F04. Candidate cuối 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, standalone 180. 10/10 cổng exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip)
 - **G6B/G7 — Planned.** Chờ G5 review trước. Real LLM và PostgreSQL runtime PENDING.

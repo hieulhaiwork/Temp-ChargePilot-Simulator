@@ -1,6 +1,27 @@
 # AI-4.3 — Checkpoint phục hồi Gate 5
 
-**READY_FOR_REVIEW · HANDOFF_READY.** Codex (implementation, tự kiểm) · 2026-11-26.
+**G5 — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Codex (implementation, tự kiểm) · 2026-11-26.
+
+## Candidate sau targeted remediation
+
+- Review `9ecb1af` yêu cầu G5-F01–F04. Patch đã review `f6ae745b…` giữ nguyên cùng raw evidence lịch sử.
+- Candidate cuối dựa trên local merged develop `0f877f1`. Patch đầy đủ có SHA-256
+  `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`.
+- Tái hiện từ bản xuất sạch local develop. Kiểm `sha256sum -c SHA256SUMS` trong thư mục artifact, rồi
+  `git apply --check <candidate.patch>` và áp patch vào bản xuất tạm. Patch đầy đủ đã gồm năm file candidate ban đầu.
+- Chạy `bash <remediation/verify.sh> <candidate-export> <raw-dir> <venv-bin>`. Kiểm `executed-files.sha256`
+  từ cây candidate. Đọc `verification-exits.tsv`, `g5-results.xml` và `numerical-oracles.json` trong bundle.
+- Để tái tạo candidate trước remediation trong cây tạm, kiểm `git apply --reverse --check` với patch cuối, rồi
+  reverse và áp patch lịch sử `f6ae745b…`. Chỉ thay đổi working tree chung khi có chỉ thị phù hợp.
+- 10/10 cổng exit 0, gồm 30 G5, 137 hồi quy, 43 architecture, 838 backend + 8 skip, standalone 180. Tech Lead review cuối. PostgreSQL và real LLM smoke tiếp tục PENDING.
+
+[Verification bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip) ·
+[Patch cuối](../../eval/evidence/2026-11-26-ai4-g5/remediation/candidate.patch) ·
+[Checksum patch](../../eval/evidence/2026-11-26-ai4-g5/remediation/SHA256SUMS)
+
+## Checkpoint trước remediation
+
+Phần dưới lưu đường dẫn và số liệu của candidate ban đầu.
 
 ## Baseline và phạm vi
 
@@ -30,4 +51,4 @@
 
 [Report](PHASE_4_3_REPORT.md) · [Candidate patch](../../eval/evidence/2026-11-26-ai4-g5/candidate.patch) · [SHA-256](../../eval/evidence/2026-11-26-ai4-g5/SHA256SUMS)
 
-**STOP — WAITING_FOR_TECH_LEAD_REVIEW (GATE 5)**
+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 5)**
