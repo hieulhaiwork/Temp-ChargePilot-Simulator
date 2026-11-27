@@ -137,12 +137,12 @@ def _finalize_advisory(state: AgentState, partial: bool) -> dict | None:
         prior_pending = state.get("pending_copilot_clarification") or {}
         existing_turns = [t for t in (prior_pending.get("turns") or ()) if isinstance(t, str) and t.strip()]
         raw_query, _ = CopilotIntegration.strip_explicit_reset(state.get("query", ""))
-        cleaned_query = raw_query.strip()[:MAX_CLARIFICATION_TURN_CHARS]
+        cleaned_query = raw_query.strip()
         next_turns = [*existing_turns, cleaned_query] if cleaned_query else existing_turns
-        if len(next_turns) > MAX_PENDING_CLARIFICATION_TURNS:
+        if len(cleaned_query) > MAX_CLARIFICATION_TURN_CHARS or len(next_turns) > MAX_PENDING_CLARIFICATION_TURNS:
             overflow_notice = CopilotNotice(
                 code="unsupported",
-                message="Đã vượt số lượt làm rõ liên tiếp. Vui lòng gửi lại một yêu cầu đầy đủ.",
+                message="Yêu cầu làm rõ vượt giới hạn độ dài hoặc số lượt. Vui lòng gửi lại một yêu cầu đầy đủ, ngắn gọn.",
             ).model_dump(mode="json")
             results = [
                 overflow_notice if (item["kind"] == "notice" and item["code"] == "clarify") else item

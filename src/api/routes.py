@@ -15,16 +15,19 @@ import asyncio
 import json
 import logging
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from hashlib import sha256
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
+from anyio import move_on_after
 from fastapi import APIRouter, HTTPException, Path, Request, Response, status
 from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 from openai import OpenAIError
 from pydantic import BaseModel, ValidationError
+from starlette.types import Receive, Scope, Send
 
 from src.api.deps import CurrentUser, ResidentUser
 from src.config import get_settings
@@ -262,6 +265,20 @@ def _sse(event_type: str, data: dict) -> str:
     return f"data: {json.dumps({'type': event_type, **data}, ensure_ascii=False)}\n\n"
 
 
+class _ManagedChatStream(StreamingResponse):
+    """Release the turn even when disconnect happens before the body iterator starts."""
+
+    def __init__(self, *args, cleanup: Callable[[], Awaitable[None]], **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cleanup = cleanup
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            await self._cleanup()
+
+
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Request) -> StreamingResponse:
     """Chat streaming (SSE) cho S2 — phát tiến độ node, từng đoạn câu trả lời và ChatResponse cuối."""
@@ -269,8 +286,26 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
     payload = {"query": request.message, "turn_context": _turn_context(context)}
     config = _config(context)
     _reserve_thread(context)
+    final_state: dict = {}
+    stream_completed = False
+    released = False
+
+    async def _cleanup() -> None:
+        nonlocal released
+        if released:
+            return
+        released = True
+        try:
+            if not stream_completed and "__interrupt__" not in final_state:
+                # Starlette cancels the body iterator in an AnyIO cancel scope.
+                # Bound and shield cleanup; always release admission in finally.
+                with move_on_after(2, shield=True):
+                    await _abort_turn_state(config)
+        finally:
+            _release_thread(context)
 
     async def _generate():
+        nonlocal final_state, stream_completed
         stage_labels = {
             "guardrail": "Đang kiểm tra yêu cầu…",
             "reason": "Trợ lý đang phân tích nhu cầu…",
@@ -278,8 +313,6 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
             "assess": "Đang tổng hợp kết quả…",
             "human_review": "Đang chuẩn bị xác nhận đặt lịch…",
         }
-        final_state: dict = {}
-        stream_completed = False
         try:
             async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
                 async for mode, chunk in agent.astream(
@@ -326,12 +359,11 @@ async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Req
                 },
             )
         finally:
-            if not stream_completed and "__interrupt__" not in final_state:
-                await _abort_turn_state(config)
-            _release_thread(context)
+            await _cleanup()
 
-    return StreamingResponse(
+    return _ManagedChatStream(
         _generate(),
+        cleanup=_cleanup,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

@@ -1,11 +1,42 @@
 # AI-4.4B — Tích hợp công cụ vào Chat Agent (Gate 6B)
 
 **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.**
-Báo cáo hoàn thiện sau ba vòng review độc lập của Tech Lead:
+Tech Lead đánh giá V3 tại mirror `92f091343770c24ba017c343c5a326c86bc622bb` là `CONDITIONAL PASS` với hai lỗi B1/B2. Codex đã áp dụng nguyên trạng bản vá do Tech Lead viết và kiểm chứng lại trên baseline của repository chính.
+
+Các vòng review trước V3:
 - Vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (`CONDITIONAL PASS` — mở G6B-F01..F05).
 - Vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (`CONDITIONAL PASS` — chấp nhận F02, F03, F04 và provenance mã thực thi F05; mở lại `F01-R1`..`F01-R3`).
 - Vòng 3 (V2 review tại mirror `c5198452ed72b409274bfebeaa91434017f251e8`, quyết định thiết kế V3 `APPROVED WITH CONDITIONS` — đóng `F01-R1`..`F01-R3` đơn lượt, xử lý dứt điểm ràng buộc ngữ cảnh đa lượt `F01-R1-MT` / `F01-R2-MT` và vòng đời trạng thái làm rõ).
 Chưa tự đánh dấu `APPROVED`, chưa merge và chưa chuyển sang G7.
+
+## Khắc phục cuối B1/B2 (27/11/2026)
+
+Bản vá Tech Lead có SHA-256 `3fbf0bdb01e73628a423715a09eaf4b492ffae7bdbcdabdf65cde48ea5d6f9d5`. Codex đối chiếu cây V3 bằng reverse apply check và khớp 51/51 cặp SHA-256/blob của cây xuất từ baseline áp bản vá V3. Đối chiếu trực tiếp với mirror khớp 50/51 blob. Khác biệt duy nhất là `.gitignore`, giữ nguyên theo V3 của repository chính. `git apply --check` đạt trước khi áp dụng. Trước và sau tích hợp, nhánh `feature/ai-4-how-to` ở HEAD `64c85f1`, index sạch. Hai tệp runtime thay đổi là `src/api/routes.py` và `src/llm_chat/nodes/finalize_node.py`. Ba ca tái hiện nằm trong `tests/test_api/test_g6b_v3_bounds_and_disconnect.py`.
+
+| Finding | Trước sửa, chạy ba test mới trên V3 | Sau sửa |
+|---|---|---|
+| B1 · Cắt yêu cầu chờ làm rõ | Câu 1.266 ký tự có điều kiện lịch hẹn sau ký tự 1.000 nhận `clarify`. Logic V3 chỉ lưu 1.000 ký tự đầu. | Trả `unsupported` với hướng dẫn gửi lại yêu cầu đầy đủ, ngắn gọn. Lượt tiếp theo không chụp snapshot hoặc tạo job. |
+| B2 · Mất permit khi ngắt giữa stream | ASGI 2.3 hủy iterator và dừng dọn checkpoint. Bộ đếm toàn cục, theo actor và thread active đều còn 1. Pending clarification còn tồn tại và `turn_in_progress=true`. | Bộ đếm về 0, pending clarification được xóa và `turn_in_progress=false`. |
+| B2 · Mất permit khi ngắt trước iterator | ASGI 2.3 kết thúc trước `anext`. Bộ đếm toàn cục, theo actor và thread active đều còn 1. | Cả ba bộ đếm về 0. |
+
+B1 ảnh hưởng phân tích trong Chat Agent (F8). Giới hạn 1.000 ký tự cho một lượt cần lưu, 3 lượt và TTL 300 giây giữ nguyên, cùng giới hạn nhập API 5.000 ký tự. B2 ảnh hưởng luồng chat web (F5 và F8). Hàm dọn dẹp idempotent dùng chung cho iterator và vòng đời phản hồi ASGI. Khi dọn checkpoint do ngắt, hàm che chắn cancellation tối đa 2 giây và nhả permit trong `finally`. Trạng thái làm rõ của phản hồi hoàn chỉnh và bước xác nhận booking (HITL) được giữ qua các đường đi hợp lệ. Từ V3, tuyên bố giải phóng permit khi ngắt SSE chỉ có bằng chứng ở đường đóng iterator trực tiếp. Ba ca mới bổ sung đường ASGI thực tế và kiểm chứng giới hạn độ dài. Đây là kiểm chứng tích hợp cục bộ của Codex. Quyết định nghiệm thu cuối thuộc Tech Lead.
+
+### Các cổng của candidate cuối
+
+| Cổng | Kết quả trên cây xuất sạch từ `64c85f1` |
+|---|---|
+| Hồi quy B1/B2 và focused G6B | 3/3 ca mới, 23/23 focused |
+| Full backend | 864 đạt, 8 forecast skip có sẵn. Chênh 3 so với V3 đúng bằng 3 ca B1/B2 mới |
+| G2–G5 + G6A, legacy F1/HITL, architecture | Lần lượt 167, 97 và 43 đạt |
+| Simulator độc lập | 180 đạt |
+| Ruff, documentation | Lint và format đạt. Docs đạt 50 tệp, 131 liên kết với `.env.example` gốc |
+| OpenAPI và generated schema | Khớp byte với các snapshot V3 và kết quả sinh ở candidate cuối |
+| Offline F1 | 55/55 ca và ngưỡng đánh giá hợp lệ |
+| Frontend | 66/66 Vitest trên 18 tệp, ESLint và TypeScript đạt |
+| Production build | Webpack và Turbopack đạt |
+| Chromium `159.0.8154.6` | 2/2. Hai vai trò và cô lập phiên đạt. M3b xếp hạng 94 kW, `partial`, `applied=false` |
+
+Hai mươi mốt cổng có exit code 0, gồm 11 cổng backend đã có, 1 cổng B1/B2 bổ sung, 7 cổng frontend và 2 Chromium. Focused, B1/B2, G2–G5 + G6A, legacy và architecture là các tập con của full backend. Giữ nguyên frontend, public OpenAPI, schema sinh và prompts so với V3. So với baseline trên repository chính, không có delta trên Unified Core, Simulator, Optimizer và Global Coordinator, Physical Guard, Control Loop, WHY/WHAT-IF/HOW-TO engines, `config/**` và `migrations/**`. Số lượt gọi LLM và các quy tắc NLP giữ nguyên.
 
 ## 1. Baseline, Provenance và Bảo toàn phần việc của Codex
 
@@ -38,11 +69,11 @@ Mọi finding đều được tái hiện trực tiếp trên cây ứng viên c
 | **F01-R3** (HIGH / Vòng 2) — Dời hạn tương đối theo hạn gốc bị dịch nhầm thành tương đối theo `now` | `diagnostics/f01-r1-r3-fail-before.log`: tại đồng hồ `12:01+07` và hạn gốc `14:00+07`, câu `"Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?"` kèm `relative +30` tạo hạn `12:31+07` (sớm hơn 119 phút so với `14:30+07`). | Loại bỏ các cụm dịch chuyển so sánh (`muộn hơn`, `sớm hơn`, `trễ thêm`) khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`); bổ sung `_SHIFT_OFFSET`, `_NON_NOW_ANCHOR` và `_SOC_DELTA` trên cả WHAT-IF lẫn HOW-TO để trả `clarify("time")` / `unsupported` trước khi chụp snapshot khi người dùng neo theo hạn gốc/lịch cũ mà chưa nêu giờ tường minh. Đối chứng dương tính kiểm chứng cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`) trên đúng booking gốc. |
 | **F01-R1-MT & F01-R2-MT** (HIGH / Vòng 3 V3) — Mất ràng buộc phạm vi/thời gian khi tách tham số qua nhiều lượt làm rõ | `diagnostics/f01-mt-fail-before.log` (trên `fff02f47...`): Lượt 1 trả `clarify("grid_input")` cho `"Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?"` hoặc `clarify("bounds")` cho `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00..."`; sang Lượt 2 (`"50 kW."` / `"Thử 22 đến 106 kW."`), validator chỉ kiểm tra điều kiện cấm trên câu Lượt 2 trong khi mượn chủ thể/SLA từ Lượt 1, dẫn tới cả 2 tác vụ chạy `succeeded`. | Thiết kế V3 được Tech Lead duyệt (`APPROVED WITH CONDITIONS`): (1) Lưu trạng thái làm rõ gắn theo tác vụ có giới hạn (`pending_copilot_clarification`: tối đa 3 lượt, TTL 300s, cờ `turn_in_progress`) trong `state.py`, `graph.py`, `act_node.py`, `human_review_node.py`, `finalize_node.py` và `routes.py`, tự động dọn dẹp khi hoàn tất job/unsupported/refusal, khi timeout/lỗi LLM, khi đứt kết nối SSE giữa chừng (`aclose`) và khi chuyển sang luồng HITL đặt lịch, đồng thời hỗ trợ lượt hỗn hợp `WHY + clarify`; (2) Trong `copilot_intent.py`, kiểm tra đối xứng mọi ràng buộc (phạm vi cổng/vùng, điều kiện thời gian, thao tác mô phỏng, booking/connector ID, horizon, khoảng thử, SLA %, bảo vệ AC, đồng ý hy sinh/hạ tầng) xuyên suốt toàn bộ các lượt của yêu cầu đang mở, chỉ re-anchor khi lượt trước đã đóng hoặc người dùng hủy/đặt lại tường minh (`strip_explicit_reset`), không thêm lượt gọi LLM. Kiểm chứng `4/4` trên reproducer độc lập và `23/23` kiểm thử G6B (`0` lần chụp snapshot trên mọi ca vi phạm). |
 
-## 3. Tách biệt Bằng chứng Lịch sử (Codex, Vòng 1, Vòng 2) và Bằng chứng Cuối cùng (Vòng 3 — V3)
+## 3. Bằng chứng lịch sử đến Carbon V3
 
 *(Lưu ý: các bộ `Focused G6B`, `G2–G5 + G6A`, `Legacy F1` và `Architecture` là tập con của `Full Backend`, tuyệt đối không cộng dồn với `861`.)*
 
-| Cổng kiểm tra | Lịch sử Codex (`2c72e2b`) | Vòng 1 (`de82afe7`) | Vòng 2 (`c519845`) | Kết quả Vòng 3 — V3 Cuối cùng (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
+| Cổng kiểm tra | Lịch sử Codex (`2c72e2b`) | Vòng 1 (`de82afe7`) | Vòng 2 (`c519845`) | Carbon V3 trước B1/B2 (trên cây xuất sạch từ `64c85f1` + bản vá V3) |
 |---|---|---|---|---|
 | Focused G6B (`test_unified_copilot.py`) | `11 passed` | `17 passed` | `19 passed` | **`23 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
 | Reproducer `F01-R1`..`F01-R3` & `F01-R1-MT`/`R2-MT` | `3 failed` / — | `3 failed` / — | `3 passed` / `2 failed, 2 passed` | **`3/3 passed` & `4/4 passed` (`exit 0`, `0` snapshot capture / `0` job sai ngữ nghĩa)** |
@@ -75,10 +106,10 @@ Mọi finding đều được tái hiện trực tiếp trên cây ứng viên c
 
 - Bản vá cuối cùng (lấy `64c85f1` làm base): [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch)
 - Mã băm SHA-256 của bản vá: [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS)
-- Gói bằng chứng nén (chứa `candidate.patch`, `codex-interrupted-candidate.patch`, `CONTENTS.sha256`, `executed-files.sha256`, `diagnostics/` fail-before, `raw/` backend/frontend/browser logs đã kiểm tra không chứa JWT, JUnit `focused.xml` và `collaboration_chat.md`): [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip) · [BUNDLE.sha256](../../eval/evidence/2026-11-26-ai4-g6b/BUNDLE.sha256)
+- Gói bằng chứng gồm bản vá, manifest byte/blob của 52 tệp, kết quả fail-before/pass-after, bảng exit code, đối chiếu phạm vi, checksum và lệnh chạy lại. Bằng chứng gốc Codex và Carbon V1–V3 được lưu nguyên byte trong vùng Git bỏ qua. [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip) · [BUNDLE.sha256](../../eval/evidence/2026-11-26-ai4-g6b/BUNDLE.sha256)
 - Runner tự động trên cây xuất sạch: [verify.sh](../../eval/evidence/2026-11-26-ai4-g6b/verify.sh) · [browser_smoke.mjs](../../eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs) · [run_demo.py](../../eval/evidence/2026-11-26-ai4-g6b/run_demo.py)
 - Rollback khi cần trên bản sao thử nghiệm: `git apply --reverse --check eval/evidence/2026-11-26-ai4-g6b/candidate.patch`.
 
 **READY_FOR_FINAL_ACCEPTANCE**
 
-**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 6B)**
+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE.**

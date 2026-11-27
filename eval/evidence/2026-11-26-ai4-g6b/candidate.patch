@@ -1,5 +1,5 @@
 diff --git a/.gitignore b/.gitignore
-index 23203db..9bef88a 100644
+index 23203db65c5b9140da6ab7322482e4258290da90..9bef88a2eeabff9d723defb18811ea34d8f1145a 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -68,8 +68,9 @@ out/
@@ -14,7 +14,7 @@ index 23203db..9bef88a 100644
  # Large research reference
  /docs/research/RESEARCH-SC-16.pdf
 diff --git a/docs/FEATURE_REGISTRY.md b/docs/FEATURE_REGISTRY.md
-index 2cdaa60..7445ff1 100644
+index 2cdaa60d96726e3615a2d218fbc2700f1ee799f5..74119bd02656ce754c4b9ebef86164b2ae8703c7 100644
 --- a/docs/FEATURE_REGISTRY.md
 +++ b/docs/FEATURE_REGISTRY.md
 @@ -113,11 +113,11 @@ Ba hệ mã đang tồn tại song song:
@@ -27,13 +27,13 @@ index 2cdaa60..7445ff1 100644
  | **F7** | AI-1: phát hiện xe sắp trễ, đề xuất thay đổi, xin chủ xe đồng ý | Must | **ĐANG HOÃN** (Human 25/11, Q1 — không loại khỏi roadmap) | Planned | Mở lại khi phạm vi và năng lực triển khai được đánh giá (§6) |
 -| **F8** | AI-4: WHY, WHAT-IF và gợi ý HOW-TO hữu hạn | Must (amendment HOW-TO chờ duyệt) | MỘT PHẦN | Tested 26/11 | WHY/WHAT-IF có đường standalone. HOW-TO có service advisory đã qua targeted verification M3a/M3b, chờ nghiệm thu cuối G5. Typed tools trong Chat Agent thuộc G6B. [Báo cáo](ai4/PHASE_4_3_REPORT.md) |
 -| Lớp LLM | LLM chỉ ở hai đầu, kiểm từng câu với dữ kiện, chạy được khi không có LLM | Must | MỘT PHẦN | Tested (`MOCK`) | Kiểm dữ kiện (FR32) mới kiểm số kWh / mã cổng, chưa kiểm từng câu; chế độ offline mâu thuẫn với cấu hình production (§6, D-3) |
-+| **F8** | AI-4: WHY, WHAT-IF và gợi ý HOW-TO hữu hạn | Must (amendment HOW-TO chờ duyệt) | MỘT PHẦN | Tested 26/11 | HOW-TO đã được Tech Lead duyệt G5. G6B tích hợp typed tools cho hai vai trò qua Chat Agent, đã khắc phục F01–F05 sau review `CONDITIONAL PASS` (`2c72e2b`) và đang ở `READY_FOR_FINAL_ACCEPTANCE`. [Bằng chứng G6B](ai4/PHASE_4_4B_REPORT.md) |
++| **F8** | AI-4: WHY, WHAT-IF và gợi ý HOW-TO hữu hạn | Must (amendment HOW-TO chờ duyệt) | MỘT PHẦN | Tested 27/11 | HOW-TO đã được Tech Lead duyệt G5. G6B tích hợp typed tools cho hai vai trò qua Chat Agent. Sau V3, yêu cầu chờ làm rõ vượt giới hạn nhận hướng dẫn gửi lại và SSE ngắt kết nối giải phóng permit. Ba ca hồi quy B1/B2 và 23 ca focused đạt. G6B ở `READY_FOR_FINAL_ACCEPTANCE`. [Bằng chứng G6B](ai4/PHASE_4_4B_REPORT.md) |
 +| Lớp LLM | LLM chỉ ở hai đầu, kiểm từng câu với dữ kiện, chạy được khi không có LLM | Must | MỘT PHẦN | Tested (`MOCK`) | Kết quả F8 dùng typed claims và dựng nội dung từ bằng chứng đã kiểm. Booking dùng kiểm hiện tại. Provider thật PENDING. |
  | **F9** | Benchmark so sánh chính sách trên kịch bản sự cố | Should | XONG (công cụ) | Tested + LỊCH SỬ @`a9def2f` | Baseline đóng băng 100 run = **regression refactor**, không phải nghiệm thu: 40/160 sự cố bị bỏ (toàn bộ hỏng cổng), 3/5 kịch bản legacy, `connector_failure` trùng KPI `peak_evening` (§3.1) |
  | **F10** | Cá nhân hoá (xe mặc định, mức pin, phạm vi đồng ý) | Could | MỘT PHẦN | Tested (service) | `test_service_contracts.py::test_profile_update_and_unknown_vehicle` ĐẠT 24/11; màn hồ sơ trên web chưa kiểm |
  | **F11** | AI-2 cảnh báo dữ liệu bất thường (luật) | Could | CHƯA LÀM | — | — |
 diff --git a/docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md b/docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md
-index 2af1f62..5ea2a76 100755
+index 2af1f623e012edd85fa40a4034943b348072d8f7..5ea2a76b999734ed3ec0c8d8a929c54a88091951 100755
 --- a/docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md
 +++ b/docs/ai4/AI-4_MASTER_IMPLEMENTATION_PLAN.md
 @@ -189,6 +189,8 @@ Discriminated union, `extra=forbid`, strict units/validations, actor auth server
@@ -46,7 +46,7 @@ index 2af1f62..5ea2a76 100755
  
  - Role, station và actor đến từ context phía server. Tool schemas chỉ nhận truy vấn, patch, goal và tham chiếu theo quyền. Server giải alias booking, phút đồng hồ trạm và các đơn vị. Nếu thiếu hoặc mơ hồ, hỏi lại theo schema. Nếu vượt whitelist, trả unsupported.
 diff --git a/docs/ai4/G5_RECOVERY_STATE.md b/docs/ai4/G5_RECOVERY_STATE.md
-index c720094..3ea8b91 100644
+index c72009467699e29343f8a1953ec0e655a68c22c1..3ea8b9183483899d5327471338f36f86dadd2ed5 100644
 --- a/docs/ai4/G5_RECOVERY_STATE.md
 +++ b/docs/ai4/G5_RECOVERY_STATE.md
 @@ -1,6 +1,6 @@
@@ -65,7 +65,7 @@ index c720094..3ea8b91 100644
 +**G5 — CLOSED.** Gate tiếp theo đã được giao là G6B.
 diff --git a/docs/ai4/G6B_DEMO.md b/docs/ai4/G6B_DEMO.md
 new file mode 100644
-index 0000000..f4ef322
+index 0000000000000000000000000000000000000000..f4ef32232ff40e7ee300dd02525bcaf00ac748d9
 --- /dev/null
 +++ b/docs/ai4/G6B_DEMO.md
 @@ -0,0 +1,35 @@
@@ -106,19 +106,22 @@ index 0000000..f4ef322
 +Oracle M3a/M3b tái lập qua `pytest tests/test_services/test_recommendation_hybrid.py tests/test_api/test_unified_copilot.py`. Hai case nhiều công cụ ghi dữ liệu engine thật trong JUnit. Xem cả chế độ provider, runner kiểm tra và giới hạn nghiệm thu trong báo cáo pha. [Báo cáo G6B](PHASE_4_4B_REPORT.md)
 diff --git a/docs/ai4/G6B_RECOVERY_STATE.md b/docs/ai4/G6B_RECOVERY_STATE.md
 new file mode 100644
-index 0000000..2b8fdb4
+index 0000000000000000000000000000000000000000..f43fb53f72ed897efab29855e2c30be3c7c66f8b
 --- /dev/null
 +++ b/docs/ai4/G6B_RECOVERY_STATE.md
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,36 @@
 +# G6B — Trạng thái phục hồi và khắc phục sau review
 +
-+**READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY · Carbon (tiếp quản từ Codex) · 2026-11-26.**
++**G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY · Codex · 2026-11-27.**
++
++Tech Lead review V3 trên mirror `92f0913` và cung cấp bản vá B1/B2. Codex kiểm SHA-256, áp dụng nguyên trạng trên `feature/ai-4-how-to` @ `64c85f1`, rồi xác minh từ bản xuất sạch. Ba ca B1/B2 đều fail trên V3 và đều pass sau sửa. Kết quả cuối là 864 backend đạt, 8 forecast skip, 180 simulator, 66 frontend và 2/2 Chromium. Các checkpoint A–F dưới đây lưu kết quả lịch sử của Carbon. Kết quả hiện hành, phạm vi và cách chạy lại ở [báo cáo G6B](PHASE_4_4B_REPORT.md).
 +
 +- **Baseline local**: `feature/ai-4-how-to` tại `64c85f1624ee2893eff776a1e82fbdd893d3fe4d`, cha trực tiếp là `develop` / `origin/develop` `0f877f196db7b89759af08aab825f0fff82f7c3c`. Toàn bộ 6/6 mã băm SHA-256 mã nguồn/test của G5 khớp tuyệt đối với G5 đã nghiệm thu (`42438430ee49f404e90080c49a76e4c6446530da`, patch `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`).
 +- **Bảo toàn phần việc lịch sử**:
 +  - Bản vá gián đoạn của Codex (`2c72e2b`): `codex-interrupted-candidate.patch` (`85ba2959dbbc0a4ccc6e23be0ad5a6277885e80b44a1109c9199e34c8e064ee6`) cùng bản sao lưu đầy đủ `/tmp/p019-g6b-evidence`.
 +  - Bản vá và bundle vòng 1 của Carbon (`de82afe7`): `round1-candidate.patch` (`dab76e3216f0d9fb1453862fb7f3343fa7acf249c4c8f32e26cb420b2ddae7e2`) và `round1-verification-bundle.zip` (`9073d093a65c1583ed36543d3e4da7ab92b9eb4738d5679a5025c98fbd6a49c1`).
 +  - Bản vá và bundle vòng 2 của Carbon (`c519845`): `round2-candidate.patch` (`fff02f47d8d62cd4b4f3dc258b40985b7703016489989645ae986d7900fdd36f`) và `round2-verification-bundle.zip` (`eb752042d140ffddac1726155cd98297d99cb465431981622a0b0eed1b5a858a`).
++  - Bản vá V3 (`fe10d8325fac0ccffb2b2b543f0463979aaebe390ca5a6c4240a869e3bdc4ee1`) và ZIP V3 (`e00c04e654af1881484da9f6a5fbc902e085d9d0ab61b7471081016ee896be98`) được lưu nguyên byte trong `raw/carbon-v3/`. Đã xác minh cả hai checksum và toàn bộ manifest bên trong ZIP V3. Bundle cuối công bố bảng checksum lịch sử.
 +  - Đối chiếu `.env.example` và `.gitignore`: `.env.example` có sẵn tại `HEAD` (`64c85f1`, blob `a96d656...`, SHA-256 `7104c9eb...`); `.gitignore` giữ quy tắc bỏ qua `/docs/ai4/collaboration_chat.md` và `/eval/evidence/2026-11-26-ai4-g6b/raw/` để tránh đưa log thô/nội bộ lên nhánh sản phẩm.
 +- **Đối chiếu nhánh FE của đồng đội**: `origin/develop` (`0f877f1`, ngày 25/11) đã hợp nhất đầy đủ `feature/unified-fullstack` (#17), `feature/voice-input` (#22), `fix/voice-security-review` (#23) và `feature/unified-core` (#24). Nhánh `origin/feature/be-fe-integration` (`b92e61a`, ngày 23/11) là nhánh lịch sử trước khi port sang `unified-core`; không có thay đổi chưa commit hay nhánh FE mới nào của đồng đội bị ghi đè. Giữ nguyên giao diện, bố cục, quick replies, luồng booking/HITL và cơ chế thế hệ phiên (`generation`) dùng chung (`0 byte diff` trên `frontend/**` và `prompts/**` ở V3).
 +- **Nhả khóa bàn giao**: Carbon đã hoàn thành toàn bộ F01–F05 (kể cả `F01-R1`..`F01-R3` và ràng buộc ngữ cảnh đa lượt V3 `F01-R1-MT`/`F01-R2-MT`), chạy đạt toàn bộ cổng bắt buộc trên cây xuất sạch, đóng gói `verification-bundle.zip` và nhả khóa chỉnh sửa G6B để chờ Tech Lead nghiệm thu độc lập. G7, commit/push/merge và đồng bộ PRD/ADR-015 chờ quyết định riêng.
@@ -129,7 +132,7 @@ index 0000000..2b8fdb4
 +- `src/simulator/claude_rd/` bị Git bỏ qua và giữ nguyên cho nghiên cứu R&D của thành viên khác; mọi cổng kiểm chứng kiến trúc và kiểm thử chạy trên cây xuất sạch từ `HEAD` (`64c85f1`) phủ `candidate.patch`.
 +- **Không chạm core đã đóng băng**: `0 byte diff` trên `src/simulator/**`, `src/optimizer/**`, `src/guard/**`, `src/services/{runtime,control_loop,solver}.py`, `src/services/copilot/{why,evidence,trace_reader,snapshot,outcome_ledger,counterfactual,what_if,recommendation}.py`, `config/**` và `migrations/**`.
 +
-+## Trạng thái Checkpoints A–F sau Remediation
++## Trạng thái lịch sử Checkpoints A–F tại Carbon V3
 +
 +| Checkpoint | Trạng thái | Kết quả xác minh cuối cùng |
 +|---|---|---|
@@ -141,9 +144,11 @@ index 0000000..2b8fdb4
 +| F · kiểm chứng & đóng gói (F03, F05) | **Tested** | Sửa selector ranked HOW-TO sang `ol > li > strong` (giữ nguyên cả danh sách ứng viên `details ul > li`), sạch `git diff --check`, `11/11` cổng backend (`861 passed, 8 forecast skips` toàn bộ backend — gồm tập con `23` focused G6B; cùng `180` standalone), cả 2 kịch bản Chromium smoke (`two-roles` và `--ranked`) `exit 0`, hoàn tất `candidate.patch`, `SHA256SUMS` và `verification-bundle.zip`. |
 +
 +[Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Hợp đồng công cụ](G6B_TOOL_CONTRACTS.md) · [Demo](G6B_DEMO.md)
++
++**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE.** Khoá lượt khắc phục cuối đã nhả. Tech Lead đối chiếu bản vá và bằng chứng trước quyết định nghiệm thu.
 diff --git a/docs/ai4/G6B_TOOL_CONTRACTS.md b/docs/ai4/G6B_TOOL_CONTRACTS.md
 new file mode 100644
-index 0000000..881dc40
+index 0000000000000000000000000000000000000000..881dc40cdf370693b053d55ec8c9020deecd82a3
 --- /dev/null
 +++ b/docs/ai4/G6B_TOOL_CONTRACTS.md
 @@ -0,0 +1,31 @@
@@ -179,7 +184,7 @@ index 0000000..881dc40
 +
 +Finalize dựng câu từ WHY reasons đã xác minh, kết quả job và notice. So sánh cải thiện dựa trên cùng target hoặc cùng thời điểm quan sát. Chỉ gắn nhãn khả thi cho verdict của engine. Lưới thử G5 và SOC tolerance giữ theo engine. HOW-TO 94 kW trong oracle M3b là mức thấp nhất đã kiểm chứng trong tập thử với tìm kiếm một phần. `applied=false` đi cùng từng kết quả và job.
 diff --git a/docs/ai4/ISSUES.md b/docs/ai4/ISSUES.md
-index edb65ae..6377b8b 100644
+index edb65ae5f5569d72cda032d166c069b8423b1fdc..226e9f79b6ac50af73524dde4e649b86af3a7d51 100644
 --- a/docs/ai4/ISSUES.md
 +++ b/docs/ai4/ISSUES.md
 @@ -118,9 +118,9 @@ Trạng thái kiểm chứng và raw evidence theo [báo cáo G3](PHASE_4_2A_REP
@@ -195,7 +200,7 @@ index edb65ae..6377b8b 100644
  
  Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và PostgreSQL runtime còn **PENDING**. [Raw evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
  
-@@ -137,3 +137,25 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và
+@@ -137,3 +137,32 @@ Candidate G5 ban đầu đã qua oracle và gate cục bộ. Real LLM smoke và
  [Báo cáo và bằng chứng](PHASE_4_3_REPORT.md)
  
  **G5 — READY_FOR_FINAL_ACCEPTANCE.** Bốn finding đã có bằng chứng kiểm chứng cục bộ. Tech Lead quyết định cuối.
@@ -218,11 +223,18 @@ index edb65ae..6377b8b 100644
 +| **F01-R3** — Độ lệch tương đối theo hạn gốc bị dịch thành tương đối theo `now` | **Confirmed residual bug (`de82afe7`) → Fixed (`c519845`)** | Tái hiện fail-before: `"muộn hơn 30 phút so với hạn gốc"` từng tạo hạn `12:31+07` thay vì `14:30+07`. Tách `_SHIFT_OFFSET` / `_NON_NOW_ANCHOR` khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`), trả `clarify("time")` / `unsupported` trước `capture_atomic_snapshot`; kiểm chứng đối chứng dương tính cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`). |
 +| **F01-R1-MT & F01-R2-MT** — Mất ràng buộc phạm vi/thời gian khi phân bổ tham số qua lượt làm rõ | **Confirmed residual bug (`c519845`) → Fixed in V3** | Tái hiện fail-before (`f01-mt-fail-before.log`): Lượt 1 `clarify("grid_input" / "bounds")` giữ phạm vi cổng `DC-01-1` hoặc lịch hẹn `ngày mai 18h00`, Lượt 2 bổ sung `50 kW` / `22–106 kW` từng lọt qua `conflicts_with_simulation` do chỉ kiểm điều kiện cấm trên câu hiện tại và đọc toàn bộ `state["history"]`. Đã triển khai theo quyết định `APPROVED WITH CONDITIONS` của Tech Lead: trạng thái `pending_copilot_clarification` có giới hạn (tối đa 3 lượt, TTL 300s, cờ `turn_in_progress`, dọn dẹp khi hoàn tất/timeout/SSE disconnect/HITL, bảo toàn `WHY + clarify` hỗn hợp) kết hợp kiểm tra đối xứng mọi ràng buộc trên tất cả lượt của yêu cầu đang mở và chỉ re-anchor khi lượt trước đã đóng hoặc người dùng hủy câu trước tường minh (`4/4` reproducer + `23/23` focused G6B PASS, `0` lần chụp snapshot trên mọi ca âm tính). |
 +
++## Gate 6B final remediation (sau review mirror `92f0913`)
++
++| Finding | Phân loại | Fail-before và kiểm chứng bản sửa |
++|---|---|---|
++| **B1** — Cắt âm thầm yêu cầu chờ làm rõ | **Confirmed → Fixed (Tested)** | V3 trả `clarify` cho câu 1.266 ký tự và cắt mất điều kiện thời gian ở phần cuối. Sau sửa, server trả `unsupported`, hướng dẫn gửi lại yêu cầu đầy đủ, ngắn gọn. Câu bổ sung sau khi bị từ chối không tạo snapshot hay job. Giữ giới hạn 1.000 ký tự mỗi lượt chờ, 3 lượt, TTL 300 giây và giới hạn 5.000 ký tự của API. |
++| **B2** — Rò permit khi SSE ngắt kết nối | **Confirmed → Fixed (Tested)** | Cả ngắt giữa stream lẫn ngắt trước khi bắt đầu iterator đều giữ 1 permit và 1 thread active trên V3. Ca giữa stream còn giữ pending clarification và `turn_in_progress=true`. Sau sửa, một hàm dọn dẹp dùng chung chạy tối đa một lần, che chắn tối đa 2 giây khi dọn checkpoint và luôn nhả permit. Cả hai ca ASGI đạt. |
++
 +[Báo cáo Gate 6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md) · [Verification bundle](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +
 +**G6B — READY_FOR_FINAL_ACCEPTANCE.** Chờ Tech Lead nghiệm thu độc lập.
 diff --git a/docs/ai4/PHASE_4_3_REPORT.md b/docs/ai4/PHASE_4_3_REPORT.md
-index 214c454..90290a2 100644
+index 214c45403b7290e0b00400a5fba9e875646e8538..90290a217a2efc68b41bb27de08492f6e2792414 100644
 --- a/docs/ai4/PHASE_4_3_REPORT.md
 +++ b/docs/ai4/PHASE_4_3_REPORT.md
 @@ -1,6 +1,6 @@
@@ -235,18 +247,49 @@ index 214c454..90290a2 100644
  
 diff --git a/docs/ai4/PHASE_4_4B_REPORT.md b/docs/ai4/PHASE_4_4B_REPORT.md
 new file mode 100644
-index 0000000..716e735
+index 0000000000000000000000000000000000000000..607ecac4a50c77e26edc81b93d9d7067d0b0f101
 --- /dev/null
 +++ b/docs/ai4/PHASE_4_4B_REPORT.md
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,115 @@
 +# AI-4.4B — Tích hợp công cụ vào Chat Agent (Gate 6B)
 +
 +**G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.**
-+Báo cáo hoàn thiện sau ba vòng review độc lập của Tech Lead:
++Tech Lead đánh giá V3 tại mirror `92f091343770c24ba017c343c5a326c86bc622bb` là `CONDITIONAL PASS` với hai lỗi B1/B2. Codex đã áp dụng nguyên trạng bản vá do Tech Lead viết và kiểm chứng lại trên baseline của repository chính.
++
++Các vòng review trước V3:
 +- Vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (`CONDITIONAL PASS` — mở G6B-F01..F05).
 +- Vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (`CONDITIONAL PASS` — chấp nhận F02, F03, F04 và provenance mã thực thi F05; mở lại `F01-R1`..`F01-R3`).
 +- Vòng 3 (V2 review tại mirror `c5198452ed72b409274bfebeaa91434017f251e8`, quyết định thiết kế V3 `APPROVED WITH CONDITIONS` — đóng `F01-R1`..`F01-R3` đơn lượt, xử lý dứt điểm ràng buộc ngữ cảnh đa lượt `F01-R1-MT` / `F01-R2-MT` và vòng đời trạng thái làm rõ).
 +Chưa tự đánh dấu `APPROVED`, chưa merge và chưa chuyển sang G7.
++
++## Khắc phục cuối B1/B2 (27/11/2026)
++
++Bản vá Tech Lead có SHA-256 `3fbf0bdb01e73628a423715a09eaf4b492ffae7bdbcdabdf65cde48ea5d6f9d5`. Codex đối chiếu cây V3 bằng reverse apply check và khớp 51/51 cặp SHA-256/blob của cây xuất từ baseline áp bản vá V3. Đối chiếu trực tiếp với mirror khớp 50/51 blob. Khác biệt duy nhất là `.gitignore`, giữ nguyên theo V3 của repository chính. `git apply --check` đạt trước khi áp dụng. Trước và sau tích hợp, nhánh `feature/ai-4-how-to` ở HEAD `64c85f1`, index sạch. Hai tệp runtime thay đổi là `src/api/routes.py` và `src/llm_chat/nodes/finalize_node.py`. Ba ca tái hiện nằm trong `tests/test_api/test_g6b_v3_bounds_and_disconnect.py`.
++
++| Finding | Trước sửa, chạy ba test mới trên V3 | Sau sửa |
++|---|---|---|
++| B1 · Cắt yêu cầu chờ làm rõ | Câu 1.266 ký tự có điều kiện lịch hẹn sau ký tự 1.000 nhận `clarify`. Logic V3 chỉ lưu 1.000 ký tự đầu. | Trả `unsupported` với hướng dẫn gửi lại yêu cầu đầy đủ, ngắn gọn. Lượt tiếp theo không chụp snapshot hoặc tạo job. |
++| B2 · Mất permit khi ngắt giữa stream | ASGI 2.3 hủy iterator và dừng dọn checkpoint. Bộ đếm toàn cục, theo actor và thread active đều còn 1. Pending clarification còn tồn tại và `turn_in_progress=true`. | Bộ đếm về 0, pending clarification được xóa và `turn_in_progress=false`. |
++| B2 · Mất permit khi ngắt trước iterator | ASGI 2.3 kết thúc trước `anext`. Bộ đếm toàn cục, theo actor và thread active đều còn 1. | Cả ba bộ đếm về 0. |
++
++B1 ảnh hưởng phân tích trong Chat Agent (F8). Giới hạn 1.000 ký tự cho một lượt cần lưu, 3 lượt và TTL 300 giây giữ nguyên, cùng giới hạn nhập API 5.000 ký tự. B2 ảnh hưởng luồng chat web (F5 và F8). Hàm dọn dẹp idempotent dùng chung cho iterator và vòng đời phản hồi ASGI. Khi dọn checkpoint do ngắt, hàm che chắn cancellation tối đa 2 giây và nhả permit trong `finally`. Trạng thái làm rõ của phản hồi hoàn chỉnh và bước xác nhận booking (HITL) được giữ qua các đường đi hợp lệ. Từ V3, tuyên bố giải phóng permit khi ngắt SSE chỉ có bằng chứng ở đường đóng iterator trực tiếp. Ba ca mới bổ sung đường ASGI thực tế và kiểm chứng giới hạn độ dài. Đây là kiểm chứng tích hợp cục bộ của Codex. Quyết định nghiệm thu cuối thuộc Tech Lead.
++
++### Các cổng của candidate cuối
++
++| Cổng | Kết quả trên cây xuất sạch từ `64c85f1` |
++|---|---|
++| Hồi quy B1/B2 và focused G6B | 3/3 ca mới, 23/23 focused |
++| Full backend | 864 đạt, 8 forecast skip có sẵn. Chênh 3 so với V3 đúng bằng 3 ca B1/B2 mới |
++| G2–G5 + G6A, legacy F1/HITL, architecture | Lần lượt 167, 97 và 43 đạt |
++| Simulator độc lập | 180 đạt |
++| Ruff, documentation | Lint và format đạt. Docs đạt 50 tệp, 131 liên kết với `.env.example` gốc |
++| OpenAPI và generated schema | Khớp byte với các snapshot V3 và kết quả sinh ở candidate cuối |
++| Offline F1 | 55/55 ca và ngưỡng đánh giá hợp lệ |
++| Frontend | 66/66 Vitest trên 18 tệp, ESLint và TypeScript đạt |
++| Production build | Webpack và Turbopack đạt |
++| Chromium `159.0.8154.6` | 2/2. Hai vai trò và cô lập phiên đạt. M3b xếp hạng 94 kW, `partial`, `applied=false` |
++
++Hai mươi mốt cổng có exit code 0, gồm 11 cổng backend đã có, 1 cổng B1/B2 bổ sung, 7 cổng frontend và 2 Chromium. Focused, B1/B2, G2–G5 + G6A, legacy và architecture là các tập con của full backend. Giữ nguyên frontend, public OpenAPI, schema sinh và prompts so với V3. So với baseline trên repository chính, không có delta trên Unified Core, Simulator, Optimizer và Global Coordinator, Physical Guard, Control Loop, WHY/WHAT-IF/HOW-TO engines, `config/**` và `migrations/**`. Số lượt gọi LLM và các quy tắc NLP giữ nguyên.
 +
 +## 1. Baseline, Provenance và Bảo toàn phần việc của Codex
 +
@@ -279,11 +322,11 @@ index 0000000..716e735
 +| **F01-R3** (HIGH / Vòng 2) — Dời hạn tương đối theo hạn gốc bị dịch nhầm thành tương đối theo `now` | `diagnostics/f01-r1-r3-fail-before.log`: tại đồng hồ `12:01+07` và hạn gốc `14:00+07`, câu `"Nếu dời hạn lấy xe muộn hơn 30 phút so với hạn gốc thì sao?"` kèm `relative +30` tạo hạn `12:31+07` (sớm hơn 119 phút so với `14:30+07`). | Loại bỏ các cụm dịch chuyển so sánh (`muộn hơn`, `sớm hơn`, `trễ thêm`) khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`); bổ sung `_SHIFT_OFFSET`, `_NON_NOW_ANCHOR` và `_SOC_DELTA` trên cả WHAT-IF lẫn HOW-TO để trả `clarify("time")` / `unsupported` trước khi chụp snapshot khi người dùng neo theo hạn gốc/lịch cũ mà chưa nêu giờ tường minh. Đối chứng dương tính kiểm chứng cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`) trên đúng booking gốc. |
 +| **F01-R1-MT & F01-R2-MT** (HIGH / Vòng 3 V3) — Mất ràng buộc phạm vi/thời gian khi tách tham số qua nhiều lượt làm rõ | `diagnostics/f01-mt-fail-before.log` (trên `fff02f47...`): Lượt 1 trả `clarify("grid_input")` cho `"Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?"` hoặc `clarify("bounds")` cho `"Cần nguồn bao nhiêu từ ngày mai lúc 18h00..."`; sang Lượt 2 (`"50 kW."` / `"Thử 22 đến 106 kW."`), validator chỉ kiểm tra điều kiện cấm trên câu Lượt 2 trong khi mượn chủ thể/SLA từ Lượt 1, dẫn tới cả 2 tác vụ chạy `succeeded`. | Thiết kế V3 được Tech Lead duyệt (`APPROVED WITH CONDITIONS`): (1) Lưu trạng thái làm rõ gắn theo tác vụ có giới hạn (`pending_copilot_clarification`: tối đa 3 lượt, TTL 300s, cờ `turn_in_progress`) trong `state.py`, `graph.py`, `act_node.py`, `human_review_node.py`, `finalize_node.py` và `routes.py`, tự động dọn dẹp khi hoàn tất job/unsupported/refusal, khi timeout/lỗi LLM, khi đứt kết nối SSE giữa chừng (`aclose`) và khi chuyển sang luồng HITL đặt lịch, đồng thời hỗ trợ lượt hỗn hợp `WHY + clarify`; (2) Trong `copilot_intent.py`, kiểm tra đối xứng mọi ràng buộc (phạm vi cổng/vùng, điều kiện thời gian, thao tác mô phỏng, booking/connector ID, horizon, khoảng thử, SLA %, bảo vệ AC, đồng ý hy sinh/hạ tầng) xuyên suốt toàn bộ các lượt của yêu cầu đang mở, chỉ re-anchor khi lượt trước đã đóng hoặc người dùng hủy/đặt lại tường minh (`strip_explicit_reset`), không thêm lượt gọi LLM. Kiểm chứng `4/4` trên reproducer độc lập và `23/23` kiểm thử G6B (`0` lần chụp snapshot trên mọi ca vi phạm). |
 +
-+## 3. Tách biệt Bằng chứng Lịch sử (Codex, Vòng 1, Vòng 2) và Bằng chứng Cuối cùng (Vòng 3 — V3)
++## 3. Bằng chứng lịch sử đến Carbon V3
 +
 +*(Lưu ý: các bộ `Focused G6B`, `G2–G5 + G6A`, `Legacy F1` và `Architecture` là tập con của `Full Backend`, tuyệt đối không cộng dồn với `861`.)*
 +
-+| Cổng kiểm tra | Lịch sử Codex (`2c72e2b`) | Vòng 1 (`de82afe7`) | Vòng 2 (`c519845`) | Kết quả Vòng 3 — V3 Cuối cùng (trên cây xuất sạch từ `64c85f1` + `candidate.patch`) |
++| Cổng kiểm tra | Lịch sử Codex (`2c72e2b`) | Vòng 1 (`de82afe7`) | Vòng 2 (`c519845`) | Carbon V3 trước B1/B2 (trên cây xuất sạch từ `64c85f1` + bản vá V3) |
 +|---|---|---|---|---|
 +| Focused G6B (`test_unified_copilot.py`) | `11 passed` | `17 passed` | `19 passed` | **`23 passed` (`exit 0`, lưu JUnit `focused.xml`)** |
 +| Reproducer `F01-R1`..`F01-R3` & `F01-R1-MT`/`R2-MT` | `3 failed` / — | `3 failed` / — | `3 passed` / `2 failed, 2 passed` | **`3/3 passed` & `4/4 passed` (`exit 0`, `0` snapshot capture / `0` job sai ngữ nghĩa)** |
@@ -316,27 +359,28 @@ index 0000000..716e735
 +
 +- Bản vá cuối cùng (lấy `64c85f1` làm base): [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch)
 +- Mã băm SHA-256 của bản vá: [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS)
-+- Gói bằng chứng nén (chứa `candidate.patch`, `codex-interrupted-candidate.patch`, `CONTENTS.sha256`, `executed-files.sha256`, `diagnostics/` fail-before, `raw/` backend/frontend/browser logs đã kiểm tra không chứa JWT, JUnit `focused.xml` và `collaboration_chat.md`): [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip) · [BUNDLE.sha256](../../eval/evidence/2026-11-26-ai4-g6b/BUNDLE.sha256)
++- Gói bằng chứng gồm bản vá, manifest byte/blob của 52 tệp, kết quả fail-before/pass-after, bảng exit code, đối chiếu phạm vi, checksum và lệnh chạy lại. Bằng chứng gốc Codex và Carbon V1–V3 được lưu nguyên byte trong vùng Git bỏ qua. [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip) · [BUNDLE.sha256](../../eval/evidence/2026-11-26-ai4-g6b/BUNDLE.sha256)
 +- Runner tự động trên cây xuất sạch: [verify.sh](../../eval/evidence/2026-11-26-ai4-g6b/verify.sh) · [browser_smoke.mjs](../../eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs) · [run_demo.py](../../eval/evidence/2026-11-26-ai4-g6b/run_demo.py)
 +- Rollback khi cần trên bản sao thử nghiệm: `git apply --reverse --check eval/evidence/2026-11-26-ai4-g6b/candidate.patch`.
 +
 +**READY_FOR_FINAL_ACCEPTANCE**
 +
-+**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 6B)**
++**STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE.**
 diff --git a/docs/ai4/PROJECT_STATE.md b/docs/ai4/PROJECT_STATE.md
-index 6386a51..f17247a 100644
+index 6386a5157e1e411d3a80f53b940665265e1917ec..f96f211f2e702ff472ac78ae3c17c483d35b09bd 100644
 --- a/docs/ai4/PROJECT_STATE.md
 +++ b/docs/ai4/PROJECT_STATE.md
-@@ -16,4 +16,6 @@ Roadmap 26/11 do Project Owner và nhóm chọn là **Merged baseline readiness
+@@ -16,4 +16,7 @@ Roadmap 26/11 do Project Owner và nhóm chọn là **Merged baseline readiness
  - **Merged baseline readiness — Tested (26/11).** Local `feature/ai-4-how-to` tại cùng commit `0f877f1` với `develop` và `origin/develop`. Blob/path của source, config, tests, frontend và research PDF trùng mirror `20bb246`. Backend 808 pass + 8 forecast skips, standalone 180, frontend 59, Golden 38/38 (CRLF fixture provenance), frozen 100/100. [Evidence](../../eval/evidence/2026-11-26-ai4-g5/raw)
  - **G5 — candidate trước remediation (Tested).** Service advisory có đủ ba mục tiêu. 24 oracle tests, 180 focused regression, 832 backend pass + 8 forecast skips, standalone 180. Tất cả cổng của candidate exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Recovery](G5_RECOVERY_STATE.md)
  - **G5 — READY_FOR_FINAL_ACCEPTANCE (Tested).** Sau CONDITIONAL PASS tại `9ecb1af`, đã xử lý F01–F04. Candidate cuối 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, standalone 180. 10/10 cổng exit 0. [Báo cáo](PHASE_4_3_REPORT.md) · [Bundle](../../eval/evidence/2026-11-26-ai4-g5/remediation/verification-bundle.zip)
 -- **G6B/G7 — Planned.** Chờ G5 review trước. Real LLM và PostgreSQL runtime PENDING.
 +- Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c49a76e4c6446530da`. Candidate SHA-256 `7dd32a1903aa67b9548ad30da21739a6b9a9b220d3ca681853d267027b4fc534`, bundle SHA-256 `ea90e5ca90452ac105683b6630de6f579bfddb33f8ec4f4a10839f55db1f1dc9`. Tech Lead xác nhận 6/6 blob, 6/6 source hash, 26/26 checksum nội dung, oracle M3a/M3b, hai trường hợp có cải thiện và không cải thiện, G5-F01–F04 đã xử lý, 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips, 180 standalone và 10/10 cổng exit 0. G5 đóng, chỉ xử lý blocker tích hợp đã xác nhận nếu có.
-+- **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY (Tested, chưa đánh dấu APPROVED).** Tech Lead đã thực hiện 3 vòng review độc lập: vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (patch Codex `85ba2959...`), vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (patch V1 `dab76e32...`, đóng F02–F04 và provenance mã thực thi F05) và vòng 3 tại mirror `c5198452ed72b409274bfebeaa91434017f251e8` (patch V2 `fff02f47...`, đóng `F01-R1`..`F01-R3` đơn lượt và duyệt thiết kế V3 `APPROVED WITH CONDITIONS` cho `F01-R1-MT`/`F01-R2-MT`). Carbon đã hoàn tất bản V3 (ràng buộc ngữ cảnh đa lượt gắn theo tác vụ có vòng đời an toàn + kiểm chứng đối xứng khi nhận công cụ, không chạm Unified Core, G2–G5 engines, `frontend/**` hay `prompts/**`), chạy đạt toàn bộ `11/11` cổng backend (`861 passed + 8 forecast skips` toàn backend — trong đó có các tập con `23` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone), `7/7` cổng frontend (`66/66` Vitest trên 18 tệp, ESLint, TypeScript, OpenAPI parity, Webpack & Turbopack build `exit 0`), và cả `2/2` kịch bản Chromium smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). Đã cập nhật [candidate.patch](../../eval/evidence/2026-11-26-ai4-g6b/candidate.patch), [SHA256SUMS](../../eval/evidence/2026-11-26-ai4-g6b/SHA256SUMS) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Real LLM provider (`PENDING_NO_AUTHORIZED_KEY`) và PostgreSQL runtime (`PENDING`) giữ cho G7. [Báo cáo G6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md)
++- **G6B V3 — bằng chứng lịch sử (Tested).** Tech Lead đã thực hiện 3 vòng review độc lập: vòng 1 tại mirror `2c72e2b901815ef3a63513d576db9182b785c6f8` (patch Codex `85ba2959...`), vòng 2 tại mirror `de82afe7b7fd1293466aa01115ea88a7f08bfbbb` (patch V1 `dab76e32...`, đóng F02–F04 và provenance mã thực thi F05) và vòng 3 tại mirror `c5198452ed72b409274bfebeaa91434017f251e8` (patch V2 `fff02f47...`, đóng `F01-R1`..`F01-R3` đơn lượt và duyệt thiết kế V3 `APPROVED WITH CONDITIONS` cho `F01-R1-MT`/`F01-R2-MT`). Carbon đã hoàn tất bản V3 (ràng buộc ngữ cảnh đa lượt gắn theo tác vụ có vòng đời an toàn + kiểm chứng đối xứng khi nhận công cụ, không chạm Unified Core, G2–G5 engines, `frontend/**` hay `prompts/**`), chạy đạt toàn bộ `11/11` cổng backend (`861 passed + 8 forecast skips` toàn backend — trong đó có các tập con `23` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone), `7/7` cổng frontend (`66/66` Vitest trên 18 tệp, ESLint, TypeScript, OpenAPI parity, Webpack & Turbopack build `exit 0`), và cả `2/2` kịch bản Chromium smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). Bản V3 đã được lưu nguyên trạng trước khi tích hợp B1/B2.
++- **G6B — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY (Tested).** Sau review `CONDITIONAL PASS` của Tech Lead trên mirror `92f0913`, Codex áp dụng nguyên trạng bản vá từ gói bàn giao. B1 từ chối yêu cầu làm rõ vượt giới hạn, B2 nhả permit cả khi ngắt SSE giữa stream và trước iterator. Ba ca fail-before đều pass sau sửa. Clean export từ `64c85f1` đạt 864 backend, 8 forecast skip, 180 simulator, 66 frontend và hai Chromium smoke. Real LLM và PostgreSQL runtime giữ ở trạng thái PENDING cho G7. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE.** [Báo cáo](PHASE_4_4B_REPORT.md) · [Recovery](G6B_RECOVERY_STATE.md) · [Bằng chứng](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +- **G7 — Planned.** Held-out NL evaluation, load/concurrency 1.000 users, MemorySaver retention/pruning, Real LLM và PostgreSQL runtime PENDING.
 diff --git a/docs/handoff/HANDOFF.md b/docs/handoff/HANDOFF.md
-index d72b71b..d2fe5fe 100644
+index d72b71b9d1bc082102471884aab5c5bdfecfd234..ee4463863c96d72fb2afd2e182a9d328ca416d70 100644
 --- a/docs/handoff/HANDOFF.md
 +++ b/docs/handoff/HANDOFF.md
 @@ -88,6 +88,8 @@ vẫn ghi nhận trạng thái của lượt 25/11.
@@ -348,39 +392,47 @@ index d72b71b..d2fe5fe 100644
  Nguồn: tin nhắn của Human Supervisor trong phiên Claude Code ngày 2026-11-24 (duyệt Giai đoạn 1 có điều kiện; sau đó
  duyệt cơ chế chuyển giao). Tóm tắt yêu cầu đã duyệt:
  1. Một Feature Registry duy nhất; hệ mã ưu tiên PRD v0.4 nhưng **không mặc định PRD đúng hơn code**; có bảng ánh xạ
-@@ -120,7 +122,9 @@ tạo tài liệu song song thay vì sửa tài liệu cũ.
+@@ -120,7 +122,11 @@ tạo tài liệu song song thay vì sửa tài liệu cũ.
  
  ### 1.3 Task Phase 1
  
 -**G5 (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Targeted remediation F01–F04 đã qua 10 cổng. Tech Lead nhận nghiệm thu cuối.
++**G6B final remediation (27/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Codex tích hợp nguyên trạng bản vá B1/B2 của Tech Lead sau review mirror `92f0913`. Trên bản xuất cô lập, ba ca hồi quy đều fail trên V3 và đều pass sau sửa. Toàn bộ 21 cổng đạt. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
++
 +**G6B (26/11) — READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY.** Sau vòng 1 (`2c72e2b`), vòng 2 (`de82afe7`, đóng F02–F04) và vòng 3 (`c519845`, đóng `F01-R1`..`F01-R3` đơn lượt và duyệt thiết kế V3 cho `F01-R1-MT`/`F01-R2-MT`), Carbon đã tái hiện fail-before và hoàn tất bản V3 (ràng buộc ngữ cảnh đa lượt gắn theo tác vụ + vòng đời an toàn) qua đầy đủ các cổng backend (`861 passed + 8 skips`, tập con focused G6B `23 passed`), standalone (`180`), frontend (`66 passed`, Webpack & Turbopack) và Chromium (`two-roles` & `--ranked`). Đã nhả khóa chờ Tech Lead nghiệm thu cuối. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) · [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
 +**G5 (26/11) — APPROVED (`42438430`).** Targeted remediation F01–F04 đã qua 10 cổng và được Tech Lead nghiệm thu chính thức.
  [Báo cáo](../ai4/PHASE_4_3_REPORT.md) · [Recovery](../ai4/G5_RECOVERY_STATE.md)
  
  
-@@ -156,6 +160,8 @@ Ngoài task: HACP (protocol giao tiếp) đã áp dụng trước Phase 1 —
+@@ -156,6 +162,10 @@ Ngoài task: HACP (protocol giao tiếp) đã áp dụng trước Phase 1 —
  
  ### 1.4 Kiểm thử và bằng chứng
  
++**G6B final remediation (27/11, Codex, `64c85f1` + candidate cuối).** Full backend 864 đạt và 8 forecast skip. Các tập con gồm B1/B2 3, focused G6B 23, G2–G5 + G6A 167, legacy F1/HITL 97, architecture 43. Simulator 180. Ruff lint/format, docs với `.env.example` gốc, OpenAPI, offline F1, 66 Vitest, ESLint, TypeScript, generated schema parity, Webpack/Turbopack và hai Chromium smoke đều đạt. [Bằng chứng cuối](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
++
 +**G6B targeted remediation vòng 3 (V3) trên `64c85f1`, Carbon, 26/11.** Cổng xuất sạch đạt `11/11` backend (`861` backend + `8` forecast skips — gồm các tập con `23` focused G6B, `167` hồi quy G2–G5+G6A, `97` legacy/HITL, `43` architecture; cùng `180` standalone, Ruff lint/format, docs, OpenAPI, offline F1 `55/55`), `7/7` frontend (`66` Vitest / 18 tệp, ESLint, TypeScript, `gen:api` parity, Webpack & Turbopack build) và `2/2` Chromium headless smoke (`two-roles` và `--ranked` M3b `94 kW` `partial`). `0 byte diff` trên Unified Core và G2–G5 engines; `0 byte diff` trên `frontend/**` và `prompts/**` so với V2. [Bundle G6B](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 +
  **Merged develop `0f877f1`, Codex, 26/11.** Focused 399 pass, backend 808 pass + 8 forecast skips, standalone 180,
  frontend 59, Golden 38/38 và frozen backend 100/100. **Patch G5** qua 24 focused, 180 regression G2/G3/G4/G6A,
  832 backend + 8 forecast skips, standalone 180 và mọi cổng trong runner. **Sau remediation** đạt 30 G5, 137 hồi quy G2/G3/G4/G6A, 43 architecture, 838 backend + 8 forecast skips và standalone 180. [Evidence G5](../../eval/evidence/2026-11-26-ai4-g5/raw)
-@@ -246,6 +252,8 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
+@@ -246,6 +256,10 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
  
  ### 1.8 Trạng thái Git
  
++**G6B final remediation (27/11).** Nhánh `feature/ai-4-how-to` tại `64c85f1`, index sạch, 37 tệp tracked có thay đổi trước và sau. Có 24 tệp mới lúc tiếp nhận và 25 sau tích hợp, gồm 6 tệp bàn giao đầu vào được giữ ngoài candidate cuối. Bản vá Tech Lead thay đổi `src/api/routes.py`, `src/llm_chat/nodes/finalize_node.py` và thêm `tests/test_api/test_g6b_v3_bounds_and_disconnect.py`. Cập nhật registry, ba tài liệu trạng thái AI-4, phase report và file này. Candidate 52 tệp, bằng chứng cuối có checksum riêng. Bản vá và ZIP V3 nguyên gốc được lưu trong thư mục lịch sử local do Git bỏ qua. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
++
 +**G6B.** `feature/ai-4-how-to` tại `64c85f1`, local và remote develop tại `0f877f1`. Chênh lệch với checkpoint G5 trước commit là RECOVERABLE. Cây lúc tiếp nhận từ Codex có 48 tệp delta G6B (lưu trữ tại `85ba2959...`), vòng 1 Carbon lưu trữ tại `dab76e32...`, vòng 2 Carbon lưu trữ tại `fff02f47...`; sau targeted remediation vòng 3 (V3 — `F01-R1-MT`/`F01-R2-MT` & vòng đời làm rõ) gồm 51 tệp trong `candidate.patch` + gói `verification-bundle.zip` (ngoài ra có tệp chỉ thị review `G6B_TECH_LEAD_REVIEW.md` ở gốc repo được giữ nguyên). Xác minh provenance và delta tại [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md).
 +
  - **26/11 G5.** `feature/ai-4-how-to` tại `0f877f1`, cùng `develop` và `origin/develop`. Working tree ban đầu sạch.
    Cây code/config/test/frontend trùng blob với mirror `20bb246`. Checkpoint Phase 1 cũ là RECOVERABLE. Tệp G5 và
    provenance ở [báo cáo](../ai4/PHASE_4_3_REPORT.md). Targeted remediation giữ HEAD và cập nhật 2 file recommendation,
-@@ -279,6 +287,12 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
+@@ -279,6 +293,14 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
  
  ### 1.9 Agent và khoá chỉnh sửa
  
++**G6B final remediation (2026-11-27, Codex).** Nhận khoá lúc 08:48 +07 và đã nhả sau bàn giao trên `64c85f1`. Cây V3 khớp bản vá Carbon qua reverse apply check. Gói bàn giao mới và vắng tệp chỉ thị review cũ được phân loại MINOR. Gói Tech Lead và chỉ thị Project Owner cung cấp phạm vi khắc phục hiện hành.
++
 +**G6B targeted remediation vòng 3 — V3 (2026-11-26).** Carbon đã hoàn tất xử lý `F01-R1-MT` / `F01-R2-MT` và vòng đời trạng thái làm rõ theo quyết định `APPROVED WITH CONDITIONS` của Tech Lead trên mirror `c519845`, xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói lại bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
 +
 +**G6B targeted remediation vòng 2 (2026-11-26).** Carbon đã hoàn tất xử lý `F01-R1`..`F01-R3` theo verdict `CONDITIONAL PASS` (`G6B_TECH_LEAD_REVIEW.md`, mirror `de82afe7`), xác minh toàn bộ cổng trên cây xuất sạch từ `64c85f1`, đóng gói lại bằng chứng và **đã nhả khoá** ở trạng thái `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY`. [Recovery G6B](../ai4/G6B_RECOVERY_STATE.md)
@@ -390,20 +442,24 @@ index d72b71b..d2fe5fe 100644
  **G5 targeted remediation.** Codex đã nhận khoá F01–F04 theo review `9ecb1af`, đối chiếu đủ năm hash của patch cũ và chạy lại 10 cổng trên candidate mới. Chênh lệch checkpoint là RECOVERABLE. Đã nhả khoá sau HANDOFF_READY.
  
  **AI-4 G5 (2026-11-26).** Codex nhận khoá implementation, tests, roadmap và evidence G5 trên `feature/ai-4-how-to` tại merged develop `0f877f1`. Đã nhả khoá sau HANDOFF_READY. Review độc lập chuyển Tech Lead. [Checkpoint G5](../ai4/PROJECT_STATE.md)
-@@ -310,8 +324,7 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
+@@ -310,8 +332,9 @@ Danh sách "đang chờ" cũ (24/11) đã được thay bằng bảng này.
  
  ### 1.10 Việc Agent tiếp theo cần làm
  
 -**G5.** Tech Lead đối chiếu patch, oracle và gói evidence để nghiệm thu cuối. Nhóm duyệt đề xuất đồng bộ PRD/ADR-015.
 -G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE (GATE 5)**.
++**G6B final remediation (27/11) — STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTANCE.** Tech Lead đối chiếu ba ca hồi quy và checksum của candidate cuối để ra quyết định nghiệm thu. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
++
 +**G6B — READY_FOR_FINAL_ACCEPTANCE.** Tech Lead thực hiện review nghiệm thu độc lập trên [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md) và [verification-bundle.zip](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip). Không triển khai G7, không commit/push/merge khi chưa có quyết định mới của Project Owner và Tech Lead.
  
  1. **Human — việc duy nhất còn lại để đóng Phase 1:** chỉ thị P1-14 khi muốn đóng. Tuỳ chọn trước đó: giao reviewer
     (Codex) đối chiếu sổ quyết định §1.5 với chỉ thị 25/11 (chỉ đọc, không chặn). C-1 commit là chỉ thị riêng (nên cân
-@@ -324,6 +337,14 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
+@@ -324,6 +347,16 @@ G6B/G7 chờ chỉ thị riêng. **STOP — WAITING_FOR_TECH_LEAD_FINAL_ACCEPTAN
  
  ### 1.11 Nhật ký checkpoint
  
++**27/11, Codex.** Xác minh SHA-256 bản vá Tech Lead, reverse apply check của V3 và 50/51 blob so với mirror (chỉ khác `.gitignore`), lưu nguyên bản ZIP/patch V3 và áp dụng B1/B2. Kiểm chứng ba fail-before, ba pass-after và 21 cổng đạt. Đóng gói evidence từ candidate cuối, giữ log thô trong vùng Git bỏ qua, nhả khoá chờ Tech Lead nghiệm thu.
++
 +**26/11, Carbon (vòng 3 — V3).** Tiếp nhận review độc lập `c519845` (`F01-R1`..`F01-R3` đơn lượt PASS, duyệt thiết kế V3 `APPROVED WITH CONDITIONS` cho `F01-R1-MT`/`F01-R2-MT`), lưu trữ patch vòng 2 `fff02f47...`, tái hiện fail-before `2 failed, 2 passed` và hoàn tất bản V3 qua `11/11` cổng backend (`861 passed + 8 skips`, tập con G6B `23 passed`), `7/7` cổng frontend và `2/2` Chromium smokes (`0` diff trên Core, `frontend/**` và `prompts/**`). Đóng gói `candidate.patch` + `verification-bundle.zip` mới, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
 +
 +**26/11, Carbon (vòng 2).** Tiếp nhận review độc lập `de82afe7` (F02–F04 PASS, mở lại `F01-R1`..`F01-R3`), lưu trữ patch vòng 1 `dab76e32...`, tái hiện fail-before `3/3` và hoàn tất khắc phục `F01-R1`..`F01-R3` + 4 đối chứng dương tính qua `11/11` cổng backend (`857 passed + 8 skips`), `7/7` cổng frontend và `2/2` Chromium smokes. Đóng gói `candidate.patch` + `verification-bundle.zip` mới, đặt `READY_FOR_FINAL_ACCEPTANCE · HANDOFF_READY` và nhả khoá. [Báo cáo G6B](../ai4/PHASE_4_4B_REPORT.md)
@@ -417,7 +473,7 @@ index d72b71b..d2fe5fe 100644
  [Báo cáo và bundle](../ai4/PHASE_4_3_REPORT.md)
 diff --git a/eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs b/eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs
 new file mode 100644
-index 0000000..feb47e1
+index 0000000000000000000000000000000000000000..feb47e155e54a5a8e2bc83602e94d3bf5f94b84e
 --- /dev/null
 +++ b/eval/evidence/2026-11-26-ai4-g6b/browser_smoke.mjs
 @@ -0,0 +1,125 @@
@@ -548,7 +604,7 @@ index 0000000..feb47e1
 +}
 diff --git a/eval/evidence/2026-11-26-ai4-g6b/run_demo.py b/eval/evidence/2026-11-26-ai4-g6b/run_demo.py
 new file mode 100644
-index 0000000..77e14e4
+index 0000000000000000000000000000000000000000..77e14e45b8707dc8f1b07dce1a448254745815ea
 --- /dev/null
 +++ b/eval/evidence/2026-11-26-ai4-g6b/run_demo.py
 @@ -0,0 +1,146 @@
@@ -700,7 +756,7 @@ index 0000000..77e14e4
 +    main()
 diff --git a/eval/evidence/2026-11-26-ai4-g6b/verify.sh b/eval/evidence/2026-11-26-ai4-g6b/verify.sh
 new file mode 100644
-index 0000000..c12b372
+index 0000000000000000000000000000000000000000..c12b372411d86bf554e39b9e0dcb18c219d38f01
 --- /dev/null
 +++ b/eval/evidence/2026-11-26-ai4-g6b/verify.sh
 @@ -0,0 +1,36 @@
@@ -741,7 +797,7 @@ index 0000000..c12b372
 +
 +exit "$failed"
 diff --git a/frontend/openapi.json b/frontend/openapi.json
-index e8a062c..3e1204f 100644
+index e8a062cb9f2d3cf4b01759b48e620a1ea53e1113..3e1204f53abb529bbf9fce00865967e480a49687 100644
 --- a/frontend/openapi.json
 +++ b/frontend/openapi.json
 @@ -605,6 +605,33 @@
@@ -1863,7 +1919,7 @@ index e8a062c..3e1204f 100644
        "post": {
          "description": "Chat streaming (SSE) cho S2 — phát tiến độ node, từng đoạn câu trả lời và ChatResponse cuối.",
 diff --git a/frontend/src/app/operator/page.tsx b/frontend/src/app/operator/page.tsx
-index 6136e9a..e8b9c8d 100644
+index 6136e9adae367d197ae8c4bae7cf0386ac38fb96..e8b9c8df4a5656dcb5a3010b4e2fc4ab16536459 100644
 --- a/frontend/src/app/operator/page.tsx
 +++ b/frontend/src/app/operator/page.tsx
 @@ -11,6 +11,7 @@ import Link from "next/link";
@@ -1888,7 +1944,7 @@ index 6136e9a..e8b9c8d 100644
          {(o) => {
            const limit = o.state.available_power_kw;
 diff --git a/frontend/src/app/resident/page.tsx b/frontend/src/app/resident/page.tsx
-index c59a797..559cda2 100644
+index c59a7978024d009c5df2942cffa99458ba650f23..559cda20a738da5b28153df3eb5c6afa48a18ca0 100644
 --- a/frontend/src/app/resident/page.tsx
 +++ b/frontend/src/app/resident/page.tsx
 @@ -103,7 +103,10 @@ export default function ResidentHomePage() {
@@ -1905,7 +1961,7 @@ index c59a797..559cda2 100644
            <Panel label="Hàng chờ">
 diff --git a/frontend/src/components/copilot/ChatAdvisory.tsx b/frontend/src/components/copilot/ChatAdvisory.tsx
 new file mode 100644
-index 0000000..8bbf9ae
+index 0000000000000000000000000000000000000000..8bbf9ae2a67656edcdeb3d2899567fc4d176af67
 --- /dev/null
 +++ b/frontend/src/components/copilot/ChatAdvisory.tsx
 @@ -0,0 +1,129 @@
@@ -2039,7 +2095,7 @@ index 0000000..8bbf9ae
 +  });
 +}
 diff --git a/frontend/src/components/copilot/CopilotPanel.tsx b/frontend/src/components/copilot/CopilotPanel.tsx
-index 6925f65..7d49115 100644
+index 6925f652d6bd53298ddd45ac10d92ec6efc32852..7d491151fb447ecdff6ebdb1b2d0f65edd34c83d 100644
 --- a/frontend/src/components/copilot/CopilotPanel.tsx
 +++ b/frontend/src/components/copilot/CopilotPanel.tsx
 @@ -12,7 +12,7 @@ import { useSession } from "@/lib/auth/session";
@@ -2164,7 +2220,7 @@ index 6925f65..7d49115 100644
            <form onSubmit={submitForm} className="stack" aria-label="Biểu mẫu Copilot">
              <label className="field"><span className="label">Thao tác</span>
 diff --git a/frontend/src/components/resident/ChatPanel.tsx b/frontend/src/components/resident/ChatPanel.tsx
-index bb16216..5a34e4a 100644
+index bb162165bc38f881ffc117d5efa32e25fa835de7..5a34e4aefe32a6f5715b0f9547d05f603e3a96a1 100644
 --- a/frontend/src/components/resident/ChatPanel.tsx
 +++ b/frontend/src/components/resident/ChatPanel.tsx
 @@ -14,6 +14,7 @@ import { useMutation } from "@tanstack/react-query";
@@ -2647,7 +2703,7 @@ index bb16216..5a34e4a 100644
            aria-invalid={tooLong || undefined}
            aria-describedby="chat-hint"
 diff --git a/frontend/src/components/system/Providers.tsx b/frontend/src/components/system/Providers.tsx
-index 2c042ed..ff41164 100644
+index 2c042ed1dd5691c981e086d79bc66ad209ab677e..ff41164eda91a7f9f1db386f9e779661b026030a 100644
 --- a/frontend/src/components/system/Providers.tsx
 +++ b/frontend/src/components/system/Providers.tsx
 @@ -1,11 +1,11 @@
@@ -2686,7 +2742,7 @@ index 2c042ed..ff41164 100644
 +  return <QueryClientProvider key={generation ?? "anonymous"} client={client}>{children}</QueryClientProvider>;
  }
 diff --git a/frontend/src/lib/api/client.ts b/frontend/src/lib/api/client.ts
-index b994079..2cf284b 100644
+index b994079d0a268b6445bb5fd13887067cc4725dae..2cf284b0460cc7d697387680f119b7c64f86820a 100644
 --- a/frontend/src/lib/api/client.ts
 +++ b/frontend/src/lib/api/client.ts
 @@ -4,7 +4,7 @@
@@ -2738,7 +2794,7 @@ index b994079..2cf284b 100644
  }
  
 diff --git a/frontend/src/lib/api/schema.d.ts b/frontend/src/lib/api/schema.d.ts
-index 792b64a..f00a939 100644
+index 792b64aa7cef13f985995def07923f8874d10d57..f00a9397267985c415686ee88ca3a629e8d9c2f4 100644
 --- a/frontend/src/lib/api/schema.d.ts
 +++ b/frontend/src/lib/api/schema.d.ts
 @@ -83,6 +83,24 @@ export interface paths {
@@ -3312,7 +3368,7 @@ index 792b64a..f00a939 100644
          parameters: {
              query?: never;
 diff --git a/frontend/src/lib/auth/session.ts b/frontend/src/lib/auth/session.ts
-index c2d38c0..11678b1 100644
+index c2d38c0b321a4261d2847b4028ce924aa6f051bc..11678b12962d111b18f6af58b25904134762b4ac 100644
 --- a/frontend/src/lib/auth/session.ts
 +++ b/frontend/src/lib/auth/session.ts
 @@ -25,7 +25,9 @@ export type Session = {
@@ -3372,7 +3428,7 @@ index c2d38c0..11678b1 100644
  }
  
 diff --git a/frontend/src/lib/ws/useStream.ts b/frontend/src/lib/ws/useStream.ts
-index 7e908fb..d408818 100644
+index 7e908fb1f51fe28a6734d754d796fdff7ec60bef..d4088189d9ffcd43bf905974c1a95c9876670451 100644
 --- a/frontend/src/lib/ws/useStream.ts
 +++ b/frontend/src/lib/ws/useStream.ts
 @@ -11,7 +11,7 @@
@@ -3425,7 +3481,7 @@ index 7e908fb..d408818 100644
    return state;
  }
 diff --git a/frontend/src/test/copilot.test.tsx b/frontend/src/test/copilot.test.tsx
-index fac03a8..9894d9f 100644
+index fac03a84d23626e0b641e05c62e73dd5bf5805f6..9894d9f0e7d12949f76558aec0d307e1fb1e2968 100644
 --- a/frontend/src/test/copilot.test.tsx
 +++ b/frontend/src/test/copilot.test.tsx
 @@ -6,10 +6,11 @@ import { CopilotPanel } from "@/components/copilot/CopilotPanel";
@@ -3512,7 +3568,7 @@ index fac03a8..9894d9f 100644
 +});
 diff --git a/frontend/src/test/session-401.test.ts b/frontend/src/test/session-401.test.ts
 new file mode 100644
-index 0000000..60a7ceb
+index 0000000000000000000000000000000000000000..60a7ceb2c8a247c1b7df82ce5c73259cb56545b6
 --- /dev/null
 +++ b/frontend/src/test/session-401.test.ts
 @@ -0,0 +1,40 @@
@@ -3558,7 +3614,7 @@ index 0000000..60a7ceb
 +});
 diff --git a/frontend/src/test/voice-session-isolation.test.tsx b/frontend/src/test/voice-session-isolation.test.tsx
 new file mode 100644
-index 0000000..09c816e
+index 0000000000000000000000000000000000000000..09c816e9766f6949aab9bdb09f0a5f6d78228072
 --- /dev/null
 +++ b/frontend/src/test/voice-session-isolation.test.tsx
 @@ -0,0 +1,392 @@
@@ -3956,7 +4012,7 @@ index 0000000..09c816e
 +});
 diff --git a/prompts/booking_reason.md b/prompts/booking_reason.md
 new file mode 100644
-index 0000000..211f34d
+index 0000000000000000000000000000000000000000..211f34da54da456bccdb4b47da52c9134a3bf415
 --- /dev/null
 +++ b/prompts/booking_reason.md
 @@ -0,0 +1,11 @@
@@ -3972,7 +4028,7 @@ index 0000000..211f34d
 +- Sắp xếp thứ tự `AC`/`DC` theo quỹ thời gian còn lại (`deadline - now`), KHÔNG đoán theo % pin và KHÔNG tự chọn cổng:
 +  nếu `deadline - now` ≤ 2 giờ → đưa gợi ý `DC` lên đầu; nếu ≥ 4 giờ (qua đêm) → đưa gợi ý `AC` lên đầu.
 diff --git a/prompts/charging_domain.md b/prompts/charging_domain.md
-index 8f6f732..2633893 100644
+index 8f6f732bf1ddf7c2344cb8eb67c7f4fbd2661c51..2633893770516c1b0f8fb5831d7806b3f621492f 100644
 --- a/prompts/charging_domain.md
 +++ b/prompts/charging_domain.md
 @@ -6,7 +6,7 @@ Xác định đúng 1 trong 4 ý định trước khi hành động:
@@ -3993,7 +4049,7 @@ index 8f6f732..2633893 100644
  </sanity_checks>
 diff --git a/prompts/copilot_tools.md b/prompts/copilot_tools.md
 new file mode 100644
-index 0000000..b4e9211
+index 0000000000000000000000000000000000000000..b4e9211bab4aea72f373816e712784912fb21bc2
 --- /dev/null
 +++ b/prompts/copilot_tools.md
 @@ -0,0 +1,21 @@
@@ -4019,7 +4075,7 @@ index 0000000..b4e9211
 +tuyên bố tối ưu toàn cục hoặc xem phương án khả thi là cải thiện. Không gộp mốc đạt pin với mốc nhả cổng.
 +</copilot>
 diff --git a/prompts/reason.md b/prompts/reason.md
-index 8cd29e9..1eaf99f 100644
+index 8cd29e9f231c469fead849da3090a4a19c2d73f5..1eaf99fa0ebf12cfeb6f86149a0af0a093e1e7be 100644
 --- a/prompts/reason.md
 +++ b/prompts/reason.md
 @@ -1,10 +1,11 @@
@@ -4079,7 +4135,7 @@ index 8cd29e9..1eaf99f 100644
    "tool_args": {},
    "enough_data": true hoặc false,
 diff --git a/src/agents/copilot_grounding.py b/src/agents/copilot_grounding.py
-index 82e9dab..d62af98 100644
+index 82e9dab30d72b23202d2c98b8261ae5377b4b708..d62af989a5876aab3646378a3d6ba9df30439da1 100644
 --- a/src/agents/copilot_grounding.py
 +++ b/src/agents/copilot_grounding.py
 @@ -1,9 +1,19 @@
@@ -4260,7 +4316,7 @@ index 82e9dab..d62af98 100644
  def render_why(answer: WhyAnswer, source: ParseSource | None = None) -> WhyReply:
      gate = GroundingGate.for_why(answer)
 diff --git a/src/agents/copilot_intent.py b/src/agents/copilot_intent.py
-index 6c8418b..a7e8ea3 100644
+index 6c8418bc342f99f0f0bf2c933252e08915d240bd..a7e8ea3172edc5c94bbe0e0a3e15a89df0aa2e2b 100644
 --- a/src/agents/copilot_intent.py
 +++ b/src/agents/copilot_intent.py
 @@ -1,21 +1,25 @@
@@ -5365,7 +5421,7 @@ index 6c8418b..a7e8ea3 100644
      specified, ambiguous = _time(raw, text)
      if ambiguous:
 diff --git a/src/api/routes.py b/src/api/routes.py
-index 1946ac9..226bef8 100644
+index 1946ac9e922954802b56c4b0f32714fecad9519f..a829f7cfb751ef892c4ac883b68206467565b3d8 100644
 --- a/src/api/routes.py
 +++ b/src/api/routes.py
 @@ -4,9 +4,9 @@ Graph compile với checkpointer nên mọi lần invoke cần `configurable.thr
@@ -5381,20 +5437,24 @@ index 1946ac9..226bef8 100644
  Lỗi (ADR-008): NotImplementedError / DomainError đi thẳng ra handler chung; lỗi nhà cung cấp LLM
  thành 503 `llm_unavailable` để frontend chuyển sang form (NFR khả dụng). Không trả `str(exc)` cho client.
  """
-@@ -16,20 +16,23 @@ import json
+@@ -15,21 +15,27 @@ import asyncio
+ import json
  import logging
  from collections import defaultdict
++from collections.abc import Awaitable, Callable
  from datetime import datetime
 +from hashlib import sha256
  from typing import Annotated, Literal
  from zoneinfo import ZoneInfo
  
 -from fastapi import APIRouter, HTTPException, Path, status
++from anyio import move_on_after
 +from fastapi import APIRouter, HTTPException, Path, Request, Response, status
  from fastapi.responses import StreamingResponse
  from langgraph.types import Command
  from openai import OpenAIError
  from pydantic import BaseModel, ValidationError
++from starlette.types import Receive, Scope, Send
  
 -from src.api.deps import ResidentUser
 +from src.api.deps import CurrentUser, ResidentUser
@@ -5408,7 +5468,7 @@ index 1946ac9..226bef8 100644
  from src.models.schemas import ChatRequest, ChatResponse, TranscribeRequest, TranscribeResponse
  from src.services import catalog, charging_service, speech
  from src.services.errors import DomainError
-@@ -42,24 +45,67 @@ router = APIRouter()
+@@ -42,24 +48,67 @@ router = APIRouter()
  
  CHAT_STREAM_TIMEOUT_SECONDS = 60.0
  MAX_CONCURRENT_STREAMS_PER_USER = 3
@@ -5481,7 +5541,7 @@ index 1946ac9..226bef8 100644
  def _proposal_from(payload: dict) -> ScheduleProposal | None:
      raw = payload.get("proposal")
      if not raw:
-@@ -146,7 +192,8 @@ def _to_chat_response(result: dict, session_id: str) -> ChatResponse:
+@@ -146,7 +195,8 @@ def _to_chat_response(result: dict, session_id: str) -> ChatResponse:
          analysis=analysis,
          session_id=session_id,
          status="refused" if result.get("refusal_reason") else "answer",
@@ -5491,7 +5551,7 @@ index 1946ac9..226bef8 100644
          suggestions=list(result.get("suggestions") or []),
          draft=_public_draft(result.get("draft_request")),
      )
-@@ -171,24 +218,44 @@ def _confirmed_booking_succeeded(result: dict) -> bool:
+@@ -171,43 +221,91 @@ def _confirmed_booking_succeeded(result: dict) -> bool:
      )
  
  
@@ -5543,9 +5603,23 @@ index 1946ac9..226bef8 100644
  
  
  def _sse(event_type: str, data: dict) -> str:
-@@ -196,16 +263,12 @@ def _sse(event_type: str, data: dict) -> str:
+     return f"data: {json.dumps({'type': event_type, **data}, ensure_ascii=False)}\n\n"
  
  
++class _ManagedChatStream(StreamingResponse):
++    """Release the turn even when disconnect happens before the body iterator starts."""
++
++    def __init__(self, *args, cleanup: Callable[[], Awaitable[None]], **kwargs):
++        super().__init__(*args, **kwargs)
++        self._cleanup = cleanup
++
++    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
++        try:
++            await super().__call__(scope, receive, send)
++        finally:
++            await self._cleanup()
++
++
  @router.post("/chat/stream")
 -async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResponse:
 +async def chat_stream(request: ChatRequest, user: CurrentUser, http_request: Request) -> StreamingResponse:
@@ -5562,14 +5636,34 @@ index 1946ac9..226bef8 100644
 +    payload = {"query": request.message, "turn_context": _turn_context(context)}
 +    config = _config(context)
 +    _reserve_thread(context)
++    final_state: dict = {}
++    stream_completed = False
++    released = False
++
++    async def _cleanup() -> None:
++        nonlocal released
++        if released:
++            return
++        released = True
++        try:
++            if not stream_completed and "__interrupt__" not in final_state:
++                # Starlette cancels the body iterator in an AnyIO cancel scope.
++                # Bound and shield cleanup; always release admission in finally.
++                with move_on_after(2, shield=True):
++                    await _abort_turn_state(config)
++        finally:
++            _release_thread(context)
  
      async def _generate():
++        nonlocal final_state, stream_completed
          stage_labels = {
-@@ -216,9 +279,12 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+             "guardrail": "Đang kiểm tra yêu cầu…",
+             "reason": "Trợ lý đang phân tích nhu cầu…",
+@@ -215,10 +313,11 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+             "assess": "Đang tổng hợp kết quả…",
              "human_review": "Đang chuẩn bị xác nhận đặt lịch…",
          }
-         final_state: dict = {}
-+        stream_completed = False
+-        final_state: dict = {}
          try:
              async with asyncio.timeout(CHAT_STREAM_TIMEOUT_SECONDS):
 -                async for mode, chunk in agent.astream(payload, config=config, stream_mode=["updates", "values"]):
@@ -5579,7 +5673,7 @@ index 1946ac9..226bef8 100644
                      if mode == "updates" and isinstance(chunk, dict):
                          for node_name, node_out in chunk.items():
                              if isinstance(node_out, dict):
-@@ -244,6 +310,7 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+@@ -244,6 +343,7 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
                          yield _sse("delta", {"text": piece})
                          await asyncio.sleep(0)
  
@@ -5587,20 +5681,23 @@ index 1946ac9..226bef8 100644
                  yield _sse("done", {"data": chat_resp.model_dump(mode="json")})
          except (TimeoutError, OpenAIError) as exc:
              logger.error(
-@@ -259,9 +326,9 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
+@@ -259,12 +359,11 @@ async def chat_stream(request: ChatRequest, user: ResidentUser) -> StreamingResp
                  },
              )
          finally:
 -            _active_user_streams[user.user_id] = max(0, _active_user_streams[user.user_id] - 1)
 -            if _active_user_streams[user.user_id] == 0:
 -                _active_user_streams.pop(user.user_id, None)
-+            if not stream_completed and "__interrupt__" not in final_state:
-+                await _abort_turn_state(config)
-+            _release_thread(context)
++            await _cleanup()
  
-     return StreamingResponse(
+-    return StreamingResponse(
++    return _ManagedChatStream(
          _generate(),
-@@ -279,20 +346,41 @@ async def chat_resume(
++        cleanup=_cleanup,
+         media_type="text/event-stream",
+         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+     )
+@@ -279,20 +378,41 @@ async def chat_resume(
      session_id: Annotated[str, Path(min_length=1, max_length=128)],
      request: ChatSessionResumeRequest,
      user: ResidentUser,
@@ -5652,7 +5749,7 @@ index 1946ac9..226bef8 100644
  
  @router.post("/chat/transcribe", response_model=TranscribeResponse)
 diff --git a/src/llm_chat/graph.py b/src/llm_chat/graph.py
-index d8e62be..6bf5ecd 100644
+index d8e62bea0f9d8858e236c8c07f673d2c2dd2aa95..6bf5ecd560aaab77709489864d3485e03cd486e2 100644
 --- a/src/llm_chat/graph.py
 +++ b/src/llm_chat/graph.py
 @@ -22,6 +22,7 @@ API key — mock LLM, không mock graph.
@@ -5757,7 +5854,7 @@ index d8e62be..6bf5ecd 100644
      graph.add_node("entry", make_entry_node(max_iter))
      graph.add_node("guardrail_check", guardrail_check_node)
 diff --git a/src/llm_chat/nodes/act_node.py b/src/llm_chat/nodes/act_node.py
-index b0857f7..c917f9f 100644
+index b0857f7998bcc81bf87e30dbb0d0164cbc972960..c917f9f5ac399459ddc0878364d925daeb87e418 100644
 --- a/src/llm_chat/nodes/act_node.py
 +++ b/src/llm_chat/nodes/act_node.py
 @@ -17,12 +17,24 @@ import json
@@ -5902,7 +5999,7 @@ index b0857f7..c917f9f 100644
          update["proposal"] = _parse_proposal(str(output))
      return update
 diff --git a/src/llm_chat/nodes/finalize_node.py b/src/llm_chat/nodes/finalize_node.py
-index 302de40..d586bee 100644
+index 302de40295e0948c107001aeb08c534a8005a673..fe94b0dd5b8386c1330fd4cc3db9e70530986240 100644
 --- a/src/llm_chat/nodes/finalize_node.py
 +++ b/src/llm_chat/nodes/finalize_node.py
 @@ -10,13 +10,23 @@ from __future__ import annotations
@@ -5961,12 +6058,12 @@ index 302de40..d586bee 100644
 +        prior_pending = state.get("pending_copilot_clarification") or {}
 +        existing_turns = [t for t in (prior_pending.get("turns") or ()) if isinstance(t, str) and t.strip()]
 +        raw_query, _ = CopilotIntegration.strip_explicit_reset(state.get("query", ""))
-+        cleaned_query = raw_query.strip()[:MAX_CLARIFICATION_TURN_CHARS]
++        cleaned_query = raw_query.strip()
 +        next_turns = [*existing_turns, cleaned_query] if cleaned_query else existing_turns
-+        if len(next_turns) > MAX_PENDING_CLARIFICATION_TURNS:
++        if len(cleaned_query) > MAX_CLARIFICATION_TURN_CHARS or len(next_turns) > MAX_PENDING_CLARIFICATION_TURNS:
 +            overflow_notice = CopilotNotice(
 +                code="unsupported",
-+                message="Đã vượt số lượt làm rõ liên tiếp. Vui lòng gửi lại một yêu cầu đầy đủ.",
++                message="Yêu cầu làm rõ vượt giới hạn độ dài hoặc số lượt. Vui lòng gửi lại một yêu cầu đầy đủ, ngắn gọn.",
 +            ).model_dump(mode="json")
 +            results = [
 +                overflow_notice if (item["kind"] == "notice" and item["code"] == "clarify") else item
@@ -6046,7 +6143,7 @@ index 302de40..d586bee 100644
              "history": _with_reply(state, answer),
          }
 diff --git a/src/llm_chat/nodes/human_review_node.py b/src/llm_chat/nodes/human_review_node.py
-index 0c14759..6d32489 100644
+index 0c147593c97620359182593d5746b7a5aa48d37a..6d3248995aa9aa2e367b7326c0496a02dfffa6ba 100644
 --- a/src/llm_chat/nodes/human_review_node.py
 +++ b/src/llm_chat/nodes/human_review_node.py
 @@ -50,7 +50,7 @@ async def human_review_node(state: AgentState, config: RunnableConfig) -> dict:
@@ -6059,7 +6156,7 @@ index 0c14759..6d32489 100644
      if answer == "approve":
          try:
 diff --git a/src/llm_chat/nodes/reason_node.py b/src/llm_chat/nodes/reason_node.py
-index ada7a37..17b7524 100644
+index ada7a373c253adfcc6982f6f3c7bde509b4c89b2..17b7524dca0e9d1099de7b058b381cb7da253ac1 100644
 --- a/src/llm_chat/nodes/reason_node.py
 +++ b/src/llm_chat/nodes/reason_node.py
 @@ -23,6 +23,8 @@ from src.llm_chat.prompts import load_prompt, render
@@ -6154,7 +6251,7 @@ index ada7a37..17b7524 100644
              update["draft_request"] = {**state.get("draft_request", {}), **decision.draft_request}
          return update
 diff --git a/src/llm_chat/schemas.py b/src/llm_chat/schemas.py
-index fc5b289..2b49f88 100644
+index fc5b289ab421df3abf3ef27ac962753fc5706c40..2b49f881204d8e65a5b543c3246e90d288a6ccb1 100644
 --- a/src/llm_chat/schemas.py
 +++ b/src/llm_chat/schemas.py
 @@ -7,6 +7,8 @@ from typing import Literal
@@ -6186,7 +6283,7 @@ index fc5b289..2b49f88 100644
              raise ValueError("action='tool' đòi hỏi tool_name không rỗng")
          if self.action == "final":
 diff --git a/src/llm_chat/state.py b/src/llm_chat/state.py
-index 64e98cb..25db17e 100644
+index 64e98cb999d5c59dd22c8e1ca5aef231401fc21e..25db17e0521f4bcbc89bac8dfa7dcdd59bb7110b 100644
 --- a/src/llm_chat/state.py
 +++ b/src/llm_chat/state.py
 @@ -24,6 +24,15 @@ Stage = Literal[
@@ -6221,7 +6318,7 @@ index 64e98cb..25db17e 100644
      suggestions: list[str]
 diff --git a/src/llm_chat/tools/copilot.py b/src/llm_chat/tools/copilot.py
 new file mode 100644
-index 0000000..aafe811
+index 0000000000000000000000000000000000000000..aafe811baa9a0bff583be5c50402aaeb82aaff60
 --- /dev/null
 +++ b/src/llm_chat/tools/copilot.py
 @@ -0,0 +1,131 @@
@@ -6357,7 +6454,7 @@ index 0000000..aafe811
 +            return service.job(context.user, value.job_id, session=context.session, cancel=value.operation == "cancel")
 +    raise ValueError("Unknown Copilot tool")
 diff --git a/src/models/copilot_integration.py b/src/models/copilot_integration.py
-index 6037abc..c60810f 100644
+index 6037abc33dedd98d01898b7bad831e74bf99841b..c60810f3491e6fa4c15ac7b60fcbf6b20fb82c16 100644
 --- a/src/models/copilot_integration.py
 +++ b/src/models/copilot_integration.py
 @@ -6,6 +6,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
@@ -6425,7 +6522,7 @@ index 6037abc..c60810f 100644
      error: Literal["timeout", "execution_failed", "grounding_failed"] | None = None
      result: CopilotResult | None = None
 diff --git a/src/models/schemas.py b/src/models/schemas.py
-index 905a9b9..9e75a5f 100644
+index 905a9b93a706d1d559025a06fd0d8dbfb57f8147..9e75a5fc1bc3dce3e46cfefbda4a48b7cef8fc02 100644
 --- a/src/models/schemas.py
 +++ b/src/models/schemas.py
 @@ -9,12 +9,15 @@ File này giữ DTO của API chat (`ChatRequest` / `ChatResponse`, nằm trong
@@ -6454,7 +6551,7 @@ index 905a9b9..9e75a5f 100644
      request: ChargeRequest | None = Field(default=None, description="Yêu cầu đã chỉnh sẵn khi chờ xác nhận (G3)")
      booking: Booking | None = Field(default=None, description="Booking vừa được xác nhận (G4)")
 diff --git a/src/services/auth.py b/src/services/auth.py
-index 78f1cad..77422f1 100644
+index 78f1cadb86acd8d7db5b15ad67edfef4af6b5402..77422f1679d3ef894b3076d132992d81454a6363 100644
 --- a/src/services/auth.py
 +++ b/src/services/auth.py
 @@ -89,6 +89,7 @@ def _issue_token(user: UserRecord) -> str:
@@ -6466,7 +6563,7 @@ index 78f1cad..77422f1 100644
      }
      return jwt.encode(claims, _secret(), algorithm=_ALGORITHM)
 diff --git a/src/services/copilot/integration.py b/src/services/copilot/integration.py
-index 5bf8470..c26b695 100644
+index 5bf8470155f1214f75de4e8de2c863b623c4b6c5..c26b6953806ec925f87472b254e7e2e0e7d18ed2 100644
 --- a/src/services/copilot/integration.py
 +++ b/src/services/copilot/integration.py
 @@ -1,14 +1,20 @@
@@ -6825,7 +6922,7 @@ index 5bf8470..c26b695 100644
  
      async def query(self, user: UserProfile, request: CopilotQueryRequest) -> CopilotQueryReply:
 diff --git a/src/services/copilot/jobs.py b/src/services/copilot/jobs.py
-index f24cc1b..bc5df49 100644
+index f24cc1bc96ae27e3368b28b698bf5e68f942d846..bc5df4926b1956b538693c2da55aaefc63e179de 100644
 --- a/src/services/copilot/jobs.py
 +++ b/src/services/copilot/jobs.py
 @@ -1,15 +1,20 @@
@@ -7069,7 +7166,7 @@ index f24cc1b..bc5df49 100644
              self._active_task.cancel()
          if self._worker is not None:
 diff --git a/tests/test_api/test_errors.py b/tests/test_api/test_errors.py
-index 37ff826..d9c930b 100644
+index 37ff826f7b2e41ff732b61a04b6d19671371e04a..d9c930b2df8a380965afb4e6a1d169c3c68a1d98 100644
 --- a/tests/test_api/test_errors.py
 +++ b/tests/test_api/test_errors.py
 @@ -112,9 +112,9 @@ async def test_chat_requires_resident_token(client):
@@ -7084,9 +7181,156 @@ index 37ff826..d9c930b 100644
  
  
  @pytest.mark.parametrize(
+diff --git a/tests/test_api/test_g6b_v3_bounds_and_disconnect.py b/tests/test_api/test_g6b_v3_bounds_and_disconnect.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5bf7f085ed7b3c8e500e2d7a6553923fc3e98276
+--- /dev/null
++++ b/tests/test_api/test_g6b_v3_bounds_and_disconnect.py
+@@ -0,0 +1,141 @@
++import asyncio
++import json
++
++import pytest
++from starlette.requests import Request
++
++from src.api import routes
++from src.llm_chat.graph import build_graph
++from src.llm_chat.schemas import AgentDecision
++from src.services import auth as auth_service
++from tests.test_api.test_copilot import demo_api as demo_api
++from tests.test_api.test_unified_copilot import chat, decision, provider, wait_chat_job
++from tests.test_services.test_recommendation import _site
++
++
++@pytest.mark.asyncio
++async def test_bound_never_silently_truncates_constraint(demo_api, monkeypatch):
++    client, _, _, _, _, _, operator = demo_api
++    prefix = (
++        "Cần nguồn bao nhiêu để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn. "
++        + "Tôi muốn đọc kết quả phân tích để hiểu rõ tình hình. " * 22
++    )
++    first = prefix + "Bắt đầu từ ngày mai lúc 18h00."
++    assert 1000 < len(prefix) < len(first) <= 5000
++    provider(
++        monkeypatch,
++        {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
++        decision("copilot_how_to", {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120}),
++    )
++    r1 = await chat(client, operator, first, session="long")
++    print("LONG1", len(first), r1["advisory"])
++    assert r1["advisory"][0]["code"] == "unsupported"
++
++    async def no_capture(*args, **kwargs):
++        pytest.fail("An oversized clarification must not create a snapshot or job")
++
++    monkeypatch.setattr("src.services.copilot.integration.capture_atomic_snapshot", no_capture)
++    r2 = await chat(client, operator, "Thử 22 đến 106 kW.", session="long")
++    a = r2["advisory"][0]
++    if a.get("job"):
++        j = await wait_chat_job(client, operator, a["job"], session="long")
++        print(
++            "LONG2",
++            json.dumps(
++                {"status": j["status"], "goal": j.get("result", {}).get("result", {}).get("goal")}, ensure_ascii=False
++            ),
++        )
++    else:
++        print("LONG2", a)
++    assert not a.get("job"), "A valid-length request lost a mandatory constraint after the 1000-char pending truncation"
++
++
++@pytest.mark.asyncio
++async def test_real_asgi_disconnect_releases_permit(demo_api, monkeypatch):
++    client, _, _, _, _, _, operator = demo_api
++    graph = build_graph()
++    entered = asyncio.Event()
++    steps = iter([{"thought": "missing grid", "action": "clarify", "clarify_field": "grid_input"}, "WAIT"])
++
++    class Model:
++        async def ainvoke(self, _):
++            nxt = next(steps)
++            if nxt == "WAIT":
++                entered.set()
++                await asyncio.Future()
++            return AgentDecision.model_validate(nxt)
++
++    monkeypatch.setattr(routes, "agent", graph)
++    monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda *_: Model())
++    r1 = await chat(client, operator, "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?", session="disconnect")
++    assert r1["advisory"][0]["code"] == "clarify"
++    user = auth_service.decode_token(operator["Authorization"].partition(" ")[2])
++    scope = {
++        "type": "http",
++        "asgi": {"version": "3.0", "spec_version": "2.3"},
++        "http_version": "1.1",
++        "method": "POST",
++        "path": "/api/v1/chat/stream",
++        "headers": [(b"authorization", operator["Authorization"].encode())],
++        "app": client._transport.app,
++    }
++    req = Request(scope)
++    config = routes._config(routes._context(req, user, "disconnect"))
++    stream = await routes.chat_stream(routes.ChatRequest(message="50 kW.", session_id="disconnect"), user, req)
++
++    async def receive():
++        await entered.wait()
++        return {"type": "http.disconnect"}
++
++    async def send(_message):
++        pass
++
++    try:
++        await asyncio.wait_for(stream(scope, receive, send), 5)
++        s = await graph.aget_state(config)
++        print(
++            "DISCONNECT",
++            routes._active_global_turns,
++            dict(routes._active_user_streams),
++            len(routes._active_threads),
++            s.values.get("pending_copilot_clarification"),
++            s.values.get("turn_in_progress"),
++        )
++        assert routes._active_global_turns == 0 and not routes._active_threads and not routes._active_user_streams
++        assert s.values.get("pending_copilot_clarification") is None and s.values.get("turn_in_progress") is False
++    finally:
++        # Isolate tests from the permit leak being probed.
++        if routes._active_threads:
++            routes._release_thread(routes._context(req, user, "disconnect"))
++
++
++@pytest.mark.asyncio
++async def test_disconnect_before_generator_starts_releases_permit(demo_api, monkeypatch):
++    client, _, _, _, _, _, operator = demo_api
++    monkeypatch.setattr(routes, "agent", build_graph())
++    user = auth_service.decode_token(operator["Authorization"].partition(" ")[2])
++    scope = {
++        "type": "http",
++        "asgi": {"version": "3.0", "spec_version": "2.3"},
++        "http_version": "1.1",
++        "method": "POST",
++        "path": "/api/v1/chat/stream",
++        "headers": [(b"authorization", operator["Authorization"].encode())],
++        "app": client._transport.app,
++    }
++    req = Request(scope)
++    stream = await routes.chat_stream(routes.ChatRequest(message="50 kW.", session_id="early-disconnect"), user, req)
++
++    async def receive():
++        return {"type": "http.disconnect"}
++
++    async def send(_message):
++        await asyncio.sleep(0.05)
++
++    try:
++        await asyncio.wait_for(stream(scope, receive, send), 5)
++        print("EARLY", routes._active_global_turns, dict(routes._active_user_streams), len(routes._active_threads))
++        assert routes._active_global_turns == 0 and not routes._active_threads and not routes._active_user_streams
++    finally:
++        if routes._active_threads:
++            routes._release_thread(routes._context(req, user, "early-disconnect"))
 diff --git a/tests/test_api/test_unified_copilot.py b/tests/test_api/test_unified_copilot.py
 new file mode 100644
-index 0000000..3e42344
+index 0000000000000000000000000000000000000000..3e4234492c10b09b0fc58e181348a5145c697e9e
 --- /dev/null
 +++ b/tests/test_api/test_unified_copilot.py
 @@ -0,0 +1,1332 @@

@@ -1,0 +1,12 @@
+check	exit
+g6b	0
+g2-g5-g6a	0
+legacy-f1	0
+architecture	0
+backend	0
+simulator	0
+ruff-lint	0
+ruff-format	0
+docs	1
+openapi	0
+offline-f1	0

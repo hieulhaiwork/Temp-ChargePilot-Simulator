@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="2.139" timestamp="2026-11-27T01:53:03.072947+00:00" hostname="LEHIEULAP"><testcase classname="tests.test_api.test_g6b_v3_bounds_and_disconnect" name="test_bound_never_silently_truncates_constraint" time="0.906"><failure message="AssertionError: assert 'clarify' == 'unsupported'&#10;  &#10;  - unsupported&#10;  + clarify">demo_api = (&lt;httpx.AsyncClient object at 0x7718d0c1b350&gt;, StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc m...OGI0YjU2MWU5ZTU0YzYxOGUyMzI4OGU5YzQyYWZlYSIsImV4cCI6MTc5NTc3MzE4M30.0h4pEF8JWXR2ugKX59UnBx0Qqc3YfD4oHJL1eJdS6VE'}, ...)
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7718d0bf9880&gt;
+
+    @pytest.mark.asyncio
+    async def test_bound_never_silently_truncates_constraint(demo_api, monkeypatch):
+        client, _, _, _, _, _, operator = demo_api
+        prefix = (
+            "Cần nguồn bao nhiêu để đạt mục tiêu đúng hạn 95%? Giữ xe AC đúng hạn. "
+            + "Tôi muốn đọc kết quả phân tích để hiểu rõ tình hình. " * 22
+        )
+        first = prefix + "Bắt đầu từ ngày mai lúc 18h00."
+        assert 1000 &lt; len(prefix) &lt; len(first) &lt;= 5000
+        provider(
+            monkeypatch,
+            {"thought": "missing bounds", "action": "clarify", "clarify_field": "bounds"},
+            decision("copilot_how_to", {"goal": _site(22, 106, min_original_on_time_rate=0.95), "horizon_minutes": 120}),
+        )
+        r1 = await chat(client, operator, first, session="long")
+        print("LONG1", len(first), r1["advisory"])
+&gt;       assert r1["advisory"][0]["code"] == "unsupported"
+E       AssertionError: assert 'clarify' == 'unsupported'
+E         
+E         - unsupported
+E         + clarify
+
+tests/test_api/test_g6b_v3_bounds_and_disconnect.py:32: AssertionError</failure></testcase><testcase classname="tests.test_api.test_g6b_v3_bounds_and_disconnect" name="test_real_asgi_disconnect_releases_permit" time="0.535"><failure message="assert (1 == 0)&#10; +  where 1 = routes._active_global_turns">demo_api = (&lt;httpx.AsyncClient object at 0x7718d0392d80&gt;, StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc m...MjRlYmJlM2ZiNjk0MzhiYmJiYzQzNDY4OWM3MWY5MCIsImV4cCI6MTc5NTc3MzE4NH0.XVNtbL37IEeJtm5RY9MSAT8prPyKq7cigdmZcygam5A'}, ...)
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7718d0cc6570&gt;
+
+    @pytest.mark.asyncio
+    async def test_real_asgi_disconnect_releases_permit(demo_api, monkeypatch):
+        client, _, _, _, _, _, operator = demo_api
+        graph = build_graph()
+        entered = asyncio.Event()
+        steps = iter([{"thought": "missing grid", "action": "clarify", "clarify_field": "grid_input"}, "WAIT"])
+    
+        class Model:
+            async def ainvoke(self, _):
+                nxt = next(steps)
+                if nxt == "WAIT":
+                    entered.set()
+                    await asyncio.Future()
+                return AgentDecision.model_validate(nxt)
+    
+        monkeypatch.setattr(routes, "agent", graph)
+        monkeypatch.setattr("src.llm_chat.nodes.reason_node.get_structured_llm", lambda *_: Model())
+        r1 = await chat(client, operator, "Nếu nguồn cấp riêng của cổng DC-01-1 bị giảm thì sao?", session="disconnect")
+        assert r1["advisory"][0]["code"] == "clarify"
+        user = auth_service.decode_token(operator["Authorization"].partition(" ")[2])
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "http_version": "1.1",
+            "method": "POST",
+            "path": "/api/v1/chat/stream",
+            "headers": [(b"authorization", operator["Authorization"].encode())],
+            "app": client._transport.app,
+        }
+        req = Request(scope)
+        config = routes._config(routes._context(req, user, "disconnect"))
+        stream = await routes.chat_stream(routes.ChatRequest(message="50 kW.", session_id="disconnect"), user, req)
+    
+        async def receive():
+            await entered.wait()
+            return {"type": "http.disconnect"}
+    
+        async def send(_message):
+            pass
+    
+        try:
+            await asyncio.wait_for(stream(scope, receive, send), 5)
+            s = await graph.aget_state(config)
+            print(
+                "DISCONNECT",
+                routes._active_global_turns,
+                dict(routes._active_user_streams),
+                len(routes._active_threads),
+                s.values.get("pending_copilot_clarification"),
+                s.values.get("turn_in_progress"),
+            )
+&gt;           assert routes._active_global_turns == 0 and not routes._active_threads and not routes._active_user_streams
+E           assert (1 == 0)
+E            +  where 1 = routes._active_global_turns
+
+tests/test_api/test_g6b_v3_bounds_and_disconnect.py:104: AssertionError</failure></testcase><testcase classname="tests.test_api.test_g6b_v3_bounds_and_disconnect" name="test_disconnect_before_generator_starts_releases_permit" time="0.520"><failure message="assert (1 == 0)&#10; +  where 1 = routes._active_global_turns">demo_api = (&lt;httpx.AsyncClient object at 0x7718d01fe210&gt;, StationRuntime(config=StationConfig(station_id='CP-01', name='Bãi sạc m...Y2M5NmY2MDdhZTM0OTM3YmQ2YWI4YWI5MmM5ZWNiZCIsImV4cCI6MTc5NTc3MzE4NX0.gpT8wccvJ6_EVfttkNlbHUZSUGnG6SF8q0OqzwYgWk4'}, ...)
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7718d0cc5370&gt;
+
+    @pytest.mark.asyncio
+    async def test_disconnect_before_generator_starts_releases_permit(demo_api, monkeypatch):
+        client, _, _, _, _, _, operator = demo_api
+        monkeypatch.setattr(routes, "agent", build_graph())
+        user = auth_service.decode_token(operator["Authorization"].partition(" ")[2])
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "http_version": "1.1",
+            "method": "POST",
+            "path": "/api/v1/chat/stream",
+            "headers": [(b"authorization", operator["Authorization"].encode())],
+            "app": client._transport.app,
+        }
+        req = Request(scope)
+        stream = await routes.chat_stream(routes.ChatRequest(message="50 kW.", session_id="early-disconnect"), user, req)
+    
+        async def receive():
+            return {"type": "http.disconnect"}
+    
+        async def send(_message):
+            await asyncio.sleep(0.05)
+    
+        try:
+            await asyncio.wait_for(stream(scope, receive, send), 5)
+            print("EARLY", routes._active_global_turns, dict(routes._active_user_streams), len(routes._active_threads))
+&gt;           assert routes._active_global_turns == 0 and not routes._active_threads and not routes._active_user_streams
+E           assert (1 == 0)
+E            +  where 1 = routes._active_global_turns
+
+tests/test_api/test_g6b_v3_bounds_and_disconnect.py:138: AssertionError</failure></testcase></testsuite></testsuites>

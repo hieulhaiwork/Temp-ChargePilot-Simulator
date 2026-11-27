@@ -156,6 +156,13 @@ Tech Lead quyết định **G5 APPROVED** tại mirror `42438430ee49f404e90080c4
 | **F01-R3** — Độ lệch tương đối theo hạn gốc bị dịch thành tương đối theo `now` | **Confirmed residual bug (`de82afe7`) → Fixed (`c519845`)** | Tái hiện fail-before: `"muộn hơn 30 phút so với hạn gốc"` từng tạo hạn `12:31+07` thay vì `14:30+07`. Tách `_SHIFT_OFFSET` / `_NON_NOW_ANCHOR` khỏi `_RELATIVE` (chỉ giữ `sau`/`trước`/`in` tính từ `now`), trả `clarify("time")` / `unsupported` trước `capture_atomic_snapshot`; kiểm chứng đối chứng dương tính cả `sau 30 phút` (`12:31+07`) và mốc tuyệt đối `2026-11-23T14:30:00+07:00` (`14:30+07`). |
 | **F01-R1-MT & F01-R2-MT** — Mất ràng buộc phạm vi/thời gian khi phân bổ tham số qua lượt làm rõ | **Confirmed residual bug (`c519845`) → Fixed in V3** | Tái hiện fail-before (`f01-mt-fail-before.log`): Lượt 1 `clarify("grid_input" / "bounds")` giữ phạm vi cổng `DC-01-1` hoặc lịch hẹn `ngày mai 18h00`, Lượt 2 bổ sung `50 kW` / `22–106 kW` từng lọt qua `conflicts_with_simulation` do chỉ kiểm điều kiện cấm trên câu hiện tại và đọc toàn bộ `state["history"]`. Đã triển khai theo quyết định `APPROVED WITH CONDITIONS` của Tech Lead: trạng thái `pending_copilot_clarification` có giới hạn (tối đa 3 lượt, TTL 300s, cờ `turn_in_progress`, dọn dẹp khi hoàn tất/timeout/SSE disconnect/HITL, bảo toàn `WHY + clarify` hỗn hợp) kết hợp kiểm tra đối xứng mọi ràng buộc trên tất cả lượt của yêu cầu đang mở và chỉ re-anchor khi lượt trước đã đóng hoặc người dùng hủy câu trước tường minh (`4/4` reproducer + `23/23` focused G6B PASS, `0` lần chụp snapshot trên mọi ca âm tính). |
 
+## Gate 6B final remediation (sau review mirror `92f0913`)
+
+| Finding | Phân loại | Fail-before và kiểm chứng bản sửa |
+|---|---|---|
+| **B1** — Cắt âm thầm yêu cầu chờ làm rõ | **Confirmed → Fixed (Tested)** | V3 trả `clarify` cho câu 1.266 ký tự và cắt mất điều kiện thời gian ở phần cuối. Sau sửa, server trả `unsupported`, hướng dẫn gửi lại yêu cầu đầy đủ, ngắn gọn. Câu bổ sung sau khi bị từ chối không tạo snapshot hay job. Giữ giới hạn 1.000 ký tự mỗi lượt chờ, 3 lượt, TTL 300 giây và giới hạn 5.000 ký tự của API. |
+| **B2** — Rò permit khi SSE ngắt kết nối | **Confirmed → Fixed (Tested)** | Cả ngắt giữa stream lẫn ngắt trước khi bắt đầu iterator đều giữ 1 permit và 1 thread active trên V3. Ca giữa stream còn giữ pending clarification và `turn_in_progress=true`. Sau sửa, một hàm dọn dẹp dùng chung chạy tối đa một lần, che chắn tối đa 2 giây khi dọn checkpoint và luôn nhả permit. Cả hai ca ASGI đạt. |
+
 [Báo cáo Gate 6B](PHASE_4_4B_REPORT.md) · [Recovery G6B](G6B_RECOVERY_STATE.md) · [Verification bundle](../../eval/evidence/2026-11-26-ai4-g6b/verification-bundle.zip)
 
 **G6B — READY_FOR_FINAL_ACCEPTANCE.** Chờ Tech Lead nghiệm thu độc lập.
